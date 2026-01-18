@@ -1,0 +1,341 @@
+/* Scanner Control Room Theme - Technical/Industrial Aesthetic */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap');
+
+:root {
+	/* Control Room Color Palette */
+	--scan-bg-primary: #0a0e14;
+	--scan-bg-secondary: #0f1419;
+	--scan-bg-tertiary: #151b24;
+	--scan-bg-panel: #1a2129;
+	--scan-bg-elevated: #1f2832;
+
+	/* Grid & Borders */
+	--scan-border: #2a3441;
+	--scan-border-active: #3d4a5c;
+	--scan-grid-line: rgba(42, 52, 65, 0.5);
+
+	/* Status Colors - Vibrant LED style */
+	--scan-online: #10b981;
+	--scan-online-glow: rgba(16, 185, 129, 0.3);
+	--scan-offline: #6b7280;
+	--scan-offline-dim: rgba(107, 114, 128, 0.3);
+	--scan-busy: #f59e0b;
+	--scan-busy-glow: rgba(245, 158, 11, 0.3);
+	--scan-error: #ef4444;
+	--scan-error-glow: rgba(239, 68, 68, 0.3);
+	--scan-maintenance: #8b5cf6;
+
+	/* Accent & Interactive */
+	--scan-accent: #06b6d4;
+	--scan-accent-glow: rgba(6, 182, 212, 0.25);
+	--scan-accent-bright: #22d3ee;
+	--scan-highlight: #3b82f6;
+
+	/* Text */
+	--scan-text-primary: #e2e8f0;
+	--scan-text-secondary: #94a3b8;
+	--scan-text-muted: #64748b;
+	--scan-text-bright: #f8fafc;
+
+	/* Technical Readout */
+	--scan-readout-bg: #0d1117;
+	--scan-readout-border: #21262d;
+	--scan-scanline: rgba(6, 182, 212, 0.03);
+
+	/* Fonts */
+	--font-mono: 'JetBrains Mono', monospace;
+	--font-sans: 'Outfit', sans-serif;
+
+	/* Animation Timing */
+	--scan-transition: 200ms ease-out;
+	--scan-pulse: 2s ease-in-out infinite;
+}
+
+/* Light theme override */
+[data-theme="light"] {
+	--scan-bg-primary: #f1f5f9;
+	--scan-bg-secondary: #e2e8f0;
+	--scan-bg-tertiary: #cbd5e1;
+	--scan-bg-panel: #ffffff;
+	--scan-bg-elevated: #f8fafc;
+	--scan-border: #cbd5e1;
+	--scan-border-active: #94a3b8;
+	--scan-grid-line: rgba(148, 163, 184, 0.3);
+	--scan-text-primary: #1e293b;
+	--scan-text-secondary: #475569;
+	--scan-text-muted: #64748b;
+	--scan-text-bright: #0f172a;
+	--scan-readout-bg: #f8fafc;
+	--scan-readout-border: #e2e8f0;
+	--scan-scanline: rgba(6, 182, 212, 0.05);
+}
+
+/* Scanline effect overlay */
+@keyframes scanline {
+	0% { transform: translateY(-100%); }
+	100% { transform: translateY(100vh); }
+}
+
+.scan-overlay::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background: repeating-linear-gradient(
+		0deg,
+		transparent,
+		transparent 2px,
+		var(--scan-scanline) 2px,
+		var(--scan-scanline) 4px
+	);
+	pointer-events: none;
+	z-index: 1;
+}
+
+.scan-overlay::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(
+		180deg,
+		transparent 0%,
+		var(--scan-accent-glow) 50%,
+		transparent 100%
+	);
+	height: 60px;
+	animation: scanline 8s linear infinite;
+	pointer-events: none;
+	z-index: 2;
+	opacity: 0.3;
+}
+
+/* LED pulse animation */
+@keyframes led-pulse {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.6; }
+}
+
+@keyframes led-blink {
+	0%, 49% { opacity: 1; }
+	50%, 100% { opacity: 0.3; }
+}
+
+.led-online {
+	background: var(--scan-online);
+	box-shadow: 0 0 8px var(--scan-online), 0 0 16px var(--scan-online-glow);
+	animation: led-pulse var(--scan-pulse);
+}
+
+.led-offline {
+	background: var(--scan-offline);
+}
+
+.led-busy {
+	background: var(--scan-busy);
+	box-shadow: 0 0 8px var(--scan-busy), 0 0 16px var(--scan-busy-glow);
+	animation: led-blink 1s step-end infinite;
+}
+
+.led-error {
+	background: var(--scan-error);
+	box-shadow: 0 0 8px var(--scan-error), 0 0 16px var(--scan-error-glow);
+	animation: led-blink 0.5s step-end infinite;
+}
+
+/* Grid pattern background */
+.scan-grid-bg {
+	background-image:
+		linear-gradient(var(--scan-grid-line) 1px, transparent 1px),
+		linear-gradient(90deg, var(--scan-grid-line) 1px, transparent 1px);
+	background-size: 20px 20px;
+}
+
+/* Technical readout panel */
+.scan-readout {
+	background: var(--scan-readout-bg);
+	border: 1px solid var(--scan-readout-border);
+	font-family: var(--font-mono);
+	position: relative;
+	overflow: hidden;
+}
+
+.scan-readout::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 1px;
+	background: linear-gradient(90deg, transparent, var(--scan-accent), transparent);
+}
+
+/* Hardware schematic decoration */
+.scan-schematic {
+	position: relative;
+}
+
+.scan-schematic::before {
+	content: '';
+	position: absolute;
+	top: -8px;
+	left: -8px;
+	width: 16px;
+	height: 16px;
+	border-left: 2px solid var(--scan-border-active);
+	border-top: 2px solid var(--scan-border-active);
+}
+
+.scan-schematic::after {
+	content: '';
+	position: absolute;
+	bottom: -8px;
+	right: -8px;
+	width: 16px;
+	height: 16px;
+	border-right: 2px solid var(--scan-border-active);
+	border-bottom: 2px solid var(--scan-border-active);
+}
+
+/* Gauge/meter styling */
+.scan-gauge {
+	position: relative;
+	height: 6px;
+	background: var(--scan-bg-secondary);
+	border-radius: 3px;
+	overflow: hidden;
+}
+
+.scan-gauge-fill {
+	height: 100%;
+	background: linear-gradient(90deg, var(--scan-accent), var(--scan-accent-bright));
+	border-radius: 3px;
+	transition: width 0.5s ease-out;
+	position: relative;
+}
+
+.scan-gauge-fill::after {
+	content: '';
+	position: absolute;
+	right: 0;
+	top: 0;
+	bottom: 0;
+	width: 20px;
+	background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3));
+}
+
+/* Activity indicator - oscilloscope style */
+@keyframes wave {
+	0% { transform: translateX(0); }
+	100% { transform: translateX(-50%); }
+}
+
+.scan-activity {
+	height: 32px;
+	background: var(--scan-readout-bg);
+	border: 1px solid var(--scan-readout-border);
+	border-radius: 4px;
+	overflow: hidden;
+	position: relative;
+}
+
+.scan-activity-wave {
+	position: absolute;
+	inset: 0;
+	background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 32' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 16 Q25 4 50 16 T100 16 T150 16 T200 16' stroke='%2306b6d4' stroke-width='2' fill='none' opacity='0.6'/%3E%3C/svg%3E");
+	background-repeat: repeat-x;
+	background-size: 200px 32px;
+	animation: wave 2s linear infinite;
+}
+
+/* Panel with corner accents */
+.scan-panel {
+	background: var(--scan-bg-panel);
+	border: 1px solid var(--scan-border);
+	border-radius: 8px;
+	position: relative;
+}
+
+.scan-panel-header {
+	padding: 12px 16px;
+	border-bottom: 1px solid var(--scan-border);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	font-family: var(--font-mono);
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.1em;
+	color: var(--scan-text-secondary);
+}
+
+.scan-panel-header::before {
+	content: '//';
+	margin-right: 8px;
+	color: var(--scan-accent);
+}
+
+/* Interactive elements */
+.scan-btn {
+	font-family: var(--font-mono);
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	padding: 8px 16px;
+	border: 1px solid var(--scan-border);
+	background: var(--scan-bg-tertiary);
+	color: var(--scan-text-primary);
+	border-radius: 4px;
+	cursor: pointer;
+	transition: all var(--scan-transition);
+	position: relative;
+	overflow: hidden;
+}
+
+.scan-btn:hover {
+	background: var(--scan-bg-elevated);
+	border-color: var(--scan-accent);
+	color: var(--scan-accent);
+}
+
+.scan-btn-primary {
+	background: var(--scan-accent);
+	border-color: var(--scan-accent);
+	color: var(--scan-bg-primary);
+}
+
+.scan-btn-primary:hover {
+	background: var(--scan-accent-bright);
+	border-color: var(--scan-accent-bright);
+	box-shadow: 0 0 20px var(--scan-accent-glow);
+}
+
+/* Card hover lift */
+.scan-card {
+	transition: all var(--scan-transition);
+}
+
+.scan-card:hover {
+	transform: translateY(-2px);
+	border-color: var(--scan-border-active);
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Stagger animation for lists */
+.scan-stagger > * {
+	opacity: 0;
+	transform: translateY(10px);
+	animation: scan-fade-in 0.3s ease-out forwards;
+}
+
+@keyframes scan-fade-in {
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.scan-stagger > *:nth-child(1) { animation-delay: 0.05s; }
+.scan-stagger > *:nth-child(2) { animation-delay: 0.1s; }
+.scan-stagger > *:nth-child(3) { animation-delay: 0.15s; }
+.scan-stagger > *:nth-child(4) { animation-delay: 0.2s; }
+.scan-stagger > *:nth-child(5) { animation-delay: 0.25s; }
+.scan-stagger > *:nth-child(6) { animation-delay: 0.3s; }
