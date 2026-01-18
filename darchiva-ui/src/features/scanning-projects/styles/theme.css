@@ -1,0 +1,258 @@
+/* dArchiva Scanning Projects - Industrial Command Center Theme */
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Geist:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* === Industrial Dark Palette === */
+  --sp-bg-primary: #0a0c0f;
+  --sp-bg-secondary: #12151a;
+  --sp-bg-tertiary: #1a1e25;
+  --sp-bg-elevated: #22272f;
+  --sp-bg-hover: #2a3039;
+
+  /* Surface layers with transparency */
+  --sp-surface-glass: rgba(26, 30, 37, 0.85);
+  --sp-surface-overlay: rgba(10, 12, 15, 0.95);
+
+  /* Text hierarchy */
+  --sp-text-primary: #e8eaed;
+  --sp-text-secondary: #9aa0a6;
+  --sp-text-tertiary: #5f6368;
+  --sp-text-muted: #3c4043;
+
+  /* === Status Colors - Industrial Coding === */
+  --sp-status-success: #34d399;
+  --sp-status-success-bg: rgba(52, 211, 153, 0.12);
+  --sp-status-success-border: rgba(52, 211, 153, 0.3);
+
+  --sp-status-warning: #fbbf24;
+  --sp-status-warning-bg: rgba(251, 191, 36, 0.12);
+  --sp-status-warning-border: rgba(251, 191, 36, 0.3);
+
+  --sp-status-critical: #f87171;
+  --sp-status-critical-bg: rgba(248, 113, 113, 0.12);
+  --sp-status-critical-border: rgba(248, 113, 113, 0.3);
+
+  --sp-status-info: #38bdf8;
+  --sp-status-info-bg: rgba(56, 189, 248, 0.12);
+  --sp-status-info-border: rgba(56, 189, 248, 0.3);
+
+  --sp-status-neutral: #6b7280;
+  --sp-status-neutral-bg: rgba(107, 114, 128, 0.12);
+  --sp-status-neutral-border: rgba(107, 114, 128, 0.3);
+
+  /* === Accent Colors === */
+  --sp-accent-primary: #22d3ee;
+  --sp-accent-secondary: #a78bfa;
+  --sp-accent-tertiary: #fb923c;
+
+  /* === Data Visualization Palette === */
+  --sp-chart-1: #22d3ee;
+  --sp-chart-2: #a78bfa;
+  --sp-chart-3: #34d399;
+  --sp-chart-4: #fbbf24;
+  --sp-chart-5: #fb923c;
+  --sp-chart-6: #f472b6;
+  --sp-chart-grid: rgba(255, 255, 255, 0.05);
+  --sp-chart-axis: rgba(255, 255, 255, 0.1);
+
+  /* === Borders & Lines === */
+  --sp-border-subtle: rgba(255, 255, 255, 0.06);
+  --sp-border-default: rgba(255, 255, 255, 0.1);
+  --sp-border-strong: rgba(255, 255, 255, 0.15);
+  --sp-border-accent: var(--sp-accent-primary);
+
+  /* === Shadows === */
+  --sp-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --sp-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --sp-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+  --sp-shadow-glow: 0 0 20px rgba(34, 211, 238, 0.15);
+
+  /* === Typography === */
+  --sp-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --sp-font-sans: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* === Spacing Scale === */
+  --sp-space-1: 4px;
+  --sp-space-2: 8px;
+  --sp-space-3: 12px;
+  --sp-space-4: 16px;
+  --sp-space-5: 20px;
+  --sp-space-6: 24px;
+  --sp-space-8: 32px;
+  --sp-space-10: 40px;
+  --sp-space-12: 48px;
+
+  /* === Border Radius === */
+  --sp-radius-sm: 4px;
+  --sp-radius-md: 6px;
+  --sp-radius-lg: 8px;
+
+  /* === Transitions === */
+  --sp-transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --sp-transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --sp-transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Light theme override */
+[data-theme="light"] {
+  --sp-bg-primary: #f8fafc;
+  --sp-bg-secondary: #f1f5f9;
+  --sp-bg-tertiary: #e2e8f0;
+  --sp-bg-elevated: #ffffff;
+  --sp-bg-hover: #e2e8f0;
+
+  --sp-surface-glass: rgba(255, 255, 255, 0.9);
+  --sp-surface-overlay: rgba(248, 250, 252, 0.95);
+
+  --sp-text-primary: #0f172a;
+  --sp-text-secondary: #475569;
+  --sp-text-tertiary: #94a3b8;
+  --sp-text-muted: #cbd5e1;
+
+  --sp-border-subtle: rgba(0, 0, 0, 0.04);
+  --sp-border-default: rgba(0, 0, 0, 0.08);
+  --sp-border-strong: rgba(0, 0, 0, 0.12);
+
+  --sp-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --sp-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --sp-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+  --sp-chart-grid: rgba(0, 0, 0, 0.05);
+  --sp-chart-axis: rgba(0, 0, 0, 0.1);
+}
+
+/* === Base Styles === */
+.sp-container {
+  font-family: var(--sp-font-sans);
+  background: var(--sp-bg-primary);
+  color: var(--sp-text-primary);
+  min-height: 100vh;
+}
+
+/* Industrial grid texture overlay */
+.sp-grid-texture {
+  position: relative;
+}
+
+.sp-grid-texture::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-size: 20px 20px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Scan line effect for headers */
+.sp-scanline {
+  position: relative;
+  overflow: hidden;
+}
+
+.sp-scanline::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent,
+    var(--sp-accent-primary),
+    transparent
+  );
+  animation: sp-scan 3s linear infinite;
+}
+
+@keyframes sp-scan {
+  0% { transform: translateX(-100%); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateX(100%); opacity: 0; }
+}
+
+/* Pulse animation for live data */
+@keyframes sp-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.sp-pulse {
+  animation: sp-pulse 2s ease-in-out infinite;
+}
+
+/* Heartbeat for critical metrics */
+@keyframes sp-heartbeat {
+  0%, 100% { transform: scale(1); }
+  25% { transform: scale(1.05); }
+  50% { transform: scale(1); }
+  75% { transform: scale(1.02); }
+}
+
+.sp-heartbeat {
+  animation: sp-heartbeat 1.5s ease-in-out infinite;
+}
+
+/* Staggered fade-in for data loads */
+@keyframes sp-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.sp-stagger > * {
+  animation: sp-fade-up 0.4s ease-out forwards;
+  opacity: 0;
+}
+
+.sp-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.sp-stagger > *:nth-child(2) { animation-delay: 50ms; }
+.sp-stagger > *:nth-child(3) { animation-delay: 100ms; }
+.sp-stagger > *:nth-child(4) { animation-delay: 150ms; }
+.sp-stagger > *:nth-child(5) { animation-delay: 200ms; }
+.sp-stagger > *:nth-child(6) { animation-delay: 250ms; }
+.sp-stagger > *:nth-child(7) { animation-delay: 300ms; }
+.sp-stagger > *:nth-child(8) { animation-delay: 350ms; }
+
+/* Number counter animation */
+@keyframes sp-count-up {
+  from { opacity: 0.5; filter: blur(4px); }
+  to { opacity: 1; filter: blur(0); }
+}
+
+.sp-number-reveal {
+  animation: sp-count-up 0.6s ease-out;
+}
+
+/* Progress bar fill animation */
+@keyframes sp-progress-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.sp-progress-animated {
+  transform-origin: left;
+  animation: sp-progress-fill 1s ease-out forwards;
+}
+
+/* Glow effect for important elements */
+.sp-glow {
+  box-shadow: var(--sp-shadow-glow);
+}
+
+.sp-glow-pulse {
+  animation: sp-glow-pulse 2s ease-in-out infinite;
+}
+
+@keyframes sp-glow-pulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(34, 211, 238, 0.2); }
+  50% { box-shadow: 0 0 25px rgba(34, 211, 238, 0.4); }
+}
