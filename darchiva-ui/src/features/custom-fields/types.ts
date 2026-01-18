@@ -3,7 +3,8 @@
  * Custom fields feature types.
  */
 
-export type CustomFieldType = 'text' | 'number' | 'date' | 'boolean' | 'select' | 'url' | 'email' | 'monetary';
+// GitHub Issue #631: Added 'datetime' type for datetime custom fields
+export type CustomFieldType = 'text' | 'number' | 'date' | 'datetime' | 'boolean' | 'select' | 'url' | 'email' | 'monetary';
 
 export interface CustomFieldOption {
 	value: string;
@@ -60,9 +61,20 @@ export const FIELD_TYPE_LABELS: Record<CustomFieldType, string> = {
 	text: 'Text',
 	number: 'Number',
 	date: 'Date',
+	datetime: 'Date & Time', // GitHub Issue #631
 	boolean: 'Yes/No',
 	select: 'Dropdown',
 	url: 'URL',
 	email: 'Email',
 	monetary: 'Currency',
 };
+
+// GitHub Issue #700: Configuration for date/datetime fields
+export interface DateFieldConfig {
+	allow_manual_entry: boolean; // Allow typing date directly
+	min_date?: string;
+	max_date?: string;
+	date_format?: string; // Display format
+	include_time?: boolean; // For datetime type
+	time_format?: '12h' | '24h';
+}
