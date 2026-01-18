@@ -10,3 +10,6 @@ export { Routing } from './Routing';
 export { Settings } from './Settings';
 export { Encryption } from './Encryption';
 export { Security } from './Security';
+
+// User Home Page - Personalized Dashboard
+export { UserHomePage } from '@/features/home';

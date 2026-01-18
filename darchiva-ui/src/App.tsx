@@ -14,6 +14,7 @@ import {
 	Settings,
 	Encryption,
 	Security,
+	UserHomePage,
 } from './pages';
 import {
 	ScanningProjects,
@@ -37,7 +38,8 @@ export default function App() {
 			<BrowserRouter>
 				<Routes>
 					<Route path="/" element={<Layout />}>
-						<Route index element={<Dashboard />} />
+						<Route index element={<UserHomePage />} />
+						<Route path="dashboard" element={<Dashboard />} />
 						<Route path="documents" element={<Documents />} />
 						<Route path="documents/:folderId" element={<Documents />} />
 						<Route path="workflows" element={<Workflows />} />

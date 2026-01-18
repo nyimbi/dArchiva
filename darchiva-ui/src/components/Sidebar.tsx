@@ -16,12 +16,14 @@ import {
 	FileText,
 	Shield,
 	ScanLine,
+	Home,
 } from 'lucide-react';
 import { useStore } from '@/hooks/useStore';
 import { cn } from '@/lib/utils';
 
 const navItems = [
-	{ id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/' },
+	{ id: 'home', label: 'Home', icon: Home, path: '/' },
+	{ id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
 	{ id: 'documents', label: 'Documents', icon: FolderTree, path: '/documents' },
 	{ id: 'scanning', label: 'Scanning Projects', icon: ScanLine, path: '/scanning-projects' },
 	{ id: 'workflows', label: 'Workflows', icon: GitBranch, path: '/workflows' },
