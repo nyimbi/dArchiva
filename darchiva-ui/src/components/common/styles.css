@@ -1,0 +1,243 @@
+/* Common Components - Warm Archival Theme */
+:root {
+	--common-bg: #FAF7F2;
+	--common-surface: #FFFFFF;
+	--common-border: #E8E2D9;
+	--common-text: #2D2A26;
+	--common-muted: #7A746A;
+	--common-accent: #C75B3B;
+	--common-success: #059669;
+	--common-hover: rgba(200, 195, 185, 0.15);
+
+	/* Aliases for components */
+	--copy-text: var(--common-text);
+	--copy-muted: var(--common-muted);
+	--copy-success: var(--common-success);
+	--confirm-text: var(--common-text);
+	--confirm-muted: var(--common-muted);
+}
+
+.dark {
+	--common-bg: #1A1918;
+	--common-surface: #242321;
+	--common-border: #3D3A36;
+	--common-text: #F5F2ED;
+	--common-muted: #9C9689;
+	--common-hover: rgba(255, 255, 255, 0.05);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DataTable
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.dt-container {
+	background: var(--common-surface);
+	border: 1px solid var(--common-border);
+	border-radius: 12px;
+	overflow: hidden;
+}
+
+.dt-wrapper {
+	overflow-x: auto;
+}
+
+.dt-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.dt-header-row {
+	border-bottom: 1px solid var(--common-border);
+}
+
+.dt-th {
+	padding: 0.875rem 1rem;
+	text-align: left;
+	font-size: 0.75rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--common-muted);
+	white-space: nowrap;
+}
+
+.dt-th-sortable {
+	cursor: pointer;
+	user-select: none;
+	transition: color 0.15s;
+}
+.dt-th-sortable:hover { color: var(--common-text); }
+
+.dt-th-content {
+	display: flex;
+	align-items: center;
+	gap: 0.375rem;
+}
+
+.dt-sort-icon {
+	width: 0.875rem;
+	height: 0.875rem;
+}
+
+.dt-th-checkbox {
+	width: 3rem;
+	text-align: center;
+}
+
+.dt-row {
+	border-bottom: 1px solid var(--common-border);
+	transition: background 0.15s;
+}
+.dt-row:last-child { border-bottom: none; }
+.dt-row:hover { background: var(--common-hover); }
+.dt-row-selected { background: rgba(199, 91, 59, 0.05); }
+
+.dt-td {
+	padding: 0.875rem 1rem;
+	color: var(--common-text);
+	font-size: 0.9rem;
+}
+
+.dt-td-checkbox {
+	width: 3rem;
+	text-align: center;
+}
+
+.dt-checkbox {
+	width: 1rem;
+	height: 1rem;
+	accent-color: var(--common-accent);
+	cursor: pointer;
+}
+
+.dt-loading,
+.dt-empty {
+	padding: 3rem 1rem;
+	text-align: center;
+	color: var(--common-muted);
+}
+
+.dt-pagination {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0.75rem 1rem;
+	border-top: 1px solid var(--common-border);
+}
+
+.dt-page-info {
+	font-size: 0.8rem;
+	color: var(--common-muted);
+}
+
+.dt-page-controls {
+	display: flex;
+	gap: 0.25rem;
+}
+
+.dt-page-btn {
+	padding: 0.375rem;
+	border-radius: 6px;
+	color: var(--common-muted);
+	transition: all 0.15s;
+}
+.dt-page-btn:hover:not(:disabled) {
+	background: var(--common-hover);
+	color: var(--common-text);
+}
+.dt-page-btn:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ConfirmDialog
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.confirm-dialog {
+	background: var(--common-surface);
+	border-radius: 16px;
+	box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+	animation: confirmEnter 0.2s ease;
+}
+
+@keyframes confirmEnter {
+	from { opacity: 0; transform: scale(0.95); }
+	to { opacity: 1; transform: scale(1); }
+}
+
+.confirm-icon {
+	width: 3.5rem;
+	height: 3.5rem;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 50%;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CopyButton
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.copy-code {
+	font-family: 'SF Mono', 'Fira Code', monospace;
+	font-size: 0.8rem;
+	color: var(--common-muted);
+	background: var(--common-hover);
+	padding: 0.125rem 0.375rem;
+	border-radius: 4px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   EmptyState
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.empty-state {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 3rem 1.5rem;
+	text-align: center;
+}
+
+.empty-icon {
+	width: 4rem;
+	height: 4rem;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--common-hover);
+	color: var(--common-muted);
+	border-radius: 50%;
+	margin-bottom: 1rem;
+}
+
+.empty-title {
+	font-family: 'Newsreader', serif;
+	font-size: 1.125rem;
+	font-weight: 600;
+	color: var(--common-text);
+	margin-bottom: 0.375rem;
+}
+
+.empty-description {
+	font-size: 0.9rem;
+	color: var(--common-muted);
+	max-width: 280px;
+}
+
+.empty-action {
+	margin-top: 1.25rem;
+	background: var(--common-accent) !important;
+	color: white !important;
+}
+
+.empty-inline {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 1rem;
+	color: var(--common-muted);
+	font-size: 0.85rem;
+}
