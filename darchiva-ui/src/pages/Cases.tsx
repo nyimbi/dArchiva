@@ -1,6 +1,6 @@
 // (c) Copyright Datacraft, 2026
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
 	Briefcase,
 	Plus,
@@ -14,34 +14,26 @@ import {
 	Tag,
 	Archive,
 	ChevronRight,
+	Loader2,
 } from 'lucide-react';
-import { cn, formatDate, formatRelativeTime } from '@/lib/utils';
-import type { Case, Bundle } from '@/types';
-
-// Mock data
-const mockCases: Case[] = [
-	{ id: 'c1', caseNumber: '2024-0892', title: 'Johnson Estate Settlement', description: 'Probate and estate distribution', status: 'in_progress', portfolioId: 'p1', documentCount: 47, createdAt: new Date(Date.now() - 2592000000).toISOString() },
-	{ id: 'c2', caseNumber: '2024-0891', title: 'ABC Corp vs XYZ Inc', description: 'Contract dispute litigation', status: 'open', documentCount: 23, createdAt: new Date(Date.now() - 1728000000).toISOString() },
-	{ id: 'c3', caseNumber: '2024-0890', title: 'Smith Property Acquisition', description: 'Real estate transaction', status: 'in_progress', portfolioId: 'p2', documentCount: 31, createdAt: new Date(Date.now() - 1296000000).toISOString() },
-	{ id: 'c4', caseNumber: '2024-0889', title: 'Davis Trademark Application', description: 'IP registration', status: 'closed', documentCount: 12, createdAt: new Date(Date.now() - 5184000000).toISOString(), closedAt: new Date(Date.now() - 432000000).toISOString() },
-	{ id: 'c5', caseNumber: '2024-0888', title: 'Martinez Insurance Claim', description: 'Personal injury claim', status: 'archived', documentCount: 89, createdAt: new Date(Date.now() - 8640000000).toISOString(), closedAt: new Date(Date.now() - 2592000000).toISOString() },
-];
-
-const mockBundles: Bundle[] = [
-	{ id: 'b1', name: 'Initial Filing Documents', description: 'Court filing documents', documentCount: 8, status: 'finalized', createdAt: new Date(Date.now() - 1296000000).toISOString() },
-	{ id: 'b2', name: 'Discovery Materials', description: 'Depositions and evidence', documentCount: 15, status: 'draft', createdAt: new Date(Date.now() - 864000000).toISOString() },
-	{ id: 'b3', name: 'Expert Reports', description: 'Expert witness documents', documentCount: 4, status: 'draft', createdAt: new Date(Date.now() - 432000000).toISOString() },
-];
+import { cn, formatDate } from '@/lib/utils';
+import {
+	useCases,
+	useBundles,
+	type Case,
+	type Bundle,
+	type CaseStatus,
+} from '@/features/cases';
 
 function CaseCard({ caseData }: { caseData: Case }) {
-	const statusConfig = {
+	const statusConfig: Record<CaseStatus, { label: string; color: string }> = {
 		open: { label: 'Open', color: 'badge-blue' },
-		in_progress: { label: 'In Progress', color: 'badge-brass' },
+		pending: { label: 'Pending', color: 'badge-brass' },
 		closed: { label: 'Closed', color: 'badge-green' },
-		archived: { label: 'Archived', color: 'badge-gray' },
+		on_hold: { label: 'On Hold', color: 'badge-gray' },
 	};
 
-	const status = statusConfig[caseData.status];
+	const status = statusConfig[caseData.status] || statusConfig.open;
 
 	return (
 		<motion.div
@@ -53,9 +45,9 @@ function CaseCard({ caseData }: { caseData: Case }) {
 				<div className="flex items-center gap-3">
 					<div className={cn(
 						'p-2 rounded-lg',
-						caseData.status === 'archived' ? 'bg-slate-700/50 text-slate-400' : 'bg-brass-500/10 text-brass-400'
+						caseData.status === 'closed' ? 'bg-slate-700/50 text-slate-400' : 'bg-brass-500/10 text-brass-400'
 					)}>
-						{caseData.status === 'archived' ? (
+						{caseData.status === 'closed' ? (
 							<Archive className="w-5 h-5" />
 						) : (
 							<Briefcase className="w-5 h-5" />
@@ -116,7 +108,9 @@ function BundleRow({ bundle }: { bundle: Bundle }) {
 				<p className="text-sm text-slate-300">{bundle.documentCount} docs</p>
 				<span className={cn(
 					'badge text-2xs',
-					bundle.status === 'finalized' ? 'badge-green' : 'badge-brass'
+					bundle.status === 'active' ? 'badge-green' :
+					bundle.status === 'locked' ? 'badge-red' :
+					bundle.status === 'archived' ? 'badge-gray' : 'badge-brass'
 				)}>
 					{bundle.status}
 				</span>
@@ -129,9 +123,11 @@ export function Cases() {
 	const [selectedCase, setSelectedCase] = useState<Case | null>(null);
 	const [statusFilter, setStatusFilter] = useState<string>('all');
 
-	const filteredCases = statusFilter === 'all'
-		? mockCases
-		: mockCases.filter(c => c.status === statusFilter);
+	const { data: casesData, isLoading: casesLoading } = useCases(1, 50, statusFilter !== 'all' ? statusFilter as CaseStatus : undefined);
+	const { data: bundlesData, isLoading: bundlesLoading } = useBundles(selectedCase?.id);
+
+	const cases = casesData?.items || [];
+	const bundles = bundlesData?.items || [];
 
 	return (
 		<div className="space-y-6">
@@ -168,9 +164,9 @@ export function Cases() {
 				>
 					<option value="all">All Statuses</option>
 					<option value="open">Open</option>
-					<option value="in_progress">In Progress</option>
+					<option value="pending">Pending</option>
 					<option value="closed">Closed</option>
-					<option value="archived">Archived</option>
+					<option value="on_hold">On Hold</option>
 				</select>
 				<button className="btn-ghost">
 					<Filter className="w-4 h-4" />
@@ -182,17 +178,28 @@ export function Cases() {
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 				{/* Cases list */}
 				<div className="lg:col-span-2 space-y-4">
-					{filteredCases.map((caseData, idx) => (
-						<motion.div
-							key={caseData.id}
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							transition={{ delay: idx * 0.05 }}
-							onClick={() => setSelectedCase(caseData)}
-						>
-							<CaseCard caseData={caseData} />
-						</motion.div>
-					))}
+					{casesLoading ? (
+						<div className="flex justify-center py-16">
+							<Loader2 className="w-8 h-8 animate-spin text-slate-500" />
+						</div>
+					) : cases.length === 0 ? (
+						<div className="text-center py-16 text-slate-500">
+							<Briefcase className="w-12 h-12 mx-auto mb-4" />
+							<p>No cases found</p>
+						</div>
+					) : (
+						cases.map((caseData: Case, idx: number) => (
+							<motion.div
+								key={caseData.id}
+								initial={{ opacity: 0, y: 20 }}
+								animate={{ opacity: 1, y: 0 }}
+								transition={{ delay: idx * 0.05 }}
+								onClick={() => setSelectedCase(caseData)}
+							>
+								<CaseCard caseData={caseData} />
+							</motion.div>
+						))
+					)}
 				</div>
 
 				{/* Case detail / quick view */}
@@ -223,11 +230,19 @@ export function Cases() {
 								<h4 className="text-sm font-medium text-slate-300 mb-3">
 									Document Bundles
 								</h4>
-								<div className="space-y-1">
-									{mockBundles.map((bundle) => (
-										<BundleRow key={bundle.id} bundle={bundle} />
-									))}
-								</div>
+								{bundlesLoading ? (
+									<div className="flex justify-center py-8">
+										<Loader2 className="w-6 h-6 animate-spin text-slate-500" />
+									</div>
+								) : bundles.length === 0 ? (
+									<p className="text-sm text-slate-500 text-center py-4">No bundles</p>
+								) : (
+									<div className="space-y-1">
+										{bundles.map((bundle: Bundle) => (
+											<BundleRow key={bundle.id} bundle={bundle} />
+										))}
+									</div>
+								)}
 								<button className="mt-3 w-full btn-ghost border border-dashed border-slate-700 justify-center">
 									<Plus className="w-4 h-4" />
 									Create Bundle

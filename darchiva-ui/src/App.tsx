@@ -13,7 +13,14 @@ import {
 	Routing,
 	Settings,
 	Encryption,
+	Security,
 } from './pages';
+import {
+	ScanningProjects,
+	ProjectDetails,
+	QCReview,
+	Resources,
+} from './features/scanning-projects/pages';
 
 const queryClient = new QueryClient({
 	defaultOptions: {
@@ -32,6 +39,7 @@ export default function App() {
 					<Route path="/" element={<Layout />}>
 						<Route index element={<Dashboard />} />
 						<Route path="documents" element={<Documents />} />
+						<Route path="documents/:folderId" element={<Documents />} />
 						<Route path="workflows" element={<Workflows />} />
 						<Route path="forms" element={<Forms />} />
 						<Route path="cases" element={<Cases />} />
@@ -40,6 +48,12 @@ export default function App() {
 						<Route path="routing" element={<Routing />} />
 						<Route path="settings" element={<Settings />} />
 						<Route path="encryption" element={<Encryption />} />
+						<Route path="security" element={<Security />} />
+						{/* Scanning Projects */}
+						<Route path="scanning-projects" element={<ScanningProjects />} />
+						<Route path="scanning-projects/:projectId" element={<ProjectDetails />} />
+						<Route path="scanning-projects/:projectId/qc" element={<QCReview />} />
+						<Route path="scanning-projects/resources" element={<Resources />} />
 					</Route>
 				</Routes>
 			</BrowserRouter>

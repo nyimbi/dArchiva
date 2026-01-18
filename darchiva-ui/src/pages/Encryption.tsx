@@ -6,42 +6,52 @@ import {
 	Key,
 	RefreshCw,
 	Eye,
-	EyeOff,
 	Clock,
 	CheckCircle2,
 	AlertCircle,
 	Lock,
-	Unlock,
 	FileText,
 	UserCheck,
 	X,
+	Loader2,
 } from 'lucide-react';
 import { cn, formatDate, formatRelativeTime } from '@/lib/utils';
-
-const mockKeys = [
-	{ id: 'k1', version: 3, isActive: true, createdAt: new Date(Date.now() - 2592000000).toISOString(), rotatedAt: null, expiresAt: null },
-	{ id: 'k2', version: 2, isActive: false, createdAt: new Date(Date.now() - 7776000000).toISOString(), rotatedAt: new Date(Date.now() - 2592000000).toISOString(), expiresAt: new Date(Date.now() + 2592000000).toISOString() },
-	{ id: 'k3', version: 1, isActive: false, createdAt: new Date(Date.now() - 15552000000).toISOString(), rotatedAt: new Date(Date.now() - 7776000000).toISOString(), expiresAt: new Date(Date.now() - 5184000000).toISOString() },
-];
-
-const mockAccessRequests = [
-	{ id: 'a1', documentTitle: 'Confidential_Report.pdf', requestedBy: 'John Smith', requestedAt: new Date(Date.now() - 3600000).toISOString(), reason: 'Need to review for audit purposes', status: 'pending' },
-	{ id: 'a2', documentTitle: 'Employee_Salaries.xlsx', requestedBy: 'Jane Doe', requestedAt: new Date(Date.now() - 86400000).toISOString(), reason: 'Annual budget planning', status: 'approved', approvedAt: new Date(Date.now() - 43200000).toISOString(), expiresAt: new Date(Date.now() + 43200000).toISOString() },
-	{ id: 'a3', documentTitle: 'Legal_Brief_Draft.pdf', requestedBy: 'Bob Johnson', requestedAt: new Date(Date.now() - 172800000).toISOString(), reason: 'Client requested copy', status: 'denied' },
-];
-
-const mockEncryptedDocs = [
-	{ id: 'd1', title: 'Confidential_Report.pdf', keyVersion: 3, algorithm: 'AES-256-GCM', createdAt: new Date(Date.now() - 86400000).toISOString() },
-	{ id: 'd2', title: 'Employee_Salaries.xlsx', keyVersion: 3, algorithm: 'AES-256-GCM', createdAt: new Date(Date.now() - 172800000).toISOString() },
-	{ id: 'd3', title: 'Legal_Brief_Draft.pdf', keyVersion: 2, algorithm: 'AES-256-GCM', createdAt: new Date(Date.now() - 2592000000).toISOString() },
-	{ id: 'd4', title: 'Board_Minutes_2024.pdf', keyVersion: 3, algorithm: 'AES-256-GCM', createdAt: new Date(Date.now() - 432000000).toISOString() },
-];
+import {
+	useEncryptionKeys,
+	useEncryptionStats,
+	useAccessRequests,
+	useEncryptedDocuments,
+	useRotateKey,
+	useResolveAccessRequest,
+	type EncryptionKey,
+	type AccessRequest,
+	type EncryptedDocument,
+} from '@/features/encryption';
 
 export function Encryption() {
 	const [activeTab, setActiveTab] = useState<'overview' | 'keys' | 'access' | 'documents'>('overview');
 	const [showRotateModal, setShowRotateModal] = useState(false);
+	const [expiryDays, setExpiryDays] = useState(30);
 
-	const pendingRequests = mockAccessRequests.filter(r => r.status === 'pending').length;
+	const { data: keys, isLoading: keysLoading } = useEncryptionKeys();
+	const { data: stats, isLoading: statsLoading } = useEncryptionStats();
+	const { data: accessRequests, isLoading: accessLoading } = useAccessRequests();
+	const { data: encryptedDocs, isLoading: docsLoading } = useEncryptedDocuments();
+	const rotateKey = useRotateKey();
+	const resolveRequest = useResolveAccessRequest();
+
+	const currentKey = keys?.find(k => k.status === 'active');
+	const pendingRequests = accessRequests?.filter(r => r.status === 'pending').length || 0;
+
+	const handleRotateKey = () => {
+		rotateKey.mutate(undefined, {
+			onSuccess: () => setShowRotateModal(false),
+		});
+	};
+
+	const handleResolveRequest = (id: string, action: 'approve' | 'deny') => {
+		resolveRequest.mutate({ id, action });
+	};
 
 	return (
 		<div className="space-y-6">
@@ -86,7 +96,7 @@ export function Encryption() {
 						</div>
 						<div>
 							<p className="text-2xl font-display font-semibold text-slate-100">
-								v{mockKeys[0].version}
+								{keysLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : `v${currentKey?.version || 1}`}
 							</p>
 							<p className="text-sm text-slate-500">Current Key Version</p>
 						</div>
@@ -99,7 +109,7 @@ export function Encryption() {
 						</div>
 						<div>
 							<p className="text-2xl font-display font-semibold text-slate-100">
-								{mockEncryptedDocs.length}
+								{statsLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : stats?.totalEncryptedDocs || 0}
 							</p>
 							<p className="text-sm text-slate-500">Encrypted Documents</p>
 						</div>
@@ -112,7 +122,7 @@ export function Encryption() {
 						</div>
 						<div>
 							<p className="text-2xl font-display font-semibold text-brass-400">
-								{pendingRequests}
+								{accessLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : pendingRequests}
 							</p>
 							<p className="text-sm text-slate-500">Pending Requests</p>
 						</div>
@@ -156,28 +166,38 @@ export function Encryption() {
 						<h3 className="font-display font-semibold text-slate-100 mb-4">
 							Current Encryption Key
 						</h3>
-						<div className="space-y-4">
-							<div className="flex items-center justify-between p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-								<div className="flex items-center gap-3">
-									<Key className="w-6 h-6 text-emerald-400" />
+						{keysLoading ? (
+							<div className="flex justify-center py-8">
+								<Loader2 className="w-6 h-6 animate-spin text-slate-500" />
+							</div>
+						) : currentKey ? (
+							<div className="space-y-4">
+								<div className="flex items-center justify-between p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+									<div className="flex items-center gap-3">
+										<Key className="w-6 h-6 text-emerald-400" />
+										<div>
+											<p className="font-medium text-emerald-400">Version {currentKey.version}</p>
+											<p className="text-sm text-slate-500">{currentKey.algorithm}</p>
+										</div>
+									</div>
+									<span className="badge badge-green">Active</span>
+								</div>
+								<div className="grid grid-cols-2 gap-4 text-sm">
 									<div>
-										<p className="font-medium text-emerald-400">Version {mockKeys[0].version}</p>
-										<p className="text-sm text-slate-500">AES-256-GCM</p>
+										<p className="text-slate-500">Created</p>
+										<p className="text-slate-200">{formatDate(currentKey.createdAt)}</p>
+									</div>
+									<div>
+										<p className="text-slate-500">Documents Encrypted</p>
+										<p className="text-slate-200">
+											{encryptedDocs?.items?.filter((d: EncryptedDocument) => d.keyVersion === currentKey.version).length || 0}
+										</p>
 									</div>
 								</div>
-								<span className="badge badge-green">Active</span>
 							</div>
-							<div className="grid grid-cols-2 gap-4 text-sm">
-								<div>
-									<p className="text-slate-500">Created</p>
-									<p className="text-slate-200">{formatDate(mockKeys[0].createdAt)}</p>
-								</div>
-								<div>
-									<p className="text-slate-500">Documents Encrypted</p>
-									<p className="text-slate-200">{mockEncryptedDocs.filter(d => d.keyVersion === mockKeys[0].version).length}</p>
-								</div>
-							</div>
-						</div>
+						) : (
+							<p className="text-slate-500 text-center py-8">No active encryption key</p>
+						)}
 					</div>
 
 					{/* Recent Activity */}
@@ -185,183 +205,227 @@ export function Encryption() {
 						<h3 className="font-display font-semibold text-slate-100 mb-4">
 							Recent Access Requests
 						</h3>
-						<div className="space-y-3">
-							{mockAccessRequests.slice(0, 3).map((request) => (
-								<div key={request.id} className="flex items-center gap-3 p-3 bg-slate-800/30 rounded-lg">
-									<div className={cn(
-										'p-2 rounded-lg',
-										request.status === 'pending' ? 'bg-brass-500/10 text-brass-400' :
-										request.status === 'approved' ? 'bg-emerald-500/10 text-emerald-400' :
-										'bg-red-500/10 text-red-400'
-									)}>
-										{request.status === 'pending' ? <Clock className="w-4 h-4" /> :
-										 request.status === 'approved' ? <CheckCircle2 className="w-4 h-4" /> :
-										 <X className="w-4 h-4" />}
+						{accessLoading ? (
+							<div className="flex justify-center py-8">
+								<Loader2 className="w-6 h-6 animate-spin text-slate-500" />
+							</div>
+						) : accessRequests && accessRequests.length > 0 ? (
+							<div className="space-y-3">
+								{accessRequests.slice(0, 3).map((request) => (
+									<div key={request.id} className="flex items-center gap-3 p-3 bg-slate-800/30 rounded-lg">
+										<div className={cn(
+											'p-2 rounded-lg',
+											request.status === 'pending' ? 'bg-brass-500/10 text-brass-400' :
+											request.status === 'approved' ? 'bg-emerald-500/10 text-emerald-400' :
+											'bg-red-500/10 text-red-400'
+										)}>
+											{request.status === 'pending' ? <Clock className="w-4 h-4" /> :
+											 request.status === 'approved' ? <CheckCircle2 className="w-4 h-4" /> :
+											 <X className="w-4 h-4" />}
+										</div>
+										<div className="flex-1 min-w-0">
+											<p className="text-sm font-medium text-slate-200 truncate">
+												{request.documentTitle}
+											</p>
+											<p className="text-xs text-slate-500">
+												{request.requesterName} • {formatRelativeTime(request.createdAt)}
+											</p>
+										</div>
 									</div>
-									<div className="flex-1 min-w-0">
-										<p className="text-sm font-medium text-slate-200 truncate">
-											{request.documentTitle}
-										</p>
-										<p className="text-xs text-slate-500">
-											{request.requestedBy} • {formatRelativeTime(request.requestedAt)}
-										</p>
-									</div>
-								</div>
-							))}
-						</div>
+								))}
+							</div>
+						) : (
+							<p className="text-slate-500 text-center py-8">No recent requests</p>
+						)}
 					</div>
 				</div>
 			)}
 
 			{activeTab === 'keys' && (
 				<div className="glass-card overflow-hidden">
-					<table className="data-table">
-						<thead>
-							<tr>
-								<th>Version</th>
-								<th>Status</th>
-								<th>Created</th>
-								<th>Rotated</th>
-								<th>Expires</th>
-								<th>Documents</th>
-							</tr>
-						</thead>
-						<tbody>
-							{mockKeys.map((key) => (
-								<tr key={key.id}>
-									<td>
-										<span className="font-mono text-slate-200">v{key.version}</span>
-									</td>
-									<td>
-										<span className={cn(
-											'badge',
-											key.isActive ? 'badge-green' : 'badge-gray'
-										)}>
-											{key.isActive ? 'Active' : 'Expired'}
-										</span>
-									</td>
-									<td className="text-slate-400">{formatDate(key.createdAt)}</td>
-									<td className="text-slate-400">
-										{key.rotatedAt ? formatDate(key.rotatedAt) : '—'}
-									</td>
-									<td className="text-slate-400">
-										{key.expiresAt ? formatDate(key.expiresAt) : '—'}
-									</td>
-									<td className="text-slate-300">
-										{mockEncryptedDocs.filter(d => d.keyVersion === key.version).length}
-									</td>
+					{keysLoading ? (
+						<div className="flex justify-center py-12">
+							<Loader2 className="w-8 h-8 animate-spin text-slate-500" />
+						</div>
+					) : keys && keys.length > 0 ? (
+						<table className="data-table">
+							<thead>
+								<tr>
+									<th>Version</th>
+									<th>Status</th>
+									<th>Created</th>
+									<th>Rotated</th>
+									<th>Expires</th>
+									<th>Documents</th>
 								</tr>
-							))}
-						</tbody>
-					</table>
+							</thead>
+							<tbody>
+								{keys.map((key) => (
+									<tr key={key.id}>
+										<td>
+											<span className="font-mono text-slate-200">v{key.version}</span>
+										</td>
+										<td>
+											<span className={cn(
+												'badge',
+												key.status === 'active' ? 'badge-green' : 'badge-gray'
+											)}>
+												{key.status === 'active' ? 'Active' : 'Expired'}
+											</span>
+										</td>
+										<td className="text-slate-400">{formatDate(key.createdAt)}</td>
+										<td className="text-slate-400">
+											{key.rotatedAt ? formatDate(key.rotatedAt) : '—'}
+										</td>
+										<td className="text-slate-400">
+											{key.expiresAt ? formatDate(key.expiresAt) : '—'}
+										</td>
+										<td className="text-slate-300">
+											{encryptedDocs?.items?.filter((d: EncryptedDocument) => d.keyVersion === key.version).length || 0}
+										</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					) : (
+						<p className="text-slate-500 text-center py-12">No encryption keys</p>
+					)}
 				</div>
 			)}
 
 			{activeTab === 'access' && (
 				<div className="space-y-4">
-					{mockAccessRequests.map((request) => (
-						<motion.div
-							key={request.id}
-							initial={{ opacity: 0, y: 10 }}
-							animate={{ opacity: 1, y: 0 }}
-							className="glass-card p-4"
-						>
-							<div className="flex items-start gap-4">
-								<div className={cn(
-									'p-2 rounded-lg mt-1',
-									request.status === 'pending' ? 'bg-brass-500/10 text-brass-400' :
-									request.status === 'approved' ? 'bg-emerald-500/10 text-emerald-400' :
-									'bg-red-500/10 text-red-400'
-								)}>
-									<FileText className="w-5 h-5" />
-								</div>
-
-								<div className="flex-1">
-									<div className="flex items-start justify-between">
-										<div>
-											<h4 className="font-medium text-slate-200">{request.documentTitle}</h4>
-											<p className="text-sm text-slate-500 mt-0.5">
-												Requested by {request.requestedBy} • {formatRelativeTime(request.requestedAt)}
-											</p>
-										</div>
-										<span className={cn(
-											'badge',
-											request.status === 'pending' ? 'badge-brass' :
-											request.status === 'approved' ? 'badge-green' : 'badge-red'
-										)}>
-											{request.status}
-										</span>
+					{accessLoading ? (
+						<div className="flex justify-center py-12">
+							<Loader2 className="w-8 h-8 animate-spin text-slate-500" />
+						</div>
+					) : accessRequests && accessRequests.length > 0 ? (
+						accessRequests.map((request) => (
+							<motion.div
+								key={request.id}
+								initial={{ opacity: 0, y: 10 }}
+								animate={{ opacity: 1, y: 0 }}
+								className="glass-card p-4"
+							>
+								<div className="flex items-start gap-4">
+									<div className={cn(
+										'p-2 rounded-lg mt-1',
+										request.status === 'pending' ? 'bg-brass-500/10 text-brass-400' :
+										request.status === 'approved' ? 'bg-emerald-500/10 text-emerald-400' :
+										'bg-red-500/10 text-red-400'
+									)}>
+										<FileText className="w-5 h-5" />
 									</div>
 
-									<p className="mt-3 text-sm text-slate-400 bg-slate-800/30 p-3 rounded-lg">
-										"{request.reason}"
-									</p>
-
-									{request.status === 'approved' && request.expiresAt && (
-										<p className="mt-2 text-xs text-slate-500">
-											Access expires {formatRelativeTime(request.expiresAt)}
-										</p>
-									)}
-
-									{request.status === 'pending' && (
-										<div className="mt-4 flex gap-2">
-											<button className="btn-primary py-1.5">
-												<CheckCircle2 className="w-4 h-4" />
-												Approve
-											</button>
-											<button className="btn-ghost py-1.5 text-red-400 hover:bg-red-500/10">
-												<X className="w-4 h-4" />
-												Deny
-											</button>
+									<div className="flex-1">
+										<div className="flex items-start justify-between">
+											<div>
+												<h4 className="font-medium text-slate-200">{request.documentTitle}</h4>
+												<p className="text-sm text-slate-500 mt-0.5">
+													Requested by {request.requesterName} • {formatRelativeTime(request.createdAt)}
+												</p>
+											</div>
+											<span className={cn(
+												'badge',
+												request.status === 'pending' ? 'badge-brass' :
+												request.status === 'approved' ? 'badge-green' : 'badge-red'
+											)}>
+												{request.status}
+											</span>
 										</div>
-									)}
+
+										<p className="mt-3 text-sm text-slate-400 bg-slate-800/30 p-3 rounded-lg">
+											"{request.reason}"
+										</p>
+
+										{request.status === 'approved' && request.resolvedAt && (
+											<p className="mt-2 text-xs text-slate-500">
+												Approved {formatRelativeTime(request.resolvedAt)}
+											</p>
+										)}
+
+										{request.status === 'pending' && (
+											<div className="mt-4 flex gap-2">
+												<button
+													onClick={() => handleResolveRequest(request.id, 'approve')}
+													disabled={resolveRequest.isPending}
+													className="btn-primary py-1.5"
+												>
+													{resolveRequest.isPending ? (
+														<Loader2 className="w-4 h-4 animate-spin" />
+													) : (
+														<CheckCircle2 className="w-4 h-4" />
+													)}
+													Approve
+												</button>
+												<button
+													onClick={() => handleResolveRequest(request.id, 'deny')}
+													disabled={resolveRequest.isPending}
+													className="btn-ghost py-1.5 text-red-400 hover:bg-red-500/10"
+												>
+													<X className="w-4 h-4" />
+													Deny
+												</button>
+											</div>
+										)}
+									</div>
 								</div>
-							</div>
-						</motion.div>
-					))}
+							</motion.div>
+						))
+					) : (
+						<p className="text-slate-500 text-center py-12">No access requests</p>
+					)}
 				</div>
 			)}
 
 			{activeTab === 'documents' && (
 				<div className="glass-card overflow-hidden">
-					<table className="data-table">
-						<thead>
-							<tr>
-								<th>Document</th>
-								<th>Key Version</th>
-								<th>Algorithm</th>
-								<th>Encrypted</th>
-								<th className="w-24">Actions</th>
-							</tr>
-						</thead>
-						<tbody>
-							{mockEncryptedDocs.map((doc) => (
-								<tr key={doc.id}>
-									<td>
-										<div className="flex items-center gap-2">
-											<Lock className="w-4 h-4 text-brass-400" />
-											<span className="text-slate-200">{doc.title}</span>
-										</div>
-									</td>
-									<td>
-										<span className="font-mono text-slate-400">v{doc.keyVersion}</span>
-									</td>
-									<td>
-										<span className="badge badge-gray text-2xs font-mono">
-											{doc.algorithm}
-										</span>
-									</td>
-									<td className="text-slate-400">{formatDate(doc.createdAt)}</td>
-									<td>
-										<button className="btn-ghost text-xs">
-											<Eye className="w-3 h-3" />
-											View
-										</button>
-									</td>
+					{docsLoading ? (
+						<div className="flex justify-center py-12">
+							<Loader2 className="w-8 h-8 animate-spin text-slate-500" />
+						</div>
+					) : encryptedDocs && encryptedDocs.items?.length > 0 ? (
+						<table className="data-table">
+							<thead>
+								<tr>
+									<th>Document</th>
+									<th>Key Version</th>
+									<th>Algorithm</th>
+									<th>Encrypted</th>
+									<th className="w-24">Actions</th>
 								</tr>
-							))}
-						</tbody>
-					</table>
+							</thead>
+							<tbody>
+								{encryptedDocs.items.map((doc: EncryptedDocument) => (
+									<tr key={doc.id}>
+										<td>
+											<div className="flex items-center gap-2">
+												<Lock className="w-4 h-4 text-brass-400" />
+												<span className="text-slate-200">{doc.title}</span>
+											</div>
+										</td>
+										<td>
+											<span className="font-mono text-slate-400">v{doc.keyVersion}</span>
+										</td>
+										<td>
+											<span className="badge badge-gray text-2xs font-mono">
+												AES-256
+											</span>
+										</td>
+										<td className="text-slate-400">{formatDate(doc.encryptedAt)}</td>
+										<td>
+											<button className="btn-ghost text-xs">
+												<Eye className="w-3 h-3" />
+												View
+											</button>
+										</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					) : (
+						<p className="text-slate-500 text-center py-12">No encrypted documents</p>
+					)}
 				</div>
 			)}
 
@@ -387,7 +451,8 @@ export function Encryption() {
 								</label>
 								<input
 									type="number"
-									defaultValue="30"
+									value={expiryDays}
+									onChange={(e) => setExpiryDays(parseInt(e.target.value) || 30)}
 									className="input-field"
 								/>
 							</div>
@@ -412,8 +477,16 @@ export function Encryption() {
 							>
 								Cancel
 							</button>
-							<button className="btn-primary">
-								<RefreshCw className="w-4 h-4" />
+							<button
+								onClick={handleRotateKey}
+								disabled={rotateKey.isPending}
+								className="btn-primary"
+							>
+								{rotateKey.isPending ? (
+									<Loader2 className="w-4 h-4 animate-spin" />
+								) : (
+									<RefreshCw className="w-4 h-4" />
+								)}
 								Rotate Key
 							</button>
 						</div>

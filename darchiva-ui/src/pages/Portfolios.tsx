@@ -7,27 +7,22 @@ import {
 	MoreVertical,
 	Briefcase,
 	Users,
-	Lock,
 	Calendar,
 	ChevronRight,
+	Loader2,
 } from 'lucide-react';
 import { cn, formatDate } from '@/lib/utils';
-import type { Portfolio } from '@/types';
-
-const mockPortfolios: Portfolio[] = [
-	{ id: 'p1', name: 'Estate Planning', description: 'Estate and trust matters', portfolioType: 'legal', caseCount: 12, createdAt: new Date(Date.now() - 15552000000).toISOString() },
-	{ id: 'p2', name: 'Real Estate Transactions', description: 'Property acquisitions and sales', portfolioType: 'legal', caseCount: 8, createdAt: new Date(Date.now() - 10368000000).toISOString() },
-	{ id: 'p3', name: 'Corporate Compliance', description: 'Regulatory and compliance documents', portfolioType: 'compliance', caseCount: 5, createdAt: new Date(Date.now() - 7776000000).toISOString() },
-	{ id: 'p4', name: 'Insurance Claims', description: 'Active insurance claim cases', portfolioType: 'insurance', caseCount: 23, createdAt: new Date(Date.now() - 5184000000).toISOString() },
-	{ id: 'p5', name: 'Intellectual Property', description: 'Patents, trademarks, and copyrights', portfolioType: 'legal', caseCount: 7, createdAt: new Date(Date.now() - 2592000000).toISOString() },
-];
+import {
+	usePortfolios,
+	usePortfolioStats,
+	type Portfolio,
+} from '@/features/portfolios';
 
 function PortfolioCard({ portfolio }: { portfolio: Portfolio }) {
 	const typeColors: Record<string, string> = {
-		legal: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
-		compliance: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
-		insurance: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
-		general: 'bg-slate-500/10 text-slate-400 border-slate-500/30',
+		active: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+		archived: 'bg-slate-500/10 text-slate-400 border-slate-500/30',
+		on_hold: 'bg-brass-500/10 text-brass-400 border-brass-500/30',
 	};
 
 	return (
@@ -46,8 +41,8 @@ function PortfolioCard({ portfolio }: { portfolio: Portfolio }) {
 						<h3 className="font-display font-semibold text-slate-100 group-hover:text-brass-400 transition-colors">
 							{portfolio.name}
 						</h3>
-						<span className={cn('badge text-2xs mt-1', typeColors[portfolio.portfolioType] || typeColors.general)}>
-							{portfolio.portfolioType}
+						<span className={cn('badge text-2xs mt-1', typeColors[portfolio.status] || typeColors.active)}>
+							{portfolio.status}
 						</span>
 					</div>
 				</div>
@@ -71,9 +66,9 @@ function PortfolioCard({ portfolio }: { portfolio: Portfolio }) {
 				</div>
 				<div className="text-center p-3 bg-slate-800/30 rounded-lg">
 					<p className="text-2xl font-display font-semibold text-slate-100">
-						3
+						{portfolio.documentCount}
 					</p>
-					<p className="text-xs text-slate-500">Team Members</p>
+					<p className="text-xs text-slate-500">Documents</p>
 				</div>
 			</div>
 
@@ -91,6 +86,11 @@ function PortfolioCard({ portfolio }: { portfolio: Portfolio }) {
 }
 
 export function Portfolios() {
+	const { data: portfoliosData, isLoading: portfoliosLoading } = usePortfolios();
+	const { data: stats, isLoading: statsLoading } = usePortfolioStats();
+
+	const portfolios = portfoliosData?.items || [];
+
 	return (
 		<div className="space-y-6">
 			{/* Header */}
@@ -130,7 +130,7 @@ export function Portfolios() {
 						</div>
 						<div>
 							<p className="text-2xl font-display font-semibold text-slate-100">
-								{mockPortfolios.length}
+								{statsLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : stats?.total || portfolios.length}
 							</p>
 							<p className="text-sm text-slate-500">Total Portfolios</p>
 						</div>
@@ -143,7 +143,11 @@ export function Portfolios() {
 						</div>
 						<div>
 							<p className="text-2xl font-display font-semibold text-slate-100">
-								{mockPortfolios.reduce((acc, p) => acc + p.caseCount, 0)}
+								{statsLoading ? (
+									<Loader2 className="w-5 h-5 animate-spin" />
+								) : (
+									stats?.totalCases || portfolios.reduce((acc: number, p: Portfolio) => acc + p.caseCount, 0)
+								)}
 							</p>
 							<p className="text-sm text-slate-500">Total Cases</p>
 						</div>
@@ -156,40 +160,55 @@ export function Portfolios() {
 						</div>
 						<div>
 							<p className="text-2xl font-display font-semibold text-slate-100">
-								15
+								{statsLoading ? (
+									<Loader2 className="w-5 h-5 animate-spin" />
+								) : (
+									stats?.totalDocuments || portfolios.reduce((acc: number, p: Portfolio) => acc + p.documentCount, 0)
+								)}
 							</p>
-							<p className="text-sm text-slate-500">Shared Access</p>
+							<p className="text-sm text-slate-500">Total Documents</p>
 						</div>
 					</div>
 				</div>
 			</div>
 
 			{/* Portfolios grid */}
-			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-				{mockPortfolios.map((portfolio, idx) => (
-					<motion.div
-						key={portfolio.id}
+			{portfoliosLoading ? (
+				<div className="flex justify-center py-16">
+					<Loader2 className="w-8 h-8 animate-spin text-slate-500" />
+				</div>
+			) : portfolios.length === 0 ? (
+				<div className="text-center py-16 text-slate-500">
+					<FolderKanban className="w-12 h-12 mx-auto mb-4" />
+					<p>No portfolios yet</p>
+				</div>
+			) : (
+				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+					{portfolios.map((portfolio: Portfolio, idx: number) => (
+						<motion.div
+							key={portfolio.id}
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ delay: idx * 0.05 }}
+						>
+							<PortfolioCard portfolio={portfolio} />
+						</motion.div>
+					))}
+
+					{/* Add new portfolio card */}
+					<motion.button
 						initial={{ opacity: 0, y: 20 }}
 						animate={{ opacity: 1, y: 0 }}
-						transition={{ delay: idx * 0.05 }}
+						transition={{ delay: portfolios.length * 0.05 }}
+						className="doc-card border-dashed border-2 border-slate-700 hover:border-brass-500/50 flex flex-col items-center justify-center gap-3 min-h-[240px]"
 					>
-						<PortfolioCard portfolio={portfolio} />
-					</motion.div>
-				))}
-
-				{/* Add new portfolio card */}
-				<motion.button
-					initial={{ opacity: 0, y: 20 }}
-					animate={{ opacity: 1, y: 0 }}
-					transition={{ delay: mockPortfolios.length * 0.05 }}
-					className="doc-card border-dashed border-2 border-slate-700 hover:border-brass-500/50 flex flex-col items-center justify-center gap-3 min-h-[240px]"
-				>
-					<div className="p-3 rounded-full bg-slate-800">
-						<Plus className="w-6 h-6 text-slate-400" />
-					</div>
-					<span className="text-slate-400">Create New Portfolio</span>
-				</motion.button>
-			</div>
+						<div className="p-3 rounded-full bg-slate-800">
+							<Plus className="w-6 h-6 text-slate-400" />
+						</div>
+						<span className="text-slate-400">Create New Portfolio</span>
+					</motion.button>
+				</div>
+			)}
 		</div>
 	);
 }

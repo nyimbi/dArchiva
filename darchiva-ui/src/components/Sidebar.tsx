@@ -15,6 +15,7 @@ import {
 	ChevronRight,
 	FileText,
 	Shield,
+	ScanLine,
 } from 'lucide-react';
 import { useStore } from '@/hooks/useStore';
 import { cn } from '@/lib/utils';
@@ -22,6 +23,7 @@ import { cn } from '@/lib/utils';
 const navItems = [
 	{ id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/' },
 	{ id: 'documents', label: 'Documents', icon: FolderTree, path: '/documents' },
+	{ id: 'scanning', label: 'Scanning Projects', icon: ScanLine, path: '/scanning-projects' },
 	{ id: 'workflows', label: 'Workflows', icon: GitBranch, path: '/workflows' },
 	{ id: 'forms', label: 'Form Recognition', icon: FileSearch, path: '/forms' },
 	{ id: 'cases', label: 'Cases', icon: Briefcase, path: '/cases' },

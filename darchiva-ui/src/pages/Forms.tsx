@@ -17,52 +17,28 @@ import {
 	Plus,
 	Signature,
 	Check,
+	Loader2,
 } from 'lucide-react';
 import { cn, formatRelativeTime } from '@/lib/utils';
+import {
+	useExtraction,
+	useExtractionQueue,
+	useFormTemplates,
+	useConfirmExtraction,
+	useReExtract,
+	type FieldValue,
+	type FormTemplate,
+	type ExtractionQueueItem,
+	type Signature as SignatureType,
+} from '@/features/forms';
 
-// Mock extraction data
-const mockExtraction = {
-	id: 'ext1',
-	documentId: 'doc1',
-	documentTitle: 'Insurance_Application_2024.pdf',
-	templateName: 'Insurance Application Form',
-	confidence: 0.87,
-	status: 'needs_review',
-	pageCount: 4,
-	currentPage: 1,
-	fieldValues: [
-		{ fieldName: 'applicant_name', label: 'Applicant Name', value: 'John M. Smith', confidence: 0.95, wasCorrected: false },
-		{ fieldName: 'date_of_birth', label: 'Date of Birth', value: '1985-03-15', confidence: 0.92, wasCorrected: false },
-		{ fieldName: 'ssn', label: 'Social Security Number', value: '***-**-1234', confidence: 0.88, wasCorrected: false },
-		{ fieldName: 'address', label: 'Address', value: '123 Main Street, Suite 400', confidence: 0.78, wasCorrected: false },
-		{ fieldName: 'city', label: 'City', value: 'New York', confidence: 0.91, wasCorrected: false },
-		{ fieldName: 'state', label: 'State', value: 'NY', confidence: 0.98, wasCorrected: false },
-		{ fieldName: 'zip_code', label: 'ZIP Code', value: '10001', confidence: 0.65, wasCorrected: false },
-		{ fieldName: 'policy_type', label: 'Policy Type', value: 'Comprehensive', confidence: 0.82, wasCorrected: false },
-		{ fieldName: 'coverage_amount', label: 'Coverage Amount', value: '$500,000', confidence: 0.73, wasCorrected: false },
-		{ fieldName: 'premium', label: 'Monthly Premium', value: '$247.50', confidence: 0.89, wasCorrected: false },
-	],
-	signatures: [
-		{ id: 's1', pageNumber: 4, signerName: 'John M. Smith', verified: true, signatureType: 'handwritten' },
-		{ id: 's2', pageNumber: 4, signerName: 'Agent: Mary Johnson', verified: true, signatureType: 'handwritten' },
-	],
-};
-
-const mockTemplates = [
-	{ id: 't1', name: 'Insurance Application Form', category: 'Insurance', fieldCount: 24, isActive: true },
-	{ id: 't2', name: 'Invoice Template', category: 'Finance', fieldCount: 12, isActive: true },
-	{ id: 't3', name: 'Contract Header', category: 'Legal', fieldCount: 8, isActive: true },
-	{ id: 't4', name: 'Employee Onboarding', category: 'HR', fieldCount: 32, isActive: false },
-];
-
-const mockQueue = [
-	{ id: 'q1', documentTitle: 'Application_Smith_2024.pdf', templateName: 'Insurance Application', status: 'completed', confidence: 0.87, createdAt: new Date(Date.now() - 1800000).toISOString() },
-	{ id: 'q2', documentTitle: 'Invoice_March_001.pdf', templateName: 'Invoice Template', status: 'completed', confidence: 0.94, createdAt: new Date(Date.now() - 3600000).toISOString() },
-	{ id: 'q3', documentTitle: 'Contract_Amendment.pdf', templateName: 'Contract Header', status: 'processing', confidence: 0, createdAt: new Date(Date.now() - 600000).toISOString() },
-	{ id: 'q4', documentTitle: 'Application_Jones_2024.pdf', templateName: 'Insurance Application', status: 'needs_review', confidence: 0.72, createdAt: new Date(Date.now() - 7200000).toISOString() },
-];
-
-function FieldRow({ field, onEdit }: { field: typeof mockExtraction.fieldValues[0]; onEdit: () => void }) {
+function FieldRow({
+	field,
+	onEdit,
+}: {
+	field: FieldValue;
+	onEdit: () => void;
+}) {
 	const confidenceColor = field.confidence >= 0.9 ? 'text-emerald-400' :
 		field.confidence >= 0.75 ? 'text-brass-400' : 'text-red-400';
 
@@ -107,8 +83,32 @@ export function Forms() {
 	const [activeTab, setActiveTab] = useState<'review' | 'templates' | 'queue'>('review');
 	const [zoom, setZoom] = useState(100);
 	const [currentPage, setCurrentPage] = useState(1);
+	const [selectedExtractionId, setSelectedExtractionId] = useState<string | null>(null);
 
-	const lowConfidenceCount = mockExtraction.fieldValues.filter(f => f.confidence < 0.75).length;
+	const { data: queueData, isLoading: queueLoading } = useExtractionQueue();
+	const { data: templatesData, isLoading: templatesLoading } = useFormTemplates();
+	const { data: extraction, isLoading: extractionLoading } = useExtraction(selectedExtractionId || '');
+	const confirmExtraction = useConfirmExtraction();
+	const reExtract = useReExtract();
+
+	const queue = queueData?.items || [];
+	const templates = templatesData?.items || [];
+
+	// Use the first needs_review item if no selection
+	const currentExtraction = extraction || (queue.find(q => q.status === 'needs_review') ? undefined : undefined);
+	const lowConfidenceCount = currentExtraction?.fieldValues.filter(f => f.confidence < 0.75).length || 0;
+
+	const handleConfirm = () => {
+		if (selectedExtractionId) {
+			confirmExtraction.mutate(selectedExtractionId);
+		}
+	};
+
+	const handleReExtract = () => {
+		if (selectedExtractionId) {
+			reExtract.mutate(selectedExtractionId);
+		}
+	};
 
 	return (
 		<div className="space-y-6">
@@ -170,12 +170,20 @@ export function Forms() {
 						<div className="glass-card flex flex-col">
 							<div className="p-3 border-b border-slate-700/50 flex items-center justify-between">
 								<div>
-									<h3 className="font-medium text-slate-200">
-										{mockExtraction.documentTitle}
-									</h3>
-									<p className="text-xs text-slate-500">
-										Template: {mockExtraction.templateName}
-									</p>
+									{extractionLoading ? (
+										<div className="h-4 w-48 bg-slate-700 rounded animate-pulse" />
+									) : currentExtraction ? (
+										<>
+											<h3 className="font-medium text-slate-200">
+												{currentExtraction.documentTitle}
+											</h3>
+											<p className="text-xs text-slate-500">
+												Template: {currentExtraction.templateName}
+											</p>
+										</>
+									) : (
+										<p className="text-slate-500">Select an extraction to review</p>
+									)}
 								</div>
 								<div className="flex items-center gap-2">
 									<button
@@ -197,58 +205,52 @@ export function Forms() {
 							</div>
 
 							{/* Document preview */}
-							<div className="flex-1 bg-slate-800/30 p-4 overflow-auto">
-								<div
-									className="mx-auto bg-white rounded shadow-lg"
-									style={{
-										width: `${3.5 * (zoom / 100)}in`,
-										height: `${4.5 * (zoom / 100)}in`,
-									}}
-								>
-									{/* Mock document content */}
-									<div className="p-4 text-slate-800 text-xs">
-										<div className="text-center mb-4">
-											<p className="font-bold text-sm">INSURANCE APPLICATION</p>
-											<p className="text-slate-500">Form #INS-2024</p>
-										</div>
-										<div className="space-y-2">
-											<div className="flex">
-												<span className="w-32">Applicant Name:</span>
-												<span className="font-medium field-highlight px-1 bg-brass-200/50 rounded">John M. Smith</span>
-											</div>
-											<div className="flex">
-												<span className="w-32">Date of Birth:</span>
-												<span className="font-medium">03/15/1985</span>
-											</div>
-											<div className="flex">
-												<span className="w-32">Address:</span>
-												<span className="font-medium bg-red-200/50 px-1 rounded">123 Main Street</span>
+							<div className="flex-1 bg-slate-800/30 p-4 overflow-auto min-h-[300px]">
+								{currentExtraction ? (
+									<div
+										className="mx-auto bg-white rounded shadow-lg"
+										style={{
+											width: `${3.5 * (zoom / 100)}in`,
+											height: `${4.5 * (zoom / 100)}in`,
+										}}
+									>
+										{/* Placeholder document content */}
+										<div className="p-4 text-slate-800 text-xs">
+											<div className="text-center mb-4">
+												<p className="font-bold text-sm">DOCUMENT PREVIEW</p>
+												<p className="text-slate-500">Page {currentPage}</p>
 											</div>
 										</div>
 									</div>
-								</div>
+								) : (
+									<div className="flex items-center justify-center h-full text-slate-500">
+										<FileText className="w-12 h-12" />
+									</div>
+								)}
 							</div>
 
 							{/* Page navigation */}
-							<div className="p-3 border-t border-slate-700/50 flex items-center justify-center gap-4">
-								<button
-									onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-									disabled={currentPage === 1}
-									className="p-1.5 text-slate-400 hover:text-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
-								>
-									<ChevronLeft className="w-5 h-5" />
-								</button>
-								<span className="text-sm text-slate-400">
-									Page {currentPage} of {mockExtraction.pageCount}
-								</span>
-								<button
-									onClick={() => setCurrentPage(p => Math.min(mockExtraction.pageCount, p + 1))}
-									disabled={currentPage === mockExtraction.pageCount}
-									className="p-1.5 text-slate-400 hover:text-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
-								>
-									<ChevronRight className="w-5 h-5" />
-								</button>
-							</div>
+							{currentExtraction && (
+								<div className="p-3 border-t border-slate-700/50 flex items-center justify-center gap-4">
+									<button
+										onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+										disabled={currentPage === 1}
+										className="p-1.5 text-slate-400 hover:text-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
+									>
+										<ChevronLeft className="w-5 h-5" />
+									</button>
+									<span className="text-sm text-slate-400">
+										Page {currentPage} of {currentExtraction.pageCount}
+									</span>
+									<button
+										onClick={() => setCurrentPage(p => Math.min(currentExtraction.pageCount, p + 1))}
+										disabled={currentPage === currentExtraction.pageCount}
+										className="p-1.5 text-slate-400 hover:text-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
+									>
+										<ChevronRight className="w-5 h-5" />
+									</button>
+								</div>
+							)}
 						</div>
 
 						{/* Extraction results */}
@@ -257,79 +259,111 @@ export function Forms() {
 								<div className="flex items-center justify-between">
 									<div>
 										<h3 className="font-medium text-slate-200">Extracted Data</h3>
-										<div className="mt-1 flex items-center gap-3 text-xs">
-											<span className="flex items-center gap-1 text-slate-500">
-												<CheckCircle2 className="w-3 h-3 text-emerald-400" />
-												{mockExtraction.fieldValues.length - lowConfidenceCount} verified
-											</span>
-											{lowConfidenceCount > 0 && (
-												<span className="flex items-center gap-1 text-red-400">
-													<AlertTriangle className="w-3 h-3" />
-													{lowConfidenceCount} needs review
+										{currentExtraction && (
+											<div className="mt-1 flex items-center gap-3 text-xs">
+												<span className="flex items-center gap-1 text-slate-500">
+													<CheckCircle2 className="w-3 h-3 text-emerald-400" />
+													{currentExtraction.fieldValues.length - lowConfidenceCount} verified
 												</span>
-											)}
+												{lowConfidenceCount > 0 && (
+													<span className="flex items-center gap-1 text-red-400">
+														<AlertTriangle className="w-3 h-3" />
+														{lowConfidenceCount} needs review
+													</span>
+												)}
+											</div>
+										)}
+									</div>
+									{currentExtraction && (
+										<div className="text-right">
+											<p className="text-2xl font-display font-semibold text-brass-400">
+												{(currentExtraction.confidence * 100).toFixed(0)}%
+											</p>
+											<p className="text-2xs text-slate-500">overall confidence</p>
 										</div>
-									</div>
-									<div className="text-right">
-										<p className="text-2xl font-display font-semibold text-brass-400">
-											{(mockExtraction.confidence * 100).toFixed(0)}%
-										</p>
-										<p className="text-2xs text-slate-500">overall confidence</p>
-									</div>
+									)}
 								</div>
 							</div>
 
 							{/* Fields */}
 							<div className="flex-1 overflow-y-auto p-4 space-y-2">
-								{mockExtraction.fieldValues.map((field) => (
-									<FieldRow
-										key={field.fieldName}
-										field={field}
-										onEdit={() => {}}
-									/>
-								))}
+								{extractionLoading ? (
+									<div className="flex justify-center py-8">
+										<Loader2 className="w-6 h-6 animate-spin text-slate-500" />
+									</div>
+								) : currentExtraction ? (
+									currentExtraction.fieldValues.map((field: FieldValue) => (
+										<FieldRow
+											key={field.fieldName}
+											field={field}
+											onEdit={() => {}}
+										/>
+									))
+								) : (
+									<p className="text-slate-500 text-center py-8">No extraction selected</p>
+								)}
 							</div>
 
 							{/* Signatures */}
-							<div className="p-4 border-t border-slate-700/50">
-								<h4 className="text-sm font-medium text-slate-300 mb-3 flex items-center gap-2">
-									<Signature className="w-4 h-4" />
-									Signatures Detected
-								</h4>
-								<div className="space-y-2">
-									{mockExtraction.signatures.map((sig) => (
-										<div key={sig.id} className="flex items-center gap-3 p-2 bg-slate-800/30 rounded-lg">
-											<div className={cn(
-												'w-8 h-8 rounded flex items-center justify-center',
-												sig.verified ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-700 text-slate-400'
-											)}>
-												<Signature className="w-4 h-4" />
+							{currentExtraction && currentExtraction.signatures.length > 0 && (
+								<div className="p-4 border-t border-slate-700/50">
+									<h4 className="text-sm font-medium text-slate-300 mb-3 flex items-center gap-2">
+										<Signature className="w-4 h-4" />
+										Signatures Detected
+									</h4>
+									<div className="space-y-2">
+										{currentExtraction.signatures.map((sig: SignatureType) => (
+											<div key={sig.id} className="flex items-center gap-3 p-2 bg-slate-800/30 rounded-lg">
+												<div className={cn(
+													'w-8 h-8 rounded flex items-center justify-center',
+													sig.verified ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-700 text-slate-400'
+												)}>
+													<Signature className="w-4 h-4" />
+												</div>
+												<div className="flex-1">
+													<p className="text-sm text-slate-200">{sig.signerName}</p>
+													<p className="text-2xs text-slate-500">
+														Page {sig.pageNumber} • {sig.signatureType}
+													</p>
+												</div>
+												{sig.verified && (
+													<span className="badge badge-green text-2xs">Verified</span>
+												)}
 											</div>
-											<div className="flex-1">
-												<p className="text-sm text-slate-200">{sig.signerName}</p>
-												<p className="text-2xs text-slate-500">
-													Page {sig.pageNumber} • {sig.signatureType}
-												</p>
-											</div>
-											{sig.verified && (
-												<span className="badge badge-green text-2xs">Verified</span>
-											)}
-										</div>
-									))}
+										))}
+									</div>
 								</div>
-							</div>
+							)}
 
 							{/* Actions */}
-							<div className="p-4 border-t border-slate-700/50 flex gap-2">
-								<button className="flex-1 btn-secondary">
-									<RotateCcw className="w-4 h-4" />
-									Re-extract
-								</button>
-								<button className="flex-1 btn-primary">
-									<Save className="w-4 h-4" />
-									Confirm & Save
-								</button>
-							</div>
+							{currentExtraction && (
+								<div className="p-4 border-t border-slate-700/50 flex gap-2">
+									<button
+										onClick={handleReExtract}
+										disabled={reExtract.isPending}
+										className="flex-1 btn-secondary"
+									>
+										{reExtract.isPending ? (
+											<Loader2 className="w-4 h-4 animate-spin" />
+										) : (
+											<RotateCcw className="w-4 h-4" />
+										)}
+										Re-extract
+									</button>
+									<button
+										onClick={handleConfirm}
+										disabled={confirmExtraction.isPending}
+										className="flex-1 btn-primary"
+									>
+										{confirmExtraction.isPending ? (
+											<Loader2 className="w-4 h-4 animate-spin" />
+										) : (
+											<Save className="w-4 h-4" />
+										)}
+										Confirm & Save
+									</button>
+								</div>
+							)}
 						</div>
 					</motion.div>
 				)}
@@ -350,35 +384,45 @@ export function Forms() {
 							<span className="text-slate-400">Create New Template</span>
 						</button>
 
-						{mockTemplates.map((template) => (
-							<div key={template.id} className="doc-card">
-								<div className="flex items-start justify-between">
-									<div className="flex items-center gap-3">
-										<div className={cn(
-											'p-2 rounded-lg',
-											template.isActive ? 'bg-brass-500/10 text-brass-400' : 'bg-slate-700/50 text-slate-400'
-										)}>
-											<FileText className="w-5 h-5" />
-										</div>
-										<div>
-											<h3 className="font-medium text-slate-200">{template.name}</h3>
-											<p className="text-sm text-slate-500">{template.category}</p>
+						{templatesLoading ? (
+							<div className="col-span-full flex justify-center py-12">
+								<Loader2 className="w-8 h-8 animate-spin text-slate-500" />
+							</div>
+						) : templates.length === 0 ? (
+							<div className="col-span-full text-center py-12 text-slate-500">
+								No templates configured
+							</div>
+						) : (
+							templates.map((template: FormTemplate) => (
+								<div key={template.id} className="doc-card">
+									<div className="flex items-start justify-between">
+										<div className="flex items-center gap-3">
+											<div className={cn(
+												'p-2 rounded-lg',
+												template.isActive ? 'bg-brass-500/10 text-brass-400' : 'bg-slate-700/50 text-slate-400'
+											)}>
+												<FileText className="w-5 h-5" />
+											</div>
+											<div>
+												<h3 className="font-medium text-slate-200">{template.name}</h3>
+												<p className="text-sm text-slate-500">{template.category}</p>
+											</div>
 										</div>
 									</div>
+									<div className="mt-4 flex items-center justify-between">
+										<span className="text-sm text-slate-400">
+											{template.fieldCount} fields
+										</span>
+										<span className={cn(
+											'badge',
+											template.isActive ? 'badge-green' : 'badge-gray'
+										)}>
+											{template.isActive ? 'Active' : 'Inactive'}
+										</span>
+									</div>
 								</div>
-								<div className="mt-4 flex items-center justify-between">
-									<span className="text-sm text-slate-400">
-										{template.fieldCount} fields
-									</span>
-									<span className={cn(
-										'badge',
-										template.isActive ? 'badge-green' : 'badge-gray'
-									)}>
-										{template.isActive ? 'Active' : 'Inactive'}
-									</span>
-								</div>
-							</div>
-						))}
+							))
+						)}
 					</motion.div>
 				)}
 
@@ -390,64 +434,80 @@ export function Forms() {
 						exit={{ opacity: 0 }}
 						className="glass-card overflow-hidden"
 					>
-						<table className="data-table">
-							<thead>
-								<tr>
-									<th>Document</th>
-									<th>Template</th>
-									<th>Status</th>
-									<th>Confidence</th>
-									<th>Submitted</th>
-									<th className="w-24">Actions</th>
-								</tr>
-							</thead>
-							<tbody>
-								{mockQueue.map((item) => (
-									<tr key={item.id}>
-										<td>
-											<div className="flex items-center gap-2">
-												<FileText className="w-4 h-4 text-slate-500" />
-												<span className="text-slate-200">{item.documentTitle}</span>
-											</div>
-										</td>
-										<td className="text-slate-400">{item.templateName}</td>
-										<td>
-											<span className={cn(
-												'badge',
-												item.status === 'completed' ? 'badge-green' :
-												item.status === 'processing' ? 'badge-brass' :
-												'badge-blue'
-											)}>
-												{item.status}
-											</span>
-										</td>
-										<td>
-											{item.status === 'processing' ? (
-												<div className="flex items-center gap-2">
-													<div className="w-4 h-4 border-2 border-brass-500 border-t-transparent rounded-full animate-spin" />
-												</div>
-											) : (
-												<span className={cn(
-													'font-mono',
-													item.confidence >= 0.85 ? 'text-emerald-400' :
-													item.confidence >= 0.70 ? 'text-brass-400' : 'text-red-400'
-												)}>
-													{(item.confidence * 100).toFixed(0)}%
-												</span>
-											)}
-										</td>
-										<td className="text-slate-400">
-											{formatRelativeTime(item.createdAt)}
-										</td>
-										<td>
-											<button className="btn-ghost text-xs">
-												Review
-											</button>
-										</td>
+						{queueLoading ? (
+							<div className="flex justify-center py-12">
+								<Loader2 className="w-8 h-8 animate-spin text-slate-500" />
+							</div>
+						) : queue.length === 0 ? (
+							<div className="text-center py-12 text-slate-500">
+								No items in processing queue
+							</div>
+						) : (
+							<table className="data-table">
+								<thead>
+									<tr>
+										<th>Document</th>
+										<th>Template</th>
+										<th>Status</th>
+										<th>Confidence</th>
+										<th>Submitted</th>
+										<th className="w-24">Actions</th>
 									</tr>
-								))}
-							</tbody>
-						</table>
+								</thead>
+								<tbody>
+									{queue.map((item: ExtractionQueueItem) => (
+										<tr key={item.id}>
+											<td>
+												<div className="flex items-center gap-2">
+													<FileText className="w-4 h-4 text-slate-500" />
+													<span className="text-slate-200">{item.documentTitle}</span>
+												</div>
+											</td>
+											<td className="text-slate-400">{item.templateName}</td>
+											<td>
+												<span className={cn(
+													'badge',
+													item.status === 'completed' ? 'badge-green' :
+													item.status === 'processing' ? 'badge-brass' :
+													item.status === 'needs_review' ? 'badge-blue' :
+													item.status === 'failed' ? 'badge-red' : 'badge-gray'
+												)}>
+													{item.status.replace('_', ' ')}
+												</span>
+											</td>
+											<td>
+												{item.status === 'processing' ? (
+													<div className="flex items-center gap-2">
+														<div className="w-4 h-4 border-2 border-brass-500 border-t-transparent rounded-full animate-spin" />
+													</div>
+												) : item.confidence > 0 ? (
+													<span className={cn(
+														'font-mono',
+														item.confidence >= 0.85 ? 'text-emerald-400' :
+														item.confidence >= 0.70 ? 'text-brass-400' : 'text-red-400'
+													)}>
+														{(item.confidence * 100).toFixed(0)}%
+													</span>
+												) : (
+													<span className="text-slate-500">—</span>
+												)}
+											</td>
+											<td className="text-slate-400">
+												{formatRelativeTime(item.createdAt)}
+											</td>
+											<td>
+												<button
+													onClick={() => setSelectedExtractionId(item.id)}
+													className="btn-ghost text-xs"
+												>
+													Review
+												</button>
+											</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						)}
 					</motion.div>
 				)}
 			</AnimatePresence>

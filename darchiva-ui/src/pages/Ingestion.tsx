@@ -16,33 +16,36 @@ import {
 	Clock,
 	RefreshCw,
 	ChevronRight,
+	Loader2,
+	ScanLine,
+	Cloud,
 } from 'lucide-react';
 import { cn, formatRelativeTime } from '@/lib/utils';
-import type { IngestionSource, IngestionJob } from '@/types';
+import {
+	useIngestionSources,
+	useIngestionJobs,
+	useIngestionStats,
+	useToggleSource,
+	type IngestionSource,
+	type IngestionJob,
+	type SourceType,
+} from '@/features/ingestion';
 
-const mockSources: IngestionSource[] = [
-	{ id: 's1', name: 'Inbox Folder', sourceType: 'watched_folder', mode: 'operational', isActive: true, lastCheckAt: new Date(Date.now() - 60000).toISOString(), createdAt: new Date(Date.now() - 2592000000).toISOString() },
-	{ id: 's2', name: 'archive@company.com', sourceType: 'email', mode: 'archival', isActive: true, lastCheckAt: new Date(Date.now() - 300000).toISOString(), createdAt: new Date(Date.now() - 1728000000).toISOString() },
-	{ id: 's3', name: 'Scanner Output', sourceType: 'watched_folder', mode: 'operational', isActive: false, createdAt: new Date(Date.now() - 864000000).toISOString() },
-	{ id: 's4', name: 'API Webhook', sourceType: 'api', mode: 'operational', isActive: true, createdAt: new Date(Date.now() - 432000000).toISOString() },
-];
-
-const mockJobs: IngestionJob[] = [
-	{ id: 'j1', sourceId: 's1', sourceType: 'watched_folder', sourcePath: '/inbox/Contract_2024.pdf', status: 'completed', mode: 'operational', documentId: 'd1', createdAt: new Date(Date.now() - 300000).toISOString() },
-	{ id: 'j2', sourceId: 's2', sourceType: 'email', sourcePath: 'From: vendor@example.com', status: 'processing', mode: 'archival', createdAt: new Date(Date.now() - 120000).toISOString() },
-	{ id: 'j3', sourceId: 's1', sourceType: 'watched_folder', sourcePath: '/inbox/Invoice_March.pdf', status: 'completed', mode: 'operational', documentId: 'd2', createdAt: new Date(Date.now() - 600000).toISOString() },
-	{ id: 'j4', sourceId: 's4', sourceType: 'api', sourcePath: 'POST /api/ingest', status: 'failed', mode: 'operational', errorMessage: 'Invalid file format', createdAt: new Date(Date.now() - 900000).toISOString() },
-	{ id: 'j5', sourceId: 's2', sourceType: 'email', sourcePath: 'From: client@legal.com', status: 'completed', mode: 'archival', documentId: 'd3', createdAt: new Date(Date.now() - 1200000).toISOString() },
-];
-
-const sourceIcons = {
-	watched_folder: FolderOpen,
+const sourceIcons: Record<SourceType, React.ComponentType<{ className?: string }>> = {
+	folder_watch: FolderOpen,
 	email: Mail,
 	api: Webhook,
+	scanner: ScanLine,
+	cloud_storage: Cloud,
 };
 
 function SourceCard({ source }: { source: IngestionSource }) {
-	const Icon = sourceIcons[source.sourceType];
+	const Icon = sourceIcons[source.type] || FolderOpen;
+	const toggleSource = useToggleSource();
+
+	const handleToggle = () => {
+		toggleSource.mutate({ id: source.id, isActive: !source.isActive });
+	};
 
 	return (
 		<div className="doc-card group">
@@ -57,15 +60,14 @@ function SourceCard({ source }: { source: IngestionSource }) {
 					<div>
 						<h3 className="font-medium text-slate-200">{source.name}</h3>
 						<div className="flex items-center gap-2 mt-1">
-							<span className={cn(
-								'badge text-2xs',
-								source.mode === 'operational' ? 'badge-brass' : 'badge-blue'
-							)}>
-								{source.mode}
-							</span>
 							<span className="text-xs text-slate-500">
-								{source.sourceType.replace('_', ' ')}
+								{source.type.replace('_', ' ')}
 							</span>
+							{source.documentsIngested > 0 && (
+								<span className="text-xs text-slate-500">
+									• {source.documentsIngested} docs
+								</span>
+							)}
 						</div>
 					</div>
 				</div>
@@ -74,9 +76,9 @@ function SourceCard({ source }: { source: IngestionSource }) {
 				</button>
 			</div>
 
-			{source.lastCheckAt && (
+			{source.lastRunAt && (
 				<p className="mt-3 text-xs text-slate-500">
-					Last checked {formatRelativeTime(source.lastCheckAt)}
+					Last run {formatRelativeTime(source.lastRunAt)}
 				</p>
 			)}
 
@@ -97,13 +99,23 @@ function SourceCard({ source }: { source: IngestionSource }) {
 					<button className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded">
 						<Settings className="w-4 h-4" />
 					</button>
-					<button className={cn(
-						'p-1.5 rounded',
-						source.isActive
-							? 'text-slate-500 hover:text-red-400 hover:bg-red-500/10'
-							: 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10'
-					)}>
-						{source.isActive ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+					<button
+						onClick={handleToggle}
+						disabled={toggleSource.isPending}
+						className={cn(
+							'p-1.5 rounded',
+							source.isActive
+								? 'text-slate-500 hover:text-red-400 hover:bg-red-500/10'
+								: 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10'
+						)}
+					>
+						{toggleSource.isPending ? (
+							<Loader2 className="w-4 h-4 animate-spin" />
+						) : source.isActive ? (
+							<Pause className="w-4 h-4" />
+						) : (
+							<Play className="w-4 h-4" />
+						)}
 					</button>
 				</div>
 			</div>
@@ -114,12 +126,23 @@ function SourceCard({ source }: { source: IngestionSource }) {
 export function Ingestion() {
 	const [activeTab, setActiveTab] = useState<'sources' | 'jobs'>('sources');
 
-	const stats = {
-		active: mockSources.filter(s => s.isActive).length,
-		total: mockSources.length,
-		jobsToday: mockJobs.length,
-		failed: mockJobs.filter(j => j.status === 'failed').length,
+	const { data: sourcesData, isLoading: sourcesLoading } = useIngestionSources();
+	const { data: jobsData, isLoading: jobsLoading } = useIngestionJobs({ limit: 20 });
+	const { data: stats, isLoading: statsLoading } = useIngestionStats();
+
+	const sources = sourcesData?.items || [];
+	const jobs = jobsData?.items || [];
+
+	const displayStats = stats || {
+		active: sources.filter(s => s.isActive).length,
+		total: sources.length,
+		jobsToday: jobs.length,
+		failed: jobs.filter(j => j.status === 'failed').length,
 	};
+
+	const successRate = displayStats.jobsToday > 0
+		? (((displayStats.jobsToday - displayStats.failed) / displayStats.jobsToday) * 100).toFixed(0)
+		: '100';
 
 	return (
 		<div className="space-y-6">
@@ -144,25 +167,29 @@ export function Ingestion() {
 				<div className="stat-card">
 					<p className="text-sm text-slate-500">Active Sources</p>
 					<p className="mt-1 text-2xl font-display font-semibold text-emerald-400">
-						{stats.active}/{stats.total}
+						{statsLoading ? (
+							<Loader2 className="w-5 h-5 animate-spin" />
+						) : (
+							`${displayStats.active}/${displayStats.total}`
+						)}
 					</p>
 				</div>
 				<div className="stat-card">
 					<p className="text-sm text-slate-500">Jobs Today</p>
 					<p className="mt-1 text-2xl font-display font-semibold text-slate-100">
-						{stats.jobsToday}
+						{statsLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : displayStats.jobsToday}
 					</p>
 				</div>
 				<div className="stat-card">
 					<p className="text-sm text-slate-500">Failed</p>
 					<p className="mt-1 text-2xl font-display font-semibold text-red-400">
-						{stats.failed}
+						{statsLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : displayStats.failed}
 					</p>
 				</div>
 				<div className="stat-card">
 					<p className="text-sm text-slate-500">Success Rate</p>
 					<p className="mt-1 text-2xl font-display font-semibold text-brass-400">
-						{(((stats.jobsToday - stats.failed) / stats.jobsToday) * 100).toFixed(0)}%
+						{statsLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : `${successRate}%`}
 					</p>
 				</div>
 			</div>
@@ -203,9 +230,19 @@ export function Ingestion() {
 						exit={{ opacity: 0 }}
 						className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
 					>
-						{mockSources.map((source) => (
-							<SourceCard key={source.id} source={source} />
-						))}
+						{sourcesLoading ? (
+							<div className="col-span-full flex items-center justify-center py-12">
+								<Loader2 className="w-8 h-8 animate-spin text-slate-500" />
+							</div>
+						) : sources.length === 0 ? (
+							<div className="col-span-full text-center py-12 text-slate-500">
+								No ingestion sources configured
+							</div>
+						) : (
+							sources.map((source) => (
+								<SourceCard key={source.id} source={source} />
+							))
+						)}
 
 						{/* Add new source card */}
 						<button className="doc-card border-dashed border-2 border-slate-700 hover:border-brass-500/50 flex flex-col items-center justify-center gap-3 min-h-[160px]">
@@ -225,46 +262,41 @@ export function Ingestion() {
 						exit={{ opacity: 0 }}
 						className="glass-card overflow-hidden"
 					>
-						<table className="data-table">
-							<thead>
-								<tr>
-									<th>Source</th>
-									<th>Path / Details</th>
-									<th>Mode</th>
-									<th>Status</th>
-									<th>Time</th>
-									<th className="w-24">Actions</th>
-								</tr>
-							</thead>
-							<tbody>
-								{mockJobs.map((job) => {
-									const Icon = sourceIcons[job.sourceType];
-									return (
+						{jobsLoading ? (
+							<div className="flex items-center justify-center py-12">
+								<Loader2 className="w-8 h-8 animate-spin text-slate-500" />
+							</div>
+						) : jobs.length === 0 ? (
+							<div className="text-center py-12 text-slate-500">
+								No recent jobs
+							</div>
+						) : (
+							<table className="data-table">
+								<thead>
+									<tr>
+										<th>Source</th>
+										<th>Documents</th>
+										<th>Status</th>
+										<th>Started</th>
+										<th className="w-24">Actions</th>
+									</tr>
+								</thead>
+								<tbody>
+									{jobs.map((job) => (
 										<tr key={job.id}>
 											<td>
-												<div className="flex items-center gap-2">
-													<Icon className="w-4 h-4 text-slate-500" />
-													<span className="text-slate-300 capitalize">
-														{job.sourceType.replace('_', ' ')}
-													</span>
-												</div>
+												<span className="text-slate-300">
+													{job.sourceName}
+												</span>
 											</td>
 											<td>
-												<p className="text-slate-300 truncate max-w-xs">
-													{job.sourcePath}
-												</p>
-												{job.errorMessage && (
-													<p className="text-xs text-red-400 mt-0.5">
-														{job.errorMessage}
-													</p>
-												)}
-											</td>
-											<td>
-												<span className={cn(
-													'badge text-2xs',
-													job.mode === 'operational' ? 'badge-brass' : 'badge-blue'
-												)}>
-													{job.mode}
+												<span className="text-slate-400">
+													{job.documentsProcessed} processed
+													{job.documentsFailed > 0 && (
+														<span className="text-red-400 ml-2">
+															({job.documentsFailed} failed)
+														</span>
+													)}
 												</span>
 											</td>
 											<td>
@@ -292,12 +324,12 @@ export function Ingestion() {
 												</div>
 											</td>
 											<td className="text-slate-500">
-												{formatRelativeTime(job.createdAt)}
+												{formatRelativeTime(job.startedAt)}
 											</td>
 											<td>
-												{job.documentId ? (
+												{job.status === 'completed' ? (
 													<button className="btn-ghost text-xs">
-														View Doc <ChevronRight className="w-3 h-3" />
+														View <ChevronRight className="w-3 h-3" />
 													</button>
 												) : job.status === 'failed' ? (
 													<button className="btn-ghost text-xs text-brass-400">
@@ -306,10 +338,10 @@ export function Ingestion() {
 												) : null}
 											</td>
 										</tr>
-									);
-								})}
-							</tbody>
-						</table>
+									))}
+								</tbody>
+							</table>
+						)}
 					</motion.div>
 				)}
 			</AnimatePresence>

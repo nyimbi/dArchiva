@@ -13,60 +13,21 @@ import {
 	GitBranch,
 	User,
 	Tag,
-	FileText,
 	MoreVertical,
 	GripVertical,
 	TestTube,
+	Loader2,
 } from 'lucide-react';
-import { cn, formatRelativeTime } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import {
+	useRoutingRules,
+	useRoutingStats,
+	useToggleRoutingRule,
+	useTestRoutingRules,
+} from '@/features/routing';
 import type { RoutingRule } from '@/types';
 
-const mockRules: RoutingRule[] = [
-	{
-		id: 'r1',
-		name: 'Invoices to Finance',
-		description: 'Route all invoices to the Finance folder',
-		priority: 10,
-		conditions: { document_type: 'invoice' },
-		destinationType: 'folder',
-		destinationId: 'finance-invoices',
-		mode: 'both',
-		isActive: true,
-	},
-	{
-		id: 'r2',
-		name: 'Contracts to Legal Review',
-		description: 'Send contracts through legal approval workflow',
-		priority: 20,
-		conditions: { document_type: 'contract', tags: ['needs_review'] },
-		destinationType: 'workflow',
-		destinationId: 'legal-review',
-		mode: 'operational',
-		isActive: true,
-	},
-	{
-		id: 'r3',
-		name: 'HR Documents',
-		description: 'Route HR documents to HR manager inbox',
-		priority: 30,
-		conditions: { metadata: { department: 'hr' } },
-		destinationType: 'user_inbox',
-		destinationId: 'hr-manager',
-		mode: 'both',
-		isActive: true,
-	},
-	{
-		id: 'r4',
-		name: 'Archive Old Records',
-		description: 'Move documents older than 2 years to archive',
-		priority: 100,
-		conditions: { age_days: { gt: 730 } },
-		destinationType: 'folder',
-		destinationId: 'archive',
-		mode: 'archival',
-		isActive: false,
-	},
-];
+type RoutingMode = 'operational' | 'archival';
 
 const destinationIcons = {
 	folder: FolderOpen,
@@ -75,7 +36,12 @@ const destinationIcons = {
 };
 
 function RuleCard({ rule, index }: { rule: RoutingRule; index: number }) {
-	const DestIcon = destinationIcons[rule.destinationType];
+	const DestIcon = destinationIcons[rule.destinationType as keyof typeof destinationIcons] || FolderOpen;
+	const toggleRule = useToggleRoutingRule();
+
+	const handleToggle = () => {
+		toggleRule.mutate({ id: rule.id, isActive: !rule.isActive });
+	};
 
 	return (
 		<motion.div
@@ -170,13 +136,23 @@ function RuleCard({ rule, index }: { rule: RoutingRule; index: number }) {
 							<button className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded">
 								<Pencil className="w-4 h-4" />
 							</button>
-							<button className={cn(
-								'p-1.5 rounded',
-								rule.isActive
-									? 'text-slate-500 hover:text-orange-400 hover:bg-orange-500/10'
-									: 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10'
-							)}>
-								{rule.isActive ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+							<button
+								onClick={handleToggle}
+								disabled={toggleRule.isPending}
+								className={cn(
+									'p-1.5 rounded',
+									rule.isActive
+										? 'text-slate-500 hover:text-orange-400 hover:bg-orange-500/10'
+										: 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10'
+								)}
+							>
+								{toggleRule.isPending ? (
+									<Loader2 className="w-4 h-4 animate-spin" />
+								) : rule.isActive ? (
+									<Pause className="w-4 h-4" />
+								) : (
+									<Play className="w-4 h-4" />
+								)}
 							</button>
 							<button className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded">
 								<Trash2 className="w-4 h-4" />
@@ -191,12 +167,38 @@ function RuleCard({ rule, index }: { rule: RoutingRule; index: number }) {
 
 export function Routing() {
 	const [testMode, setTestMode] = useState(false);
+	const [testForm, setTestForm] = useState<{
+		documentType: string;
+		tags: string;
+		metadata: string;
+		mode: RoutingMode;
+	}>({
+		documentType: '',
+		tags: '',
+		metadata: '',
+		mode: 'operational',
+	});
 
-	const stats = {
-		total: mockRules.length,
-		active: mockRules.filter(r => r.isActive).length,
-		operational: mockRules.filter(r => r.mode === 'operational' || r.mode === 'both').length,
-		archival: mockRules.filter(r => r.mode === 'archival' || r.mode === 'both').length,
+	const { data: rulesData, isLoading: rulesLoading } = useRoutingRules();
+	const { data: stats, isLoading: statsLoading } = useRoutingStats();
+	const testRules = useTestRoutingRules();
+
+	const rules = rulesData?.items || [];
+
+	const displayStats = stats || {
+		total: rules.length,
+		active: rules.filter((r: RoutingRule) => r.isActive).length,
+		operational: rules.filter((r: RoutingRule) => r.mode === 'operational' || r.mode === 'both').length,
+		archival: rules.filter((r: RoutingRule) => r.mode === 'archival' || r.mode === 'both').length,
+	};
+
+	const handleTestRules = () => {
+		testRules.mutate({
+			documentType: testForm.documentType || undefined,
+			tags: testForm.tags ? testForm.tags.split(',').map(t => t.trim()) : undefined,
+			metadata: testForm.metadata ? JSON.parse(testForm.metadata) : undefined,
+			mode: testForm.mode,
+		});
 	};
 
 	return (
@@ -234,25 +236,25 @@ export function Routing() {
 				<div className="stat-card">
 					<p className="text-sm text-slate-500">Total Rules</p>
 					<p className="mt-1 text-2xl font-display font-semibold text-slate-100">
-						{stats.total}
+						{statsLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : displayStats.total}
 					</p>
 				</div>
 				<div className="stat-card">
 					<p className="text-sm text-slate-500">Active</p>
 					<p className="mt-1 text-2xl font-display font-semibold text-emerald-400">
-						{stats.active}
+						{statsLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : displayStats.active}
 					</p>
 				</div>
 				<div className="stat-card">
 					<p className="text-sm text-slate-500">Operational Mode</p>
 					<p className="mt-1 text-2xl font-display font-semibold text-brass-400">
-						{stats.operational}
+						{statsLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : displayStats.operational}
 					</p>
 				</div>
 				<div className="stat-card">
 					<p className="text-sm text-slate-500">Archival Mode</p>
 					<p className="mt-1 text-2xl font-display font-semibold text-blue-400">
-						{stats.archival}
+						{statsLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : displayStats.archival}
 					</p>
 				</div>
 			</div>
@@ -272,6 +274,8 @@ export function Routing() {
 							<input
 								type="text"
 								placeholder="e.g., invoice, contract"
+								value={testForm.documentType}
+								onChange={(e) => setTestForm({ ...testForm, documentType: e.target.value })}
 								className="input-field"
 							/>
 						</div>
@@ -280,6 +284,8 @@ export function Routing() {
 							<input
 								type="text"
 								placeholder="e.g., urgent, needs_review"
+								value={testForm.tags}
+								onChange={(e) => setTestForm({ ...testForm, tags: e.target.value })}
 								className="input-field"
 							/>
 						</div>
@@ -288,21 +294,52 @@ export function Routing() {
 							<input
 								type="text"
 								placeholder='{"department": "hr"}'
+								value={testForm.metadata}
+								onChange={(e) => setTestForm({ ...testForm, metadata: e.target.value })}
 								className="input-field font-mono text-sm"
 							/>
 						</div>
 						<div>
 							<label className="text-sm text-slate-400 mb-1 block">Mode</label>
-							<select className="input-field">
+							<select
+								value={testForm.mode}
+								onChange={(e) => setTestForm({ ...testForm, mode: e.target.value as RoutingMode })}
+								className="input-field"
+							>
 								<option value="operational">Operational</option>
 								<option value="archival">Archival</option>
 							</select>
 						</div>
 					</div>
-					<button className="mt-4 btn-primary">
-						<TestTube className="w-4 h-4" />
+					<button
+						onClick={handleTestRules}
+						disabled={testRules.isPending}
+						className="mt-4 btn-primary"
+					>
+						{testRules.isPending ? (
+							<Loader2 className="w-4 h-4 animate-spin" />
+						) : (
+							<TestTube className="w-4 h-4" />
+						)}
 						Test Rules
 					</button>
+
+					{testRules.data && (
+						<div className="mt-4 p-3 bg-slate-800/50 rounded-lg">
+							<p className="text-sm text-slate-300">
+								{testRules.data.matchedRules.length > 0 ? (
+									<>
+										Matched {testRules.data.matchedRules.length} rule(s).
+										{testRules.data.destination && (
+											<> Destination: {testRules.data.destination.type} - {testRules.data.destination.name}</>
+										)}
+									</>
+								) : (
+									'No rules matched.'
+								)}
+							</p>
+						</div>
+					)}
 				</motion.div>
 			)}
 
@@ -313,11 +350,23 @@ export function Routing() {
 						Rules (ordered by priority)
 					</p>
 				</div>
-				{mockRules
-					.sort((a, b) => a.priority - b.priority)
-					.map((rule, index) => (
-						<RuleCard key={rule.id} rule={rule} index={index} />
-					))}
+
+				{rulesLoading ? (
+					<div className="flex justify-center py-16">
+						<Loader2 className="w-8 h-8 animate-spin text-slate-500" />
+					</div>
+				) : rules.length === 0 ? (
+					<div className="text-center py-16 text-slate-500">
+						<Route className="w-12 h-12 mx-auto mb-4" />
+						<p>No routing rules configured</p>
+					</div>
+				) : (
+					rules
+						.sort((a: RoutingRule, b: RoutingRule) => a.priority - b.priority)
+						.map((rule: RoutingRule, index: number) => (
+							<RuleCard key={rule.id} rule={rule} index={index} />
+						))
+				)}
 			</div>
 		</div>
 	);

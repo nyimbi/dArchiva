@@ -21,74 +21,22 @@ import {
 	Download,
 	Trash2,
 	GitBranch,
+	Loader2,
 } from 'lucide-react';
-import { cn, formatBytes, formatRelativeTime, getFileIcon } from '@/lib/utils';
+import { cn, formatBytes, formatRelativeTime } from '@/lib/utils';
 import { useStore } from '@/hooks/useStore';
-import type { Document, TreeNode } from '@/types';
+import { useFolderTree, useDocuments, type TreeNode as APITreeNode, type Document as APIDocument } from '@/features/documents';
 
-// Mock folder tree
-const mockFolderTree: TreeNode[] = [
-	{
-		id: 'inbox',
-		name: 'Inbox',
-		type: 'folder',
-		children: [
-			{ id: 'inbox-email', name: 'Email Imports', type: 'folder' },
-			{ id: 'inbox-scan', name: 'Scanned Documents', type: 'folder' },
-		],
-	},
-	{
-		id: 'contracts',
-		name: 'Contracts',
-		type: 'folder',
-		children: [
-			{ id: 'contracts-2024', name: '2024', type: 'folder' },
-			{ id: 'contracts-2023', name: '2023', type: 'folder' },
-			{ id: 'contracts-templates', name: 'Templates', type: 'folder' },
-		],
-	},
-	{
-		id: 'finance',
-		name: 'Finance',
-		type: 'folder',
-		children: [
-			{ id: 'finance-invoices', name: 'Invoices', type: 'folder' },
-			{ id: 'finance-reports', name: 'Reports', type: 'folder' },
-		],
-	},
-	{
-		id: 'hr',
-		name: 'Human Resources',
-		type: 'folder',
-		children: [],
-	},
-	{
-		id: 'archive',
-		name: 'Archive',
-		type: 'folder',
-	},
-];
-
-// Mock documents
-const mockDocuments: Document[] = [
-	{ id: '1', title: 'Contract_2024_001.pdf', fileType: 'pdf', fileSize: 2456789, pageCount: 12, createdAt: new Date(Date.now() - 86400000).toISOString(), updatedAt: new Date().toISOString(), parentId: 'contracts-2024', tags: ['contract', 'legal'], status: 'ready', ocrStatus: 'completed' },
-	{ id: '2', title: 'Invoice_March_2024.pdf', fileType: 'pdf', fileSize: 156789, pageCount: 2, createdAt: new Date(Date.now() - 172800000).toISOString(), updatedAt: new Date().toISOString(), parentId: 'finance-invoices', tags: ['invoice', 'finance'], status: 'ready', ocrStatus: 'completed' },
-	{ id: '3', title: 'Employee_Handbook_v3.docx', fileType: 'docx', fileSize: 4567890, pageCount: 45, createdAt: new Date(Date.now() - 259200000).toISOString(), updatedAt: new Date().toISOString(), parentId: 'hr', tags: ['hr', 'policy'], status: 'processing', ocrStatus: 'processing' },
-	{ id: '4', title: 'Q1_Financial_Report.xlsx', fileType: 'xlsx', fileSize: 1234567, pageCount: 1, createdAt: new Date(Date.now() - 345600000).toISOString(), updatedAt: new Date().toISOString(), parentId: 'finance-reports', tags: ['finance', 'report'], status: 'ready', ocrStatus: 'completed' },
-	{ id: '5', title: 'Product_Photos.zip', fileType: 'zip', fileSize: 45678901, pageCount: 0, createdAt: new Date(Date.now() - 432000000).toISOString(), updatedAt: new Date().toISOString(), parentId: null, tags: ['media'], status: 'ready' },
-	{ id: '6', title: 'NDA_Template.pdf', fileType: 'pdf', fileSize: 234567, pageCount: 4, createdAt: new Date(Date.now() - 518400000).toISOString(), updatedAt: new Date().toISOString(), parentId: 'contracts-templates', tags: ['template', 'legal'], status: 'ready', ocrStatus: 'completed' },
-];
-
-function FolderTreeItem({ node, depth = 0 }: { node: TreeNode; depth?: number }) {
-	const { expandedFolders, toggleFolder, selectedFolderId, setSelectedFolderId } = useStore();
+function FolderTreeItem({ node, depth = 0 }: { node: APITreeNode; depth?: number }) {
+	const { expandedFolders, toggleFolder, currentFolderId, setCurrentFolderId } = useStore();
 	const isExpanded = expandedFolders.has(node.id);
-	const isSelected = selectedFolderId === node.id;
+	const isSelected = currentFolderId === node.id;
 	const hasChildren = node.children && node.children.length > 0;
 
 	return (
 		<div>
 			<div
-				onClick={() => setSelectedFolderId(node.id)}
+				onClick={() => setCurrentFolderId(node.id)}
 				className={cn(
 					'tree-node',
 					isSelected && 'selected',
@@ -116,7 +64,7 @@ function FolderTreeItem({ node, depth = 0 }: { node: TreeNode; depth?: number })
 				) : (
 					<Folder className="w-4 h-4 text-slate-500" />
 				)}
-				<span className="truncate">{node.name}</span>
+				<span className="truncate">{node.title}</span>
 			</div>
 
 			<AnimatePresence>
@@ -137,10 +85,10 @@ function FolderTreeItem({ node, depth = 0 }: { node: TreeNode; depth?: number })
 	);
 }
 
-function DocumentCard({ doc }: { doc: Document }) {
-	const { selectedDocuments, toggleDocumentSelection } = useStore();
-	const isSelected = selectedDocuments.has(doc.id);
-	const FileIcon = doc.fileType.includes('image') ? Image : doc.fileType.includes('xls') ? Table : FileText;
+function DocumentCard({ doc }: { doc: APIDocument }) {
+	const { selectedNodeIds, toggleNodeSelection } = useStore();
+	const isSelected = selectedNodeIds.has(doc.id);
+	const FileIcon = doc.title.includes('image') ? Image : doc.title.includes('xls') ? Table : FileText;
 
 	return (
 		<motion.div
@@ -151,12 +99,12 @@ function DocumentCard({ doc }: { doc: Document }) {
 				'doc-card cursor-pointer group',
 				isSelected && 'border-brass-500 bg-brass-500/5'
 			)}
-			onClick={() => toggleDocumentSelection(doc.id)}
+			onClick={() => toggleNodeSelection(doc.id)}
 		>
 			{/* Thumbnail area */}
 			<div className="aspect-[4/3] bg-slate-800/50 rounded-lg mb-3 flex items-center justify-center relative overflow-hidden">
 				<FileIcon className="w-12 h-12 text-slate-600" />
-				{doc.ocrStatus === 'processing' && (
+				{doc.ocr_status === 'processing' && (
 					<div className="absolute inset-0 bg-slate-900/80 flex items-center justify-center">
 						<div className="flex flex-col items-center gap-2">
 							<div className="w-6 h-6 border-2 border-brass-500 border-t-transparent rounded-full animate-spin" />
@@ -172,12 +120,12 @@ function DocumentCard({ doc }: { doc: Document }) {
 					{doc.title}
 				</h3>
 				<div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
-					<span>{formatBytes(doc.fileSize)}</span>
+					<span>{doc.file_size ? formatBytes(doc.file_size) : '—'}</span>
 					<span>•</span>
-					<span>{doc.pageCount} pages</span>
+					<span>{doc.page_count || 0} pages</span>
 				</div>
 				<p className="mt-1 text-xs text-slate-600">
-					{formatRelativeTime(doc.updatedAt)}
+					{formatRelativeTime(doc.updated_at)}
 				</p>
 			</div>
 
@@ -185,8 +133,8 @@ function DocumentCard({ doc }: { doc: Document }) {
 			{doc.tags.length > 0 && (
 				<div className="mt-2 flex flex-wrap gap-1">
 					{doc.tags.slice(0, 2).map((tag) => (
-						<span key={tag} className="badge badge-gray text-2xs">
-							{tag}
+						<span key={tag.id} className="badge badge-gray text-2xs">
+							{tag.name}
 						</span>
 					))}
 					{doc.tags.length > 2 && (
@@ -205,10 +153,12 @@ function DocumentCard({ doc }: { doc: Document }) {
 	);
 }
 
-function DocumentRow({ doc }: { doc: Document }) {
-	const { selectedDocuments, toggleDocumentSelection } = useStore();
-	const isSelected = selectedDocuments.has(doc.id);
-	const FileIcon = doc.fileType.includes('image') ? Image : doc.fileType.includes('xls') ? Table : FileText;
+function DocumentRow({ doc }: { doc: APIDocument }) {
+	const { selectedNodeIds, toggleNodeSelection } = useStore();
+	const isSelected = selectedNodeIds.has(doc.id);
+	const FileIcon = doc.title.includes('image') ? Image : doc.title.includes('xls') ? Table : FileText;
+
+	const statusLabel = doc.ocr_status === 'completed' ? 'ready' : doc.ocr_status || 'pending';
 
 	return (
 		<tr
@@ -216,7 +166,7 @@ function DocumentRow({ doc }: { doc: Document }) {
 				'cursor-pointer transition-colors',
 				isSelected && 'bg-brass-500/10'
 			)}
-			onClick={() => toggleDocumentSelection(doc.id)}
+			onClick={() => toggleNodeSelection(doc.id)}
 		>
 			<td className="w-10">
 				<input
@@ -235,25 +185,25 @@ function DocumentRow({ doc }: { doc: Document }) {
 						<p className="text-sm font-medium text-slate-200">{doc.title}</p>
 						<div className="flex gap-1 mt-0.5">
 							{doc.tags.slice(0, 2).map((tag) => (
-								<span key={tag} className="badge badge-gray text-2xs">
-									{tag}
+								<span key={tag.id} className="badge badge-gray text-2xs">
+									{tag.name}
 								</span>
 							))}
 						</div>
 					</div>
 				</div>
 			</td>
-			<td className="text-slate-400">{formatBytes(doc.fileSize)}</td>
-			<td className="text-slate-400">{doc.pageCount}</td>
-			<td className="text-slate-400">{formatRelativeTime(doc.updatedAt)}</td>
+			<td className="text-slate-400">{doc.file_size ? formatBytes(doc.file_size) : '—'}</td>
+			<td className="text-slate-400">{doc.page_count || 0}</td>
+			<td className="text-slate-400">{formatRelativeTime(doc.updated_at)}</td>
 			<td>
 				<span className={cn(
 					'badge',
-					doc.status === 'ready' ? 'badge-green' :
-					doc.status === 'processing' ? 'badge-brass' :
+					statusLabel === 'ready' ? 'badge-green' :
+					statusLabel === 'processing' ? 'badge-brass' :
 					'badge-gray'
 				)}>
-					{doc.status}
+					{statusLabel}
 				</span>
 			</td>
 			<td>
@@ -275,7 +225,12 @@ function DocumentRow({ doc }: { doc: Document }) {
 
 export function Documents() {
 	const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-	const { selectedDocuments, clearSelection, selectAll } = useStore();
+	const { selectedNodeIds, clearNodeSelection, selectNodes, currentFolderId } = useStore();
+
+	const { data: folderTree, isLoading: treeLoading } = useFolderTree();
+	const { data: documentsData, isLoading: docsLoading } = useDocuments(currentFolderId || undefined);
+
+	const documents = documentsData?.items.filter(d => d.ctype === 'document') || [];
 
 	return (
 		<div className="flex gap-6 h-[calc(100vh-8rem)]">
@@ -292,9 +247,17 @@ export function Documents() {
 					</button>
 				</div>
 				<div className="flex-1 overflow-y-auto py-2">
-					{mockFolderTree.map((node) => (
-						<FolderTreeItem key={node.id} node={node} />
-					))}
+					{treeLoading ? (
+						<div className="flex items-center justify-center py-8">
+							<Loader2 className="w-5 h-5 animate-spin text-slate-500" />
+						</div>
+					) : folderTree && folderTree.length > 0 ? (
+						folderTree.map((node) => (
+							<FolderTreeItem key={node.id} node={node} />
+						))
+					) : (
+						<p className="text-sm text-slate-500 text-center py-8">No folders</p>
+					)}
 				</div>
 			</motion.div>
 
@@ -327,12 +290,12 @@ export function Documents() {
 					</div>
 
 					<div className="flex items-center gap-2">
-						{selectedDocuments.size > 0 && (
+						{selectedNodeIds.size > 0 && (
 							<div className="flex items-center gap-2 mr-4">
 								<span className="text-sm text-slate-400">
-									{selectedDocuments.size} selected
+									{selectedNodeIds.size} selected
 								</span>
-								<button onClick={clearSelection} className="text-xs text-brass-400 hover:text-brass-300">
+								<button onClick={clearNodeSelection} className="text-xs text-brass-400 hover:text-brass-300">
 									Clear
 								</button>
 							</div>
@@ -366,9 +329,18 @@ export function Documents() {
 
 				{/* Documents */}
 				<div className="flex-1 overflow-y-auto">
-					{viewMode === 'grid' ? (
+					{docsLoading ? (
+						<div className="flex items-center justify-center py-16">
+							<Loader2 className="w-8 h-8 animate-spin text-slate-500" />
+						</div>
+					) : documents.length === 0 ? (
+						<div className="flex flex-col items-center justify-center py-16 text-slate-500">
+							<FileText className="w-12 h-12 mb-4" />
+							<p>No documents in this folder</p>
+						</div>
+					) : viewMode === 'grid' ? (
 						<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-							{mockDocuments.map((doc) => (
+							{documents.map((doc) => (
 								<DocumentCard key={doc.id} doc={doc} />
 							))}
 						</div>
@@ -382,9 +354,9 @@ export function Documents() {
 												type="checkbox"
 												onChange={(e) => {
 													if (e.target.checked) {
-														selectAll(mockDocuments.map(d => d.id));
+														selectNodes(documents.map(d => d.id));
 													} else {
-														clearSelection();
+														clearNodeSelection();
 													}
 												}}
 												className="rounded border-slate-600 bg-slate-800 text-brass-500 focus:ring-brass-500/50"
@@ -399,7 +371,7 @@ export function Documents() {
 									</tr>
 								</thead>
 								<tbody>
-									{mockDocuments.map((doc) => (
+									{documents.map((doc) => (
 										<DocumentRow key={doc.id} doc={doc} />
 									))}
 								</tbody>

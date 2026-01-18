@@ -1,15 +1,21 @@
 // (c) Copyright Datacraft, 2026
-import React from 'react';
-import ReactDOM from 'react-dom/client';
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
 
-// Initialize theme from system preference
-const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+// Initialize theme from system preference or stored preference
+const storedTheme = localStorage.getItem('darchiva-theme');
+const prefersDark = storedTheme
+	? storedTheme === 'dark'
+	: window.matchMedia('(prefers-color-scheme: dark)').matches;
 document.documentElement.classList.toggle('dark', prefersDark);
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-	<React.StrictMode>
+const container = document.getElementById('root');
+if (!container) throw new Error('Root container not found');
+
+createRoot(container).render(
+	<StrictMode>
 		<App />
-	</React.StrictMode>
+	</StrictMode>
 );
