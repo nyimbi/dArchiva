@@ -1,7 +1,10 @@
+import { useState } from 'react';
+import * as Dialog from '@radix-ui/react-dialog';
 import { cn } from '@/lib/utils';
 import { useEquipmentMaintenance } from '../../api/hooks';
 import { StatusBadge } from '../core/StatusBadge';
 import { MetricCard } from '../core/MetricCard';
+import { ScannerDiscovery } from '../ScannerDiscovery';
 import type { EquipmentMaintenance, MaintenanceStatus } from '../../types';
 import {
   WrenchIcon,
@@ -11,6 +14,8 @@ import {
   CheckCircleIcon,
   ClockIcon,
   PlusIcon,
+  Search,
+  X,
 } from 'lucide-react';
 
 const statusColors: Record<MaintenanceStatus, string> = {
@@ -21,19 +26,20 @@ const statusColors: Record<MaintenanceStatus, string> = {
 };
 
 export function EquipmentTab() {
+  const [showDiscovery, setShowDiscovery] = useState(false);
   const { data: maintenance, isLoading } = useEquipmentMaintenance();
 
   const now = new Date();
-  const upcoming = maintenance?.filter(m =>
+  const upcoming = maintenance?.filter((m: EquipmentMaintenance) =>
     m.status === 'scheduled' && new Date(m.scheduled_date) > now
-  ).sort((a, b) => new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime()) ?? [];
+  ).sort((a: EquipmentMaintenance, b: EquipmentMaintenance) => new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime()) ?? [];
 
-  const overdue = maintenance?.filter(m => m.status === 'overdue') ?? [];
-  const inProgress = maintenance?.filter(m => m.status === 'in_progress') ?? [];
-  const completed = maintenance?.filter(m => m.status === 'completed') ?? [];
+  const overdue = maintenance?.filter((m: EquipmentMaintenance) => m.status === 'overdue') ?? [];
+  const inProgress = maintenance?.filter((m: EquipmentMaintenance) => m.status === 'in_progress') ?? [];
+  const completed = maintenance?.filter((m: EquipmentMaintenance) => m.status === 'completed') ?? [];
 
-  const totalDowntimeHours = maintenance?.reduce((sum, m) => sum + (m.actual_downtime_hours || 0), 0) ?? 0;
-  const totalMaintenanceCost = maintenance?.reduce((sum, m) => sum + m.cost, 0) ?? 0;
+  const totalDowntimeHours = maintenance?.reduce((sum: number, m: EquipmentMaintenance) => sum + (m.actual_downtime_hours || 0), 0) ?? 0;
+  const totalMaintenanceCost = maintenance?.reduce((sum: number, m: EquipmentMaintenance) => sum + m.cost, 0) ?? 0;
 
   return (
     <div className="space-y-6">
@@ -92,11 +98,45 @@ export function EquipmentTab() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-white">Maintenance Schedule</h2>
-        <button className="flex items-center gap-2 px-3 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-md text-sm transition-colors">
-          <PlusIcon className="w-4 h-4" />
-          Schedule Maintenance
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowDiscovery(true)}
+            className="flex items-center gap-2 px-3 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-md text-sm transition-colors"
+          >
+            <Search className="w-4 h-4" />
+            Discover Scanners
+          </button>
+          <button className="flex items-center gap-2 px-3 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-md text-sm transition-colors">
+            <PlusIcon className="w-4 h-4" />
+            Schedule Maintenance
+          </button>
+        </div>
       </div>
+
+      {/* Scanner Discovery Dialog */}
+      <Dialog.Root open={showDiscovery} onOpenChange={setShowDiscovery}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50" />
+          <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl max-h-[85vh] overflow-hidden bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50">
+            <div className="flex items-center justify-between p-4 border-b border-slate-800">
+              <Dialog.Title className="text-lg font-semibold text-slate-100">
+                Discover Network Scanners
+              </Dialog.Title>
+              <Dialog.Close className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors">
+                <X className="w-5 h-5" />
+              </Dialog.Close>
+            </div>
+            <div className="p-4 overflow-y-auto max-h-[calc(85vh-80px)]">
+              <ScannerDiscovery
+                onScannerAdded={(scanner, config) => {
+                  console.log('Scanner added:', scanner, config);
+                  setShowDiscovery(false);
+                }}
+              />
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
 
       {/* Maintenance List */}
       {isLoading ? (

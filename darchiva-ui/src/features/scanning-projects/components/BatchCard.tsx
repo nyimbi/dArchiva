@@ -1,6 +1,6 @@
 // (c) Copyright Datacraft, 2026
-import { Link } from 'react-router-dom';
-import { Package, Barcode, MapPin, User, FileText, CheckCircle, Clock, AlertCircle, Loader2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Package, Barcode, MapPin, User, FileText, CheckCircle, Clock, AlertCircle, Loader2, ScanLine } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ScanningBatch } from '@/types';
 
@@ -26,6 +26,7 @@ const typeIcons: Record<ScanningBatch['type'], typeof Package> = {
 };
 
 export function BatchCard({ batch, projectId }: BatchCardProps) {
+	const navigate = useNavigate();
 	const status = statusConfig[batch.status];
 	const StatusIcon = status.icon;
 	const TypeIcon = typeIcons[batch.type];
@@ -33,11 +34,10 @@ export function BatchCard({ batch, projectId }: BatchCardProps) {
 		? Math.round((batch.scannedPages / batch.estimatedPages) * 100)
 		: 0;
 
+	const canScan = batch.status === 'pending' || batch.status === 'scanning';
+
 	return (
-		<Link
-			to={`/scanning-projects/${projectId}/batches/${batch.id}`}
-			className="block bg-slate-900 border border-slate-800 rounded-lg p-4 hover:border-slate-700 transition-colors"
-		>
+		<div className="bg-slate-900 border border-slate-800 rounded-lg p-4 hover:border-slate-700 transition-colors">
 			<div className="flex items-start justify-between mb-3">
 				<div className="flex items-center gap-2">
 					<TypeIcon className="w-5 h-5 text-slate-400" />
@@ -74,12 +74,23 @@ export function BatchCard({ batch, projectId }: BatchCardProps) {
 					<span>{batch.physicalLocation}</span>
 				</div>
 				{batch.assignedOperatorName && (
-					<div className="flex items-center gap-1 ml-auto">
+					<div className="flex items-center gap-1">
 						<User className="w-3.5 h-3.5" />
 						<span>{batch.assignedOperatorName}</span>
 					</div>
 				)}
 			</div>
-		</Link>
+
+			{/* Scan Button */}
+			{canScan && (
+				<Link
+					to={`/scanning-projects/${projectId}/batches/${batch.id}/scan`}
+					className="mt-3 flex items-center justify-center gap-2 w-full py-2 bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 rounded-lg text-sm font-medium hover:bg-cyan-500/20 hover:border-cyan-400/50 transition-colors"
+				>
+					<ScanLine className="w-4 h-4" />
+					{batch.status === 'scanning' ? 'Continue Scanning' : 'Start Scanning'}
+				</Link>
+			)}
+		</div>
 	);
 }
