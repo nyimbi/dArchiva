@@ -6,3 +6,7 @@ export { QCSampleCard } from './QCSampleCard';
 export { ResourceCard } from './ResourceCard';
 export { CreateProjectDialog } from './CreateProjectDialog';
 export { CreateBatchDialog } from './CreateBatchDialog';
+export { BarcodeGenerator } from './BarcodeGenerator';
+export { ScannerDiscovery } from './ScannerDiscovery';
+export { AIAdvisorPanel } from './AIAdvisorPanel';
+export { AIProjectPlanner } from './AIProjectPlanner';

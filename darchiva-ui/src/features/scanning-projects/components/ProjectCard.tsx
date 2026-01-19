@@ -22,13 +22,21 @@ const statusConfig: Record<ScanningProject['status'], { label: string; className
 };
 
 export function ProjectCard({ project }: ProjectCardProps) {
-	const status = statusConfig[project.status];
+	const status = statusConfig[project.status] ?? statusConfig.planning;
 	const StatusIcon = status.icon;
-	const progress = project.totalEstimatedPages > 0
-		? Math.round((project.scannedPages / project.totalEstimatedPages) * 100)
+
+	// Use optional fields with defaults
+	const estimatedPages = project.estimatedPages ?? 0;
+	const scannedPages = project.scannedPages ?? 0;
+	const verifiedPages = project.verifiedPages ?? 0;
+	const targetDpi = project.targetDpi ?? 300;
+	const colorMode = project.colorMode ?? 'color';
+
+	const progress = estimatedPages > 0
+		? Math.round((scannedPages / estimatedPages) * 100)
 		: 0;
-	const verifiedProgress = project.totalEstimatedPages > 0
-		? Math.round((project.verifiedPages / project.totalEstimatedPages) * 100)
+	const verifiedProgress = estimatedPages > 0
+		? Math.round((verifiedPages / estimatedPages) * 100)
 		: 0;
 
 	return (
@@ -53,7 +61,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
 				<div>
 					<div className="flex items-center justify-between text-sm mb-1">
 						<span className="text-slate-400">Scanned</span>
-						<span className="text-slate-300">{project.scannedPages.toLocaleString()} / {project.totalEstimatedPages.toLocaleString()} pages</span>
+						<span className="text-slate-300">{scannedPages.toLocaleString()} / {estimatedPages.toLocaleString()} pages</span>
 					</div>
 					<div className="h-2 bg-slate-800 rounded-full overflow-hidden">
 						<div
@@ -66,7 +74,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
 				<div>
 					<div className="flex items-center justify-between text-sm mb-1">
 						<span className="text-slate-400">Verified</span>
-						<span className="text-slate-300">{project.verifiedPages.toLocaleString()} pages ({verifiedProgress}%)</span>
+						<span className="text-slate-300">{verifiedPages.toLocaleString()} pages ({verifiedProgress}%)</span>
 					</div>
 					<div className="h-2 bg-slate-800 rounded-full overflow-hidden">
 						<div
@@ -80,10 +88,10 @@ export function ProjectCard({ project }: ProjectCardProps) {
 			<div className="flex items-center gap-4 text-sm text-slate-400">
 				<div className="flex items-center gap-1.5">
 					<FileText className="w-4 h-4" />
-					<span>{project.targetDPI} DPI</span>
+					<span>{targetDpi} DPI</span>
 				</div>
 				<div className="flex items-center gap-1.5">
-					<span className="capitalize">{project.colorMode}</span>
+					<span className="capitalize">{colorMode}</span>
 				</div>
 				{project.targetEndDate && (
 					<div className="flex items-center gap-1.5 ml-auto">

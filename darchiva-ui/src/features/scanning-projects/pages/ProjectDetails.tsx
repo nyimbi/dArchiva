@@ -1,9 +1,9 @@
 // (c) Copyright Datacraft, 2026
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Plus, FileText, CheckCircle, AlertTriangle, Calendar, Gauge } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, CheckCircle, AlertTriangle, Calendar, Gauge, Wand2 } from 'lucide-react';
 import { useScanningProject, useScanningProjectMetrics, useProjectBatches, useProjectMilestones } from '../hooks';
-import { BatchCard, MilestoneTimeline, CreateBatchDialog } from '../components';
+import { BatchCard, MilestoneTimeline, CreateBatchDialog, AIProjectPlanner } from '../components';
 import { cn } from '@/lib/utils';
 
 function formatDate(date: string): string {
@@ -18,6 +18,7 @@ export function ProjectDetails() {
 	const { data: batches } = useProjectBatches(projectId!);
 	const { data: milestones } = useProjectMilestones(projectId!);
 	const [showAddBatch, setShowAddBatch] = useState(false);
+	const [showAIPlanner, setShowAIPlanner] = useState(false);
 	const [activeTab, setActiveTab] = useState<'batches' | 'milestones' | 'metrics'>('batches');
 
 	if (projectLoading || !project) {
@@ -31,8 +32,17 @@ export function ProjectDetails() {
 		);
 	}
 
-	const progress = project.totalEstimatedPages > 0
-		? Math.round((project.scannedPages / project.totalEstimatedPages) * 100)
+	// Use actual field names with defaults for optional fields
+	const estimatedPages = project.estimatedPages ?? 0;
+	const scannedPages = project.scannedPages ?? 0;
+	const verifiedPages = project.verifiedPages ?? 0;
+	const rejectedPages = project.rejectedPages ?? 0;
+	const targetDpi = project.targetDpi ?? 300;
+	const colorMode = project.colorMode ?? 'color';
+	const qualitySamplingRate = project.qualitySamplingRate ?? 0.1;
+
+	const progress = estimatedPages > 0
+		? Math.round((scannedPages / estimatedPages) * 100)
 		: 0;
 
 	return (
@@ -50,15 +60,24 @@ export function ProjectDetails() {
 							<p className="text-slate-400 mt-1">{project.description}</p>
 						)}
 					</div>
-					<span className={cn(
-						'px-3 py-1 rounded-full text-sm font-medium capitalize',
-						project.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400' :
-						project.status === 'in_progress' ? 'bg-blue-500/10 text-blue-400' :
-						project.status === 'on_hold' ? 'bg-rose-500/10 text-rose-400' :
-						'bg-slate-500/10 text-slate-400'
-					)}>
-						{project.status.replace('_', ' ')}
-					</span>
+					<div className="flex items-center gap-2">
+						<button
+							onClick={() => setShowAIPlanner(true)}
+							className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 text-cyan-400 border border-cyan-500/30 rounded-lg text-sm font-medium hover:border-cyan-400/50 transition-colors"
+						>
+							<Wand2 className="w-4 h-4" />
+							AI Plan
+						</button>
+						<span className={cn(
+							'px-3 py-1 rounded-full text-sm font-medium capitalize',
+							project.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400' :
+							project.status === 'in_progress' ? 'bg-blue-500/10 text-blue-400' :
+							project.status === 'on_hold' ? 'bg-rose-500/10 text-rose-400' :
+							'bg-slate-500/10 text-slate-400'
+						)}>
+							{project.status.replace('_', ' ')}
+						</span>
+					</div>
 				</div>
 
 				<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -68,8 +87,8 @@ export function ProjectDetails() {
 							<span className="text-sm">Scanned</span>
 						</div>
 						<div className="text-xl font-semibold text-slate-100">
-							{project.scannedPages.toLocaleString()}
-							<span className="text-sm text-slate-400 font-normal"> / {project.totalEstimatedPages.toLocaleString()}</span>
+							{scannedPages.toLocaleString()}
+							<span className="text-sm text-slate-400 font-normal"> / {estimatedPages.toLocaleString()}</span>
 						</div>
 					</div>
 					<div className="bg-slate-800/50 rounded-lg p-4">
@@ -77,14 +96,14 @@ export function ProjectDetails() {
 							<CheckCircle className="w-4 h-4" />
 							<span className="text-sm">Verified</span>
 						</div>
-						<div className="text-xl font-semibold text-emerald-400">{project.verifiedPages.toLocaleString()}</div>
+						<div className="text-xl font-semibold text-emerald-400">{verifiedPages.toLocaleString()}</div>
 					</div>
 					<div className="bg-slate-800/50 rounded-lg p-4">
 						<div className="flex items-center gap-2 text-slate-400 mb-1">
 							<AlertTriangle className="w-4 h-4" />
 							<span className="text-sm">Rejected</span>
 						</div>
-						<div className="text-xl font-semibold text-rose-400">{project.rejectedPages.toLocaleString()}</div>
+						<div className="text-xl font-semibold text-rose-400">{rejectedPages.toLocaleString()}</div>
 					</div>
 					<div className="bg-slate-800/50 rounded-lg p-4">
 						<div className="flex items-center gap-2 text-slate-400 mb-1">
@@ -96,9 +115,9 @@ export function ProjectDetails() {
 				</div>
 
 				<div className="flex items-center gap-4 text-sm text-slate-400">
-					<span>{project.targetDPI} DPI</span>
-					<span className="capitalize">{project.colorMode}</span>
-					<span>{project.qualitySampleRate}% QC sample rate</span>
+					<span>{targetDpi} DPI</span>
+					<span className="capitalize">{colorMode}</span>
+					<span>{Math.round(qualitySamplingRate * 100)}% QC sample rate</span>
 					{project.targetEndDate && (
 						<span className="ml-auto flex items-center gap-1">
 							<Calendar className="w-4 h-4" />
@@ -196,6 +215,17 @@ export function ProjectDetails() {
 			)}
 
 			<CreateBatchDialog projectId={project.id} open={showAddBatch} onOpenChange={setShowAddBatch} />
+			<AIProjectPlanner
+				projectId={project.id}
+				projectName={project.name}
+				open={showAIPlanner}
+				onOpenChange={setShowAIPlanner}
+				initialConfig={{
+					startDate: project.startDate,
+					endDate: project.targetEndDate,
+					totalPages: estimatedPages,
+				}}
+			/>
 		</div>
 	);
 }
