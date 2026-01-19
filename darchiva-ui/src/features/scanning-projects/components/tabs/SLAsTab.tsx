@@ -34,8 +34,8 @@ export function SLAsTab({ projectId }: SLAsTabProps) {
   const { data: alerts, isLoading: alertsLoading } = useSLAAlerts(projectId);
   const acknowledgeMutation = useAcknowledgeSLAAlert();
 
-  const unacknowledgedAlerts = alerts?.filter(a => !a.acknowledged_at) ?? [];
-  const statusCounts = slas?.reduce((acc, sla) => {
+  const unacknowledgedAlerts = alerts?.filter((a: SLAAlert) => !a.acknowledged_at) ?? [];
+  const statusCounts = slas?.reduce((acc: Record<SLAStatus, number>, sla: ProjectSLA) => {
     acc[sla.status] = (acc[sla.status] || 0) + 1;
     return acc;
   }, {} as Record<SLAStatus, number>) ?? {};

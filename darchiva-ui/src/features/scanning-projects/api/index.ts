@@ -14,14 +14,15 @@ import type {
 // =====================================================
 
 export interface CreateScanningProjectInput {
+	code: string;
 	name: string;
 	description?: string;
-	totalEstimatedPages: number;
-	targetDPI: number;
-	colorMode: 'bitonal' | 'grayscale' | 'color';
-	qualitySampleRate: number;
-	startDate?: string;
-	targetEndDate?: string;
+	estimated_pages?: number;
+	target_dpi?: number;
+	color_mode?: 'bitonal' | 'grayscale' | 'color';
+	quality_sampling_rate?: number;
+	start_date?: string;
+	target_end_date?: string;
 }
 
 export interface UpdateScanningProjectInput {
@@ -308,4 +309,124 @@ export async function updateResource(
 
 export async function deleteResource(resourceId: string): Promise<void> {
 	await api.delete(`/scanning-projects/resources/${resourceId}`);
+}
+
+// =====================================================
+// Scanner Discovery API
+// =====================================================
+
+export type ScannerProtocol = 'escl' | 'sane' | 'twain' | 'wia';
+
+export interface DiscoveredScanner {
+	name: string;
+	host: string;
+	port: number;
+	protocol: ScannerProtocol;
+	uuid?: string;
+	manufacturer?: string;
+	model?: string;
+	serial?: string;
+	rootUrl?: string;
+	discoveredAt: string;
+}
+
+export interface ScannerCapabilities {
+	platen: boolean;
+	adfPresent: boolean;
+	adfDuplex: boolean;
+	adfCapacity: number;
+	resolutions: number[];
+	colorModes: Array<'color' | 'grayscale' | 'monochrome'>;
+	formats: Array<'jpeg' | 'png' | 'tiff' | 'pdf'>;
+	maxWidthMm: number;
+	maxHeightMm: number;
+	autoCrop: boolean;
+	autoDeskew: boolean;
+	blankPageRemoval: boolean;
+	brightnessControl: boolean;
+	contrastControl: boolean;
+}
+
+export interface RegisteredScanner {
+	id: string;
+	tenantId: string;
+	name: string;
+	protocol: ScannerProtocol;
+	connectionUri: string;
+	manufacturer?: string;
+	model?: string;
+	serialNumber?: string;
+	firmwareVersion?: string;
+	status: 'online' | 'offline' | 'busy' | 'error' | 'maintenance';
+	lastSeenAt?: string;
+	locationId?: string;
+	isDefault: boolean;
+	isActive: boolean;
+	notes?: string;
+	totalPagesScanned: number;
+	capabilities?: ScannerCapabilities;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface RegisterScannerInput {
+	name: string;
+	protocol: ScannerProtocol;
+	connectionUri: string;
+	locationId?: string;
+	isDefault?: boolean;
+	isActive?: boolean;
+	notes?: string;
+}
+
+export async function discoverScanners(
+	options?: { timeout?: number; forceRefresh?: boolean }
+): Promise<DiscoveredScanner[]> {
+	const response = await api.get<DiscoveredScanner[]>('/scanners/discover', {
+		params: {
+			timeout: options?.timeout ?? 8,
+			force_refresh: options?.forceRefresh ?? false,
+		},
+	});
+	return response;
+}
+
+export async function getScanners(includeInactive?: boolean): Promise<RegisteredScanner[]> {
+	const response = await api.get<RegisteredScanner[]>('/scanners', {
+		params: { include_inactive: includeInactive ?? false },
+	});
+	return response;
+}
+
+export async function registerScanner(input: RegisterScannerInput): Promise<RegisteredScanner> {
+	const response = await api.post<RegisteredScanner>('/scanners', input);
+	return response;
+}
+
+export async function getScannerStatus(scannerId: string): Promise<{
+	scannerId: string;
+	status: 'online' | 'offline' | 'busy' | 'error';
+	available: boolean;
+	state?: string;
+	adfState?: string;
+	activeJobs: number;
+	error?: string;
+	lastChecked: string;
+}> {
+	const response = await api.get(`/scanners/${scannerId}/status`);
+	return response as {
+		scannerId: string;
+		status: 'online' | 'offline' | 'busy' | 'error';
+		available: boolean;
+		state?: string;
+		adfState?: string;
+		activeJobs: number;
+		error?: string;
+		lastChecked: string;
+	};
+}
+
+export async function getScannerCapabilities(scannerId: string): Promise<ScannerCapabilities> {
+	const response = await api.get<ScannerCapabilities>(`/scanners/${scannerId}/capabilities`);
+	return response;
 }

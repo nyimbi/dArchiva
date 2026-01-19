@@ -15,6 +15,7 @@ import {
 	Check,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { UsersAccessSettings } from '@/features/settings/components/sections/UsersAccessSettings';
 
 const tabs = [
 	{ id: 'general', label: 'General', icon: Building2 },
@@ -289,6 +290,8 @@ export function Settings() {
 				return <GeneralSettings />;
 			case 'branding':
 				return <BrandingSettings />;
+			case 'users':
+				return <UsersAccessSettings />;
 			case 'storage':
 				return <StorageSettings />;
 			default:

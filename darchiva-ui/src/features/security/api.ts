@@ -46,14 +46,14 @@ export interface AuditFilters {
 export function useRoles() {
 	return useQuery({
 		queryKey: SECURITY_KEYS.roles,
-		queryFn: () => api.get<Role[]>('/api/v1/security/roles'),
+		queryFn: () => api.get<Role[]>('/security/roles'),
 	});
 }
 
 export function useRole(id: string) {
 	return useQuery({
 		queryKey: SECURITY_KEYS.role(id),
-		queryFn: () => api.get<Role>(`/api/v1/security/roles/${id}`),
+		queryFn: () => api.get<Role>(`/security/roles/${id}`),
 		enabled: !!id,
 	});
 }
@@ -61,7 +61,7 @@ export function useRole(id: string) {
 export function useCreateRole() {
 	const queryClient = useQueryClient();
 	return useMutation({
-		mutationFn: (data: Partial<Role>) => api.post<Role>('/api/v1/security/roles', data),
+		mutationFn: (data: Partial<Role>) => api.post<Role>('/security/roles', data),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: SECURITY_KEYS.roles });
 		},
@@ -72,7 +72,7 @@ export function useUpdateRole() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: ({ id, data }: { id: string; data: Partial<Role> }) =>
-			api.patch<Role>(`/api/v1/security/roles/${id}`, data),
+			api.patch<Role>(`/security/roles/${id}`, data),
 		onSuccess: (_, { id }) => {
 			queryClient.invalidateQueries({ queryKey: SECURITY_KEYS.role(id) });
 			queryClient.invalidateQueries({ queryKey: SECURITY_KEYS.roles });
@@ -83,7 +83,7 @@ export function useUpdateRole() {
 export function useDeleteRole() {
 	const queryClient = useQueryClient();
 	return useMutation({
-		mutationFn: (id: string) => api.delete(`/api/v1/security/roles/${id}`),
+		mutationFn: (id: string) => api.delete(`/security/roles/${id}`),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: SECURITY_KEYS.roles });
 		},
@@ -94,14 +94,14 @@ export function useDeleteRole() {
 export function useSecurityUsers(params?: { page?: number; limit?: number; search?: string }) {
 	return useQuery({
 		queryKey: [...SECURITY_KEYS.users, params],
-		queryFn: () => api.get<{ users: User[]; total: number }>('/api/v1/security/users', { params }),
+		queryFn: () => api.get<{ users: User[]; total: number }>('/security/users', { params }),
 	});
 }
 
 export function useSecurityUser(id: string) {
 	return useQuery({
 		queryKey: SECURITY_KEYS.user(id),
-		queryFn: () => api.get<User>(`/api/v1/security/users/${id}`),
+		queryFn: () => api.get<User>(`/security/users/${id}`),
 		enabled: !!id,
 	});
 }
@@ -110,7 +110,7 @@ export function useUpdateUserRoles() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: ({ userId, roleIds }: { userId: string; roleIds: string[] }) =>
-			api.patch(`/api/v1/security/users/${userId}/roles`, { roleIds }),
+			api.patch(`/security/users/${userId}/roles`, { roleIds }),
 		onSuccess: (_, { userId }) => {
 			queryClient.invalidateQueries({ queryKey: SECURITY_KEYS.user(userId) });
 			queryClient.invalidateQueries({ queryKey: SECURITY_KEYS.users });
@@ -122,7 +122,7 @@ export function useBulkUpdateUserRoles() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (data: { userIds: string[]; addRoleIds?: string[]; removeRoleIds?: string[] }) =>
-			api.post('/api/v1/security/users/bulk-roles', data),
+			api.post('/security/users/bulk-roles', data),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: SECURITY_KEYS.users });
 		},
@@ -133,7 +133,7 @@ export function useBulkUpdateUserRoles() {
 export function useDepartments() {
 	return useQuery({
 		queryKey: SECURITY_KEYS.departments,
-		queryFn: () => api.get<Department[]>('/api/v1/security/departments'),
+		queryFn: () => api.get<Department[]>('/security/departments'),
 	});
 }
 
@@ -141,14 +141,14 @@ export function useDepartments() {
 export function usePolicies() {
 	return useQuery({
 		queryKey: SECURITY_KEYS.policies,
-		queryFn: () => api.get<ABACPolicy[]>('/api/v1/security/policies'),
+		queryFn: () => api.get<ABACPolicy[]>('/security/policies'),
 	});
 }
 
 export function usePolicy(id: string) {
 	return useQuery({
 		queryKey: SECURITY_KEYS.policy(id),
-		queryFn: () => api.get<ABACPolicy>(`/api/v1/security/policies/${id}`),
+		queryFn: () => api.get<ABACPolicy>(`/security/policies/${id}`),
 		enabled: !!id,
 	});
 }
@@ -157,7 +157,7 @@ export function useCreatePolicy() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (data: Partial<ABACPolicy>) =>
-			api.post<ABACPolicy>('/api/v1/security/policies', data),
+			api.post<ABACPolicy>('/security/policies', data),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: SECURITY_KEYS.policies });
 		},
@@ -168,7 +168,7 @@ export function useUpdatePolicy() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: ({ id, data }: { id: string; data: Partial<ABACPolicy> }) =>
-			api.patch<ABACPolicy>(`/api/v1/security/policies/${id}`, data),
+			api.patch<ABACPolicy>(`/security/policies/${id}`, data),
 		onSuccess: (_, { id }) => {
 			queryClient.invalidateQueries({ queryKey: SECURITY_KEYS.policy(id) });
 			queryClient.invalidateQueries({ queryKey: SECURITY_KEYS.policies });
@@ -181,7 +181,7 @@ export function useAuditLogs(filters?: AuditFilters) {
 	return useQuery({
 		queryKey: SECURITY_KEYS.auditLogs(filters),
 		queryFn: () =>
-			api.get<{ logs: AuditLogEntry[]; total: number }>('/api/v1/security/audit-logs', {
+			api.get<{ logs: AuditLogEntry[]; total: number }>('/security/audit-logs', {
 				params: filters,
 			}),
 	});
@@ -191,7 +191,7 @@ export function useAuditLogs(filters?: AuditFilters) {
 export function usePermissionMatrix() {
 	return useQuery({
 		queryKey: SECURITY_KEYS.permissionMatrix,
-		queryFn: () => api.get<PermissionMatrixCell[]>('/api/v1/security/permission-matrix'),
+		queryFn: () => api.get<PermissionMatrixCell[]>('/security/permission-matrix'),
 	});
 }
 
@@ -199,7 +199,7 @@ export function useUpdatePermissionMatrix() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (data: PermissionMatrixCell) =>
-			api.patch('/api/v1/security/permission-matrix', data),
+			api.patch('/security/permission-matrix', data),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: SECURITY_KEYS.permissionMatrix });
 		},
@@ -212,7 +212,7 @@ export function useAccessGraph(params?: { userId?: string; resourceId?: string; 
 		queryKey: [...SECURITY_KEYS.accessGraph, params],
 		queryFn: () =>
 			api.get<{ nodes: AccessGraphNode[]; edges: AccessGraphEdge[] }>(
-				'/api/v1/security/access-graph',
+				'/security/access-graph',
 				{ params }
 			),
 	});
@@ -222,7 +222,7 @@ export function useAccessGraph(params?: { userId?: string; resourceId?: string; 
 export function useCheckAccess() {
 	return useMutation({
 		mutationFn: (request: AccessRequest) =>
-			api.post<AccessDecision>('/api/v1/security/check-access', request),
+			api.post<AccessDecision>('/security/check-access', request),
 	});
 }
 
@@ -231,7 +231,7 @@ export function useBulkUpdateUserStatus() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (data: { userIds: string[]; status: 'active' | 'inactive' | 'locked' }) =>
-			api.post('/api/v1/security/users/bulk-status', data),
+			api.post('/security/users/bulk-status', data),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: SECURITY_KEYS.users });
 		},
@@ -243,7 +243,7 @@ export function useBulkAssignDepartment() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (data: { userIds: string[]; departmentId: string }) =>
-			api.post('/api/v1/security/users/bulk-department', data),
+			api.post('/security/users/bulk-department', data),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: SECURITY_KEYS.users });
 		},
@@ -253,7 +253,7 @@ export function useBulkAssignDepartment() {
 // Export Users
 export async function exportUsers(userIds: string[]): Promise<Blob> {
 	const response = await api.post<Blob>(
-		'/api/v1/security/users/export',
+		'/security/users/export',
 		{ userIds },
 		{ responseType: 'blob' }
 	);
@@ -262,7 +262,7 @@ export async function exportUsers(userIds: string[]): Promise<Blob> {
 
 // Export Audit Logs
 export async function exportAuditLogs(filters?: AuditFilters): Promise<Blob> {
-	const response = await api.get<Blob>('/api/v1/security/audit-logs/export', {
+	const response = await api.get<Blob>('/security/audit-logs/export', {
 		params: filters,
 		responseType: 'blob',
 	});
@@ -273,7 +273,7 @@ export async function exportAuditLogs(filters?: AuditFilters): Promise<Blob> {
 export function useResourceTypes() {
 	return useQuery({
 		queryKey: ['security', 'resource-types'],
-		queryFn: () => api.get<string[]>('/api/v1/security/resource-types'),
+		queryFn: () => api.get<string[]>('/security/resource-types'),
 	});
 }
 
@@ -283,8 +283,36 @@ export function useSecurityResources(params?: { type?: string; search?: string }
 		queryKey: ['security', 'resources', params],
 		queryFn: () =>
 			api.get<Array<{ id: string; name: string; type: string }>>(
-				'/api/v1/security/resources',
+				'/security/resources',
 				{ params }
 			),
 	});
 }
+
+// Re-export PBAC API functions from api/index.ts
+export {
+	fetchPolicies,
+	fetchPolicy,
+	createPolicy,
+	createPolicyFromDSL,
+	updatePolicy,
+	deletePolicy,
+	validateDSL,
+	convertToDSL,
+	submitForApproval,
+	fetchPendingApprovals,
+	approvePolicy,
+	rejectPolicy,
+	fetchPolicyAnalytics,
+	fetchEvaluationLogs,
+	fetchEncryptionKeys,
+	rotateEncryptionKey,
+	fetchDocumentEncryptionInfo,
+	requestHiddenAccess,
+	fetchPendingAccessRequests,
+	approveHiddenAccess,
+	denyHiddenAccess,
+	grantDepartmentAccess,
+	revokeDepartmentAccess,
+	fetchUserDepartmentAccess,
+} from './api/index';

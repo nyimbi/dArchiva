@@ -239,3 +239,44 @@ export const STATUS_CONFIG: Record<ScannerStatus, { label: string; color: string
 	error: { label: 'Error', color: 'text-red-400', ledClass: 'led-error' },
 	maintenance: { label: 'Maintenance', color: 'text-purple-400', ledClass: 'led-offline' },
 };
+
+// Additional exports for compatibility
+export interface ScanPreviewData {
+	imageUrl: string;
+	width: number;
+	height: number;
+	format: ImageFormat;
+}
+
+// Resolution presets for UI
+export const RESOLUTION_PRESETS = [
+	{ value: 150, label: '150 DPI', description: 'Draft quality, fast' },
+	{ value: 300, label: '300 DPI', description: 'Standard quality' },
+	{ value: 600, label: '600 DPI', description: 'High quality' },
+	{ value: 1200, label: '1200 DPI', description: 'Maximum quality, slow' },
+];
+
+// Color mode options for UI
+export const COLOR_MODE_OPTIONS: Array<{ value: ColorMode; label: string; icon: string }> = [
+	{ value: 'color', label: 'Color', icon: 'palette' },
+	{ value: 'grayscale', label: 'Grayscale', icon: 'contrast' },
+	{ value: 'monochrome', label: 'Black & White', icon: 'circle' },
+];
+
+// Paper size options (compatibility)
+export type PaperSize = 'a4' | 'a3' | 'letter' | 'legal' | 'auto';
+export const PAPER_SIZE_OPTIONS: Array<{ value: PaperSize; label: string; dimensions: string }> = [
+	{ value: 'a4', label: 'A4', dimensions: '210 × 297 mm' },
+	{ value: 'a3', label: 'A3', dimensions: '297 × 420 mm' },
+	{ value: 'letter', label: 'Letter', dimensions: '8.5 × 11 in' },
+	{ value: 'legal', label: 'Legal', dimensions: '8.5 × 14 in' },
+	{ value: 'auto', label: 'Auto Detect', dimensions: 'Automatic' },
+];
+
+// Paper source options (compatibility)
+export type PaperSource = 'flatbed' | 'adf_simplex' | 'adf_duplex';
+export const PAPER_SOURCE_OPTIONS: Array<{ value: PaperSource; label: string; description: string }> = [
+	{ value: 'flatbed', label: 'Flatbed', description: 'Single page on glass' },
+	{ value: 'adf_simplex', label: 'ADF (Single-sided)', description: 'Automatic document feeder' },
+	{ value: 'adf_duplex', label: 'ADF (Double-sided)', description: 'Scan both sides' },
+];

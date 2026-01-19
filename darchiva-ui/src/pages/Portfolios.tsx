@@ -1,5 +1,6 @@
 // (c) Copyright Datacraft, 2026
 import { motion } from 'framer-motion';
+import { useStore } from '@/hooks/useStore';
 import {
 	FolderKanban,
 	Plus,
@@ -18,7 +19,7 @@ import {
 	type Portfolio,
 } from '@/features/portfolios';
 
-function PortfolioCard({ portfolio }: { portfolio: Portfolio }) {
+function PortfolioCard({ portfolio, onOpen, onOptions }: { portfolio: Portfolio; onOpen: (p: Portfolio) => void; onOptions: (p: Portfolio) => void }) {
 	const typeColors: Record<string, string> = {
 		active: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
 		archived: 'bg-slate-500/10 text-slate-400 border-slate-500/30',
@@ -46,7 +47,10 @@ function PortfolioCard({ portfolio }: { portfolio: Portfolio }) {
 						</span>
 					</div>
 				</div>
-				<button className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+				<button
+					onClick={(e) => { e.stopPropagation(); onOptions(portfolio); }}
+					className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+				>
 					<MoreVertical className="w-4 h-4" />
 				</button>
 			</div>
@@ -77,7 +81,7 @@ function PortfolioCard({ portfolio }: { portfolio: Portfolio }) {
 					<Calendar className="w-3 h-3" />
 					Created {formatDate(portfolio.createdAt)}
 				</div>
-				<button className="flex items-center gap-1 text-xs text-brass-400 hover:text-brass-300">
+				<button onClick={(e) => { e.stopPropagation(); onOpen(portfolio); }} className="flex items-center gap-1 text-xs text-brass-400 hover:text-brass-300">
 					Open <ChevronRight className="w-3 h-3" />
 				</button>
 			</div>
@@ -86,10 +90,15 @@ function PortfolioCard({ portfolio }: { portfolio: Portfolio }) {
 }
 
 export function Portfolios() {
+	const { openModal } = useStore();
 	const { data: portfoliosData, isLoading: portfoliosLoading } = usePortfolios();
 	const { data: stats, isLoading: statsLoading } = usePortfolioStats();
 
 	const portfolios = portfoliosData?.items || [];
+
+	const handleNewPortfolio = () => openModal('create-portfolio');
+	const handleOpenPortfolio = (p: Portfolio) => openModal('view-portfolio', p);
+	const handlePortfolioOptions = (p: Portfolio) => openModal('portfolio-options', p);
 
 	return (
 		<div className="space-y-6">
@@ -103,7 +112,7 @@ export function Portfolios() {
 						Organize cases and manage access control
 					</p>
 				</div>
-				<button className="btn-primary">
+				<button onClick={handleNewPortfolio} className="btn-primary">
 					<Plus className="w-4 h-4" />
 					New Portfolio
 				</button>
@@ -191,12 +200,13 @@ export function Portfolios() {
 							animate={{ opacity: 1, y: 0 }}
 							transition={{ delay: idx * 0.05 }}
 						>
-							<PortfolioCard portfolio={portfolio} />
+							<PortfolioCard portfolio={portfolio} onOpen={handleOpenPortfolio} onOptions={handlePortfolioOptions} />
 						</motion.div>
 					))}
 
 					{/* Add new portfolio card */}
 					<motion.button
+						onClick={handleNewPortfolio}
 						initial={{ opacity: 0, y: 20 }}
 						animate={{ opacity: 1, y: 0 }}
 						transition={{ delay: portfolios.length * 0.05 }}

@@ -1,6 +1,7 @@
 // (c) Copyright Datacraft, 2026
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useStore } from '@/hooks/useStore';
 import {
 	Upload,
 	FolderOpen,
@@ -39,7 +40,7 @@ const sourceIcons: Record<SourceType, React.ComponentType<{ className?: string }
 	cloud_storage: Cloud,
 };
 
-function SourceCard({ source }: { source: IngestionSource }) {
+function SourceCard({ source, onSettings, onOptions }: { source: IngestionSource; onSettings: (s: IngestionSource) => void; onOptions: (s: IngestionSource) => void }) {
 	const Icon = sourceIcons[source.type] || FolderOpen;
 	const toggleSource = useToggleSource();
 
@@ -71,7 +72,10 @@ function SourceCard({ source }: { source: IngestionSource }) {
 						</div>
 					</div>
 				</div>
-				<button className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+				<button
+					onClick={() => onOptions(source)}
+					className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+				>
 					<MoreVertical className="w-4 h-4" />
 				</button>
 			</div>
@@ -96,7 +100,7 @@ function SourceCard({ source }: { source: IngestionSource }) {
 					</span>
 				</div>
 				<div className="flex items-center gap-1">
-					<button className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded">
+					<button onClick={() => onSettings(source)} className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded">
 						<Settings className="w-4 h-4" />
 					</button>
 					<button
@@ -125,8 +129,15 @@ function SourceCard({ source }: { source: IngestionSource }) {
 
 export function Ingestion() {
 	const [activeTab, setActiveTab] = useState<'sources' | 'jobs'>('sources');
+	const { openModal } = useStore();
 
 	const { data: sourcesData, isLoading: sourcesLoading } = useIngestionSources();
+
+	const handleAddSource = () => openModal('add-ingestion-source');
+	const handleSourceSettings = (s: IngestionSource) => openModal('ingestion-source-settings', s);
+	const handleSourceOptions = (s: IngestionSource) => openModal('ingestion-source-options', s);
+	const handleViewJob = (j: IngestionJob) => openModal('view-ingestion-job', j);
+	const handleRetryJob = (j: IngestionJob) => openModal('retry-ingestion-job', j);
 	const { data: jobsData, isLoading: jobsLoading } = useIngestionJobs({ limit: 20 });
 	const { data: stats, isLoading: statsLoading } = useIngestionStats();
 
@@ -156,7 +167,7 @@ export function Ingestion() {
 						Configure automatic document import from folders, email, and APIs
 					</p>
 				</div>
-				<button className="btn-primary">
+				<button onClick={handleAddSource} className="btn-primary">
 					<Plus className="w-4 h-4" />
 					Add Source
 				</button>
@@ -240,12 +251,12 @@ export function Ingestion() {
 							</div>
 						) : (
 							sources.map((source) => (
-								<SourceCard key={source.id} source={source} />
+								<SourceCard key={source.id} source={source} onSettings={handleSourceSettings} onOptions={handleSourceOptions} />
 							))
 						)}
 
 						{/* Add new source card */}
-						<button className="doc-card border-dashed border-2 border-slate-700 hover:border-brass-500/50 flex flex-col items-center justify-center gap-3 min-h-[160px]">
+						<button onClick={handleAddSource} className="doc-card border-dashed border-2 border-slate-700 hover:border-brass-500/50 flex flex-col items-center justify-center gap-3 min-h-[160px]">
 							<div className="p-3 rounded-full bg-slate-800">
 								<Plus className="w-6 h-6 text-slate-400" />
 							</div>
@@ -328,11 +339,11 @@ export function Ingestion() {
 											</td>
 											<td>
 												{job.status === 'completed' ? (
-													<button className="btn-ghost text-xs">
+													<button onClick={() => handleViewJob(job)} className="btn-ghost text-xs">
 														View <ChevronRight className="w-3 h-3" />
 													</button>
 												) : job.status === 'failed' ? (
-													<button className="btn-ghost text-xs text-brass-400">
+													<button onClick={() => handleRetryJob(job)} className="btn-ghost text-xs text-brass-400">
 														Retry
 													</button>
 												) : null}

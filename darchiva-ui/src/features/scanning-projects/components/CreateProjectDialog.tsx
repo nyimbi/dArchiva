@@ -10,22 +10,38 @@ interface CreateProjectDialogProps {
 	onOpenChange: (open: boolean) => void;
 }
 
+// Generate a project code from the name (uppercase, no spaces, max 20 chars)
+function generateCode(name: string): string {
+	return name
+		.toUpperCase()
+		.replace(/[^A-Z0-9]/g, '-')
+		.replace(/-+/g, '-')
+		.replace(/^-|-$/g, '')
+		.slice(0, 20) || 'PROJECT';
+}
+
 export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogProps) {
 	const createProject = useCreateScanningProject();
 	const [form, setForm] = useState<CreateScanningProjectInput>({
+		code: '',
 		name: '',
 		description: '',
-		totalEstimatedPages: 0,
-		targetDPI: 300,
-		colorMode: 'grayscale',
-		qualitySampleRate: 5,
+		estimated_pages: 0,
+		target_dpi: 300,
+		color_mode: 'grayscale',
+		quality_sampling_rate: 0.05,
 	});
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		await createProject.mutateAsync(form);
+		// Auto-generate code from name if not set
+		const submitData = {
+			...form,
+			code: form.code || generateCode(form.name),
+		};
+		await createProject.mutateAsync(submitData);
 		onOpenChange(false);
-		setForm({ name: '', description: '', totalEstimatedPages: 0, targetDPI: 300, colorMode: 'grayscale', qualitySampleRate: 5 });
+		setForm({ code: '', name: '', description: '', estimated_pages: 0, target_dpi: 300, color_mode: 'grayscale', quality_sampling_rate: 0.05 });
 	};
 
 	return (
@@ -61,18 +77,17 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
 								<label className="block text-sm font-medium text-slate-300 mb-1">Estimated Pages</label>
 								<input
 									type="number"
-									value={form.totalEstimatedPages}
-									onChange={(e) => setForm({ ...form, totalEstimatedPages: parseInt(e.target.value) || 0 })}
+									value={form.estimated_pages}
+									onChange={(e) => setForm({ ...form, estimated_pages: parseInt(e.target.value) || 0 })}
 									className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-brass-500"
 									min={0}
-									required
 								/>
 							</div>
 							<div>
 								<label className="block text-sm font-medium text-slate-300 mb-1">Target DPI</label>
 								<select
-									value={form.targetDPI}
-									onChange={(e) => setForm({ ...form, targetDPI: parseInt(e.target.value) })}
+									value={form.target_dpi}
+									onChange={(e) => setForm({ ...form, target_dpi: parseInt(e.target.value) })}
 									className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-brass-500"
 								>
 									<option value={200}>200 DPI</option>
@@ -86,8 +101,8 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
 							<div>
 								<label className="block text-sm font-medium text-slate-300 mb-1">Color Mode</label>
 								<select
-									value={form.colorMode}
-									onChange={(e) => setForm({ ...form, colorMode: e.target.value as 'bitonal' | 'grayscale' | 'color' })}
+									value={form.color_mode}
+									onChange={(e) => setForm({ ...form, color_mode: e.target.value as 'bitonal' | 'grayscale' | 'color' })}
 									className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-brass-500"
 								>
 									<option value="bitonal">Bitonal (B&W)</option>
@@ -100,8 +115,8 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
 								<div className="flex items-center gap-2">
 									<input
 										type="number"
-										value={form.qualitySampleRate}
-										onChange={(e) => setForm({ ...form, qualitySampleRate: parseInt(e.target.value) || 0 })}
+										value={Math.round((form.quality_sampling_rate || 0) * 100)}
+										onChange={(e) => setForm({ ...form, quality_sampling_rate: (parseInt(e.target.value) || 0) / 100 })}
 										className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-brass-500"
 										min={1}
 										max={100}
@@ -115,8 +130,8 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
 								<label className="block text-sm font-medium text-slate-300 mb-1">Start Date</label>
 								<input
 									type="date"
-									value={form.startDate || ''}
-									onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+									value={form.start_date || ''}
+									onChange={(e) => setForm({ ...form, start_date: e.target.value })}
 									className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-brass-500"
 								/>
 							</div>
@@ -124,8 +139,8 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
 								<label className="block text-sm font-medium text-slate-300 mb-1">Target End Date</label>
 								<input
 									type="date"
-									value={form.targetEndDate || ''}
-									onChange={(e) => setForm({ ...form, targetEndDate: e.target.value })}
+									value={form.target_end_date || ''}
+									onChange={(e) => setForm({ ...form, target_end_date: e.target.value })}
 									className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-brass-500"
 								/>
 							</div>

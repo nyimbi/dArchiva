@@ -185,10 +185,10 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
 			initial={{ scale: 0.8, opacity: 0 }}
 			animate={{ scale: 1, opacity: 1 }}
 			className={cn(
-				'relative min-w-[140px] px-4 py-3 rounded-xl border-2 backdrop-blur-sm transition-all duration-200 cursor-pointer',
+				'relative px-1.5 py-1 rounded border backdrop-blur-sm transition-all duration-200 cursor-pointer',
 				colors.bg,
 				colors.border,
-				selected && `ring-2 ring-offset-2 ring-offset-slate-900 ring-brass-500 shadow-lg ${colors.glow}`,
+				selected && `ring-1 ring-offset-1 ring-offset-slate-900 ring-brass-500 shadow-md ${colors.glow}`,
 				data.isRunning && 'animate-pulse',
 				data.hasError && 'border-red-500/50 bg-red-500/10'
 			)}
@@ -201,7 +201,7 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
 					position={pos}
 					id={`input-${idx}`}
 					className={cn(
-						'!w-3 !h-3 !rounded-full !border-2 transition-colors',
+						'!w-2 !h-2 !rounded-full !border transition-colors',
 						'!bg-slate-700 !border-slate-500',
 						'hover:!bg-slate-600 hover:!border-slate-400'
 					)}
@@ -214,46 +214,43 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
 			))}
 
 			{/* Content */}
-			<div className="flex items-center gap-3">
-				<div className={cn('p-2 rounded-lg', colors.bg)}>
-					<Icon className={cn('w-5 h-5', colors.text)} />
+			<div className="flex items-center gap-1">
+				<div className={cn('p-0.5 rounded', colors.bg)}>
+					<Icon className={cn('w-2.5 h-2.5', colors.text)} />
 				</div>
-				<div className="min-w-0">
-					<p className="text-sm font-medium text-slate-100 truncate">
-						{data.label}
-					</p>
-					<p className="text-[10px] text-slate-500">{metadata.description}</p>
-				</div>
+				<p className="text-[7px] font-medium text-slate-100 truncate max-w-[60px]">
+					{data.label}
+				</p>
 			</div>
 
 			{/* Status indicators */}
 			{data.isCompleted && (
-				<div className="absolute -top-1.5 -right-1.5">
-					<div className="w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
-						<CheckCircle2 className="w-3 h-3 text-white" />
+				<div className="absolute -top-1 -right-1">
+					<div className="w-3 h-3 rounded-full bg-emerald-500 flex items-center justify-center">
+						<CheckCircle2 className="w-2 h-2 text-white" />
 					</div>
 				</div>
 			)}
 			{data.hasError && (
-				<div className="absolute -top-1.5 -right-1.5">
-					<div className="w-4 h-4 rounded-full bg-red-500 flex items-center justify-center text-white text-[10px] font-bold">
+				<div className="absolute -top-1 -right-1">
+					<div className="w-3 h-3 rounded-full bg-red-500 flex items-center justify-center text-white text-[8px] font-bold">
 						!
 					</div>
 				</div>
 			)}
 			{data.isRunning && (
-				<div className="absolute -top-1.5 -right-1.5">
+				<div className="absolute -top-1 -right-1">
 					<motion.div
 						animate={{ rotate: 360 }}
 						transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-						className="w-4 h-4 rounded-full border-2 border-brass-400 border-t-transparent"
+						className="w-3 h-3 rounded-full border border-brass-400 border-t-transparent"
 					/>
 				</div>
 			)}
 
 			{/* Output handles */}
 			{handlePositions.outputs.map((pos, idx) => {
-				const labels = ['', 'Yes', 'No'];
+				const labels = ['', 'Y', 'N'];
 				return (
 					<Handle
 						key={`output-${idx}`}
@@ -261,7 +258,7 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
 						position={pos}
 						id={`output-${idx}`}
 						className={cn(
-							'!w-3 !h-3 !rounded-full !border-2 transition-colors',
+							'!w-2 !h-2 !rounded-full !border transition-colors',
 							'!bg-slate-700 !border-slate-500',
 							'hover:!bg-brass-500 hover:!border-brass-400'
 						)}
@@ -274,7 +271,7 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
 						}
 					>
 						{metadata.outputs > 1 && idx > 0 && (
-							<span className="absolute top-3 left-1/2 -translate-x-1/2 text-[8px] text-slate-500 whitespace-nowrap">
+							<span className="absolute top-2 left-1/2 -translate-x-1/2 text-[6px] text-slate-500 whitespace-nowrap">
 								{labels[idx] || idx}
 							</span>
 						)}

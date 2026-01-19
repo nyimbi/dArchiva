@@ -35,10 +35,10 @@ export function CheckpointsTab({ projectId }: CheckpointsTabProps) {
   const { data: checkpoints, isLoading } = useProjectCheckpoints(projectId);
   const updateMutation = useUpdateCheckpoint();
 
-  const sortedCheckpoints = checkpoints?.sort((a, b) => a.checkpoint_number - b.checkpoint_number) ?? [];
-  const passedCount = sortedCheckpoints.filter(c => c.status === 'passed').length;
+  const sortedCheckpoints: ProjectCheckpoint[] = checkpoints?.sort((a: ProjectCheckpoint, b: ProjectCheckpoint) => a.checkpoint_number - b.checkpoint_number) ?? [];
+  const passedCount = sortedCheckpoints.filter((c: ProjectCheckpoint) => c.status === 'passed').length;
   const totalCount = sortedCheckpoints.length;
-  const nextPending = sortedCheckpoints.find(c => c.status === 'pending');
+  const nextPending = sortedCheckpoints.find((c: ProjectCheckpoint) => c.status === 'pending');
 
   const handleApprove = (checkpoint: ProjectCheckpoint) => {
     updateMutation.mutate({
@@ -113,7 +113,7 @@ export function CheckpointsTab({ projectId }: CheckpointsTabProps) {
           <div className="absolute left-6 top-4 bottom-4 w-0.5 bg-white/10" />
 
           <div className="space-y-4">
-            {sortedCheckpoints.map((checkpoint, idx) => {
+            {sortedCheckpoints.map((checkpoint: ProjectCheckpoint, idx: number) => {
               const Icon = statusIcons[checkpoint.status];
               const colors = statusColors[checkpoint.status];
               const isOverdue = checkpoint.status === 'pending' &&

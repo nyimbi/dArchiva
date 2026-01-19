@@ -20,9 +20,9 @@ export function OperatorsTab({ projectId }: OperatorsTabProps) {
   const { data: assignments, isLoading: assignmentsLoading } = useShiftAssignments(today);
   const { data: certifications, isLoading: certsLoading } = useOperatorCertifications();
 
-  const activeOperators = assignments?.filter(a => a.status === 'active') ?? [];
-  const totalPagesToday = assignments?.reduce((sum, a) => sum + a.pages_scanned, 0) ?? 0;
-  const expiringCerts = certifications?.filter(c => {
+  const activeOperators = assignments?.filter((a: ShiftAssignment) => a.status === 'active') ?? [];
+  const totalPagesToday = assignments?.reduce((sum: number, a: ShiftAssignment) => sum + a.pages_scanned, 0) ?? 0;
+  const expiringCerts = certifications?.filter((c: OperatorCertification) => {
     if (!c.expiry_date) return false;
     const daysUntil = Math.ceil((new Date(c.expiry_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
     return daysUntil <= 30 && daysUntil > 0;

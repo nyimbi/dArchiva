@@ -19,8 +19,8 @@ interface ContractsTabProps {
 export function ContractsTab({ projectId }: ContractsTabProps) {
   const { data: contracts, isLoading } = useProjectContracts(projectId);
 
-  const activeContracts = contracts?.filter(c => c.status === 'active') ?? [];
-  const totalValue = contracts?.reduce((sum, c) => sum + c.contract_value, 0) ?? 0;
+  const activeContracts = contracts?.filter((c: ProjectContract) => c.status === 'active') ?? [];
+  const totalValue = contracts?.reduce((sum: number, c: ProjectContract) => sum + c.contract_value, 0) ?? 0;
 
   return (
     <div className="space-y-6">

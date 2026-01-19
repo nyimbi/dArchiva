@@ -43,9 +43,11 @@ export interface WorkflowInstance {
 	document_id: string;
 	document_title: string;
 	current_step: number;
-	status: 'in_progress' | 'completed' | 'rejected' | 'cancelled';
+	status: 'pending' | 'in_progress' | 'on_hold' | 'completed' | 'rejected' | 'cancelled';
 	started_at: string;
 	completed_at?: string;
+	/** Prefect flow run ID for execution tracking */
+	prefect_flow_run_id?: string;
 }
 
 export interface PendingTask {
@@ -302,6 +304,38 @@ export async function cancelWorkflowInstance(
 	const response = await axios.post<WorkflowInstance>(
 		`${API_BASE}/instances/${instanceId}/cancel`,
 		{ reason },
+	);
+	return response.data;
+}
+
+/**
+ * Resume a paused workflow (e.g., after human approval).
+ * Used when a workflow is waiting for input at an approval node.
+ */
+export interface ResumeWorkflowRequest {
+	decision: 'approved' | 'rejected' | 'returned';
+	notes?: string;
+}
+
+export async function resumeWorkflow(
+	instanceId: string,
+	request: ResumeWorkflowRequest,
+): Promise<WorkflowInstance> {
+	const response = await axios.post<WorkflowInstance>(
+		`${API_BASE}/instances/${instanceId}/resume`,
+		request,
+	);
+	return response.data;
+}
+
+/**
+ * Get real-time status of a workflow instance from Prefect.
+ */
+export async function getWorkflowInstanceStatus(
+	instanceId: string,
+): Promise<WorkflowInstance & { prefect_state?: string }> {
+	const response = await axios.get<WorkflowInstance & { prefect_state?: string }>(
+		`${API_BASE}/instances/${instanceId}/status`,
 	);
 	return response.data;
 }

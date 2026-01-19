@@ -1,6 +1,6 @@
 // Unified Settings Types
 import type { UserPreferences } from '../../preferences/types';
-import type { GlobalScannerSettings } from '../../scanner/types';
+import type { GlobalScannerSettings } from '../../scanner/types/index';
 
 // === System Settings ===
 
@@ -138,7 +138,8 @@ export type SettingsSectionId =
 	| 'security'
 	| 'integrations'
 	| 'notifications'
-	| 'privacy';
+	| 'privacy'
+	| 'users-access';
 
 export interface SettingsSection {
 	id: SettingsSectionId;
@@ -230,14 +231,21 @@ export interface QueueInfo {
 export interface ScheduledTask {
 	id: string;
 	name: string;
+	task_name: string;
 	schedule: string; // cron expression
+	category: string;
 	enabled: boolean;
+	is_running: boolean;
 	last_run: string | null;
 	next_run: string | null;
 	last_status: 'success' | 'failed' | 'skipped' | null;
+	last_run_success: boolean | null;
 	last_duration_ms: number | null;
+	last_duration_seconds: number | null;
+	timeout_seconds: number | null;
 	error_count: number;
 	description: string | null;
+	args: Record<string, unknown>;
 }
 
 export interface SystemHealth {
@@ -322,6 +330,7 @@ export interface AllSettings {
 // Update sections to include services
 export const EXTENDED_SETTINGS_SECTIONS: SettingsSection[] = [
 	...SETTINGS_SECTIONS,
+	{ id: 'users-access', label: 'Users & Access', description: 'Manage users, groups, and roles', icon: 'users', category: 'system', adminOnly: true },
 	{ id: 'services' as SettingsSectionId, label: 'Services', description: 'Manage running services', icon: 'server', category: 'system', adminOnly: true },
 	{ id: 'workers' as SettingsSectionId, label: 'Workers', description: 'Background task workers', icon: 'cog', category: 'system', adminOnly: true },
 	{ id: 'queues' as SettingsSectionId, label: 'Queues', description: 'Task queue monitoring', icon: 'list', category: 'system', adminOnly: true },

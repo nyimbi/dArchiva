@@ -325,3 +325,7 @@ export function useRunScheduledTask() {
 		onSuccess: () => qc.invalidateQueries({ queryKey: ['system', 'scheduler'] }),
 	});
 }
+
+// Aliases for backward compatibility
+export const useToggleTask = useUpdateScheduledTask;
+export const useRunTask = useRunScheduledTask;

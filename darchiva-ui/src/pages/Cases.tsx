@@ -1,6 +1,7 @@
 // (c) Copyright Datacraft, 2026
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useStore } from '@/hooks/useStore';
 import {
 	Briefcase,
 	Plus,
@@ -25,7 +26,7 @@ import {
 	type CaseStatus,
 } from '@/features/cases';
 
-function CaseCard({ caseData }: { caseData: Case }) {
+function CaseCard({ caseData, onViewCase, onMoreOptions }: { caseData: Case; onViewCase: (c: Case) => void; onMoreOptions: (c: Case) => void }) {
 	const statusConfig: Record<CaseStatus, { label: string; color: string }> = {
 		open: { label: 'Open', color: 'badge-blue' },
 		pending: { label: 'Pending', color: 'badge-brass' },
@@ -60,7 +61,10 @@ function CaseCard({ caseData }: { caseData: Case }) {
 						</h3>
 					</div>
 				</div>
-				<button className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+				<button
+					onClick={(e) => { e.stopPropagation(); onMoreOptions(caseData); }}
+					className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+				>
 					<MoreVertical className="w-4 h-4" />
 				</button>
 			</div>
@@ -86,7 +90,7 @@ function CaseCard({ caseData }: { caseData: Case }) {
 				<span className={cn('badge', status.color)}>
 					{status.label}
 				</span>
-				<button className="btn-ghost text-xs">
+				<button onClick={(e) => { e.stopPropagation(); onViewCase(caseData); }} className="btn-ghost text-xs">
 					View Case <ChevronRight className="w-3 h-3" />
 				</button>
 			</div>
@@ -122,9 +126,19 @@ function BundleRow({ bundle }: { bundle: Bundle }) {
 export function Cases() {
 	const [selectedCase, setSelectedCase] = useState<Case | null>(null);
 	const [statusFilter, setStatusFilter] = useState<string>('all');
+	const { openModal } = useStore();
 
 	const { data: casesData, isLoading: casesLoading } = useCases(1, 50, statusFilter !== 'all' ? statusFilter as CaseStatus : undefined);
 	const { data: bundlesData, isLoading: bundlesLoading } = useBundles(selectedCase?.id);
+
+	const handleNewCase = () => openModal('create-case');
+	const handleMoreFilters = () => openModal('case-filters');
+	const handleViewCase = (c: Case) => openModal('view-case', c);
+	const handleCaseOptions = (c: Case) => openModal('case-options', c);
+	const handleCreateBundle = () => openModal('create-bundle', selectedCase);
+	const handleAddDocuments = () => openModal('add-documents-to-case', selectedCase);
+	const handleManageAccess = () => openModal('manage-case-access', selectedCase);
+	const handleEditTags = () => openModal('edit-case-tags', selectedCase);
 
 	const cases = casesData?.items || [];
 	const bundles = bundlesData?.items || [];
@@ -141,7 +155,7 @@ export function Cases() {
 						Manage legal cases and document bundles
 					</p>
 				</div>
-				<button className="btn-primary">
+				<button onClick={handleNewCase} className="btn-primary">
 					<Plus className="w-4 h-4" />
 					New Case
 				</button>
@@ -168,7 +182,7 @@ export function Cases() {
 					<option value="closed">Closed</option>
 					<option value="on_hold">On Hold</option>
 				</select>
-				<button className="btn-ghost">
+				<button onClick={handleMoreFilters} className="btn-ghost">
 					<Filter className="w-4 h-4" />
 					More Filters
 				</button>
@@ -196,7 +210,7 @@ export function Cases() {
 								transition={{ delay: idx * 0.05 }}
 								onClick={() => setSelectedCase(caseData)}
 							>
-								<CaseCard caseData={caseData} />
+								<CaseCard caseData={caseData} onViewCase={handleViewCase} onMoreOptions={handleCaseOptions} />
 							</motion.div>
 						))
 					)}
@@ -243,7 +257,7 @@ export function Cases() {
 										))}
 									</div>
 								)}
-								<button className="mt-3 w-full btn-ghost border border-dashed border-slate-700 justify-center">
+								<button onClick={handleCreateBundle} className="mt-3 w-full btn-ghost border border-dashed border-slate-700 justify-center">
 									<Plus className="w-4 h-4" />
 									Create Bundle
 								</button>
@@ -254,15 +268,15 @@ export function Cases() {
 									Quick Actions
 								</h4>
 								<div className="space-y-2">
-									<button className="w-full btn-ghost justify-start">
+									<button onClick={handleAddDocuments} className="w-full btn-ghost justify-start">
 										<FileText className="w-4 h-4" />
 										Add Documents
 									</button>
-									<button className="w-full btn-ghost justify-start">
+									<button onClick={handleManageAccess} className="w-full btn-ghost justify-start">
 										<User className="w-4 h-4" />
 										Manage Access
 									</button>
-									<button className="w-full btn-ghost justify-start">
+									<button onClick={handleEditTags} className="w-full btn-ghost justify-start">
 										<Tag className="w-4 h-4" />
 										Edit Tags
 									</button>

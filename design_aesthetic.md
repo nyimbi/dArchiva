@@ -1,0 +1,2 @@
+A Bloomberg Terminal-inspired aesthetic meets Swiss International Style - high information density with ruthless organization, precise typography, and subtle data
+  visualization. Deep slate foundations with electric cyan accents for interactivity.

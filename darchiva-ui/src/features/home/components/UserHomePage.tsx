@@ -3,7 +3,9 @@
 // A vintage library aesthetic meets modern productivity
 // ═══════════════════════════════════════════════════════════════════════════
 import { useState, useCallback, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useStore } from '@/hooks/useStore';
 import {
 	Search, Bell, Star, Clock, FileText, Folder, Upload, Plus,
 	CheckCircle2, AlertCircle, Calendar, ArrowRight, ChevronRight,
@@ -15,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
 	useUserHome, useTaskAction, useQuickUpload, useMarkNotificationRead,
+	useClearRecentSearches,
 } from '../api/hooks';
 import type {
 	WorkflowTask, RecentDocument, FavoriteItem, Notification,
@@ -180,13 +183,22 @@ function NotificationBell({ count, isOpen, onToggle }: { count: number; isOpen: 
 }
 
 function QuickActionsBar() {
+	const navigate = useNavigate();
+	const { openModal } = useStore();
+
 	return (
 		<div className="flex items-center gap-2">
-			<button className="home-quick-action">
+			<button
+				className="home-quick-action"
+				onClick={() => navigate('/documents')}
+			>
 				<Plus className="w-4 h-4" />
 				<span>New Document</span>
 			</button>
-			<button className="home-quick-action-primary home-quick-action">
+			<button
+				className="home-quick-action-primary home-quick-action"
+				onClick={() => openModal('upload')}
+			>
 				<Upload className="w-4 h-4" />
 				<span>Upload</span>
 			</button>
@@ -200,6 +212,7 @@ function SearchBar({ value, onChange, recentSearches }: {
 	recentSearches: RecentSearch[];
 }) {
 	const [isFocused, setIsFocused] = useState(false);
+	const clearSearches = useClearRecentSearches();
 
 	return (
 		<div className="relative">
@@ -222,7 +235,13 @@ function SearchBar({ value, onChange, recentSearches }: {
 						<span className="text-xs font-semibold uppercase tracking-wider text-[var(--home-text-muted)]">
 							Recent Searches
 						</span>
-						<button className="text-xs font-medium text-[var(--home-accent)] hover:underline">
+						<button
+							className="text-xs font-medium text-[var(--home-accent)] hover:underline"
+							onClick={(e) => {
+								e.preventDefault();
+								clearSearches.mutate();
+							}}
+						>
 							Clear All
 						</button>
 					</div>
@@ -248,6 +267,7 @@ function SearchBar({ value, onChange, recentSearches }: {
 }
 
 function WorkflowTasksPanel({ tasks }: { tasks: WorkflowTask[] }) {
+	const navigate = useNavigate();
 	const taskAction = useTaskAction();
 
 	const sortedTasks = useMemo(() => {
@@ -279,7 +299,10 @@ function WorkflowTasksPanel({ tasks }: { tasks: WorkflowTask[] }) {
 						)}
 					</div>
 				</div>
-				<button className="home-section-action">
+				<button
+					className="home-section-action"
+					onClick={() => navigate('/workflows')}
+				>
 					View All <ChevronRight className="w-4 h-4" />
 				</button>
 			</div>
@@ -367,7 +390,10 @@ function WorkflowTasksPanel({ tasks }: { tasks: WorkflowTask[] }) {
 
 					{sortedTasks.length > 5 && (
 						<div className="px-6 py-4 border-t border-[var(--home-border-subtle)] bg-[var(--home-bg-muted)]">
-							<button className="text-sm font-medium text-[var(--home-accent)] hover:text-[var(--home-accent-hover)] flex items-center gap-2 transition-colors">
+							<button
+								className="text-sm font-medium text-[var(--home-accent)] hover:text-[var(--home-accent-hover)] flex items-center gap-2 transition-colors"
+								onClick={() => navigate('/workflows')}
+							>
 								<span>Show {sortedTasks.length - 5} more tasks</span>
 								<ArrowRight className="w-4 h-4" />
 							</button>
@@ -380,6 +406,8 @@ function WorkflowTasksPanel({ tasks }: { tasks: WorkflowTask[] }) {
 }
 
 function RecentDocumentsPanel({ documents }: { documents: RecentDocument[] }) {
+	const navigate = useNavigate();
+
 	const getDocType = (type: RecentDocument['type']): string => {
 		switch (type) {
 			case 'pdf': return 'PDF';
@@ -413,7 +441,10 @@ function RecentDocumentsPanel({ documents }: { documents: RecentDocument[] }) {
 					</div>
 					<h2 className="home-section-title">Recent Documents</h2>
 				</div>
-				<button className="home-section-action">
+				<button
+					className="home-section-action"
+					onClick={() => navigate('/documents')}
+				>
 					View Archive <ChevronRight className="w-4 h-4" />
 				</button>
 			</div>
@@ -515,6 +546,8 @@ function QuickUploadZone() {
 }
 
 function FavoritesPanel({ favorites }: { favorites: FavoriteItem[] }) {
+	const { openModal } = useStore();
+
 	const getItemIcon = (type: FavoriteItem['item_type']) => {
 		switch (type) {
 			case 'document': return FileText;
@@ -531,7 +564,12 @@ function FavoritesPanel({ favorites }: { favorites: FavoriteItem[] }) {
 					<Star className="w-4 h-4 text-[var(--home-gold)]" />
 					<h2 className="home-section-title">Favorites</h2>
 				</div>
-				<button className="home-section-action">Manage</button>
+				<button
+					className="home-section-action"
+					onClick={() => openModal('manage-favorites')}
+				>
+					Manage
+				</button>
 			</div>
 
 			{favorites.length === 0 ? (
@@ -678,6 +716,8 @@ function MiniCalendar({ events }: { events: CalendarEvent[] }) {
 }
 
 function ActivityFeedPanel({ activity }: { activity: ActivityEvent[] }) {
+	const { openModal } = useStore();
+
 	const getActivityIcon = (type: ActivityEvent['type']) => {
 		switch (type) {
 			case 'view': return Eye;
@@ -698,7 +738,12 @@ function ActivityFeedPanel({ activity }: { activity: ActivityEvent[] }) {
 					<TrendingUp className="w-4 h-4 text-[var(--home-accent)]" />
 					<h2 className="home-section-title">Recent Activity</h2>
 				</div>
-				<button className="home-section-action">View All</button>
+				<button
+					className="home-section-action"
+					onClick={() => openModal('activity-history')}
+				>
+					View All
+				</button>
 			</div>
 
 			{activity.length === 0 ? (

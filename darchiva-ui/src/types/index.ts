@@ -344,21 +344,42 @@ export type MilestoneStatus = 'pending' | 'in_progress' | 'completed' | 'overdue
 
 export interface ScanningProject {
 	id: string;
+	code: string;
 	name: string;
 	description?: string;
 	status: ScanningProjectStatus;
-	totalEstimatedPages: number;
-	scannedPages: number;
-	verifiedPages: number;
-	rejectedPages: number;
-	targetDPI: number;
+	priority?: string;
+	projectType?: string;
+	clientName?: string;
+	clientReference?: string;
+	// Page estimates and counts
+	estimatedPages?: number;
+	estimatedDocuments?: number;
+	dailyPageTarget?: number;
+	// Computed/aggregated fields (from metrics)
+	scannedPages?: number;
+	verifiedPages?: number;
+	rejectedPages?: number;
+	// Scanning settings
+	targetDpi: number;
 	colorMode: ScanningColorMode;
-	qualitySampleRate: number; // Percentage of pages to QC sample (0-100)
+	duplexMode?: string;
+	fileFormat?: string;
+	ocrEnabled?: boolean;
+	qualitySamplingRate?: number; // Percentage of pages to QC sample (0.0-1.0)
+	destinationFolderId?: string;
+	projectMetadata?: Record<string, unknown>;
+	// Dates
 	startDate?: string;
 	targetEndDate?: string;
 	actualEndDate?: string;
 	createdAt: string;
 	updatedAt: string;
+	deletedAt?: string;
+	// Ownership
+	tenantId?: string;
+	createdBy?: string;
+	updatedBy?: string;
 }
 
 export interface ScanningBatch {

@@ -93,3 +93,4 @@ minio_data/
 *.key
 credentials.json
 secrets.yaml
+.aider*

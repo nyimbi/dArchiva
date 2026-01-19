@@ -11,6 +11,7 @@ import { SecuritySettings } from './sections/SecuritySettings';
 import { EmailSettings } from './sections/EmailSettings';
 import { WorkflowSettings } from './sections/WorkflowSettings';
 import { IntegrationSettings } from './sections/IntegrationSettings';
+import { UsersAccessSettings } from './sections/UsersAccessSettings';
 import { ServicesPanel } from './services/ServicesPanel';
 import { WorkersPanel } from './services/WorkersPanel';
 import { QueuesPanel } from './services/QueuesPanel';
@@ -18,6 +19,7 @@ import { SchedulerPanel } from './services/SchedulerPanel';
 import { SystemHealthBanner } from './SystemHealthBanner';
 import {
 	UserIcon,
+	UsersIcon,
 	PaintBrushIcon,
 	CircleStackIcon,
 	DocumentMagnifyingGlassIcon,
@@ -52,6 +54,7 @@ const SECTION_ICONS: Record<string, React.ComponentType<any>> = {
 	scheduler: ClockIcon,
 	notifications: BellIcon,
 	privacy: EyeSlashIcon,
+	'users-access': UsersIcon,
 };
 
 interface SettingsPageProps {
@@ -181,6 +184,8 @@ function SettingsContent({ section, isAdmin }: SettingsContentProps) {
 			return <WorkflowSettings />;
 		case 'integrations':
 			return <IntegrationSettings />;
+		case 'users-access':
+			return <UsersAccessSettings />;
 		case 'services' as SettingsSectionId:
 			return <ServicesPanel />;
 		case 'workers' as SettingsSectionId:

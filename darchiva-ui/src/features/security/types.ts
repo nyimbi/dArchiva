@@ -129,3 +129,125 @@ export interface AccessGraphEdge {
 	relation: string;
 	inherited?: boolean;
 }
+
+// PBAC Policy Types
+export type PolicyEffect = 'allow' | 'deny';
+export type PolicyStatus = 'draft' | 'pending_approval' | 'active' | 'inactive' | 'archived';
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+export type AttributeCategory = 'subject' | 'resource' | 'action' | 'environment';
+export type ConditionOperator = 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'in' | 'not_in' | 'contains' | 'not_contains' | 'starts_with' | 'ends_with' | 'matches' | 'exists' | 'not_exists' | 'is_member_of' | 'has_role' | 'in_department';
+
+export interface PBACCondition {
+	category: AttributeCategory;
+	attribute: string;
+	operator: ConditionOperator;
+	value: unknown;
+}
+
+export interface PBACRule {
+	conditions: PBACCondition[];
+	logic: 'AND' | 'OR';
+}
+
+export interface PBACPolicy {
+	id: string;
+	name: string;
+	description: string;
+	effect: PolicyEffect;
+	status: PolicyStatus;
+	priority: number;
+	rules: PBACRule[];
+	actions: string[];
+	resource_types: string[];
+	tenant_id?: string;
+	created_by?: string;
+	created_at: string;
+	updated_at: string;
+	valid_from?: string;
+	valid_until?: string;
+	dsl_text?: string;
+}
+
+export interface PolicyApproval {
+	id: string;
+	policy_id: string;
+	policy_name?: string;
+	requested_by?: string;
+	requester_name?: string;
+	requested_at: string;
+	status: ApprovalStatus;
+	reviewed_by?: string;
+	reviewed_at?: string;
+	comments?: string;
+	changes_summary?: string;
+}
+
+export interface PolicyAnalytics {
+	total_policies: number;
+	active_policies: number;
+	pending_approvals: number;
+	evaluations_today: number;
+	allow_rate: number;
+	deny_rate: number;
+	top_denied_actions: { action: string; count: number }[];
+	evaluation_latency_avg_ms: number;
+}
+
+export interface EvaluationLog {
+	id: string;
+	policy_id?: string;
+	timestamp: string;
+	subject_id: string;
+	subject_username?: string;
+	resource_id: string;
+	resource_type: string;
+	action: string;
+	allowed: boolean;
+	effect: PolicyEffect;
+	reason?: string;
+	evaluation_time_ms: number;
+}
+
+// Encryption Types
+export interface EncryptionKey {
+	id: string;
+	key_version: number;
+	is_active: boolean;
+	created_at?: string;
+	rotated_at?: string;
+	expires_at?: string;
+}
+
+export interface HiddenAccessRequest {
+	id: string;
+	document_id: string;
+	document_name?: string;
+	requested_by: string;
+	requester_name?: string;
+	requested_at: string;
+	reason: string;
+	status: 'pending' | 'approved' | 'denied' | 'expired';
+	approved_by?: string;
+	approved_at?: string;
+	expires_at?: string;
+}
+
+export interface DepartmentAccess {
+	id: string;
+	user_id: string;
+	user_name?: string;
+	department_id: string;
+	department_name?: string;
+	granted_by?: string;
+	granted_at: string;
+	expires_at?: string;
+	reason?: string;
+}
+
+export interface EncryptionStats {
+	total_encrypted_documents: number;
+	documents_by_algorithm: { algorithm: string; count: number }[];
+	active_kek_version: number;
+	total_key_rotations: number;
+	pending_access_requests: number;
+}

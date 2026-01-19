@@ -225,7 +225,7 @@ function DocumentRow({ doc }: { doc: APIDocument }) {
 
 export function Documents() {
 	const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-	const { selectedNodeIds, clearNodeSelection, selectNodes, currentFolderId } = useStore();
+	const { selectedNodeIds, clearNodeSelection, selectNodes, currentFolderId, openModal } = useStore();
 
 	const { data: folderTree, isLoading: treeLoading } = useFolderTree();
 	const { data: documentsData, isLoading: docsLoading } = useDocuments(currentFolderId || undefined);
@@ -242,7 +242,11 @@ export function Documents() {
 			>
 				<div className="p-3 border-b border-slate-700/50 flex items-center justify-between">
 					<h2 className="font-display font-semibold text-slate-200">Folders</h2>
-					<button className="p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded">
+					<button
+						onClick={() => openModal('create-folder')}
+						className="p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded"
+						title="New Folder"
+					>
 						<FolderPlus className="w-4 h-4" />
 					</button>
 				</div>
@@ -279,11 +283,17 @@ export function Documents() {
 								className="input-field pl-9 w-64"
 							/>
 						</div>
-						<button className="btn-ghost">
+						<button
+							onClick={() => openModal('filter-documents')}
+							className="btn-ghost"
+						>
 							<Filter className="w-4 h-4" />
 							Filter
 						</button>
-						<button className="btn-ghost">
+						<button
+							onClick={() => openModal('sort-documents')}
+							className="btn-ghost"
+						>
 							<SortAsc className="w-4 h-4" />
 							Sort
 						</button>
@@ -300,7 +310,10 @@ export function Documents() {
 								</button>
 							</div>
 						)}
-						<button className="btn-primary">
+						<button
+							onClick={() => openModal('upload')}
+							className="btn-primary"
+						>
 							<Upload className="w-4 h-4" />
 							Upload
 						</button>

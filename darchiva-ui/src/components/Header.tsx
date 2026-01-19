@@ -1,5 +1,6 @@
 // (c) Copyright Datacraft, 2026
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
 	Search,
@@ -19,10 +20,17 @@ import { useStore } from '@/hooks/useStore';
 import { cn } from '@/lib/utils';
 
 export function Header() {
-	const { theme, toggleTheme, user, pendingTasks, openModal } = useStore();
+	const navigate = useNavigate();
+	const { theme, toggleTheme, user, pendingTasks, openModal, setUser } = useStore();
 	const [searchOpen, setSearchOpen] = useState(false);
 	const [userMenuOpen, setUserMenuOpen] = useState(false);
 	const [createMenuOpen, setCreateMenuOpen] = useState(false);
+
+	const handleSignOut = () => {
+		setUser(null);
+		setUserMenuOpen(false);
+		navigate('/');
+	};
 
 	return (
 		<header className="h-16 flex items-center justify-between px-6 border-b border-slate-800/50 bg-slate-925/80 backdrop-blur-lg">
@@ -129,7 +137,10 @@ export function Header() {
 				</button>
 
 				{/* Notifications */}
-				<button className="btn-ghost p-2 relative">
+				<button
+					onClick={() => openModal('notifications')}
+					className="btn-ghost p-2 relative"
+				>
 					<Bell className="w-5 h-5" />
 					{pendingTasks.length > 0 && (
 						<span className="absolute top-1 right-1 w-2 h-2 bg-brass-500 rounded-full" />
@@ -164,16 +175,31 @@ export function Header() {
 									</p>
 									<p className="text-xs text-slate-500">{user?.email}</p>
 								</div>
-								<button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800/50">
+								<button
+									onClick={() => {
+										openModal('user-profile');
+										setUserMenuOpen(false);
+									}}
+									className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800/50"
+								>
 									<User className="w-4 h-4 text-slate-400" />
 									Profile
 								</button>
-								<button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800/50">
+								<button
+									onClick={() => {
+										navigate('/settings');
+										setUserMenuOpen(false);
+									}}
+									className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800/50"
+								>
 									<Settings className="w-4 h-4 text-slate-400" />
 									Preferences
 								</button>
 								<div className="border-t border-slate-700/50 mt-1 pt-1">
-									<button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:bg-slate-800/50">
+									<button
+										onClick={handleSignOut}
+										className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:bg-slate-800/50"
+									>
 										<LogOut className="w-4 h-4" />
 										Sign out
 									</button>

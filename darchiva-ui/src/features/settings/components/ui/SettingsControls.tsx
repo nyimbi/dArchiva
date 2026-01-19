@@ -214,7 +214,7 @@ export function SettingsButton({ children, onClick, variant = 'default', loading
 
 interface SettingsBadgeProps {
 	children: React.ReactNode;
-	variant?: 'default' | 'success' | 'warning' | 'error';
+	variant?: 'default' | 'success' | 'warning' | 'error' | 'info';
 }
 
 export function SettingsBadge({ children, variant = 'default' }: SettingsBadgeProps) {
@@ -223,6 +223,7 @@ export function SettingsBadge({ children, variant = 'default' }: SettingsBadgePr
 		success: 'bg-emerald-500/10 text-emerald-400',
 		warning: 'bg-amber-500/10 text-amber-400',
 		error: 'bg-red-500/10 text-red-400',
+		info: 'bg-cyan-500/10 text-cyan-400',
 	};
 
 	return (

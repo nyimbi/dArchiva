@@ -65,23 +65,27 @@ export interface WorkflowExecution {
 	id: string;
 	workflowId: string;
 	workflowVersion: number;
-	status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+	status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'on_hold';
 	startTime: string;
 	endTime?: string;
 	currentNodeId?: string;
 	documentId?: string;
 	error?: string;
 	nodeExecutions: NodeExecution[];
+	/** Prefect flow run ID for execution tracking */
+	prefectFlowRunId?: string;
 }
 
 export interface NodeExecution {
 	nodeId: string;
-	status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
+	status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped' | 'approved' | 'rejected' | 'returned';
 	startTime?: string;
 	endTime?: string;
 	input?: Record<string, unknown>;
 	output?: Record<string, unknown>;
 	error?: string;
+	/** Prefect task run ID for step tracking */
+	prefectTaskRunId?: string;
 }
 
 export interface WorkflowTemplate {

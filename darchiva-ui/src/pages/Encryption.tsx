@@ -1,6 +1,7 @@
 // (c) Copyright Datacraft, 2026
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useStore } from '@/hooks/useStore';
 import {
 	Shield,
 	Key,
@@ -32,8 +33,11 @@ export function Encryption() {
 	const [activeTab, setActiveTab] = useState<'overview' | 'keys' | 'access' | 'documents'>('overview');
 	const [showRotateModal, setShowRotateModal] = useState(false);
 	const [expiryDays, setExpiryDays] = useState(30);
+	const { openModal } = useStore();
 
 	const { data: keys, isLoading: keysLoading } = useEncryptionKeys();
+
+	const handleViewDocument = (doc: EncryptedDocument) => openModal('view-encrypted-document', doc);
 	const { data: stats, isLoading: statsLoading } = useEncryptionStats();
 	const { data: accessRequests, isLoading: accessLoading } = useAccessRequests();
 	const { data: encryptedDocs, isLoading: docsLoading } = useEncryptedDocuments();
@@ -414,7 +418,7 @@ export function Encryption() {
 										</td>
 										<td className="text-slate-400">{formatDate(doc.encryptedAt)}</td>
 										<td>
-											<button className="btn-ghost text-xs">
+											<button onClick={() => handleViewDocument(doc)} className="btn-ghost text-xs">
 												<Eye className="w-3 h-3" />
 												View
 											</button>

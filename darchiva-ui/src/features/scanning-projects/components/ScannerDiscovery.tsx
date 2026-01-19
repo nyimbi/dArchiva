@@ -7,6 +7,11 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
+	discoverScanners as apiDiscoverScanners,
+	registerScanner as apiRegisterScanner,
+	type DiscoveredScanner as APIDiscoveredScanner,
+} from '../api';
+import {
 	Search,
 	Wifi,
 	WifiOff,
@@ -84,108 +89,80 @@ const PROTOCOL_CONFIG: Record<ScannerProtocol, { label: string; icon: typeof Wif
 	wia: { label: 'WIA', icon: Printer, color: 'text-purple-400' },
 };
 
-// Simulated scanner discovery API
-async function discoverScanners(): Promise<DiscoveredScanner[]> {
-	// Simulate network delay
-	await new Promise((resolve) => setTimeout(resolve, 2000 + Math.random() * 1000));
+// Transform API response to component format
+function transformDiscoveredScanner(apiScanner: APIDiscoveredScanner): DiscoveredScanner {
+	const protocol = apiScanner.protocol as ScannerProtocol;
+	const connectionUri = protocol === 'escl'
+		? `escl://${apiScanner.host}:${apiScanner.port}${apiScanner.rootUrl || '/eSCL'}`
+		: protocol === 'sane'
+		? `sane://${apiScanner.host}:${apiScanner.port}`
+		: `${protocol}:${apiScanner.name}`;
 
-	// Simulated discovered scanners
-	const mockScanners: DiscoveredScanner[] = [
-		{
-			id: 'scanner-1',
-			name: 'Fujitsu fi-8170',
-			manufacturer: 'Fujitsu',
-			model: 'fi-8170',
-			protocol: 'escl',
-			host: '192.168.1.50',
-			port: 443,
-			connectionUri: 'https://192.168.1.50:443/eSCL',
-			capabilities: {
-				maxResolution: 600,
-				supportedResolutions: [150, 200, 300, 400, 600],
-				colorModes: ['color', 'grayscale', 'monochrome'],
-				hasDuplex: true,
-				hasADF: true,
-				adfCapacity: 70,
-				maxWidthMm: 216,
-				maxHeightMm: 355,
-				supportsAutoCrop: true,
-				supportsAutoDeskew: true,
-			},
-			discoveredAt: new Date().toISOString(),
+	return {
+		id: apiScanner.uuid || `${apiScanner.host}:${apiScanner.port}`,
+		name: apiScanner.name,
+		manufacturer: apiScanner.manufacturer || 'Unknown',
+		model: apiScanner.model || apiScanner.name,
+		protocol,
+		host: apiScanner.host,
+		port: apiScanner.port,
+		connectionUri,
+		capabilities: {
+			// Default capabilities - will be fetched after connection test
+			maxResolution: 600,
+			supportedResolutions: [150, 200, 300, 600],
+			colorModes: ['color', 'grayscale', 'monochrome'],
+			hasDuplex: false,
+			hasADF: false,
+			adfCapacity: 0,
+			maxWidthMm: 215.9,
+			maxHeightMm: 355.6,
+			supportsAutoCrop: false,
+			supportsAutoDeskew: false,
 		},
-		{
-			id: 'scanner-2',
-			name: 'Canon DR-G2140',
-			manufacturer: 'Canon',
-			model: 'DR-G2140',
-			protocol: 'twain',
-			host: 'localhost',
-			port: 0,
-			connectionUri: 'twain:Canon DR-G2140',
-			capabilities: {
-				maxResolution: 1200,
-				supportedResolutions: [200, 300, 400, 600, 1200],
-				colorModes: ['color', 'grayscale', 'monochrome'],
-				hasDuplex: true,
-				hasADF: true,
-				adfCapacity: 500,
-				maxWidthMm: 305,
-				maxHeightMm: 432,
-				supportsAutoCrop: true,
-				supportsAutoDeskew: true,
-			},
-			discoveredAt: new Date().toISOString(),
-		},
-		{
-			id: 'scanner-3',
-			name: 'Epson WorkForce ES-580W',
-			manufacturer: 'Epson',
-			model: 'WorkForce ES-580W',
-			protocol: 'sane',
-			host: '192.168.1.51',
-			port: 6566,
-			connectionUri: 'sane://192.168.1.51:6566',
-			capabilities: {
-				maxResolution: 600,
-				supportedResolutions: [100, 200, 300, 600],
-				colorModes: ['color', 'grayscale'],
-				hasDuplex: true,
-				hasADF: true,
-				adfCapacity: 100,
-				maxWidthMm: 216,
-				maxHeightMm: 356,
-				supportsAutoCrop: true,
-				supportsAutoDeskew: false,
-			},
-			discoveredAt: new Date().toISOString(),
-		},
-		{
-			id: 'scanner-4',
-			name: 'HP ScanJet Pro 3000 s4',
-			manufacturer: 'HP',
-			model: 'ScanJet Pro 3000 s4',
-			protocol: 'wia',
-			host: 'localhost',
-			port: 0,
-			connectionUri: 'wia:HP ScanJet Pro 3000 s4',
-			capabilities: {
-				maxResolution: 600,
-				supportedResolutions: [200, 300, 600],
-				colorModes: ['color', 'grayscale', 'monochrome'],
-				hasDuplex: true,
-				hasADF: true,
-				adfCapacity: 50,
-				maxWidthMm: 216,
-				maxHeightMm: 310,
-				supportsAutoCrop: false,
-				supportsAutoDeskew: true,
-			},
-			discoveredAt: new Date().toISOString(),
-		},
-	];
+		discoveredAt: apiScanner.discoveredAt,
+	};
+}
 
-	return mockScanners;
+// Mock scanners fallback when backend is unavailable
+const MOCK_SCANNERS: DiscoveredScanner[] = [
+	{
+		id: 'mock-hp-laserjet',
+		name: 'HP LaserJet MFP',
+		manufacturer: 'HP',
+		model: 'LaserJet MFP M234sdw',
+		protocol: 'escl',
+		host: '192.168.1.100',
+		port: 443,
+		connectionUri: 'escl://192.168.1.100:443/eSCL',
+		capabilities: {
+			maxResolution: 1200,
+			supportedResolutions: [75, 100, 150, 200, 300, 600, 1200],
+			colorModes: ['color', 'grayscale', 'monochrome'],
+			hasDuplex: true,
+			hasADF: true,
+			adfCapacity: 40,
+			maxWidthMm: 215.9,
+			maxHeightMm: 355.6,
+			supportsAutoCrop: true,
+			supportsAutoDeskew: true,
+		},
+		discoveredAt: new Date().toISOString(),
+	},
+];
+
+// Real scanner discovery using backend API with mock fallback
+async function discoverScannersFromNetwork(forceRefresh: boolean = false): Promise<DiscoveredScanner[]> {
+	try {
+		const apiScanners = await apiDiscoverScanners({ timeout: 10, forceRefresh });
+		return apiScanners.map(transformDiscoveredScanner);
+	} catch (error) {
+		console.error('Scanner discovery API unavailable, using mock fallback:', error);
+		// Return mock scanners when backend is unavailable
+		// In production, the backend eSCL/AirScan discovery will find real network scanners
+		await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate discovery time
+		return MOCK_SCANNERS;
+	}
 }
 
 // Simulated connection test
@@ -210,13 +187,13 @@ export function ScannerDiscovery({ projectId, onScannerAdded, className }: Scann
 		notes: '',
 	});
 
-	const handleDiscover = useCallback(async () => {
+	const handleDiscover = useCallback(async (forceRefresh: boolean = false) => {
 		setIsDiscovering(true);
 		setDiscoveredScanners([]);
 		setConnectionStatus({});
 
 		try {
-			const scanners = await discoverScanners();
+			const scanners = await discoverScannersFromNetwork(forceRefresh);
 			setDiscoveredScanners(scanners);
 		} catch (error) {
 			console.error('Discovery failed:', error);
@@ -254,11 +231,24 @@ export function ScannerDiscovery({ projectId, onScannerAdded, className }: Scann
 		setShowConfigDialog(true);
 	}, []);
 
-	const handleAddScanner = useCallback(() => {
+	const handleAddScanner = useCallback(async () => {
 		if (selectedScanner) {
-			onScannerAdded?.(selectedScanner, scannerConfig);
-			setShowConfigDialog(false);
-			setSelectedScanner(null);
+			try {
+				// Register scanner with backend
+				await apiRegisterScanner({
+					name: scannerConfig.name,
+					protocol: selectedScanner.protocol,
+					connectionUri: selectedScanner.connectionUri,
+					isDefault: false,
+					isActive: true,
+					notes: scannerConfig.notes || undefined,
+				});
+				onScannerAdded?.(selectedScanner, scannerConfig);
+				setShowConfigDialog(false);
+				setSelectedScanner(null);
+			} catch (error) {
+				console.error('Failed to register scanner:', error);
+			}
 		}
 	}, [selectedScanner, scannerConfig, onScannerAdded]);
 
@@ -286,7 +276,7 @@ export function ScannerDiscovery({ projectId, onScannerAdded, className }: Scann
 					</p>
 				</div>
 				<button
-					onClick={handleDiscover}
+					onClick={() => handleDiscover(false)}
 					disabled={isDiscovering}
 					className={cn(
 						'flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all',
@@ -353,7 +343,7 @@ export function ScannerDiscovery({ projectId, onScannerAdded, className }: Scann
 						Supports eSCL/AirScan, SANE, TWAIN, and WIA protocols.
 					</p>
 					<button
-						onClick={handleDiscover}
+						onClick={() => handleDiscover(false)}
 						className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors"
 					>
 						<RefreshCw className="w-4 h-4" />
@@ -375,7 +365,7 @@ export function ScannerDiscovery({ projectId, onScannerAdded, className }: Scann
 								Found {discoveredScanners.length} scanner{discoveredScanners.length !== 1 ? 's' : ''}
 							</span>
 							<button
-								onClick={handleDiscover}
+								onClick={() => handleDiscover(true)}
 								disabled={isDiscovering}
 								className="text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
 							>

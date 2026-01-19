@@ -31,7 +31,7 @@ import type {
   BulkOperationResult,
 } from '../types';
 
-const BASE_URL = '/api/scanning-projects';
+const BASE_URL = '/scanning-projects';
 
 // Query keys
 export const scanningProjectKeys = {

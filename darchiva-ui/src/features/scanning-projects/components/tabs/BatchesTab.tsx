@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useBatches, usePriorityQueue, useBulkUpdateBatches } from '../../api/hooks';
 import { StatusBadge } from '../core/StatusBadge';
 import { DataTable, type Column } from '../core/DataTable';
-import type { ScanningBatch, BatchStatus, BatchFilters } from '../../types';
+import type { ScanningBatch, BatchStatus, BatchFilters, BatchPriorityQueue } from '../../types';
 import {
   PlusIcon,
   FilterIcon,
@@ -32,7 +32,7 @@ export function BatchesTab({ projectId }: BatchesTabProps) {
   const bulkUpdateMutation = useBulkUpdateBatches();
 
   const batches = batchesData?.items ?? [];
-  const rushCount = priorityQueue?.filter(q => q.is_rush).length ?? 0;
+  const rushCount = priorityQueue?.filter((q: BatchPriorityQueue) => q.is_rush).length ?? 0;
 
   const handleBulkAction = (updates: Partial<ScanningBatch>) => {
     if (selectedIds.size === 0) return;
@@ -68,7 +68,7 @@ export function BatchesTab({ projectId }: BatchesTabProps) {
       align: 'center',
       sortable: true,
       render: (row) => {
-        const queueItem = priorityQueue?.find(q => q.batch_id === row.id);
+        const queueItem = priorityQueue?.find((q: BatchPriorityQueue) => q.batch_id === row.id);
         return (
           <div className="flex items-center justify-center gap-1">
             {queueItem?.is_rush && <ZapIcon className="w-3 h-3 text-amber-400" />}

@@ -36,7 +36,7 @@ export function CostsTab({ projectId }: CostsTabProps) {
   const isLoading = costsLoading || budgetLoading;
 
   // Aggregate costs by category
-  const costsByCategory = costs?.reduce((acc, cost) => {
+  const costsByCategory = costs?.reduce((acc: Record<string, number>, cost: ProjectCost) => {
     const cat = cost.category || 'Other';
     acc[cat] = (acc[cat] || 0) + cost.total_cost;
     return acc;

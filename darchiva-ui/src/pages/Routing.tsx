@@ -1,6 +1,7 @@
 // (c) Copyright Datacraft, 2026
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useStore } from '@/hooks/useStore';
 import {
 	Route,
 	Plus,
@@ -35,7 +36,7 @@ const destinationIcons = {
 	user_inbox: User,
 };
 
-function RuleCard({ rule, index }: { rule: RoutingRule; index: number }) {
+function RuleCard({ rule, index, onEdit, onTest, onDelete, onOptions }: { rule: RoutingRule; index: number; onEdit: (r: RoutingRule) => void; onTest: (r: RoutingRule) => void; onDelete: (r: RoutingRule) => void; onOptions: (r: RoutingRule) => void }) {
 	const DestIcon = destinationIcons[rule.destinationType as keyof typeof destinationIcons] || FolderOpen;
 	const toggleRule = useToggleRoutingRule();
 
@@ -66,7 +67,7 @@ function RuleCard({ rule, index }: { rule: RoutingRule; index: number }) {
 								<p className="mt-1 text-sm text-slate-500">{rule.description}</p>
 							)}
 						</div>
-						<button className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+						<button onClick={() => onOptions(rule)} className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded opacity-0 group-hover:opacity-100 transition-opacity">
 							<MoreVertical className="w-4 h-4" />
 						</button>
 					</div>
@@ -130,10 +131,10 @@ function RuleCard({ rule, index }: { rule: RoutingRule; index: number }) {
 						</div>
 
 						<div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-							<button className="p-1.5 text-slate-500 hover:text-brass-400 hover:bg-slate-800 rounded">
+							<button onClick={() => onTest(rule)} className="p-1.5 text-slate-500 hover:text-brass-400 hover:bg-slate-800 rounded">
 								<TestTube className="w-4 h-4" />
 							</button>
-							<button className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded">
+							<button onClick={() => onEdit(rule)} className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded">
 								<Pencil className="w-4 h-4" />
 							</button>
 							<button
@@ -154,7 +155,7 @@ function RuleCard({ rule, index }: { rule: RoutingRule; index: number }) {
 									<Play className="w-4 h-4" />
 								)}
 							</button>
-							<button className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded">
+							<button onClick={() => onDelete(rule)} className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded">
 								<Trash2 className="w-4 h-4" />
 							</button>
 						</div>
@@ -178,8 +179,15 @@ export function Routing() {
 		metadata: '',
 		mode: 'operational',
 	});
+	const { openModal } = useStore();
 
 	const { data: rulesData, isLoading: rulesLoading } = useRoutingRules();
+
+	const handleAddRule = () => openModal('add-routing-rule');
+	const handleEditRule = (r: RoutingRule) => openModal('edit-routing-rule', r);
+	const handleTestRule = (r: RoutingRule) => openModal('test-routing-rule', r);
+	const handleDeleteRule = (r: RoutingRule) => openModal('delete-routing-rule', r);
+	const handleRuleOptions = (r: RoutingRule) => openModal('routing-rule-options', r);
 	const { data: stats, isLoading: statsLoading } = useRoutingStats();
 	const testRules = useTestRoutingRules();
 
@@ -224,7 +232,7 @@ export function Routing() {
 						<TestTube className="w-4 h-4" />
 						Test Mode
 					</button>
-					<button className="btn-primary">
+					<button onClick={handleAddRule} className="btn-primary">
 						<Plus className="w-4 h-4" />
 						Add Rule
 					</button>
@@ -364,7 +372,7 @@ export function Routing() {
 					rules
 						.sort((a: RoutingRule, b: RoutingRule) => a.priority - b.priority)
 						.map((rule: RoutingRule, index: number) => (
-							<RuleCard key={rule.id} rule={rule} index={index} />
+							<RuleCard key={rule.id} rule={rule} index={index} onEdit={handleEditRule} onTest={handleTestRule} onDelete={handleDeleteRule} onOptions={handleRuleOptions} />
 						))
 				)}
 			</div>

@@ -1,9 +1,9 @@
 // (c) Copyright Datacraft, 2026
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Plus, FileText, CheckCircle, AlertTriangle, Calendar, Gauge, Wand2 } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, CheckCircle, AlertTriangle, Calendar, Gauge, Wand2, Wrench } from 'lucide-react';
 import { useScanningProject, useScanningProjectMetrics, useProjectBatches, useProjectMilestones } from '../hooks';
-import { BatchCard, MilestoneTimeline, CreateBatchDialog, AIProjectPlanner } from '../components';
+import { BatchCard, MilestoneTimeline, CreateBatchDialog, AIProjectPlanner, ScannerDiscovery } from '../components';
 import { cn } from '@/lib/utils';
 
 function formatDate(date: string): string {
@@ -19,7 +19,7 @@ export function ProjectDetails() {
 	const { data: milestones } = useProjectMilestones(projectId!);
 	const [showAddBatch, setShowAddBatch] = useState(false);
 	const [showAIPlanner, setShowAIPlanner] = useState(false);
-	const [activeTab, setActiveTab] = useState<'batches' | 'milestones' | 'metrics'>('batches');
+	const [activeTab, setActiveTab] = useState<'batches' | 'milestones' | 'metrics' | 'equipment'>('batches');
 
 	if (projectLoading || !project) {
 		return (
@@ -128,7 +128,7 @@ export function ProjectDetails() {
 			</div>
 
 			<div className="flex items-center gap-4 border-b border-slate-800 mb-6">
-				{(['batches', 'milestones', 'metrics'] as const).map((tab) => (
+				{(['batches', 'milestones', 'metrics', 'equipment'] as const).map((tab) => (
 					<button
 						key={tab}
 						onClick={() => setActiveTab(tab)}
@@ -211,6 +211,21 @@ export function ProjectDetails() {
 							</div>
 						</div>
 					)}
+				</div>
+			)}
+
+			{activeTab === 'equipment' && (
+				<div className="space-y-6">
+					<div className="flex items-center gap-3 mb-4">
+						<Wrench className="w-5 h-5 text-purple-400" />
+						<h2 className="text-lg font-semibold text-slate-100">Equipment & Scanners</h2>
+					</div>
+					<ScannerDiscovery
+						projectId={project.id}
+						onScannerAdded={(scanner, config) => {
+							console.log('Scanner added:', scanner, config);
+						}}
+					/>
 				</div>
 			)}
 
