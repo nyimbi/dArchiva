@@ -1,0 +1,19 @@
+[submodule "papermerge-core"]
+	path = papermerge-core
+	url = https://github.com/nyimbi/papermerge-core.git
+	branch = main
+
+[submodule "papermerge-auth-server"]
+	path = papermerge-auth-server
+	url = https://github.com/nyimbi/papermerge-auth-server.git
+	branch = main
+
+[submodule "papermerge-ocr-worker"]
+	path = papermerge-ocr-worker
+	url = https://github.com/nyimbi/papermerge-ocr-worker.git
+	branch = main
+
+[submodule "papermerge-s3-worker"]
+	path = papermerge-s3-worker
+	url = https://github.com/nyimbi/papermerge-s3-worker.git
+	branch = main
