@@ -1,0 +1,191 @@
+/* (c) Copyright Datacraft, 2026 */
+/* Container List Styles */
+
+.list {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	max-height: calc(100vh - 400px);
+	overflow-y: auto;
+	padding-right: 0.5rem;
+}
+
+.list::-webkit-scrollbar {
+	width: 6px;
+}
+
+.list::-webkit-scrollbar-track {
+	background: var(--surface-card);
+	border-radius: 3px;
+}
+
+.list::-webkit-scrollbar-thumb {
+	background: var(--border-accent);
+	border-radius: 3px;
+}
+
+.empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 1rem;
+	padding: 4rem 2rem;
+	color: var(--text-muted);
+	text-align: center;
+}
+
+.emptyIcon {
+	font-size: 3rem;
+	color: var(--border-accent);
+}
+
+.card {
+	background: var(--surface-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: 6px;
+	padding: 1rem;
+	cursor: pointer;
+	position: relative;
+	overflow: hidden;
+	transition: all 0.2s ease;
+}
+
+.card:hover {
+	border-color: var(--border-accent);
+	background: var(--surface-hover);
+}
+
+.card.selected {
+	border-color: var(--amber);
+	box-shadow: 0 0 0 1px var(--amber), 0 8px 32px rgba(201, 162, 39, 0.15);
+}
+
+.cardCorner {
+	position: absolute;
+	top: 0;
+	right: 0;
+	width: 20px;
+	height: 20px;
+	border-top: 2px solid;
+	border-right: 2px solid;
+	border-top-right-radius: 6px;
+}
+
+.cardHeader {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.75rem;
+	margin-bottom: 0.75rem;
+}
+
+.typeIcon {
+	width: 36px;
+	height: 36px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--surface-hover);
+	border: 1px solid var(--border-subtle);
+	border-radius: 4px;
+	font-size: 1.25rem;
+	color: var(--amber);
+	flex-shrink: 0;
+}
+
+.cardInfo {
+	flex: 1;
+	min-width: 0;
+}
+
+.cardBarcode {
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.95rem;
+	font-weight: 600;
+	color: var(--text-primary);
+	margin: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.cardLabel {
+	font-size: 0.8rem;
+	color: var(--text-muted);
+}
+
+.statusBadge {
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.6rem;
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	padding: 0.25rem 0.5rem;
+	border-radius: 2px;
+	flex-shrink: 0;
+}
+
+.cardMeta {
+	display: flex;
+	gap: 1.5rem;
+	padding: 0.5rem 0;
+	border-top: 1px solid var(--border-subtle);
+	border-bottom: 1px solid var(--border-subtle);
+	margin-bottom: 0.5rem;
+}
+
+.metaItem {
+	display: flex;
+	flex-direction: column;
+	gap: 0.15rem;
+}
+
+.metaLabel {
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.55rem;
+	font-weight: 500;
+	letter-spacing: 0.1em;
+	color: var(--text-muted);
+}
+
+.metaValue {
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.8rem;
+	color: var(--text-secondary);
+	font-weight: 500;
+}
+
+.cardFooter {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+}
+
+.cardDate {
+	font-size: 0.7rem;
+	color: var(--text-muted);
+	flex: 1;
+}
+
+.holdBadge {
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.6rem;
+	font-weight: 600;
+	color: #f87171;
+	background: rgba(248, 113, 113, 0.1);
+	padding: 0.2rem 0.5rem;
+	border-radius: 2px;
+}
+
+.cardArrow {
+	color: var(--amber);
+	font-size: 1rem;
+	opacity: 0;
+	transform: translateX(-8px);
+	transition: all 0.2s;
+}
+
+.card:hover .cardArrow {
+	opacity: 1;
+	transform: translateX(0);
+}

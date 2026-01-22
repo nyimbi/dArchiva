@@ -1,15 +1,17 @@
-// (c) Copyright Datacraft, 2026
-export { Dashboard } from './Dashboard';
-export { Documents } from './Documents';
-export { Workflows } from './Workflows';
-export { Forms } from './Forms';
-export { Cases } from './Cases';
-export { Portfolios } from './Portfolios';
-export { Ingestion } from './Ingestion';
-export { Routing } from './Routing';
-export { Settings } from './Settings';
-export { Encryption } from './Encryption';
-export { Security } from './Security';
-
-// User Home Page - Personalized Dashboard
-export { UserHomePage } from '@/features/home';
+export * from './Dashboard';
+export * from './Documents';
+export * from './Workflows';
+export * from './Forms';
+export * from './Cases';
+export * from './Portfolios';
+export * from './Ingestion';
+export * from './Routing';
+export * from './Settings';
+export * from './Encryption';
+export * from './Security';
+export * from './AuditLogs';
+export * from './Inbox';
+export * from './SharedDocuments';
+export * from './UserHomePage';
+export * from './UnauthorizedPage';
+export * from './SearchPage';

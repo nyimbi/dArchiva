@@ -1,0 +1,97 @@
+/* (c) Copyright Datacraft, 2026 */
+.container {
+	background: #1a1a2e;
+	border-radius: 12px;
+	padding: 1.5rem;
+}
+
+.container h3 {
+	color: #c9a227;
+	margin: 0 0 1.5rem;
+}
+
+.loading {
+	color: #8a8a9e;
+	text-align: center;
+	padding: 2rem;
+}
+
+.statsGrid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+	gap: 1rem;
+	margin-bottom: 2rem;
+}
+
+.statCard {
+	background: #252542;
+	border-radius: 8px;
+	padding: 1.25rem 1rem;
+	text-align: center;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.statValue {
+	font-size: 2rem;
+	font-weight: 700;
+	line-height: 1;
+}
+
+.statLabel {
+	color: #8a8a9e;
+	font-size: 0.8rem;
+}
+
+.recentSection h4 {
+	color: #f0e6d3;
+	margin: 0 0 1rem;
+	font-size: 0.95rem;
+}
+
+.empty {
+	color: #8a8a9e;
+	text-align: center;
+	padding: 1rem;
+}
+
+.activityList {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.activityItem {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.5rem;
+	background: #252542;
+	border-radius: 6px;
+	font-size: 0.875rem;
+}
+
+.statusDot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.activitySource {
+	color: #f0e6d3;
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.activityDocs {
+	color: #8a8a9e;
+}
+
+.activityTime {
+	color: #8a8a9e;
+	font-size: 0.75rem;
+}

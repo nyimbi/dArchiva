@@ -1,0 +1,208 @@
+/* (c) Copyright Datacraft, 2026 */
+.container {
+	background: #1a1a2e;
+	border-radius: 12px;
+	padding: 1.5rem;
+}
+
+.header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 1.5rem;
+}
+
+.header h3 {
+	color: #c9a227;
+	margin: 0;
+}
+
+.stepIndicator {
+	display: flex;
+	gap: 0.5rem;
+}
+
+.stepDot {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: #3a3a5c;
+	transition: all 0.2s;
+}
+
+.stepDot.active {
+	background: #c9a227;
+	transform: scale(1.2);
+}
+
+.stepDot.done {
+	background: #4ade80;
+}
+
+.stepContent h4 {
+	color: #f0e6d3;
+	margin: 0 0 1.5rem;
+}
+
+.typeGrid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: 1rem;
+}
+
+.typeCard {
+	background: #252542;
+	border: 2px solid transparent;
+	border-radius: 8px;
+	padding: 1.25rem;
+	text-align: left;
+	cursor: pointer;
+	transition: all 0.2s;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.typeCard:hover {
+	border-color: #c9a227;
+}
+
+.typeLabel {
+	color: #f0e6d3;
+	font-weight: 600;
+	font-size: 1rem;
+}
+
+.typeDesc {
+	color: #8a8a9e;
+	font-size: 0.85rem;
+}
+
+.form {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.field label {
+	color: #8a8a9e;
+	font-size: 0.85rem;
+}
+
+.input {
+	background: #252542;
+	border: 1px solid #3a3a5c;
+	border-radius: 6px;
+	padding: 0.75rem;
+	color: #f0e6d3;
+	font-size: 0.9rem;
+}
+
+.input:focus {
+	outline: none;
+	border-color: #c9a227;
+}
+
+.optionsList {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+.option {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.75rem;
+	background: #252542;
+	border-radius: 8px;
+	padding: 1rem;
+	cursor: pointer;
+}
+
+.option input {
+	accent-color: #c9a227;
+	margin-top: 0.2rem;
+}
+
+.option > div {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+}
+
+.optionLabel {
+	color: #f0e6d3;
+	font-weight: 500;
+}
+
+.optionDesc {
+	color: #8a8a9e;
+	font-size: 0.85rem;
+}
+
+.review {
+	background: #252542;
+	border-radius: 8px;
+	padding: 1rem;
+}
+
+.reviewItem {
+	display: flex;
+	justify-content: space-between;
+	padding: 0.75rem 0;
+	border-bottom: 1px solid #3a3a5c;
+	color: #f0e6d3;
+}
+
+.reviewItem:last-child {
+	border-bottom: none;
+}
+
+.reviewLabel {
+	color: #8a8a9e;
+}
+
+.navButtons {
+	display: flex;
+	justify-content: space-between;
+	margin-top: 1.5rem;
+}
+
+.backBtn {
+	background: none;
+	border: 1px solid #3a3a5c;
+	border-radius: 6px;
+	padding: 0.6rem 1.25rem;
+	color: #f0e6d3;
+	cursor: pointer;
+}
+
+.backBtn:hover {
+	border-color: #c9a227;
+}
+
+.nextBtn, .createBtn {
+	background: linear-gradient(135deg, #c9a227, #b8941f);
+	border: none;
+	border-radius: 6px;
+	padding: 0.6rem 1.5rem;
+	color: #1a1a2e;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.nextBtn:hover, .createBtn:hover {
+	transform: translateY(-1px);
+}
+
+.createBtn:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+	transform: none;
+}

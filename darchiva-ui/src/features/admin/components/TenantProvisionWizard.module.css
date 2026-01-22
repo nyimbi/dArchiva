@@ -1,0 +1,590 @@
+/* (c) Copyright Datacraft, 2026 */
+/* Tenant Provision Wizard Styles */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700&display=swap');
+
+.wizard {
+	--surface-base: #0a0c10;
+	--surface-elevated: #12151c;
+	--surface-card: #181c24;
+	--surface-hover: #1e232d;
+	--border-subtle: #2a303c;
+	--border-accent: #3a4250;
+	--text-primary: #f0e6d3;
+	--text-secondary: #8a9099;
+	--text-muted: #5a6270;
+	--amber: #c9a227;
+	--amber-glow: rgba(201, 162, 39, 0.15);
+
+	background: var(--surface-elevated);
+	border-radius: 12px;
+	border: 1px solid var(--border-subtle);
+	overflow: hidden;
+}
+
+/* Header */
+.wizardHeader {
+	padding: 2rem 2.5rem;
+	border-bottom: 1px solid var(--border-subtle);
+}
+
+.cancelBtn {
+	background: none;
+	border: none;
+	color: var(--text-muted);
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.8rem;
+	cursor: pointer;
+	margin-bottom: 1rem;
+	transition: color 0.2s;
+}
+
+.cancelBtn:hover {
+	color: var(--amber);
+}
+
+.wizardTitle {
+	font-family: 'Outfit', sans-serif;
+	font-size: 1.5rem;
+	font-weight: 700;
+	color: var(--text-primary);
+	margin: 0 0 0.5rem;
+}
+
+.wizardSubtitle {
+	color: var(--text-secondary);
+	font-size: 0.9rem;
+	margin: 0;
+}
+
+/* Progress Bar */
+.progressBar {
+	display: flex;
+	align-items: center;
+	padding: 1.5rem 2.5rem;
+	background: var(--surface-card);
+	border-bottom: 1px solid var(--border-subtle);
+}
+
+.progressStep {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	position: relative;
+}
+
+.stepNumber {
+	width: 32px;
+	height: 32px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--surface-hover);
+	border: 2px solid var(--border-subtle);
+	border-radius: 50%;
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.8rem;
+	font-weight: 600;
+	color: var(--text-muted);
+	transition: all 0.3s;
+}
+
+.progressStep.completed .stepNumber,
+.progressStep.active .stepNumber {
+	background: var(--amber);
+	border-color: var(--amber);
+	color: var(--surface-base);
+}
+
+.stepLabel {
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.75rem;
+	font-weight: 500;
+	letter-spacing: 0.05em;
+	color: var(--text-muted);
+	transition: color 0.3s;
+}
+
+.progressStep.active .stepLabel {
+	color: var(--amber);
+}
+
+.progressStep.completed .stepLabel {
+	color: var(--text-secondary);
+}
+
+.stepConnector {
+	width: 60px;
+	height: 2px;
+	background: var(--border-subtle);
+	margin: 0 1rem;
+	transition: background 0.3s;
+}
+
+.progressStep.completed .stepConnector {
+	background: var(--amber);
+}
+
+/* Step Content */
+.stepContent {
+	padding: 2.5rem;
+	min-height: 400px;
+}
+
+.stepForm {
+	max-width: 800px;
+}
+
+.stepTitle {
+	font-family: 'Outfit', sans-serif;
+	font-size: 1.25rem;
+	font-weight: 600;
+	color: var(--text-primary);
+	margin: 0 0 0.5rem;
+}
+
+.stepDescription {
+	color: var(--text-secondary);
+	font-size: 0.9rem;
+	margin: 0 0 2rem;
+}
+
+/* Form Grid */
+.formGrid {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 1.5rem;
+}
+
+.fieldGroup {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.label {
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.75rem;
+	font-weight: 500;
+	letter-spacing: 0.05em;
+	color: var(--text-secondary);
+	text-transform: uppercase;
+}
+
+.required {
+	color: var(--amber);
+	margin-left: 0.25rem;
+}
+
+.input,
+.select {
+	background: var(--surface-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: 4px;
+	padding: 0.75rem 1rem;
+	color: var(--text-primary);
+	font-family: 'Outfit', sans-serif;
+	font-size: 0.9rem;
+	transition: border-color 0.2s;
+}
+
+.input:focus,
+.select:focus {
+	outline: none;
+	border-color: var(--amber);
+}
+
+.input::placeholder {
+	color: var(--text-muted);
+}
+
+.inputWithPrefix {
+	display: flex;
+	align-items: center;
+	background: var(--surface-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: 4px;
+	overflow: hidden;
+}
+
+.inputWithPrefix:focus-within {
+	border-color: var(--amber);
+}
+
+.inputPrefix {
+	padding: 0.75rem 0.75rem 0.75rem 1rem;
+	color: var(--text-muted);
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.85rem;
+	background: var(--surface-hover);
+	border-right: 1px solid var(--border-subtle);
+}
+
+.inputWithPrefix .input {
+	border: none;
+	background: none;
+	flex: 1;
+}
+
+.fieldHint {
+	font-size: 0.75rem;
+	color: var(--text-muted);
+}
+
+/* Plan Grid */
+.planGrid {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 1rem;
+}
+
+.planCard {
+	background: var(--surface-card);
+	border: 2px solid var(--border-subtle);
+	border-radius: 8px;
+	padding: 1.5rem;
+	cursor: pointer;
+	position: relative;
+	transition: all 0.2s;
+}
+
+.planCard:hover {
+	border-color: var(--border-accent);
+}
+
+.planCard.selected {
+	border-color: var(--plan-color);
+	box-shadow: 0 0 0 1px var(--plan-color), 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.recommendedBadge {
+	position: absolute;
+	top: -1px;
+	left: 50%;
+	transform: translateX(-50%);
+	background: var(--amber);
+	color: var(--surface-base);
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.6rem;
+	font-weight: 600;
+	letter-spacing: 0.1em;
+	padding: 0.25rem 0.75rem;
+	border-radius: 0 0 4px 4px;
+}
+
+.planHeader {
+	margin-bottom: 1.25rem;
+	padding-bottom: 1rem;
+	border-bottom: 1px solid var(--border-subtle);
+}
+
+.planName {
+	font-family: 'Outfit', sans-serif;
+	font-size: 1rem;
+	font-weight: 600;
+	color: var(--text-primary);
+	margin: 0 0 0.5rem;
+}
+
+.planPrice {
+	display: flex;
+	align-items: baseline;
+	gap: 0.25rem;
+}
+
+.priceValue {
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 1.5rem;
+	font-weight: 600;
+	color: var(--plan-color);
+}
+
+.pricePeriod {
+	font-size: 0.8rem;
+	color: var(--text-muted);
+}
+
+.planFeatures {
+	list-style: none;
+	padding: 0;
+	margin: 0 0 1.25rem;
+}
+
+.planFeatures li {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 0.8rem;
+	color: var(--text-secondary);
+	margin-bottom: 0.5rem;
+}
+
+.featureCheck {
+	color: var(--plan-color);
+	font-weight: 600;
+}
+
+.planSelector {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	font-size: 0.8rem;
+	color: var(--text-muted);
+}
+
+.radioOuter {
+	width: 18px;
+	height: 18px;
+	border: 2px solid var(--border-accent);
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: all 0.2s;
+}
+
+.radioOuter.checked {
+	border-color: var(--amber);
+}
+
+.radioInner {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: transparent;
+	transition: all 0.2s;
+}
+
+.radioOuter.checked .radioInner {
+	background: var(--amber);
+}
+
+/* Provider Grid */
+.providerGrid {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+}
+
+.providerCard {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	background: var(--surface-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: 6px;
+	padding: 1rem 1.25rem;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.providerCard:hover {
+	border-color: var(--border-accent);
+}
+
+.providerCard.selected {
+	border-color: var(--amber);
+	background: var(--amber-glow);
+}
+
+.providerRadio {
+	flex-shrink: 0;
+}
+
+.providerInfo {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+}
+
+.providerName {
+	font-weight: 500;
+	color: var(--text-primary);
+}
+
+.providerDesc {
+	font-size: 0.8rem;
+	color: var(--text-muted);
+}
+
+/* AI Features */
+.aiFeaturesList {
+	margin-top: 2rem;
+	padding-top: 2rem;
+	border-top: 1px solid var(--border-subtle);
+}
+
+.aiFeaturesList h4 {
+	font-family: 'Outfit', sans-serif;
+	font-size: 1rem;
+	font-weight: 500;
+	color: var(--text-primary);
+	margin: 0 0 1rem;
+}
+
+.featureCheckboxes {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 0.75rem;
+}
+
+.checkbox {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	cursor: pointer;
+	color: var(--text-secondary);
+	font-size: 0.9rem;
+}
+
+.checkbox input {
+	accent-color: var(--amber);
+	width: 16px;
+	height: 16px;
+}
+
+/* Review Section */
+.reviewSections {
+	display: flex;
+	flex-direction: column;
+	gap: 2rem;
+}
+
+.reviewSection {
+	background: var(--surface-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: 8px;
+	padding: 1.5rem;
+}
+
+.reviewSection h4 {
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.7rem;
+	font-weight: 600;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--amber);
+	margin: 0 0 1rem;
+}
+
+.reviewGrid {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 1.5rem;
+}
+
+.reviewItem {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+}
+
+.reviewLabel {
+	font-size: 0.75rem;
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.reviewValue {
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.95rem;
+	color: var(--text-primary);
+}
+
+/* Navigation */
+.wizardNav {
+	display: flex;
+	align-items: center;
+	padding: 1.5rem 2.5rem;
+	border-top: 1px solid var(--border-subtle);
+	background: var(--surface-card);
+}
+
+.navSpacer {
+	flex: 1;
+}
+
+.navBtn {
+	background: none;
+	border: 1px solid var(--border-subtle);
+	border-radius: 4px;
+	padding: 0.75rem 1.5rem;
+	color: var(--text-secondary);
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.8rem;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.navBtn:hover {
+	border-color: var(--amber);
+	color: var(--amber);
+}
+
+.navBtnPrimary,
+.navBtnSubmit {
+	background: linear-gradient(135deg, var(--amber), #b8941f);
+	border: none;
+	border-radius: 4px;
+	padding: 0.75rem 2rem;
+	color: var(--surface-base);
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.8rem;
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.navBtnPrimary:hover,
+.navBtnSubmit:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 8px 24px rgba(201, 162, 39, 0.3);
+}
+
+.navBtnSubmit:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+	transform: none;
+	box-shadow: none;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+	.planGrid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+
+	.reviewGrid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+
+@media (max-width: 768px) {
+	.progressBar {
+		overflow-x: auto;
+		padding: 1rem 1.5rem;
+	}
+
+	.stepContent {
+		padding: 1.5rem;
+	}
+
+	.formGrid {
+		grid-template-columns: 1fr;
+	}
+
+	.planGrid {
+		grid-template-columns: 1fr;
+	}
+
+	.featureCheckboxes {
+		grid-template-columns: 1fr;
+	}
+
+	.reviewGrid {
+		grid-template-columns: 1fr 1fr;
+	}
+}

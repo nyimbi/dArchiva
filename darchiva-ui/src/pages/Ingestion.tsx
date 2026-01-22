@@ -27,6 +27,9 @@ import {
 	useIngestionJobs,
 	useIngestionStats,
 	useToggleSource,
+	BatchUploader,
+	IngestionTemplates,
+	JobQueueDashboard,
 	type IngestionSource,
 	type IngestionJob,
 	type SourceType,
@@ -128,7 +131,7 @@ function SourceCard({ source, onSettings, onOptions }: { source: IngestionSource
 }
 
 export function Ingestion() {
-	const [activeTab, setActiveTab] = useState<'sources' | 'jobs'>('sources');
+	const [activeTab, setActiveTab] = useState<'sources' | 'jobs' | 'batch' | 'templates'>('sources');
 	const { openModal } = useStore();
 
 	const { data: sourcesData, isLoading: sourcesLoading } = useIngestionSources();
@@ -229,6 +232,28 @@ export function Ingestion() {
 				>
 					Recent Jobs
 				</button>
+				<button
+					onClick={() => setActiveTab('batch')}
+					className={cn(
+						'px-4 py-2 rounded-md text-sm font-medium transition-colors',
+						activeTab === 'batch'
+							? 'bg-slate-700 text-slate-100'
+							: 'text-slate-400 hover:text-slate-200'
+					)}
+				>
+					Batch Upload
+				</button>
+				<button
+					onClick={() => setActiveTab('templates')}
+					className={cn(
+						'px-4 py-2 rounded-md text-sm font-medium transition-colors',
+						activeTab === 'templates'
+							? 'bg-slate-700 text-slate-100'
+							: 'text-slate-400 hover:text-slate-200'
+					)}
+				>
+					Templates
+				</button>
 			</div>
 
 			{/* Content */}
@@ -271,88 +296,30 @@ export function Ingestion() {
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
 						exit={{ opacity: 0 }}
-						className="glass-card overflow-hidden"
 					>
-						{jobsLoading ? (
-							<div className="flex items-center justify-center py-12">
-								<Loader2 className="w-8 h-8 animate-spin text-slate-500" />
-							</div>
-						) : jobs.length === 0 ? (
-							<div className="text-center py-12 text-slate-500">
-								No recent jobs
-							</div>
-						) : (
-							<table className="data-table">
-								<thead>
-									<tr>
-										<th>Source</th>
-										<th>Documents</th>
-										<th>Status</th>
-										<th>Started</th>
-										<th className="w-24">Actions</th>
-									</tr>
-								</thead>
-								<tbody>
-									{jobs.map((job) => (
-										<tr key={job.id}>
-											<td>
-												<span className="text-slate-300">
-													{job.sourceName}
-												</span>
-											</td>
-											<td>
-												<span className="text-slate-400">
-													{job.documentsProcessed} processed
-													{job.documentsFailed > 0 && (
-														<span className="text-red-400 ml-2">
-															({job.documentsFailed} failed)
-														</span>
-													)}
-												</span>
-											</td>
-											<td>
-												<div className="flex items-center gap-2">
-													{job.status === 'completed' && (
-														<CheckCircle2 className="w-4 h-4 text-emerald-400" />
-													)}
-													{job.status === 'processing' && (
-														<RefreshCw className="w-4 h-4 text-brass-400 animate-spin" />
-													)}
-													{job.status === 'failed' && (
-														<XCircle className="w-4 h-4 text-red-400" />
-													)}
-													{job.status === 'pending' && (
-														<Clock className="w-4 h-4 text-slate-400" />
-													)}
-													<span className={cn(
-														'text-sm',
-														job.status === 'completed' ? 'text-emerald-400' :
-														job.status === 'processing' ? 'text-brass-400' :
-														job.status === 'failed' ? 'text-red-400' : 'text-slate-400'
-													)}>
-														{job.status}
-													</span>
-												</div>
-											</td>
-											<td className="text-slate-500">
-												{formatRelativeTime(job.startedAt)}
-											</td>
-											<td>
-												{job.status === 'completed' ? (
-													<button onClick={() => handleViewJob(job)} className="btn-ghost text-xs">
-														View <ChevronRight className="w-3 h-3" />
-													</button>
-												) : job.status === 'failed' ? (
-													<button onClick={() => handleRetryJob(job)} className="btn-ghost text-xs text-brass-400">
-														Retry
-													</button>
-												) : null}
-											</td>
-										</tr>
-									))}
-								</tbody>
-							</table>
-						)}
+						<JobQueueDashboard />
+					</motion.div>
+				)}
+
+				{activeTab === 'batch' && (
+					<motion.div
+						key="batch"
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+					>
+						<BatchUploader />
+					</motion.div>
+				)}
+
+				{activeTab === 'templates' && (
+					<motion.div
+						key="templates"
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+					>
+						<IngestionTemplates />
 					</motion.div>
 				)}
 			</AnimatePresence>

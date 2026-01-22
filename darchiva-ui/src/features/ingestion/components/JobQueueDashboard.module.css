@@ -1,0 +1,151 @@
+/* (c) Copyright Datacraft, 2026 */
+.container {
+	background: #1a1a2e;
+	border-radius: 12px;
+	padding: 1.5rem;
+}
+
+.header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 1.5rem;
+	flex-wrap: wrap;
+	gap: 1rem;
+}
+
+.header h3 {
+	color: #c9a227;
+	margin: 0;
+}
+
+.controls {
+	display: flex;
+	gap: 1rem;
+	align-items: center;
+}
+
+.tabs {
+	display: flex;
+	background: #252542;
+	border-radius: 6px;
+	overflow: hidden;
+}
+
+.tab {
+	background: none;
+	border: none;
+	padding: 0.5rem 1rem;
+	color: #8a8a9e;
+	cursor: pointer;
+	font-size: 0.875rem;
+	transition: all 0.2s;
+}
+
+.tab:hover {
+	color: #f0e6d3;
+}
+
+.tab.active {
+	background: #c9a227;
+	color: #1a1a2e;
+}
+
+.filter {
+	background: #252542;
+	border: 1px solid #3a3a5c;
+	border-radius: 6px;
+	padding: 0.5rem 0.75rem;
+	color: #f0e6d3;
+	font-size: 0.875rem;
+}
+
+.filter:focus {
+	outline: none;
+	border-color: #c9a227;
+}
+
+.queueList {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	max-height: 500px;
+	overflow-y: auto;
+}
+
+.loading, .empty {
+	color: #8a8a9e;
+	text-align: center;
+	padding: 2rem;
+}
+
+.queueItem {
+	background: #252542;
+	border-radius: 8px;
+	padding: 1rem;
+}
+
+.itemHeader {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	margin-bottom: 0.75rem;
+}
+
+.itemStatus {
+	font-size: 0.7rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	padding: 0.2rem 0.5rem;
+	border-radius: 4px;
+	color: #1a1a2e;
+}
+
+.itemSource, .batchName {
+	color: #f0e6d3;
+	font-weight: 500;
+}
+
+.progressSection {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	margin-bottom: 0.75rem;
+}
+
+.progressBar {
+	flex: 1;
+	height: 8px;
+	background: #3a3a5c;
+	border-radius: 4px;
+	overflow: hidden;
+}
+
+.progressFill {
+	height: 100%;
+	background: linear-gradient(90deg, #c9a227, #e5b82a);
+	transition: width 0.3s;
+}
+
+.progressText {
+	color: #c9a227;
+	font-size: 0.875rem;
+	font-weight: 600;
+	min-width: 40px;
+}
+
+.itemDetails {
+	display: flex;
+	gap: 1.5rem;
+	color: #8a8a9e;
+	font-size: 0.8rem;
+}
+
+.error {
+	color: #ef4444;
+	font-size: 0.8rem;
+	margin: 0.5rem 0 0;
+	padding: 0.5rem;
+	background: rgba(239, 68, 68, 0.1);
+	border-radius: 4px;
+}

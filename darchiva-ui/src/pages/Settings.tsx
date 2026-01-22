@@ -16,10 +16,17 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UsersAccessSettings } from '@/features/settings/components/sections/UsersAccessSettings';
+import { TagsSettings } from '@/features/settings/components/sections/TagsSettings';
+import { CustomFieldsSettings } from '@/features/settings/components/sections/CustomFieldsSettings';
+import { DocumentTypesSettings } from '@/features/settings/components/sections/DocumentTypesSettings';
+import { Tag as TagIcon, List as ListIcon, FileType } from 'lucide-react';
 
 const tabs = [
 	{ id: 'general', label: 'General', icon: Building2 },
 	{ id: 'branding', label: 'Branding', icon: Palette },
+	{ id: 'tags', label: 'Tags', icon: TagIcon },
+	{ id: 'custom-fields', label: 'Custom Fields', icon: ListIcon },
+	{ id: 'document-types', label: 'Document Types', icon: FileType },
 	{ id: 'users', label: 'Users & Access', icon: Users },
 	{ id: 'security', label: 'Security', icon: Shield },
 	{ id: 'notifications', label: 'Notifications', icon: Bell },
@@ -292,6 +299,12 @@ export function Settings() {
 				return <BrandingSettings />;
 			case 'users':
 				return <UsersAccessSettings />;
+			case 'tags':
+				return <TagsSettings />;
+			case 'custom-fields':
+				return <CustomFieldsSettings />;
+			case 'document-types':
+				return <DocumentTypesSettings />;
 			case 'storage':
 				return <StorageSettings />;
 			default:

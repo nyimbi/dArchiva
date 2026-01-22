@@ -222,7 +222,7 @@ function WorkflowCard({ workflow, onActivate, onDeactivate, isToggling }: Workfl
 				<div className="flex-1">
 					<div className="flex items-center gap-2 text-xs text-slate-500">
 						<div className="flex -space-x-1">
-							{workflow.nodes.slice(0, 5).map((node, i) => (
+							{(workflow.nodes ?? []).slice(0, 5).map((node, i) => (
 								<div
 									key={node.id}
 									className="w-5 h-5 rounded-full bg-slate-700 border-2 border-slate-900 flex items-center justify-center text-2xs text-slate-400"
@@ -231,7 +231,7 @@ function WorkflowCard({ workflow, onActivate, onDeactivate, isToggling }: Workfl
 								</div>
 							))}
 						</div>
-						<span>{workflow.nodes.length} nodes</span>
+						<span>{(workflow.nodes ?? []).length} nodes</span>
 					</div>
 				</div>
 

@@ -1,0 +1,163 @@
+/* (c) Copyright Datacraft, 2026 */
+.container {
+	background: #1a1a2e;
+	border-radius: 12px;
+	padding: 1.5rem;
+}
+
+.header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 1.5rem;
+}
+
+.header h3 {
+	color: #c9a227;
+	margin: 0;
+}
+
+.addBtn {
+	background: linear-gradient(135deg, #c9a227, #b8941f);
+	border: none;
+	border-radius: 6px;
+	padding: 0.5rem 1rem;
+	color: #1a1a2e;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.loading, .empty {
+	color: #8a8a9e;
+	text-align: center;
+	padding: 2rem;
+}
+
+.createForm {
+	background: #252542;
+	border-radius: 8px;
+	padding: 1.25rem;
+	margin-bottom: 1.5rem;
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+.input, .textarea {
+	background: #1a1a2e;
+	border: 1px solid #3a3a5c;
+	border-radius: 6px;
+	padding: 0.75rem;
+	color: #f0e6d3;
+	font-size: 0.9rem;
+	resize: vertical;
+}
+
+.input:focus, .textarea:focus {
+	outline: none;
+	border-color: #c9a227;
+}
+
+.checkboxGroup {
+	display: flex;
+	gap: 1.5rem;
+	flex-wrap: wrap;
+}
+
+.checkbox {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	color: #f0e6d3;
+	cursor: pointer;
+	font-size: 0.9rem;
+}
+
+.checkbox input {
+	accent-color: #c9a227;
+}
+
+.formActions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 0.75rem;
+}
+
+.cancelBtn {
+	background: none;
+	border: 1px solid #3a3a5c;
+	border-radius: 6px;
+	padding: 0.5rem 1rem;
+	color: #f0e6d3;
+	cursor: pointer;
+}
+
+.saveBtn {
+	background: #c9a227;
+	border: none;
+	border-radius: 6px;
+	padding: 0.5rem 1rem;
+	color: #1a1a2e;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.saveBtn:disabled {
+	opacity: 0.6;
+}
+
+.templateList {
+	display: grid;
+	gap: 1rem;
+}
+
+.templateCard {
+	background: #252542;
+	border-radius: 8px;
+	padding: 1rem;
+}
+
+.templateHeader {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.templateHeader h4 {
+	color: #f0e6d3;
+	margin: 0;
+	font-size: 1rem;
+}
+
+.deleteBtn {
+	background: none;
+	border: none;
+	color: #8a8a9e;
+	cursor: pointer;
+	font-size: 0.8rem;
+}
+
+.deleteBtn:hover {
+	color: #ef4444;
+}
+
+.description {
+	color: #8a8a9e;
+	font-size: 0.875rem;
+	margin: 0.5rem 0;
+}
+
+.tags {
+	display: flex;
+	gap: 0.5rem;
+	flex-wrap: wrap;
+	margin-top: 0.75rem;
+}
+
+.tag {
+	background: rgba(201, 162, 39, 0.15);
+	color: #c9a227;
+	font-size: 0.75rem;
+	padding: 0.25rem 0.5rem;
+	border-radius: 4px;
+}

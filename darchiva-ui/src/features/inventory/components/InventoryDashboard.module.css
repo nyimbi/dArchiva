@@ -1,0 +1,595 @@
+/* (c) Copyright Datacraft, 2026 */
+/* Physical Inventory Dashboard - Industrial Warehouse Aesthetic */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700&display=swap');
+
+.container {
+	--surface-base: #0a0c10;
+	--surface-elevated: #12151c;
+	--surface-card: #181c24;
+	--surface-hover: #1e232d;
+	--border-subtle: #2a303c;
+	--border-accent: #3a4250;
+	--text-primary: #f0e6d3;
+	--text-secondary: #8a9099;
+	--text-muted: #5a6270;
+	--amber: #c9a227;
+	--amber-glow: rgba(201, 162, 39, 0.15);
+	--green: #4ade80;
+	--blue: #60a5fa;
+	--red: #f87171;
+	--orange: #fb923c;
+	--purple: #a78bfa;
+
+	min-height: 100vh;
+	background: var(--surface-base);
+	font-family: 'Outfit', sans-serif;
+	color: var(--text-primary);
+	position: relative;
+}
+
+.gridOverlay {
+	position: fixed;
+	inset: 0;
+	background-image:
+		linear-gradient(rgba(201, 162, 39, 0.02) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(201, 162, 39, 0.02) 1px, transparent 1px);
+	background-size: 40px 40px;
+	pointer-events: none;
+	z-index: 0;
+}
+
+/* Header */
+.header {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	padding: 2rem 2.5rem;
+	border-bottom: 1px solid var(--border-subtle);
+	position: relative;
+	z-index: 1;
+}
+
+.headerLeft {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.systemBadge {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.7rem;
+	font-weight: 600;
+	letter-spacing: 0.15em;
+	color: var(--amber);
+	background: var(--amber-glow);
+	padding: 0.35rem 0.75rem;
+	border-radius: 2px;
+	border: 1px solid rgba(201, 162, 39, 0.3);
+	width: fit-content;
+}
+
+.systemDot {
+	width: 6px;
+	height: 6px;
+	background: var(--amber);
+	border-radius: 50%;
+	animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.4; }
+}
+
+.title {
+	font-size: 1.75rem;
+	font-weight: 700;
+	margin: 0;
+	letter-spacing: -0.02em;
+}
+
+.subtitle {
+	font-size: 0.9rem;
+	color: var(--text-secondary);
+	margin: 0;
+}
+
+.headerActions {
+	display: flex;
+	gap: 0.75rem;
+}
+
+.actionBtn {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.75rem 1.25rem;
+	background: linear-gradient(135deg, var(--amber), #b8941f);
+	border: none;
+	border-radius: 4px;
+	color: var(--surface-base);
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.75rem;
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.actionBtn:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 8px 24px rgba(201, 162, 39, 0.3);
+}
+
+.actionBtnSecondary {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.75rem 1.25rem;
+	background: var(--surface-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: 4px;
+	color: var(--text-secondary);
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.75rem;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.actionBtnSecondary:hover {
+	border-color: var(--amber);
+	color: var(--amber);
+}
+
+/* Stats Bar */
+.statsBar {
+	display: flex;
+	gap: 1rem;
+	padding: 1.5rem 2.5rem;
+	background: var(--surface-elevated);
+	border-bottom: 1px solid var(--border-subtle);
+	position: relative;
+	z-index: 1;
+	overflow-x: auto;
+}
+
+.statCard {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	padding: 1rem 1.5rem;
+	background: var(--surface-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: 4px;
+	min-width: 140px;
+}
+
+.statHeader {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.statIndicator {
+	width: 8px;
+	height: 8px;
+	border-radius: 2px;
+}
+
+.statLabel {
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.65rem;
+	font-weight: 500;
+	letter-spacing: 0.08em;
+	color: var(--text-muted);
+}
+
+.statValue {
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 1.75rem;
+	font-weight: 600;
+	line-height: 1;
+}
+
+/* Tab Navigation */
+.tabNav {
+	display: flex;
+	gap: 0;
+	padding: 0 2.5rem;
+	background: var(--surface-elevated);
+	border-bottom: 1px solid var(--border-subtle);
+	position: relative;
+	z-index: 1;
+}
+
+.tab {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 1rem 1.5rem;
+	background: none;
+	border: none;
+	border-bottom: 2px solid transparent;
+	color: var(--text-muted);
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.75rem;
+	font-weight: 500;
+	letter-spacing: 0.05em;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.tab:hover {
+	color: var(--text-secondary);
+}
+
+.tab.active {
+	color: var(--amber);
+	border-bottom-color: var(--amber);
+}
+
+.tabIcon {
+	font-size: 1rem;
+}
+
+/* Main Content */
+.mainContent {
+	padding: 2rem 2.5rem;
+	position: relative;
+	z-index: 1;
+}
+
+/* Overview Grid */
+.overviewGrid {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 1.5rem;
+}
+
+.card {
+	background: var(--surface-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: 6px;
+	padding: 1.5rem;
+}
+
+.cardTitle {
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.7rem;
+	font-weight: 600;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--amber);
+	margin: 0 0 1.25rem;
+}
+
+/* Activity List */
+.activityList {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+}
+
+.activityItem {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.75rem;
+	padding: 0.5rem 0;
+	border-bottom: 1px solid var(--border-subtle);
+}
+
+.activityItem:last-child {
+	border-bottom: none;
+}
+
+.activityDot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	margin-top: 0.35rem;
+	flex-shrink: 0;
+}
+
+.activityInfo {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+}
+
+.activityCode {
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.85rem;
+	color: var(--text-primary);
+}
+
+.activityMeta {
+	font-size: 0.75rem;
+	color: var(--text-muted);
+}
+
+.emptyText {
+	color: var(--text-muted);
+	font-size: 0.85rem;
+	text-align: center;
+	padding: 2rem;
+}
+
+/* Status Bars */
+.statusBars {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+.statusBar {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+}
+
+.statusBarHeader {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.statusLabel {
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.65rem;
+	font-weight: 500;
+	letter-spacing: 0.05em;
+	color: var(--text-muted);
+}
+
+.statusCount {
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.8rem;
+	font-weight: 600;
+	color: var(--text-secondary);
+}
+
+.statusTrack {
+	height: 6px;
+	background: var(--surface-hover);
+	border-radius: 3px;
+	overflow: hidden;
+}
+
+.statusFill {
+	height: 100%;
+	border-radius: 3px;
+}
+
+/* Quick Actions */
+.quickActions {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 0.75rem;
+}
+
+.quickAction {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 1.25rem;
+	background: var(--surface-hover);
+	border: 1px solid var(--border-subtle);
+	border-radius: 6px;
+	color: var(--text-secondary);
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.quickAction:hover {
+	border-color: var(--amber);
+	color: var(--amber);
+}
+
+.quickIcon {
+	font-size: 1.5rem;
+}
+
+.quickLabel {
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.7rem;
+	font-weight: 500;
+	letter-spacing: 0.05em;
+}
+
+/* Alerts */
+.alertsList {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+}
+
+.alertItem {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.75rem;
+	padding: 1rem;
+	background: var(--surface-hover);
+	border-radius: 4px;
+	border-left: 3px solid;
+}
+
+.alertIcon {
+	font-size: 1rem;
+	flex-shrink: 0;
+}
+
+.alertInfo {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+}
+
+.alertTitle {
+	font-weight: 500;
+	color: var(--text-primary);
+	font-size: 0.9rem;
+}
+
+.alertDesc {
+	font-size: 0.8rem;
+	color: var(--text-muted);
+}
+
+/* Containers View */
+.containersView {
+	display: flex;
+	flex-direction: column;
+	gap: 1.5rem;
+}
+
+.filterBar {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.filterGroup {
+	display: flex;
+	gap: 0.25rem;
+	background: var(--surface-card);
+	padding: 0.25rem;
+	border-radius: 4px;
+	border: 1px solid var(--border-subtle);
+}
+
+.filterBtn {
+	padding: 0.5rem 1rem;
+	background: none;
+	border: none;
+	border-radius: 2px;
+	color: var(--text-muted);
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.7rem;
+	font-weight: 500;
+	letter-spacing: 0.05em;
+	cursor: pointer;
+	transition: all 0.15s;
+}
+
+.filterBtn:hover {
+	color: var(--text-secondary);
+	background: var(--surface-hover);
+}
+
+.filterBtn.active {
+	color: var(--surface-base);
+	background: var(--amber);
+}
+
+.containerLayout {
+	display: flex;
+	gap: 1.5rem;
+}
+
+/* Locations View */
+.locationsView {
+	display: flex;
+	gap: 1.5rem;
+}
+
+/* Scanner View */
+.scannerView {
+	display: flex;
+	justify-content: center;
+	padding: 2rem 0;
+}
+
+/* Reports View */
+.reportsView {
+	display: flex;
+	flex-direction: column;
+	gap: 1.5rem;
+}
+
+.reportCards {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+	gap: 1rem;
+}
+
+.reportCard {
+	background: var(--surface-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: 6px;
+	padding: 1.5rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+}
+
+.reportTitle {
+	font-weight: 600;
+	color: var(--text-primary);
+	margin: 0;
+}
+
+.reportDesc {
+	font-size: 0.85rem;
+	color: var(--text-muted);
+	margin: 0;
+	flex: 1;
+}
+
+.reportBtn {
+	padding: 0.75rem 1rem;
+	background: var(--surface-hover);
+	border: 1px solid var(--border-subtle);
+	border-radius: 4px;
+	color: var(--text-secondary);
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.75rem;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.2s;
+	margin-top: 0.5rem;
+}
+
+.reportBtn:hover {
+	border-color: var(--amber);
+	color: var(--amber);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+	.overviewGrid {
+		grid-template-columns: 1fr;
+	}
+
+	.containerLayout {
+		flex-direction: column;
+	}
+}
+
+@media (max-width: 768px) {
+	.header {
+		flex-direction: column;
+		gap: 1rem;
+	}
+
+	.headerActions {
+		width: 100%;
+	}
+
+	.statsBar {
+		padding: 1rem 1.5rem;
+	}
+
+	.mainContent {
+		padding: 1.5rem;
+	}
+
+	.quickActions {
+		grid-template-columns: 1fr;
+	}
+}

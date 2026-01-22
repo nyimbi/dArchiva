@@ -1,0 +1,196 @@
+/* (c) Copyright Datacraft, 2026 */
+.container {
+	background: #1a1a2e;
+	border-radius: 12px;
+	padding: 1.5rem;
+}
+
+.header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 1rem;
+	flex-wrap: wrap;
+	gap: 1rem;
+}
+
+.header h3 {
+	color: #c9a227;
+	margin: 0;
+	font-size: 1.1rem;
+}
+
+.options {
+	display: flex;
+	gap: 0.75rem;
+}
+
+.input, .select {
+	background: #252542;
+	border: 1px solid #3a3a5c;
+	border-radius: 6px;
+	padding: 0.5rem 0.75rem;
+	color: #f0e6d3;
+	font-size: 0.875rem;
+}
+
+.input:focus, .select:focus {
+	outline: none;
+	border-color: #c9a227;
+}
+
+.dropzone {
+	border: 2px dashed #3a3a5c;
+	border-radius: 12px;
+	padding: 3rem 2rem;
+	text-align: center;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.dropzone:hover, .dragging {
+	border-color: #c9a227;
+	background: rgba(201, 162, 39, 0.05);
+}
+
+.fileInput {
+	display: none;
+}
+
+.dropzoneContent {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.dropIcon {
+	font-size: 2.5rem;
+	color: #c9a227;
+	line-height: 1;
+}
+
+.dropzoneContent p {
+	color: #f0e6d3;
+	margin: 0;
+}
+
+.hint {
+	color: #8a8a9e;
+	font-size: 0.8rem;
+}
+
+.fileList {
+	margin-top: 1.5rem;
+}
+
+.fileListHeader {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	color: #8a8a9e;
+	font-size: 0.875rem;
+	margin-bottom: 0.75rem;
+}
+
+.clearBtn {
+	background: none;
+	border: none;
+	color: #c9a227;
+	cursor: pointer;
+	font-size: 0.8rem;
+}
+
+.clearBtn:hover {
+	text-decoration: underline;
+}
+
+.fileItem {
+	background: #252542;
+	border-radius: 8px;
+	padding: 0.75rem 1rem;
+	margin-bottom: 0.5rem;
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+}
+
+.fileInfo {
+	flex: 1;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.fileName {
+	color: #f0e6d3;
+	font-size: 0.9rem;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 300px;
+}
+
+.fileSize {
+	color: #8a8a9e;
+	font-size: 0.8rem;
+}
+
+.progressBar {
+	width: 100px;
+	height: 6px;
+	background: #3a3a5c;
+	border-radius: 3px;
+	overflow: hidden;
+}
+
+.progress {
+	height: 100%;
+	background: linear-gradient(90deg, #c9a227, #e5b82a);
+	transition: width 0.2s;
+}
+
+.checkmark {
+	color: #4ade80;
+	font-size: 0.8rem;
+}
+
+.removeBtn {
+	background: none;
+	border: none;
+	color: #8a8a9e;
+	cursor: pointer;
+	font-size: 0.9rem;
+	padding: 0.25rem;
+}
+
+.removeBtn:hover {
+	color: #ef4444;
+}
+
+.actions {
+	margin-top: 1.5rem;
+	display: flex;
+	justify-content: flex-end;
+}
+
+.uploadBtn {
+	background: linear-gradient(135deg, #c9a227, #b8941f);
+	border: none;
+	border-radius: 8px;
+	padding: 0.75rem 2rem;
+	color: #1a1a2e;
+	font-weight: 600;
+	cursor: pointer;
+	transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.uploadBtn:hover:not(:disabled) {
+	transform: translateY(-1px);
+	box-shadow: 0 4px 12px rgba(201, 162, 39, 0.3);
+}
+
+.uploadBtn:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
