@@ -326,6 +326,44 @@ export function useRunScheduledTask() {
 	});
 }
 
+// === Notification Preferences ===
+
+export interface NotificationPreferences {
+	email_enabled: boolean;
+	email_document_updates: boolean;
+	email_workflow_assignments: boolean;
+	email_sla_warnings: boolean;
+	email_mentions: boolean;
+	email_system: boolean;
+	digest_frequency: 'never' | 'daily' | 'weekly' | 'monthly';
+	digest_time: string;
+	inapp_enabled: boolean;
+	desktop_enabled: boolean;
+	sound_enabled: boolean;
+	inapp_documents: boolean;
+	inapp_workflows: boolean;
+	inapp_team: boolean;
+	dnd_enabled: boolean;
+	dnd_start: string;
+	dnd_end: string;
+}
+
+export function useNotificationPreferences() {
+	return useQuery({
+		queryKey: ['settings', 'notifications'],
+		queryFn: () => fetchApi<NotificationPreferences>(`${API_BASE}/notifications`),
+	});
+}
+
+export function useUpdateNotificationPreferences() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: (data: Partial<NotificationPreferences>) =>
+			fetchApi<NotificationPreferences>(`${API_BASE}/notifications`, { method: 'PATCH', body: JSON.stringify(data) }),
+		onSuccess: () => qc.invalidateQueries({ queryKey: ['settings', 'notifications'] }),
+	});
+}
+
 // Aliases for backward compatibility
 export const useToggleTask = useUpdateScheduledTask;
 export const useRunTask = useRunScheduledTask;
