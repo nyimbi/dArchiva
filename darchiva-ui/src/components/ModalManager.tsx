@@ -6,9 +6,12 @@ import { CreateFolderModal } from '@/features/documents/components/modals/Create
 import { CreateCaseModal } from '@/features/cases/components/CreateCaseModal';
 import { NotificationsModal } from '@/features/notifications/components/NotificationsModal';
 import { UserProfileModal } from '@/features/users/components/UserProfileModal';
+import { CreateUserModal } from '@/features/users/components/CreateUserModal';
 import { FilterDocumentsModal } from '@/features/documents/components/modals/FilterDocumentsModal';
 import { SortDocumentsModal } from '@/features/documents/components/modals/SortDocumentsModal';
 import { CreateProjectModal } from '@/features/scanning-projects/components/modals/CreateProjectModal';
+import { CreateGroupModal } from '@/features/groups/components/CreateGroupModal';
+import { CreateRoleModal } from '@/features/roles/components/CreateRoleModal';
 
 export function ModalManager() {
     const { activeModal, modalData, closeModal } = useStore();
@@ -39,6 +42,15 @@ export function ModalManager() {
     }
     if (activeModal === 'create-project') {
         return <CreateProjectModal onClose={closeModal} />;
+    }
+    if (activeModal === 'create-user') {
+        return <CreateUserModal onClose={closeModal} />;
+    }
+    if (activeModal === 'create-group') {
+        return <CreateGroupModal onClose={closeModal} />;
+    }
+    if (activeModal === 'create-role') {
+        return <CreateRoleModal onClose={closeModal} />;
     }
 
     console.warn(`No modal component found for: ${activeModal}`);

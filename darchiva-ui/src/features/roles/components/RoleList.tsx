@@ -165,11 +165,11 @@ export function RoleList({ onCreateRole, onEditRole }: RoleListProps) {
 								<div className="text-sm text-muted-foreground text-right">
 									<div className="flex items-center gap-1">
 										<Shield className="h-3 w-3" />
-										{role.permissions.length} permissions
+										{role.permissions?.length ?? 0} permissions
 									</div>
 									<div className="flex items-center gap-1">
 										<Users className="h-3 w-3" />
-										{role.user_count} users
+										{role.user_count ?? 0} users
 									</div>
 								</div>
 

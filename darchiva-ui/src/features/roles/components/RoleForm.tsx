@@ -74,7 +74,7 @@ export function RoleForm({ open, onOpenChange, role }: RoleFormProps) {
 			reset({
 				name: role.name,
 				description: role.description ?? '',
-				permission_ids: role.permissions.map((p) => p.id),
+				permission_ids: role.permissions.map((p) => p.codename),
 			});
 			// Expand categories that have selected permissions
 			const permCategories = new Set(role.permissions.map((p) => p.category));
@@ -113,32 +113,32 @@ export function RoleForm({ open, onOpenChange, role }: RoleFormProps) {
 		setExpandedCategories(newExpanded);
 	};
 
-	const togglePermission = (permissionId: string) => {
+	const togglePermission = (codename: string) => {
 		if (isSystemRole) return;
 		const current = selectedPermissionIds;
-		if (current.includes(permissionId)) {
-			setValue('permission_ids', current.filter((id) => id !== permissionId));
+		if (current.includes(codename)) {
+			setValue('permission_ids', current.filter((c) => c !== codename));
 		} else {
-			setValue('permission_ids', [...current, permissionId]);
+			setValue('permission_ids', [...current, codename]);
 		}
 	};
 
 	const toggleAllInCategory = (category: PermissionCategory) => {
 		if (isSystemRole) return;
-		const categoryPermIds = category.permissions.map((p) => p.id);
-		const allSelected = categoryPermIds.every((id) => selectedPermissionIds.includes(id));
+		const categoryCodenames = category.permissions.map((p) => p.codename);
+		const allSelected = categoryCodenames.every((c) => selectedPermissionIds.includes(c));
 
 		if (allSelected) {
-			setValue('permission_ids', selectedPermissionIds.filter((id) => !categoryPermIds.includes(id)));
+			setValue('permission_ids', selectedPermissionIds.filter((c) => !categoryCodenames.includes(c)));
 		} else {
-			const newIds = new Set([...selectedPermissionIds, ...categoryPermIds]);
-			setValue('permission_ids', Array.from(newIds));
+			const newCodenames = new Set([...selectedPermissionIds, ...categoryCodenames]);
+			setValue('permission_ids', Array.from(newCodenames));
 		}
 	};
 
 	const getCategoryStats = (category: PermissionCategory) => {
 		const total = category.permissions.length;
-		const selected = category.permissions.filter((p) => selectedPermissionIds.includes(p.id)).length;
+		const selected = category.permissions.filter((p) => selectedPermissionIds.includes(p.codename)).length;
 		return { total, selected };
 	};
 
@@ -259,8 +259,8 @@ export function RoleForm({ open, onOpenChange, role }: RoleFormProps) {
 															)}
 														>
 															<Checkbox
-																checked={selectedPermissionIds.includes(permission.id)}
-																onCheckedChange={() => togglePermission(permission.id)}
+																checked={selectedPermissionIds.includes(permission.codename)}
+																onCheckedChange={() => togglePermission(permission.codename)}
 																disabled={isSystemRole}
 																className="mt-0.5"
 															/>

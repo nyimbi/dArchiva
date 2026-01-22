@@ -201,12 +201,12 @@ export function UserList({ onCreateUser, onEditUser }: UserListProps) {
 							</div>
 
 							<div className="flex items-center gap-2">
-								{user.groups.length > 0 && (
+								{(user.groups?.length ?? 0) > 0 && (
 									<div className="text-xs text-muted-foreground">
 										{user.groups.length} group{user.groups.length !== 1 ? 's' : ''}
 									</div>
 								)}
-								{user.roles.length > 0 && (
+								{(user.roles?.length ?? 0) > 0 && (
 									<div className="text-xs text-muted-foreground">
 										{user.roles.length} role{user.roles.length !== 1 ? 's' : ''}
 									</div>
