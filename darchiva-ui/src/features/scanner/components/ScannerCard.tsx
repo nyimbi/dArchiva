@@ -7,7 +7,7 @@ import { PROTOCOL_LABELS } from '../types';
 import {
 	PrinterIcon,
 	WifiIcon,
-	UsbIcon,
+	ComputerDesktopIcon,
 	ClockIcon,
 	DocumentDuplicateIcon,
 	StarIcon,
@@ -27,7 +27,7 @@ function getProtocolIcon(protocol: string) {
 		case 'sane':
 		case 'twain':
 		case 'wia':
-			return <UsbIcon className="w-4 h-4" />;
+			return <ComputerDesktopIcon className="w-4 h-4" />;
 		default:
 			return <PrinterIcon className="w-4 h-4" />;
 	}

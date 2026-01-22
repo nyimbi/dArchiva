@@ -17,14 +17,19 @@ import {
 	Shield,
 	ScanLine,
 	Home,
+	History,
+	Inbox,
+	Share2,
 } from 'lucide-react';
 import { useStore } from '@/hooks/useStore';
 import { cn } from '@/lib/utils';
 
 const navItems = [
 	{ id: 'home', label: 'Home', icon: Home, path: '/' },
+	{ id: 'inbox', label: 'Inbox', icon: Inbox, path: '/inbox' },
 	{ id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
 	{ id: 'documents', label: 'Documents', icon: FolderTree, path: '/documents' },
+	{ id: 'shared', label: 'Shared Documents', icon: Share2, path: '/shared' },
 	{ id: 'scanning', label: 'Scanning Projects', icon: ScanLine, path: '/scanning-projects' },
 	{ id: 'workflows', label: 'Workflows', icon: GitBranch, path: '/workflows' },
 	{ id: 'forms', label: 'Form Recognition', icon: FileSearch, path: '/forms' },
@@ -36,6 +41,7 @@ const navItems = [
 
 const adminItems = [
 	{ id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
+	{ id: 'audit', label: 'Audit Logs', icon: History, path: '/audit' },
 	{ id: 'encryption', label: 'Encryption', icon: Shield, path: '/encryption' },
 ];
 
@@ -52,8 +58,8 @@ export function Sidebar() {
 		>
 			{/* Logo */}
 			<div className="h-16 flex items-center px-4 border-b border-slate-800/50">
-				<Link to="/" className="flex items-center gap-3">
-					<div className="w-8 h-8 rounded-lg bg-brass-500 flex items-center justify-center">
+				<Link to="/" className="flex items-center gap-3" aria-label="dArchiva Home">
+					<div className="w-8 h-8 rounded-lg bg-brass-500 flex items-center justify-center" aria-hidden="true">
 						<FileText className="w-5 h-5 text-slate-900" />
 					</div>
 					<AnimatePresence>
@@ -89,8 +95,9 @@ export function Sidebar() {
 									'nav-item relative',
 									isActive && 'active'
 								)}
+								aria-label={item.label}
 							>
-								<Icon className="w-5 h-5 flex-shrink-0" />
+								<Icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
 								<AnimatePresence>
 									{!sidebarCollapsed && (
 										<motion.span
@@ -111,6 +118,7 @@ export function Sidebar() {
 											'bg-brass-500 text-slate-900',
 											sidebarCollapsed ? 'top-0 right-0' : 'right-2'
 										)}
+										aria-label={`${taskCount} pending tasks`}
 									>
 										{taskCount}
 									</span>
@@ -147,8 +155,9 @@ export function Sidebar() {
 										'nav-item',
 										isActive && 'active'
 									)}
+									aria-label={item.label}
 								>
-									<Icon className="w-5 h-5 flex-shrink-0" />
+									<Icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
 									<AnimatePresence>
 										{!sidebarCollapsed && (
 											<motion.span
@@ -174,11 +183,12 @@ export function Sidebar() {
 				<button
 					onClick={toggleSidebar}
 					className="w-full flex items-center justify-center p-2 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 transition-colors"
+					aria-label={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
 				>
 					{sidebarCollapsed ? (
-						<ChevronRight className="w-5 h-5" />
+						<ChevronRight className="w-5 h-5" aria-hidden="true" />
 					) : (
-						<ChevronLeft className="w-5 h-5" />
+						<ChevronLeft className="w-5 h-5" aria-hidden="true" />
 					)}
 				</button>
 			</div>

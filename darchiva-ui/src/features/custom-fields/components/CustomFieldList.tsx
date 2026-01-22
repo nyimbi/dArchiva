@@ -60,7 +60,12 @@ const typeLabels: Record<CustomFieldType, string> = {
 	monetary: 'Currency',
 };
 
-export function CustomFieldList() {
+interface CustomFieldListProps {
+	onEdit?: (field: CustomField) => void;
+	hideHeader?: boolean;
+}
+
+export function CustomFieldList({ onEdit, hideHeader = false }: CustomFieldListProps) {
 	const { data, isLoading } = useCustomFields();
 	const deleteMutation = useDeleteCustomField();
 	const [editingField, setEditingField] = useState<CustomField | null>(null);
@@ -86,18 +91,20 @@ export function CustomFieldList() {
 	return (
 		<>
 			<div className="space-y-4">
-				<div className="flex items-center justify-between">
-					<div>
-						<h2 className="text-xl font-semibold">Custom Fields</h2>
-						<p className="text-sm text-muted-foreground">
-							Define custom metadata fields for your documents
-						</p>
+				{!hideHeader && (
+					<div className="flex items-center justify-between">
+						<div>
+							<h2 className="text-xl font-semibold">Custom Fields</h2>
+							<p className="text-sm text-muted-foreground">
+								Define custom metadata fields for your documents
+							</p>
+						</div>
+						<Button onClick={() => setShowCreateDialog(true)}>
+							<Plus className="h-4 w-4 mr-2" />
+							Add Field
+						</Button>
 					</div>
-					<Button onClick={() => setShowCreateDialog(true)}>
-						<Plus className="h-4 w-4 mr-2" />
-						Add Field
-					</Button>
-				</div>
+				)}
 
 				{fields.length === 0 ? (
 					<Card>
@@ -138,7 +145,7 @@ export function CustomFieldList() {
 											</div>
 
 											<div className="flex items-center gap-2">
-												<Button variant="outline" size="sm" onClick={() => setEditingField(field)}>
+												<Button variant="outline" size="sm" onClick={() => onEdit ? onEdit(field) : setEditingField(field)}>
 													<Edit className="h-4 w-4" />
 												</Button>
 

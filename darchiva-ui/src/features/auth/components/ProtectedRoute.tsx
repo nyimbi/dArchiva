@@ -2,15 +2,18 @@
 /**
  * Protected route wrapper that redirects to login if not authenticated.
  */
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, Outlet } from 'react-router-dom';
+
 import { useAuth } from '../context/AuthContext';
 
 interface ProtectedRouteProps {
-	children: React.ReactNode;
+	children?: React.ReactNode;
+	requiredScopes?: string[];
 }
 
-export function ProtectedRoute({ children }: ProtectedRouteProps) {
-	const { isAuthenticated, isLoading } = useAuth();
+
+export function ProtectedRoute({ children, requiredScopes }: ProtectedRouteProps) {
+	const { user, isAuthenticated, isLoading } = useAuth();
 	const location = useLocation();
 
 	// Show loading state while checking auth
@@ -30,5 +33,15 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 		return <Navigate to="/login" state={{ from: location }} replace />;
 	}
 
-	return <>{children}</>;
+	// Check for required scopes if provided
+	if (requiredScopes && requiredScopes.length > 0) {
+		const hasRequiredScopes = requiredScopes.every((scope) => user?.scopes?.includes(scope));
+		if (!hasRequiredScopes) {
+			return <Navigate to="/unauthorized" replace />;
+		}
+	}
+
+	return <>{children || <Outlet />}</>;
 }
+
+

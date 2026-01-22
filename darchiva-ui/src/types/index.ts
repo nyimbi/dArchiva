@@ -9,6 +9,8 @@ export interface User {
 	avatarUrl?: string;
 	tenantId: string;
 	roles: string[];
+	is_superuser: boolean;
+	date_joined: string;
 }
 
 export interface Tenant {

@@ -2,7 +2,7 @@
 /**
  * Tenant management API client.
  */
-import axios from 'axios';
+import { apiClient } from '@/lib/api-client';
 import type {
 	Tenant,
 	TenantDetail,
@@ -18,43 +18,43 @@ import type {
 	InviteUserRequest,
 } from './types';
 
-const API_BASE = '/api/v1/tenants';
+const API_BASE = '/tenants';
 
 // --- Current Tenant Operations ---
 
 export async function getCurrentTenant(): Promise<TenantDetail> {
-	const response = await axios.get<TenantDetail>(`${API_BASE}/current`);
-	return response.data;
+	const { data } = await apiClient.get<TenantDetail>(`${API_BASE}/current`);
+	return data;
 }
 
-export async function updateCurrentTenant(data: TenantUpdate): Promise<TenantDetail> {
-	const response = await axios.patch<TenantDetail>(`${API_BASE}/current`, data);
-	return response.data;
+export async function updateCurrentTenant(input: TenantUpdate): Promise<TenantDetail> {
+	const { data } = await apiClient.patch<TenantDetail>(`${API_BASE}/current`, input);
+	return data;
 }
 
 export async function getCurrentTenantBranding(): Promise<TenantBranding> {
-	const response = await axios.get<TenantBranding>(`${API_BASE}/current/branding`);
-	return response.data;
+	const { data } = await apiClient.get<TenantBranding>(`${API_BASE}/current/branding`);
+	return data;
 }
 
-export async function updateCurrentTenantBranding(data: BrandingUpdate): Promise<TenantBranding> {
-	const response = await axios.patch<TenantBranding>(`${API_BASE}/current/branding`, data);
-	return response.data;
+export async function updateCurrentTenantBranding(input: BrandingUpdate): Promise<TenantBranding> {
+	const { data } = await apiClient.patch<TenantBranding>(`${API_BASE}/current/branding`, input);
+	return data;
 }
 
 export async function getCurrentTenantSettings(): Promise<TenantSettings> {
-	const response = await axios.get<TenantSettings>(`${API_BASE}/current/settings`);
-	return response.data;
+	const { data } = await apiClient.get<TenantSettings>(`${API_BASE}/current/settings`);
+	return data;
 }
 
-export async function updateCurrentTenantSettings(data: SettingsUpdate): Promise<TenantSettings> {
-	const response = await axios.patch<TenantSettings>(`${API_BASE}/current/settings`, data);
-	return response.data;
+export async function updateCurrentTenantSettings(input: SettingsUpdate): Promise<TenantSettings> {
+	const { data } = await apiClient.patch<TenantSettings>(`${API_BASE}/current/settings`, input);
+	return data;
 }
 
 export async function getCurrentTenantUsage(): Promise<TenantUsage> {
-	const response = await axios.get<TenantUsage>(`${API_BASE}/current/usage`);
-	return response.data;
+	const { data } = await apiClient.get<TenantUsage>(`${API_BASE}/current/usage`);
+	return data;
 }
 
 // --- System Admin Operations ---
@@ -64,34 +64,31 @@ export async function listTenants(
 	pageSize = 50,
 	statusFilter?: string,
 ): Promise<TenantListResponse> {
-	const params = new URLSearchParams({
-		page: String(page),
-		page_size: String(pageSize),
-	});
+	const params: Record<string, unknown> = { page, page_size: pageSize };
 	if (statusFilter) {
-		params.append('status_filter', statusFilter);
+		params.status_filter = statusFilter;
 	}
-	const response = await axios.get<TenantListResponse>(`${API_BASE}?${params}`);
-	return response.data;
+	const { data } = await apiClient.get<TenantListResponse>(API_BASE, { params });
+	return data;
 }
 
 export async function getTenant(tenantId: string): Promise<TenantDetail> {
-	const response = await axios.get<TenantDetail>(`${API_BASE}/${tenantId}`);
-	return response.data;
+	const { data } = await apiClient.get<TenantDetail>(`${API_BASE}/${tenantId}`);
+	return data;
 }
 
-export async function createTenant(data: TenantCreate): Promise<TenantDetail> {
-	const response = await axios.post<TenantDetail>(API_BASE, data);
-	return response.data;
+export async function createTenant(input: TenantCreate): Promise<TenantDetail> {
+	const { data } = await apiClient.post<TenantDetail>(API_BASE, input);
+	return data;
 }
 
-export async function updateTenant(tenantId: string, data: TenantUpdate): Promise<TenantDetail> {
-	const response = await axios.patch<TenantDetail>(`${API_BASE}/${tenantId}`, data);
-	return response.data;
+export async function updateTenant(tenantId: string, input: TenantUpdate): Promise<TenantDetail> {
+	const { data } = await apiClient.patch<TenantDetail>(`${API_BASE}/${tenantId}`, input);
+	return data;
 }
 
 export async function deleteTenant(tenantId: string): Promise<void> {
-	await axios.delete(`${API_BASE}/${tenantId}`);
+	await apiClient.delete(`${API_BASE}/${tenantId}`);
 }
 
 export async function suspendTenant(tenantId: string): Promise<TenantDetail> {
@@ -105,20 +102,20 @@ export async function activateTenant(tenantId: string): Promise<TenantDetail> {
 // --- Tenant User Management ---
 
 export async function getTenantUsers(tenantId: string): Promise<TenantUser[]> {
-	const response = await axios.get<TenantUser[]>(`${API_BASE}/${tenantId}/users`);
-	return response.data;
+	const { data } = await apiClient.get<TenantUser[]>(`${API_BASE}/${tenantId}/users`);
+	return data;
 }
 
 export async function inviteUserToTenant(
 	tenantId: string,
-	data: InviteUserRequest,
+	input: InviteUserRequest,
 ): Promise<TenantUser> {
-	const response = await axios.post<TenantUser>(`${API_BASE}/${tenantId}/users/invite`, data);
-	return response.data;
+	const { data } = await apiClient.post<TenantUser>(`${API_BASE}/${tenantId}/users/invite`, input);
+	return data;
 }
 
 export async function removeUserFromTenant(tenantId: string, userId: string): Promise<void> {
-	await axios.delete(`${API_BASE}/${tenantId}/users/${userId}`);
+	await apiClient.delete(`${API_BASE}/${tenantId}/users/${userId}`);
 }
 
 // --- Utility Functions ---

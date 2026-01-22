@@ -3,6 +3,7 @@
  * Provenance API hooks using React Query.
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api-client';
 import type {
 	DocumentProvenance,
 	DocumentProvenanceWithEvents,
@@ -16,21 +17,7 @@ import type {
 	EventType,
 } from './types';
 
-const API_BASE = '/api/provenance';
-
-async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
-	const response = await fetch(url, {
-		...options,
-		headers: {
-			'Content-Type': 'application/json',
-			...options?.headers,
-		},
-	});
-	if (!response.ok) {
-		throw new Error(`API error: ${response.statusText}`);
-	}
-	return response.json();
-}
+const API_BASE = '/provenance';
 
 // ============ Provenance Records ============
 
@@ -44,18 +31,16 @@ export function useProvenanceList(options?: {
 }) {
 	return useQuery({
 		queryKey: ['provenance-list', options],
-		queryFn: () => {
-			const params = new URLSearchParams();
-			if (options?.batchId) params.set('batch_id', options.batchId);
-			if (options?.verificationStatus)
-				params.set('verification_status', options.verificationStatus);
-			if (options?.isDuplicate !== undefined)
-				params.set('is_duplicate', options.isDuplicate.toString());
-			if (options?.ingestionSource)
-				params.set('ingestion_source', options.ingestionSource);
-			if (options?.skip) params.set('skip', options.skip.toString());
-			if (options?.limit) params.set('limit', options.limit.toString());
-			return fetchJson<DocumentProvenanceSummary[]>(`${API_BASE}?${params}`);
+		queryFn: async () => {
+			const params: Record<string, unknown> = {};
+			if (options?.batchId) params.batch_id = options.batchId;
+			if (options?.verificationStatus) params.verification_status = options.verificationStatus;
+			if (options?.isDuplicate !== undefined) params.is_duplicate = options.isDuplicate;
+			if (options?.ingestionSource) params.ingestion_source = options.ingestionSource;
+			if (options?.skip) params.skip = options.skip;
+			if (options?.limit) params.limit = options.limit;
+			const { data } = await apiClient.get<DocumentProvenanceSummary[]>(API_BASE, { params });
+			return data;
 		},
 	});
 }
@@ -63,17 +48,20 @@ export function useProvenanceList(options?: {
 export function useProvenanceStats() {
 	return useQuery({
 		queryKey: ['provenance-stats'],
-		queryFn: () => fetchJson<ProvenanceStats>(`${API_BASE}/stats`),
+		queryFn: async () => {
+			const { data } = await apiClient.get<ProvenanceStats>(`${API_BASE}/stats`);
+			return data;
+		},
 	});
 }
 
 export function useDocumentProvenance(documentId: string) {
 	return useQuery({
 		queryKey: ['provenance', 'document', documentId],
-		queryFn: () =>
-			fetchJson<DocumentProvenanceWithEvents>(
-				`${API_BASE}/document/${documentId}`
-			),
+		queryFn: async () => {
+			const { data } = await apiClient.get<DocumentProvenanceWithEvents>(`${API_BASE}/document/${documentId}`);
+			return data;
+		},
 		enabled: !!documentId,
 	});
 }
@@ -81,8 +69,10 @@ export function useDocumentProvenance(documentId: string) {
 export function useProvenance(provenanceId: string) {
 	return useQuery({
 		queryKey: ['provenance', provenanceId],
-		queryFn: () =>
-			fetchJson<DocumentProvenanceWithEvents>(`${API_BASE}/${provenanceId}`),
+		queryFn: async () => {
+			const { data } = await apiClient.get<DocumentProvenanceWithEvents>(`${API_BASE}/${provenanceId}`);
+			return data;
+		},
 		enabled: !!provenanceId,
 	});
 }
@@ -90,8 +80,10 @@ export function useProvenance(provenanceId: string) {
 export function useChainOfCustody(provenanceId: string) {
 	return useQuery({
 		queryKey: ['provenance', 'chain', provenanceId],
-		queryFn: () =>
-			fetchJson<ChainOfCustody>(`${API_BASE}/${provenanceId}/chain`),
+		queryFn: async () => {
+			const { data } = await apiClient.get<ChainOfCustody>(`${API_BASE}/${provenanceId}/chain`);
+			return data;
+		},
 		enabled: !!provenanceId,
 	});
 }
@@ -100,7 +92,7 @@ export function useCreateProvenance() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (data: {
+		mutationFn: async (input: {
 			documentId: string;
 			batchId?: string;
 			originalFilename?: string;
@@ -112,11 +104,10 @@ export function useCreateProvenance() {
 			scanColorMode?: string;
 			scanSettings?: Record<string, unknown>;
 			metadata?: Record<string, unknown>;
-		}) =>
-			fetchJson<DocumentProvenance>(`${API_BASE}`, {
-				method: 'POST',
-				body: JSON.stringify(data),
-			}),
+		}) => {
+			const { data } = await apiClient.post<DocumentProvenance>(API_BASE, input);
+			return data;
+		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['provenance-list'] });
 			queryClient.invalidateQueries({ queryKey: ['provenance-stats'] });
@@ -128,10 +119,7 @@ export function useUpdateProvenance() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({
-			id,
-			...data
-		}: {
+		mutationFn: async ({ id, ...input }: {
 			id: string;
 			batchId?: string;
 			sourceLocationDetail?: string;
@@ -139,11 +127,10 @@ export function useUpdateProvenance() {
 			verificationStatus?: VerificationStatus;
 			verificationNotes?: string;
 			metadata?: Record<string, unknown>;
-		}) =>
-			fetchJson<DocumentProvenance>(`${API_BASE}/${id}`, {
-				method: 'PATCH',
-				body: JSON.stringify(data),
-			}),
+		}) => {
+			const { data } = await apiClient.patch<DocumentProvenance>(`${API_BASE}/${id}`, input);
+			return data;
+		},
 		onSuccess: (_, variables) => {
 			queryClient.invalidateQueries({ queryKey: ['provenance-list'] });
 			queryClient.invalidateQueries({ queryKey: ['provenance', variables.id] });
@@ -156,22 +143,18 @@ export function useVerifyDocument() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({
-			provenanceId,
-			verificationNotes,
-		}: {
+		mutationFn: async ({ provenanceId, verificationNotes }: {
 			provenanceId: string;
 			verificationNotes?: string;
-		}) =>
-			fetchJson<VerificationResult>(`${API_BASE}/${provenanceId}/verify`, {
-				method: 'POST',
-				body: JSON.stringify({ verification_notes: verificationNotes }),
-			}),
+		}) => {
+			const { data } = await apiClient.post<VerificationResult>(`${API_BASE}/${provenanceId}/verify`, {
+				verification_notes: verificationNotes,
+			});
+			return data;
+		},
 		onSuccess: (_, variables) => {
 			queryClient.invalidateQueries({ queryKey: ['provenance-list'] });
-			queryClient.invalidateQueries({
-				queryKey: ['provenance', variables.provenanceId],
-			});
+			queryClient.invalidateQueries({ queryKey: ['provenance', variables.provenanceId] });
 			queryClient.invalidateQueries({ queryKey: ['provenance-stats'] });
 		},
 	});
@@ -189,14 +172,13 @@ export function useProvenanceEvents(
 ) {
 	return useQuery({
 		queryKey: ['provenance-events', provenanceId, options],
-		queryFn: () => {
-			const params = new URLSearchParams();
-			if (options?.eventType) params.set('event_type', options.eventType);
-			if (options?.skip) params.set('skip', options.skip.toString());
-			if (options?.limit) params.set('limit', options.limit.toString());
-			return fetchJson<ProvenanceEvent[]>(
-				`${API_BASE}/${provenanceId}/events?${params}`
-			);
+		queryFn: async () => {
+			const params: Record<string, unknown> = {};
+			if (options?.eventType) params.event_type = options.eventType;
+			if (options?.skip) params.skip = options.skip;
+			if (options?.limit) params.limit = options.limit;
+			const { data } = await apiClient.get<ProvenanceEvent[]>(`${API_BASE}/${provenanceId}/events`, { params });
+			return data;
 		},
 		enabled: !!provenanceId,
 	});
@@ -206,7 +188,7 @@ export function useCreateProvenanceEvent() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (data: {
+		mutationFn: async (input: {
 			provenanceId: string;
 			eventType: EventType;
 			description?: string;
@@ -217,21 +199,14 @@ export function useCreateProvenanceEvent() {
 			workflowId?: string;
 			workflowStepId?: string;
 			details?: Record<string, unknown>;
-		}) =>
-			fetchJson<ProvenanceEvent>(`${API_BASE}/events`, {
-				method: 'POST',
-				body: JSON.stringify(data),
-			}),
+		}) => {
+			const { data } = await apiClient.post<ProvenanceEvent>(`${API_BASE}/events`, input);
+			return data;
+		},
 		onSuccess: (_, variables) => {
-			queryClient.invalidateQueries({
-				queryKey: ['provenance-events', variables.provenanceId],
-			});
-			queryClient.invalidateQueries({
-				queryKey: ['provenance', variables.provenanceId],
-			});
-			queryClient.invalidateQueries({
-				queryKey: ['provenance', 'chain', variables.provenanceId],
-			});
+			queryClient.invalidateQueries({ queryKey: ['provenance-events', variables.provenanceId] });
+			queryClient.invalidateQueries({ queryKey: ['provenance', variables.provenanceId] });
+			queryClient.invalidateQueries({ queryKey: ['provenance', 'chain', variables.provenanceId] });
 		},
 	});
 }

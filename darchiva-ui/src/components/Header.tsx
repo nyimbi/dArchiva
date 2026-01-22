@@ -41,9 +41,17 @@ export function Header() {
 					<input
 						type="text"
 						placeholder="Search documents, cases, workflows..."
+						aria-label="Search documents, cases, workflows..."
 						className="input-field pl-10 pr-4 py-2"
 						onFocus={() => setSearchOpen(true)}
 						onBlur={() => setTimeout(() => setSearchOpen(false), 200)}
+						onKeyDown={(e) => {
+							if (e.key === 'Escape') setSearchOpen(false);
+							if (e.key === 'Enter') {
+								navigate(`/search?q=${encodeURIComponent(e.currentTarget.value)}`);
+								setSearchOpen(false);
+							}
+						}}
 					/>
 					<kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 text-2xs font-mono text-slate-500 bg-slate-800 rounded border border-slate-700">
 						⌘K
@@ -74,10 +82,16 @@ export function Header() {
 					<button
 						onClick={() => setCreateMenuOpen(!createMenuOpen)}
 						className="btn-primary"
+						aria-haspopup="true"
+						aria-expanded={createMenuOpen}
+						aria-label="Create new item"
+						onKeyDown={(e) => {
+							if (e.key === 'Escape') setCreateMenuOpen(false);
+						}}
 					>
 						<Plus className="w-4 h-4" />
 						<span className="hidden sm:inline">New</span>
-						<ChevronDown className="w-3 h-3 opacity-50" />
+						<ChevronDown className="w-3 h-3 opacity-50" aria-hidden="true" />
 					</button>
 
 					<AnimatePresence>
@@ -87,6 +101,7 @@ export function Header() {
 								animate={{ opacity: 1, scale: 1 }}
 								exit={{ opacity: 0, scale: 0.95 }}
 								className="absolute right-0 top-full mt-2 w-48 glass-card py-1 z-50"
+								role="menu"
 							>
 								<button
 									onClick={() => {
@@ -94,8 +109,9 @@ export function Header() {
 										setCreateMenuOpen(false);
 									}}
 									className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800/50"
+									role="menuitem"
 								>
-									<Upload className="w-4 h-4 text-slate-400" />
+									<Upload className="w-4 h-4 text-slate-400" aria-hidden="true" />
 									Upload Document
 								</button>
 								<button
@@ -104,8 +120,9 @@ export function Header() {
 										setCreateMenuOpen(false);
 									}}
 									className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800/50"
+									role="menuitem"
 								>
-									<FolderPlus className="w-4 h-4 text-slate-400" />
+									<FolderPlus className="w-4 h-4 text-slate-400" aria-hidden="true" />
 									New Folder
 								</button>
 								<button
@@ -114,8 +131,9 @@ export function Header() {
 										setCreateMenuOpen(false);
 									}}
 									className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800/50"
+									role="menuitem"
 								>
-									<FileText className="w-4 h-4 text-slate-400" />
+									<FileText className="w-4 h-4 text-slate-400" aria-hidden="true" />
 									New Case
 								</button>
 							</motion.div>
@@ -140,10 +158,11 @@ export function Header() {
 				<button
 					onClick={() => openModal('notifications')}
 					className="btn-ghost p-2 relative"
+					aria-label="View notifications"
 				>
-					<Bell className="w-5 h-5" />
+					<Bell className="w-5 h-5" aria-hidden="true" />
 					{pendingTasks.length > 0 && (
-						<span className="absolute top-1 right-1 w-2 h-2 bg-brass-500 rounded-full" />
+						<span className="absolute top-1 right-1 w-2 h-2 bg-brass-500 rounded-full" aria-hidden="true" />
 					)}
 				</button>
 
@@ -152,13 +171,19 @@ export function Header() {
 					<button
 						onClick={() => setUserMenuOpen(!userMenuOpen)}
 						className="flex items-center gap-2 p-1 pr-2 rounded-lg hover:bg-slate-800/50 transition-colors"
+						aria-haspopup="true"
+						aria-expanded={userMenuOpen}
+						aria-label="User menu"
+						onKeyDown={(e) => {
+							if (e.key === 'Escape') setUserMenuOpen(false);
+						}}
 					>
-						<div className="w-8 h-8 rounded-lg bg-brass-500/20 border border-brass-500/30 flex items-center justify-center">
+						<div className="w-8 h-8 rounded-lg bg-brass-500/20 border border-brass-500/30 flex items-center justify-center" aria-hidden="true">
 							<span className="text-sm font-medium text-brass-400">
 								{user?.firstName?.[0] || 'U'}
 							</span>
 						</div>
-						<ChevronDown className="w-4 h-4 text-slate-400" />
+						<ChevronDown className="w-4 h-4 text-slate-400" aria-hidden="true" />
 					</button>
 
 					<AnimatePresence>
@@ -168,6 +193,7 @@ export function Header() {
 								animate={{ opacity: 1, scale: 1 }}
 								exit={{ opacity: 0, scale: 0.95 }}
 								className="absolute right-0 top-full mt-2 w-56 glass-card py-1 z-50"
+								role="menu"
 							>
 								<div className="px-3 py-2 border-b border-slate-700/50">
 									<p className="text-sm font-medium text-slate-200">
@@ -181,8 +207,9 @@ export function Header() {
 										setUserMenuOpen(false);
 									}}
 									className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800/50"
+									role="menuitem"
 								>
-									<User className="w-4 h-4 text-slate-400" />
+									<User className="w-4 h-4 text-slate-400" aria-hidden="true" />
 									Profile
 								</button>
 								<button
@@ -191,16 +218,18 @@ export function Header() {
 										setUserMenuOpen(false);
 									}}
 									className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800/50"
+									role="menuitem"
 								>
-									<Settings className="w-4 h-4 text-slate-400" />
+									<Settings className="w-4 h-4 text-slate-400" aria-hidden="true" />
 									Preferences
 								</button>
 								<div className="border-t border-slate-700/50 mt-1 pt-1">
 									<button
 										onClick={handleSignOut}
 										className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:bg-slate-800/50"
+										role="menuitem"
 									>
-										<LogOut className="w-4 h-4" />
+										<LogOut className="w-4 h-4" aria-hidden="true" />
 										Sign out
 									</button>
 								</div>

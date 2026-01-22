@@ -86,7 +86,7 @@ export function SchedulerPanel() {
 							<TaskRow
 								key={task.id}
 								task={task}
-								onToggle={(enabled) => toggleMutation.mutate({ id: task.id, enabled })}
+								onToggle={(enabled) => toggleMutation.mutate({ id: task.id, data: { enabled } })}
 								onRun={() => runMutation.mutate(task.id)}
 							/>
 						))}

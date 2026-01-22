@@ -3,9 +3,7 @@
  * Portfolios API hooks.
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
-
-const API_BASE = '/api/v1/portfolios';
+import { apiClient } from '@/lib/api-client';
 
 export type PortfolioStatus = 'active' | 'archived' | 'on_hold';
 
@@ -50,7 +48,7 @@ export function usePortfolios(page = 1, pageSize = 20, status?: PortfolioStatus)
 		queryFn: async () => {
 			const params: Record<string, unknown> = { page, page_size: pageSize };
 			if (status) params.status = status;
-			const response = await axios.get<PortfolioListResponse>(API_BASE, { params });
+			const response = await apiClient.get<PortfolioListResponse>('/portfolios/', { params });
 			return response.data;
 		},
 	});
@@ -60,7 +58,7 @@ export function usePortfolio(id: string) {
 	return useQuery({
 		queryKey: portfolioKeys.detail(id),
 		queryFn: async () => {
-			const response = await axios.get<Portfolio>(`${API_BASE}/${id}`);
+			const response = await apiClient.get<Portfolio>(`/portfolios/${id}`);
 			return response.data;
 		},
 		enabled: !!id,
@@ -71,7 +69,7 @@ export function usePortfolioStats() {
 	return useQuery({
 		queryKey: portfolioKeys.stats(),
 		queryFn: async () => {
-			const response = await axios.get<PortfolioStats>(`${API_BASE}/stats`);
+			const response = await apiClient.get<PortfolioStats>('/portfolios/stats');
 			return response.data;
 		},
 	});
@@ -81,7 +79,7 @@ export function useCreatePortfolio() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async (data: { name: string; description?: string }) => {
-			const response = await axios.post<Portfolio>(API_BASE, data);
+			const response = await apiClient.post<Portfolio>('/portfolios/', data);
 			return response.data;
 		},
 		onSuccess: () => {
@@ -94,7 +92,7 @@ export function useUpdatePortfolio() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async ({ id, data }: { id: string; data: Partial<Portfolio> }) => {
-			const response = await axios.patch<Portfolio>(`${API_BASE}/${id}`, data);
+			const response = await apiClient.patch<Portfolio>(`/portfolios/${id}`, data);
 			return response.data;
 		},
 		onSuccess: (_, { id }) => {
@@ -108,7 +106,7 @@ export function useDeletePortfolio() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async (id: string) => {
-			await axios.delete(`${API_BASE}/${id}`);
+			await apiClient.delete(`/portfolios/${id}`);
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: portfolioKeys.all });
@@ -120,7 +118,7 @@ export function useArchivePortfolio() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async (id: string) => {
-			const response = await axios.post<Portfolio>(`${API_BASE}/${id}/archive`);
+			const response = await apiClient.post<Portfolio>(`/portfolios/${id}/archive`);
 			return response.data;
 		},
 		onSuccess: () => {

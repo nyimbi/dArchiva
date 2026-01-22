@@ -36,7 +36,12 @@ import { useDocumentTypes, useDeleteDocumentType } from '../api';
 import { DocumentTypeForm } from './DocumentTypeForm';
 import type { DocumentType } from '../types';
 
-export function DocumentTypeList() {
+interface DocumentTypeListProps {
+	onEdit?: (type: DocumentType) => void;
+	hideHeader?: boolean;
+}
+
+export function DocumentTypeList({ onEdit, hideHeader = false }: DocumentTypeListProps) {
 	const { data, isLoading } = useDocumentTypes();
 	const deleteMutation = useDeleteDocumentType();
 	const [editingType, setEditingType] = useState<DocumentType | null>(null);
@@ -62,18 +67,20 @@ export function DocumentTypeList() {
 	return (
 		<>
 			<div className="space-y-4">
-				<div className="flex items-center justify-between">
-					<div>
-						<h2 className="text-xl font-semibold">Document Types</h2>
-						<p className="text-sm text-muted-foreground">
-							Configure document classification and processing rules
-						</p>
+				{!hideHeader && (
+					<div className="flex items-center justify-between">
+						<div>
+							<h2 className="text-xl font-semibold">Document Types</h2>
+							<p className="text-sm text-muted-foreground">
+								Configure document classification and processing rules
+							</p>
+						</div>
+						<Button onClick={() => setShowCreateDialog(true)}>
+							<Plus className="h-4 w-4 mr-2" />
+							Add Type
+						</Button>
 					</div>
-					<Button onClick={() => setShowCreateDialog(true)}>
-						<Plus className="h-4 w-4 mr-2" />
-						Add Type
-					</Button>
-				</div>
+				)}
 
 				{types.length === 0 ? (
 					<Card>
@@ -115,7 +122,7 @@ export function DocumentTypeList() {
 										</div>
 
 										<div className="flex items-center gap-2">
-											<Button variant="outline" size="sm" onClick={() => setEditingType(type)}>
+											<Button variant="outline" size="sm" onClick={() => onEdit ? onEdit(type) : setEditingType(type)}>
 												<Edit className="h-4 w-4" />
 											</Button>
 

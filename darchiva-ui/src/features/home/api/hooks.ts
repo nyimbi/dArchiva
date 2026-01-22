@@ -1,21 +1,19 @@
 // User Home Page API Hooks
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api-client';
 import type {
 	UserHomeData, WorkflowTask, RecentDocument, FavoriteItem,
 	Notification, CalendarEvent, TaskActionRequest, FavoriteRequest,
 	RecentSearch, ActivityEvent,
 } from '../types';
 
-const API_BASE = '/api/v1';
-
 // Fetch user home data (aggregated)
 export function useUserHome() {
 	return useQuery<UserHomeData>({
 		queryKey: ['user', 'home'],
 		queryFn: async () => {
-			const response = await fetch(`${API_BASE}/users/me/home`);
-			if (!response.ok) throw new Error('Failed to fetch home data');
-			return response.json();
+			const { data } = await apiClient.get<UserHomeData>('/users/me/home');
+			return data;
 		},
 		staleTime: 30_000, // 30 seconds
 		refetchInterval: 60_000, // 1 minute
@@ -27,13 +25,10 @@ export function useWorkflowTasks(options?: { status?: string; limit?: number }) 
 	return useQuery<WorkflowTask[]>({
 		queryKey: ['workflow', 'tasks', options],
 		queryFn: async () => {
-			const params = new URLSearchParams();
-			if (options?.status) params.set('status', options.status);
-			if (options?.limit) params.set('limit', options.limit.toString());
-
-			const response = await fetch(`${API_BASE}/workflows/tasks/assigned?${params}`);
-			if (!response.ok) throw new Error('Failed to fetch tasks');
-			return response.json();
+			const { data } = await apiClient.get<WorkflowTask[]>('/workflows/tasks/assigned', {
+				params: { status: options?.status, limit: options?.limit },
+			});
+			return data;
 		},
 		staleTime: 15_000,
 		refetchInterval: 30_000,
@@ -45,17 +40,12 @@ export function useTaskAction() {
 
 	return useMutation({
 		mutationFn: async (request: TaskActionRequest) => {
-			const response = await fetch(`${API_BASE}/workflows/tasks/${request.task_id}/action`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					action_id: request.action_id,
-					comment: request.comment,
-					metadata: request.metadata,
-				}),
+			const { data } = await apiClient.post(`/workflows/tasks/${request.task_id}/action`, {
+				action_id: request.action_id,
+				comment: request.comment,
+				metadata: request.metadata,
 			});
-			if (!response.ok) throw new Error('Failed to execute task action');
-			return response.json();
+			return data;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['workflow', 'tasks'] });
@@ -69,13 +59,10 @@ export function useRecentDocuments(options?: { limit?: number; type?: string }) 
 	return useQuery<RecentDocument[]>({
 		queryKey: ['documents', 'recent', options],
 		queryFn: async () => {
-			const params = new URLSearchParams();
-			if (options?.limit) params.set('limit', options.limit.toString());
-			if (options?.type) params.set('type', options.type);
-
-			const response = await fetch(`${API_BASE}/documents/recent?${params}`);
-			if (!response.ok) throw new Error('Failed to fetch recent documents');
-			return response.json();
+			const { data } = await apiClient.get<RecentDocument[]>('/documents/recent', {
+				params: { limit: options?.limit, type: options?.type },
+			});
+			return data;
 		},
 		staleTime: 30_000,
 	});
@@ -86,9 +73,8 @@ export function useFavorites() {
 	return useQuery<FavoriteItem[]>({
 		queryKey: ['favorites'],
 		queryFn: async () => {
-			const response = await fetch(`${API_BASE}/users/me/favorites`);
-			if (!response.ok) throw new Error('Failed to fetch favorites');
-			return response.json();
+			const { data } = await apiClient.get<FavoriteItem[]>('/users/me/favorites');
+			return data;
 		},
 		staleTime: 60_000,
 	});
@@ -99,13 +85,8 @@ export function useAddFavorite() {
 
 	return useMutation({
 		mutationFn: async (request: FavoriteRequest) => {
-			const response = await fetch(`${API_BASE}/users/me/favorites`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(request),
-			});
-			if (!response.ok) throw new Error('Failed to add favorite');
-			return response.json();
+			const { data } = await apiClient.post('/users/me/favorites', request);
+			return data;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['favorites'] });
@@ -118,10 +99,7 @@ export function useRemoveFavorite() {
 
 	return useMutation({
 		mutationFn: async (favoriteId: string) => {
-			const response = await fetch(`${API_BASE}/users/me/favorites/${favoriteId}`, {
-				method: 'DELETE',
-			});
-			if (!response.ok) throw new Error('Failed to remove favorite');
+			await apiClient.delete(`/users/me/favorites/${favoriteId}`);
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['favorites'] });
@@ -134,13 +112,10 @@ export function useNotifications(options?: { unread_only?: boolean; limit?: numb
 	return useQuery<Notification[]>({
 		queryKey: ['notifications', options],
 		queryFn: async () => {
-			const params = new URLSearchParams();
-			if (options?.unread_only) params.set('unread_only', 'true');
-			if (options?.limit) params.set('limit', options.limit.toString());
-
-			const response = await fetch(`${API_BASE}/notifications?${params}`);
-			if (!response.ok) throw new Error('Failed to fetch notifications');
-			return response.json();
+			const { data } = await apiClient.get<Notification[]>('/notifications', {
+				params: { unread_only: options?.unread_only, limit: options?.limit },
+			});
+			return data;
 		},
 		staleTime: 15_000,
 		refetchInterval: 30_000,
@@ -152,10 +127,7 @@ export function useMarkNotificationRead() {
 
 	return useMutation({
 		mutationFn: async (notificationId: string) => {
-			const response = await fetch(`${API_BASE}/notifications/${notificationId}/read`, {
-				method: 'POST',
-			});
-			if (!response.ok) throw new Error('Failed to mark notification read');
+			await apiClient.post(`/notifications/${notificationId}/read`);
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -169,10 +141,7 @@ export function useMarkAllNotificationsRead() {
 
 	return useMutation({
 		mutationFn: async () => {
-			const response = await fetch(`${API_BASE}/notifications/read-all`, {
-				method: 'POST',
-			});
-			if (!response.ok) throw new Error('Failed to mark all notifications read');
+			await apiClient.post('/notifications/read-all');
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -186,13 +155,10 @@ export function useCalendarEvents(options?: { from?: string; to?: string }) {
 	return useQuery<CalendarEvent[]>({
 		queryKey: ['calendar', 'events', options],
 		queryFn: async () => {
-			const params = new URLSearchParams();
-			if (options?.from) params.set('from', options.from);
-			if (options?.to) params.set('to', options.to);
-
-			const response = await fetch(`${API_BASE}/calendar/events?${params}`);
-			if (!response.ok) throw new Error('Failed to fetch calendar events');
-			return response.json();
+			const { data } = await apiClient.get<CalendarEvent[]>('/calendar/events', {
+				params: { from: options?.from, to: options?.to },
+			});
+			return data;
 		},
 		staleTime: 60_000,
 	});
@@ -203,12 +169,10 @@ export function useRecentSearches(limit?: number) {
 	return useQuery<RecentSearch[]>({
 		queryKey: ['searches', 'recent', limit],
 		queryFn: async () => {
-			const params = new URLSearchParams();
-			if (limit) params.set('limit', limit.toString());
-
-			const response = await fetch(`${API_BASE}/search/recent?${params}`);
-			if (!response.ok) throw new Error('Failed to fetch recent searches');
-			return response.json();
+			const { data } = await apiClient.get<RecentSearch[]>('/search/recent', {
+				params: { limit },
+			});
+			return data;
 		},
 		staleTime: 60_000,
 	});
@@ -219,10 +183,7 @@ export function useClearRecentSearches() {
 
 	return useMutation({
 		mutationFn: async () => {
-			const response = await fetch(`${API_BASE}/search/recent`, {
-				method: 'DELETE',
-			});
-			if (!response.ok) throw new Error('Failed to clear recent searches');
+			await apiClient.delete('/search/recent');
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['searches', 'recent'] });
@@ -235,19 +196,19 @@ export function useActivityFeed(options?: { limit?: number; types?: string[] }) 
 	return useQuery<ActivityEvent[]>({
 		queryKey: ['activity', options],
 		queryFn: async () => {
-			const params = new URLSearchParams();
-			if (options?.limit) params.set('limit', options.limit.toString());
-			if (options?.types) params.set('types', options.types.join(','));
-
-			const response = await fetch(`${API_BASE}/activity?${params}`);
-			if (!response.ok) throw new Error('Failed to fetch activity');
-			return response.json();
+			const { data } = await apiClient.get<ActivityEvent[]>('/activity', {
+				params: { limit: options?.limit, types: options?.types?.join(',') },
+			});
+			return data;
 		},
 		staleTime: 30_000,
 	});
 }
 
-// Quick upload
+// Quick upload - needs special handling for FormData
+const API_BASE = '/api/v1';
+const TOKEN_KEY = 'darchiva_token';
+
 export function useQuickUpload() {
 	const queryClient = useQueryClient();
 
@@ -257,8 +218,13 @@ export function useQuickUpload() {
 			files.forEach(file => formData.append('files', file));
 			if (folder_id) formData.append('folder_id', folder_id);
 
+			const headers: Record<string, string> = {};
+			const token = localStorage.getItem(TOKEN_KEY);
+			if (token) headers['Authorization'] = `Bearer ${token}`;
+
 			const response = await fetch(`${API_BASE}/documents/upload`, {
 				method: 'POST',
+				headers,
 				body: formData,
 			});
 			if (!response.ok) throw new Error('Failed to upload files');

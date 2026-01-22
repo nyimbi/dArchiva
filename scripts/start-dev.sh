@@ -9,6 +9,7 @@
 #   ./scripts/start-dev.sh stop     # Stop all services
 
 set -e
+source /Users/nyimbiodero/src/pjs/dArchiva/.venv/bin/activate
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"

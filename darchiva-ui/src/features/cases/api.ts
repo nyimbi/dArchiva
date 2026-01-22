@@ -3,9 +3,7 @@
  * Cases and Bundles API hooks.
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
-
-const API_BASE = '/api/v1';
+import { apiClient } from '@/lib/api-client';
 
 export type CaseStatus = 'open' | 'closed' | 'pending' | 'on_hold';
 export type BundleStatus = 'draft' | 'active' | 'archived' | 'locked';
@@ -69,7 +67,7 @@ export function useCases(page = 1, pageSize = 20, status?: CaseStatus, portfolio
 			const params: Record<string, unknown> = { page, page_size: pageSize };
 			if (status) params.status = status;
 			if (portfolioId) params.portfolio_id = portfolioId;
-			const response = await axios.get<CaseListResponse>(`${API_BASE}/cases`, { params });
+			const response = await apiClient.get<CaseListResponse>('/cases', { params });
 			return response.data;
 		},
 	});
@@ -79,7 +77,7 @@ export function useCase(id: string) {
 	return useQuery({
 		queryKey: caseKeys.detail(id),
 		queryFn: async () => {
-			const response = await axios.get<Case>(`${API_BASE}/cases/${id}`);
+			const response = await apiClient.get<Case>(`/cases/${id}`);
 			return response.data;
 		},
 		enabled: !!id,
@@ -92,7 +90,7 @@ export function useBundles(caseId?: string, page = 1, pageSize = 20) {
 		queryFn: async () => {
 			const params: Record<string, unknown> = { page, page_size: pageSize };
 			if (caseId) params.case_id = caseId;
-			const response = await axios.get<BundleListResponse>(`${API_BASE}/bundles`, { params });
+			const response = await apiClient.get<BundleListResponse>('/bundles', { params });
 			return response.data;
 		},
 	});
@@ -102,7 +100,7 @@ export function useBundle(id: string) {
 	return useQuery({
 		queryKey: caseKeys.bundle(id),
 		queryFn: async () => {
-			const response = await axios.get<Bundle>(`${API_BASE}/bundles/${id}`);
+			const response = await apiClient.get<Bundle>(`/bundles/${id}`);
 			return response.data;
 		},
 		enabled: !!id,
@@ -113,7 +111,7 @@ export function useCreateCase() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async (data: { title: string; description?: string; portfolioId?: string }) => {
-			const response = await axios.post<Case>(`${API_BASE}/cases`, data);
+			const response = await apiClient.post<Case>('/cases', data);
 			return response.data;
 		},
 		onSuccess: () => {
@@ -126,7 +124,7 @@ export function useUpdateCase() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async ({ id, data }: { id: string; data: Partial<Case> }) => {
-			const response = await axios.patch<Case>(`${API_BASE}/cases/${id}`, data);
+			const response = await apiClient.patch<Case>(`/cases/${id}`, data);
 			return response.data;
 		},
 		onSuccess: (_, { id }) => {
@@ -140,7 +138,7 @@ export function useCloseCase() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async (id: string) => {
-			const response = await axios.post<Case>(`${API_BASE}/cases/${id}/close`);
+			const response = await apiClient.post<Case>(`/cases/${id}/close`);
 			return response.data;
 		},
 		onSuccess: () => {
@@ -153,7 +151,7 @@ export function useCreateBundle() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async (data: { name: string; caseId: string; description?: string }) => {
-			const response = await axios.post<Bundle>(`${API_BASE}/bundles`, data);
+			const response = await apiClient.post<Bundle>('/bundles', data);
 			return response.data;
 		},
 		onSuccess: () => {
@@ -166,7 +164,7 @@ export function useUpdateBundle() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async ({ id, data }: { id: string; data: Partial<Bundle> }) => {
-			const response = await axios.patch<Bundle>(`${API_BASE}/bundles/${id}`, data);
+			const response = await apiClient.patch<Bundle>(`/bundles/${id}`, data);
 			return response.data;
 		},
 		onSuccess: (_, { id }) => {

@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { ModalManager } from './ModalManager';
 import { useStore } from '@/hooks/useStore';
 import { cn } from '@/lib/utils';
 
@@ -46,6 +47,7 @@ export function Layout() {
 					</main>
 				</div>
 			</div>
+			<ModalManager />
 		</div>
 	);
 }

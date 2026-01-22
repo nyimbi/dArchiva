@@ -35,10 +35,10 @@ export function SLAsTab({ projectId }: SLAsTabProps) {
   const acknowledgeMutation = useAcknowledgeSLAAlert();
 
   const unacknowledgedAlerts = alerts?.filter((a: SLAAlert) => !a.acknowledged_at) ?? [];
-  const statusCounts = slas?.reduce((acc: Record<SLAStatus, number>, sla: ProjectSLA) => {
+  const statusCounts: Record<SLAStatus, number> = slas?.reduce((acc: Record<SLAStatus, number>, sla: ProjectSLA) => {
     acc[sla.status] = (acc[sla.status] || 0) + 1;
     return acc;
-  }, {} as Record<SLAStatus, number>) ?? {};
+  }, { on_track: 0, at_risk: 0, warning: 0, breached: 0 } as Record<SLAStatus, number>) ?? { on_track: 0, at_risk: 0, warning: 0, breached: 0 };
 
   return (
     <div className="space-y-6">

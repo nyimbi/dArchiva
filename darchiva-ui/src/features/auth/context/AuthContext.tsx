@@ -48,7 +48,11 @@ function isTokenExpired(token: string): boolean {
 	return Date.now() >= payload.exp * 1000;
 }
 
+import { toast } from '@/hooks/use-toast';
+import { AUTH_UNAUTHORIZED_EVENT, AUTH_FORBIDDEN_EVENT } from '@/lib/error-handler';
+
 export function AuthProvider({ children }: { children: ReactNode }) {
+
 	const [user, setUser] = useState<User | null>(null);
 	const [token, setToken] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
@@ -73,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	}, []);
 
 	const login = useCallback(async (username: string, password: string) => {
+
 		setError(null);
 		setIsLoading(true);
 
@@ -131,6 +136,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		setToken(null);
 		setUser(null);
 	}, []);
+
+	// Handle unauthorized and forbidden events from API client
+	useEffect(() => {
+		const handleUnauthorized = () => {
+			logout();
+		};
+
+		const handleForbidden = (event: Event) => {
+			const customEvent = event as CustomEvent;
+			const message = customEvent.detail?.message || "You don't have permission to perform this action.";
+			toast({
+				title: 'Access Denied',
+				description: message,
+				variant: 'destructive',
+			});
+		};
+
+		window.addEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized);
+		window.addEventListener(AUTH_FORBIDDEN_EVENT, handleForbidden);
+		return () => {
+			window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized);
+			window.removeEventListener(AUTH_FORBIDDEN_EVENT, handleForbidden);
+		};
+	}, [logout]);
+
+
 
 	const value: AuthContextType = {
 		user,

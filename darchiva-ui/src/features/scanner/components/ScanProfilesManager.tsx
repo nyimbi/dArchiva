@@ -438,10 +438,10 @@ function ProfileEditor({ profile, onClose, onSave, isSaving }: ProfileEditorProp
 
 					{/* Actions */}
 					<div className="flex justify-end gap-2 pt-4 border-t border-[var(--scan-border)]">
-						<TechButton type="button" onClick={onClose}>
+						<TechButton onClick={onClose}>
 							Cancel
 						</TechButton>
-						<TechButton type="submit" variant="primary" loading={isSaving}>
+						<TechButton variant="primary" loading={isSaving}>
 							{profile ? 'Save Changes' : 'Create Profile'}
 						</TechButton>
 					</div>

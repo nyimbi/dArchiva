@@ -44,8 +44,8 @@ export function Encryption() {
 	const rotateKey = useRotateKey();
 	const resolveRequest = useResolveAccessRequest();
 
-	const currentKey = keys?.find(k => k.status === 'active');
-	const pendingRequests = accessRequests?.filter(r => r.status === 'pending').length || 0;
+	const currentKey = Array.isArray(keys) ? keys.find(k => k.status === 'active') : undefined;
+	const pendingRequests = Array.isArray(accessRequests) ? accessRequests.filter(r => r.status === 'pending').length : 0;
 
 	const handleRotateKey = () => {
 		rotateKey.mutate(undefined, {
@@ -213,7 +213,7 @@ export function Encryption() {
 							<div className="flex justify-center py-8">
 								<Loader2 className="w-6 h-6 animate-spin text-slate-500" />
 							</div>
-						) : accessRequests && accessRequests.length > 0 ? (
+						) : Array.isArray(accessRequests) && accessRequests.length > 0 ? (
 							<div className="space-y-3">
 								{accessRequests.slice(0, 3).map((request) => (
 									<div key={request.id} className="flex items-center gap-3 p-3 bg-slate-800/30 rounded-lg">
@@ -251,7 +251,7 @@ export function Encryption() {
 						<div className="flex justify-center py-12">
 							<Loader2 className="w-8 h-8 animate-spin text-slate-500" />
 						</div>
-					) : keys && keys.length > 0 ? (
+					) : Array.isArray(keys) && keys.length > 0 ? (
 						<table className="data-table">
 							<thead>
 								<tr>
@@ -303,7 +303,7 @@ export function Encryption() {
 						<div className="flex justify-center py-12">
 							<Loader2 className="w-8 h-8 animate-spin text-slate-500" />
 						</div>
-					) : accessRequests && accessRequests.length > 0 ? (
+					) : Array.isArray(accessRequests) && accessRequests.length > 0 ? (
 						accessRequests.map((request) => (
 							<motion.div
 								key={request.id}

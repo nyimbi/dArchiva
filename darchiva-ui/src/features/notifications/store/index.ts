@@ -16,6 +16,7 @@ interface NotificationStore {
 	markAsRead: (id: string) => void;
 	markAllAsRead: () => void;
 	removeNotification: (id: string) => void;
+	clearAll: () => void;
 
 	// Convenience methods
 	success: (title: string, message?: string) => string;
@@ -73,6 +74,10 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
 		set(state => ({
 			notifications: state.notifications.filter(n => n.id !== id),
 		}));
+	},
+
+	clearAll: () => {
+		set({ notifications: [] });
 	},
 
 	success: (title, message) => get().addToast({ type: 'success', title, message }),

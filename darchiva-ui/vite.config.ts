@@ -12,10 +12,12 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
-      '/api/v1': {
+      '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/v1/, ''),
+        // Don't rewrite - backend expects /api/v1 prefix
+        // Follow redirects to prevent auth header loss on cross-origin redirects
+        followRedirects: true,
       },
     },
   },

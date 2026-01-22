@@ -33,7 +33,7 @@ export function useSharedNodes(params: ListSharedParams = {}) {
 			if (params.shared_by_me) searchParams.set('shared_by_me', 'true');
 			if (params.shared_with_me) searchParams.set('shared_with_me', 'true');
 
-			const response = await api.get<SharedNodesListResponse>(`/shares?${searchParams}`);
+			const response = await api.get<SharedNodesListResponse>(`/shared-nodes?${searchParams}`);
 			return response;
 		},
 	});
@@ -74,7 +74,7 @@ export function useCreateShare() {
 
 	return useMutation({
 		mutationFn: async (data: CreateShareInput) => {
-			const response = await api.post<SharedNode>('/shares', data);
+			const response = await api.post<SharedNode>('/shared-nodes', data);
 			return response;
 		},
 		onSuccess: (_, variables) => {
@@ -104,7 +104,7 @@ export function useUpdateShare(shareId: string) {
 
 	return useMutation({
 		mutationFn: async (data: UpdateShareInput) => {
-			const response = await api.patch<SharedNode>(`/shares/${shareId}`, data);
+			const response = await api.patch<SharedNode>(`/shared-nodes/${shareId}`, data);
 			return response;
 		},
 		onSuccess: () => {
@@ -118,7 +118,7 @@ export function useDeleteShare() {
 
 	return useMutation({
 		mutationFn: async (shareId: string) => {
-			await api.delete(`/shares/${shareId}`);
+			await api.delete(`/shared-nodes/${shareId}`);
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: SHARED_KEY });

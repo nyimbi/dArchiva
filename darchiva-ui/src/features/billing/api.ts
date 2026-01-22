@@ -3,6 +3,7 @@
  * Billing API hooks using React Query.
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api-client';
 import type {
 	UsageDaily,
 	UsageSummary,
@@ -17,28 +18,17 @@ import type {
 	InvoiceStatus,
 } from './types';
 
-const API_BASE = '/api/billing';
-
-async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
-	const response = await fetch(url, {
-		...options,
-		headers: {
-			'Content-Type': 'application/json',
-			...options?.headers,
-		},
-	});
-	if (!response.ok) {
-		throw new Error(`API error: ${response.statusText}`);
-	}
-	return response.json();
-}
+const API_BASE = '/billing';
 
 // ============ Dashboard ============
 
 export function useBillingDashboard() {
 	return useQuery({
 		queryKey: ['billing-dashboard'],
-		queryFn: () => fetchJson<BillingDashboard>(`${API_BASE}/dashboard`),
+		queryFn: async () => {
+			const { data } = await apiClient.get<BillingDashboard>(`${API_BASE}/dashboard`);
+			return data;
+		},
 	});
 }
 
@@ -50,14 +40,16 @@ export function useEstimateCosts(params: {
 }) {
 	return useQuery({
 		queryKey: ['cost-estimate', params],
-		queryFn: () => {
-			const searchParams = new URLSearchParams({
-				storage_gb: params.storageGb.toString(),
-				transfer_gb: params.transferGb.toString(),
-				documents: params.documents.toString(),
-				users: params.users.toString(),
+		queryFn: async () => {
+			const { data } = await apiClient.get<CostEstimate>(`${API_BASE}/estimate`, {
+				params: {
+					storage_gb: params.storageGb,
+					transfer_gb: params.transferGb,
+					documents: params.documents,
+					users: params.users,
+				},
 			});
-			return fetchJson<CostEstimate>(`${API_BASE}/estimate?${searchParams}`);
+			return data;
 		},
 		enabled:
 			params.storageGb > 0 &&
@@ -75,12 +67,13 @@ export function useUsage(options?: {
 }) {
 	return useQuery({
 		queryKey: ['usage', options],
-		queryFn: () => {
-			const params = new URLSearchParams();
-			if (options?.startDate) params.set('start_date', options.startDate);
-			if (options?.endDate) params.set('end_date', options.endDate);
-			if (options?.limit) params.set('limit', options.limit.toString());
-			return fetchJson<UsageDaily[]>(`${API_BASE}/usage?${params}`);
+		queryFn: async () => {
+			const params: Record<string, unknown> = {};
+			if (options?.startDate) params.start_date = options.startDate;
+			if (options?.endDate) params.end_date = options.endDate;
+			if (options?.limit) params.limit = options.limit;
+			const { data } = await apiClient.get<UsageDaily[]>(`${API_BASE}/usage`, { params });
+			return data;
 		},
 	});
 }
@@ -88,10 +81,13 @@ export function useUsage(options?: {
 export function useUsageSummary(startDate: string, endDate: string) {
 	return useQuery({
 		queryKey: ['usage-summary', startDate, endDate],
-		queryFn: () =>
-			fetchJson<UsageSummary>(
-				`${API_BASE}/usage/summary?start_date=${startDate}&end_date=${endDate}`
-			),
+		queryFn: async () => {
+			const { data } = await apiClient.get<UsageSummary>(
+				`${API_BASE}/usage/summary`,
+				{ params: { start_date: startDate, end_date: endDate } }
+			);
+			return data;
+		},
 		enabled: !!startDate && !!endDate,
 	});
 }
@@ -101,9 +97,11 @@ export function useUsageSummary(startDate: string, endDate: string) {
 export function useAlerts(status?: AlertStatus) {
 	return useQuery({
 		queryKey: ['billing-alerts', status],
-		queryFn: () => {
-			const params = status ? `?status=${status}` : '';
-			return fetchJson<UsageAlert[]>(`${API_BASE}/alerts${params}`);
+		queryFn: async () => {
+			const { data } = await apiClient.get<UsageAlert[]>(`${API_BASE}/alerts`, {
+				params: status ? { status } : undefined,
+			});
+			return data;
 		},
 	});
 }
@@ -112,11 +110,10 @@ export function useCreateAlert() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (data: CreateAlertInput) =>
-			fetchJson<UsageAlert>(`${API_BASE}/alerts`, {
-				method: 'POST',
-				body: JSON.stringify(data),
-			}),
+		mutationFn: async (input: CreateAlertInput) => {
+			const { data } = await apiClient.post<UsageAlert>(`${API_BASE}/alerts`, input);
+			return data;
+		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['billing-alerts'] });
 			queryClient.invalidateQueries({ queryKey: ['billing-dashboard'] });
@@ -128,11 +125,10 @@ export function useUpdateAlert() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({ id, ...data }: { id: string } & UpdateAlertInput) =>
-			fetchJson<UsageAlert>(`${API_BASE}/alerts/${id}`, {
-				method: 'PATCH',
-				body: JSON.stringify(data),
-			}),
+		mutationFn: async ({ id, ...input }: { id: string } & UpdateAlertInput) => {
+			const { data } = await apiClient.patch<UsageAlert>(`${API_BASE}/alerts/${id}`, input);
+			return data;
+		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['billing-alerts'] });
 			queryClient.invalidateQueries({ queryKey: ['billing-dashboard'] });
@@ -144,8 +140,9 @@ export function useDeleteAlert() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (id: string) =>
-			fetch(`${API_BASE}/alerts/${id}`, { method: 'DELETE' }),
+		mutationFn: async (id: string) => {
+			await apiClient.delete(`${API_BASE}/alerts/${id}`);
+		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['billing-alerts'] });
 			queryClient.invalidateQueries({ queryKey: ['billing-dashboard'] });
@@ -157,10 +154,10 @@ export function useCheckAlerts() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: () =>
-			fetchJson<{ notifications: unknown[] }>(`${API_BASE}/alerts/check`, {
-				method: 'POST',
-			}),
+		mutationFn: async () => {
+			const { data } = await apiClient.post<{ notifications: unknown[] }>(`${API_BASE}/alerts/check`);
+			return data;
+		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['billing-alerts'] });
 			queryClient.invalidateQueries({ queryKey: ['billing-dashboard'] });
@@ -173,9 +170,11 @@ export function useCheckAlerts() {
 export function useInvoices(status?: InvoiceStatus) {
 	return useQuery({
 		queryKey: ['invoices', status],
-		queryFn: () => {
-			const params = status ? `?status=${status}` : '';
-			return fetchJson<InvoiceSummary[]>(`${API_BASE}/invoices${params}`);
+		queryFn: async () => {
+			const { data } = await apiClient.get<InvoiceSummary[]>(`${API_BASE}/invoices`, {
+				params: status ? { status } : undefined,
+			});
+			return data;
 		},
 	});
 }
@@ -183,7 +182,10 @@ export function useInvoices(status?: InvoiceStatus) {
 export function useInvoice(invoiceId: string) {
 	return useQuery({
 		queryKey: ['invoice', invoiceId],
-		queryFn: () => fetchJson<Invoice>(`${API_BASE}/invoices/${invoiceId}`),
+		queryFn: async () => {
+			const { data } = await apiClient.get<Invoice>(`${API_BASE}/invoices/${invoiceId}`);
+			return data;
+		},
 		enabled: !!invoiceId,
 	});
 }
@@ -192,17 +194,10 @@ export function useUpdateInvoice() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({
-			id,
-			status,
-		}: {
-			id: string;
-			status: InvoiceStatus;
-		}) =>
-			fetchJson<Invoice>(`${API_BASE}/invoices/${id}`, {
-				method: 'PATCH',
-				body: JSON.stringify({ status }),
-			}),
+		mutationFn: async ({ id, status }: { id: string; status: InvoiceStatus }) => {
+			const { data } = await apiClient.patch<Invoice>(`${API_BASE}/invoices/${id}`, { status });
+			return data;
+		},
 		onSuccess: (_, variables) => {
 			queryClient.invalidateQueries({ queryKey: ['invoices'] });
 			queryClient.invalidateQueries({ queryKey: ['invoice', variables.id] });

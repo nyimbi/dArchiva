@@ -8,7 +8,7 @@ export * from './components/core/StatusLED';
 export * from './components/core/TechPanel';
 
 // Main Components
-export * from './components/ScannerDashboard';
+export { ScannerDashboard } from './components/ScannerDashboard';
 export * from './components/ScannerList';
 export * from './components/ScannerDetail';
 export * from './components/ScannerCard';
@@ -21,5 +21,16 @@ export * from './components/ScanProfilesManager';
 // API Hooks
 export * from './api/hooks';
 
-// Types
-export * from './types';
+// Types (excluding ScannerDashboard interface to avoid conflict)
+export type {
+	ScannerProtocol, ScannerStatus, ScanJobStatus, ColorMode, InputSource, ImageFormat,
+	ScannerCapabilities, DiscoveredScanner, Scanner, ScannerStatusInfo, ScanOptions,
+	ScanJob, ScanJobResult, ScanProfile, GlobalScannerSettings, ScannerUsageStats,
+	ScannerCreate, ScannerUpdate, ScanJobCreate, ScanProfileCreate, ScanProfileUpdate,
+	ScanPreviewData, PaperSize, PaperSource,
+} from './types';
+export {
+	DEFAULT_SCAN_OPTIONS, PROTOCOL_LABELS, STATUS_CONFIG, RESOLUTION_PRESETS,
+	COLOR_MODE_OPTIONS, PAPER_SIZE_OPTIONS, PAPER_SOURCE_OPTIONS,
+} from './types';
+export type { ScannerDashboard as ScannerDashboardData } from './types';

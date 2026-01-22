@@ -2,14 +2,14 @@
 /**
  * Main scanner control panel.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Printer, Play, Square, Eye, Settings, Folder, FileText, Loader2, CheckCircle2, AlertCircle, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useScanner, useScanPreview, useStartScan, useCancelScan, useScanJob } from '../api';
 import { ScanPreview } from './ScanPreview';
-import type { Scanner, ScanOptions, ScanJob } from '../types';
-import { DEFAULT_SCAN_OPTIONS, RESOLUTION_PRESETS, COLOR_MODE_OPTIONS, PAPER_SIZE_OPTIONS, PAPER_SOURCE_OPTIONS } from '../types';
+import type { Scanner, ScanOptions, ScanJob, ColorMode, InputSource } from '../types';
+import { DEFAULT_SCAN_OPTIONS, RESOLUTION_PRESETS, COLOR_MODE_OPTIONS, PAPER_SOURCE_OPTIONS } from '../types';
 
 interface ScannerPanelProps {
 	scanner: Scanner;
@@ -32,18 +32,40 @@ export function ScannerPanel({ scanner, targetFolderId, onFolderSelect, onScanCo
 	const currentScanner = scannerData || scanner;
 	const capabilities = currentScanner.capabilities;
 	const isScanning = activeJob?.status === 'scanning' || activeJob?.status === 'processing';
-	const canScan = currentScanner.status === 'idle' && !isScanning;
+	const canScan = currentScanner.status === 'online' && !isScanning;
 
 	const updateOption = <K extends keyof ScanOptions>(key: K, value: ScanOptions[K]) => {
 		setOptions((prev) => ({ ...prev, [key]: value }));
 	};
 
 	const handlePreview = useCallback(() => {
-		preview.mutate({ resolution: Math.min(options.resolution, 150), colorMode: options.colorMode, paperSize: options.paperSize, paperSource: 'flatbed' });
+		preview.mutate({
+			resolution: Math.min(options.resolution, 150),
+			color_mode: options.color_mode,
+			input_source: 'platen',
+			format: options.format,
+			quality: options.quality,
+			x_offset: null,
+			y_offset: null,
+			width: null,
+			height: null,
+			duplex: false,
+			auto_crop: false,
+			auto_deskew: false,
+			blank_page_removal: false,
+			batch_mode: false,
+			max_pages: null,
+			brightness: 0,
+			contrast: 0,
+		});
 	}, [preview, options]);
 
 	const handleScan = useCallback(async () => {
-		const job = await startScan.mutateAsync({ scannerId: scanner.id, options, targetFolderId });
+		const job = await startScan.mutateAsync({
+			scannerId: scanner.id,
+			options,
+			targetFolderId,
+		});
 		setActiveJobId(job.id);
 	}, [startScan, scanner.id, options, targetFolderId]);
 
@@ -52,10 +74,16 @@ export function ScannerPanel({ scanner, targetFolderId, onFolderSelect, onScanCo
 	}, [cancelScan, activeJobId]);
 
 	// Watch for scan completion
-	if (activeJob?.status === 'completed' && onScanComplete) {
-		onScanComplete(activeJob);
-		setActiveJobId(null);
-	}
+	useEffect(() => {
+		if (activeJob?.status === 'completed' && onScanComplete) {
+			onScanComplete(activeJob);
+			setActiveJobId(null);
+		}
+	}, [activeJob, onScanComplete]);
+
+	// Get available resolutions from capabilities
+	const availableResolutions = capabilities?.resolutions || [150, 300, 600];
+	const availableColorModes = capabilities?.color_modes || ['color', 'grayscale'];
 
 	return (
 		<div className="flex gap-6 h-full">
@@ -64,7 +92,7 @@ export function ScannerPanel({ scanner, targetFolderId, onFolderSelect, onScanCo
 				{/* Scanner Status */}
 				<div className="glass-card p-4">
 					<div className="flex items-center gap-3">
-						<div className={cn('p-3 rounded-xl', currentScanner.status === 'idle' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-brass-500/10 text-brass-400')}>
+						<div className={cn('p-3 rounded-xl', currentScanner.status === 'online' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-brass-500/10 text-brass-400')}>
 							<Printer className="w-6 h-6" />
 						</div>
 						<div className="flex-1 min-w-0">
@@ -82,7 +110,7 @@ export function ScannerPanel({ scanner, targetFolderId, onFolderSelect, onScanCo
 					<div>
 						<label className="text-sm text-slate-400 mb-2 block">Resolution</label>
 						<div className="grid grid-cols-2 gap-2">
-							{RESOLUTION_PRESETS.filter((r) => capabilities.resolutions.includes(r.value)).map((res) => (
+							{RESOLUTION_PRESETS.filter((r) => availableResolutions.includes(r.value)).map((res) => (
 								<button key={res.value} onClick={() => updateOption('resolution', res.value)} className={cn('px-3 py-2 rounded-lg text-sm transition-colors', options.resolution === res.value ? 'bg-brass-500 text-slate-900 font-medium' : 'bg-slate-800 text-slate-400 hover:bg-slate-700')}>
 									{res.label}
 								</button>
@@ -94,8 +122,8 @@ export function ScannerPanel({ scanner, targetFolderId, onFolderSelect, onScanCo
 					<div>
 						<label className="text-sm text-slate-400 mb-2 block">Color Mode</label>
 						<div className="flex gap-2">
-							{COLOR_MODE_OPTIONS.filter((c) => capabilities.colorModes.includes(c.value)).map((mode) => (
-								<button key={mode.value} onClick={() => updateOption('colorMode', mode.value)} className={cn('flex-1 px-3 py-2 rounded-lg text-sm transition-colors', options.colorMode === mode.value ? 'bg-brass-500 text-slate-900 font-medium' : 'bg-slate-800 text-slate-400 hover:bg-slate-700')}>
+							{COLOR_MODE_OPTIONS.filter((c) => availableColorModes.includes(c.value)).map((mode) => (
+								<button key={mode.value} onClick={() => updateOption('color_mode', mode.value)} className={cn('flex-1 px-3 py-2 rounded-lg text-sm transition-colors', options.color_mode === mode.value ? 'bg-brass-500 text-slate-900 font-medium' : 'bg-slate-800 text-slate-400 hover:bg-slate-700')}>
 									{mode.label}
 								</button>
 							))}
@@ -105,19 +133,9 @@ export function ScannerPanel({ scanner, targetFolderId, onFolderSelect, onScanCo
 					{/* Paper Source */}
 					<div>
 						<label className="text-sm text-slate-400 mb-2 block">Paper Source</label>
-						<select value={options.paperSource} onChange={(e) => updateOption('paperSource', e.target.value as ScanOptions['paperSource'])} className="input-field w-full">
-							{PAPER_SOURCE_OPTIONS.filter((s) => (s.value === 'flatbed' && capabilities.hasFlatbed) || (s.value.startsWith('adf') && capabilities.hasAdf)).map((source) => (
-								<option key={source.value} value={source.value}>{source.label}</option>
-							))}
-						</select>
-					</div>
-
-					{/* Paper Size */}
-					<div>
-						<label className="text-sm text-slate-400 mb-2 block">Paper Size</label>
-						<select value={options.paperSize} onChange={(e) => updateOption('paperSize', e.target.value as ScanOptions['paperSize'])} className="input-field w-full">
-							{PAPER_SIZE_OPTIONS.filter((p) => capabilities.paperSizes.includes(p.value)).map((size) => (
-								<option key={size.value} value={size.value}>{size.label} ({size.dimensions})</option>
+						<select value={options.input_source} onChange={(e) => updateOption('input_source', e.target.value as InputSource)} className="input-field w-full">
+							{PAPER_SOURCE_OPTIONS.filter((s) => (s.value === 'flatbed' && capabilities?.platen) || (s.value.startsWith('adf') && capabilities?.adf_present)).map((source) => (
+								<option key={source.value} value={source.value === 'flatbed' ? 'platen' : source.value === 'adf_simplex' ? 'adf' : 'adf_duplex'}>{source.label}</option>
 							))}
 						</select>
 					</div>
@@ -138,7 +156,7 @@ export function ScannerPanel({ scanner, targetFolderId, onFolderSelect, onScanCo
 								<label className="text-sm text-slate-400 mb-1 block">Contrast: {options.contrast}</label>
 								<input type="range" min="-100" max="100" value={options.contrast} onChange={(e) => updateOption('contrast', parseInt(e.target.value))} className="w-full accent-brass-500" />
 							</div>
-							{capabilities.supportsDuplex && options.paperSource.startsWith('adf') && (
+							{capabilities?.adf_duplex && options.input_source.startsWith('adf') && (
 								<label className="flex items-center gap-2 cursor-pointer">
 									<input type="checkbox" checked={options.duplex} onChange={(e) => updateOption('duplex', e.target.checked)} className="rounded border-slate-600 bg-slate-800 text-brass-500" />
 									<span className="text-sm text-slate-300">Double-sided (Duplex)</span>
@@ -185,11 +203,11 @@ export function ScannerPanel({ scanner, targetFolderId, onFolderSelect, onScanCo
 							</div>
 							<div className="flex-1">
 								<p className="text-sm font-medium text-slate-200">Scanning...</p>
-								<p className="text-xs text-slate-500">{activeJob.pagesScanned} pages scanned</p>
+								<p className="text-xs text-slate-500">{activeJob.pages_scanned} pages scanned</p>
 							</div>
 						</div>
 						<div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-							<motion.div className="h-full bg-brass-500" initial={{ width: 0 }} animate={{ width: `${activeJob.progress}%` }} />
+							<motion.div className="h-full bg-brass-500" initial={{ width: 0 }} animate={{ width: '50%' }} />
 						</div>
 					</motion.div>
 				)}

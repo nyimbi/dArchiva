@@ -3,6 +3,7 @@
  * Batch tracking API hooks using React Query.
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api-client';
 import type {
 	ScanBatch,
 	ScanBatchSummary,
@@ -16,22 +17,8 @@ import type {
 	LocationType,
 } from './types';
 
-const API_BASE = '/api/batches';
-const LOCATIONS_API = '/api/locations';
-
-async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
-	const response = await fetch(url, {
-		...options,
-		headers: {
-			'Content-Type': 'application/json',
-			...options?.headers,
-		},
-	});
-	if (!response.ok) {
-		throw new Error(`API error: ${response.statusText}`);
-	}
-	return response.json();
-}
+const API_BASE = '/batches';
+const LOCATIONS_API = '/locations';
 
 // ============ Batches ============
 
@@ -44,14 +31,15 @@ export function useBatches(options?: {
 }) {
 	return useQuery({
 		queryKey: ['batches', options],
-		queryFn: () => {
-			const params = new URLSearchParams();
-			if (options?.status) params.set('status', options.status);
-			if (options?.projectId) params.set('project_id', options.projectId);
-			if (options?.operatorId) params.set('operator_id', options.operatorId);
-			if (options?.skip) params.set('skip', options.skip.toString());
-			if (options?.limit) params.set('limit', options.limit.toString());
-			return fetchJson<ScanBatchSummary[]>(`${API_BASE}?${params}`);
+		queryFn: async () => {
+			const params: Record<string, unknown> = {};
+			if (options?.status) params.status = options.status;
+			if (options?.projectId) params.project_id = options.projectId;
+			if (options?.operatorId) params.operator_id = options.operatorId;
+			if (options?.skip) params.skip = options.skip;
+			if (options?.limit) params.limit = options.limit;
+			const { data } = await apiClient.get<ScanBatchSummary[]>(API_BASE, { params });
+			return data;
 		},
 	});
 }
@@ -59,14 +47,20 @@ export function useBatches(options?: {
 export function useBatchStats() {
 	return useQuery({
 		queryKey: ['batch-stats'],
-		queryFn: () => fetchJson<BatchDashboardStats>(`${API_BASE}/stats`),
+		queryFn: async () => {
+			const { data } = await apiClient.get<BatchDashboardStats>(`${API_BASE}/stats`);
+			return data;
+		},
 	});
 }
 
 export function useBatch(batchId: string) {
 	return useQuery({
 		queryKey: ['batch', batchId],
-		queryFn: () => fetchJson<ScanBatch>(`${API_BASE}/${batchId}`),
+		queryFn: async () => {
+			const { data } = await apiClient.get<ScanBatch>(`${API_BASE}/${batchId}`);
+			return data;
+		},
 		enabled: !!batchId,
 	});
 }
@@ -75,11 +69,10 @@ export function useCreateBatch() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (data: CreateBatchInput) =>
-			fetchJson<ScanBatch>(`${API_BASE}`, {
-				method: 'POST',
-				body: JSON.stringify(data),
-			}),
+		mutationFn: async (input: CreateBatchInput) => {
+			const { data } = await apiClient.post<ScanBatch>(API_BASE, input);
+			return data;
+		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['batches'] });
 			queryClient.invalidateQueries({ queryKey: ['batch-stats'] });
@@ -91,11 +84,10 @@ export function useUpdateBatch() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({ id, ...data }: { id: string } & UpdateBatchInput) =>
-			fetchJson<ScanBatch>(`${API_BASE}/${id}`, {
-				method: 'PATCH',
-				body: JSON.stringify(data),
-			}),
+		mutationFn: async ({ id, ...input }: { id: string } & UpdateBatchInput) => {
+			const { data } = await apiClient.patch<ScanBatch>(`${API_BASE}/${id}`, input);
+			return data;
+		},
 		onSuccess: (_, variables) => {
 			queryClient.invalidateQueries({ queryKey: ['batches'] });
 			queryClient.invalidateQueries({ queryKey: ['batch', variables.id] });
@@ -108,8 +100,10 @@ export function useStartBatch() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (id: string) =>
-			fetchJson<ScanBatch>(`${API_BASE}/${id}/start`, { method: 'POST' }),
+		mutationFn: async (id: string) => {
+			const { data } = await apiClient.post<ScanBatch>(`${API_BASE}/${id}/start`);
+			return data;
+		},
 		onSuccess: (_, id) => {
 			queryClient.invalidateQueries({ queryKey: ['batches'] });
 			queryClient.invalidateQueries({ queryKey: ['batch', id] });
@@ -122,8 +116,10 @@ export function usePauseBatch() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (id: string) =>
-			fetchJson<ScanBatch>(`${API_BASE}/${id}/pause`, { method: 'POST' }),
+		mutationFn: async (id: string) => {
+			const { data } = await apiClient.post<ScanBatch>(`${API_BASE}/${id}/pause`);
+			return data;
+		},
 		onSuccess: (_, id) => {
 			queryClient.invalidateQueries({ queryKey: ['batches'] });
 			queryClient.invalidateQueries({ queryKey: ['batch', id] });
@@ -136,8 +132,10 @@ export function useCompleteBatch() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (id: string) =>
-			fetchJson<ScanBatch>(`${API_BASE}/${id}/complete`, { method: 'POST' }),
+		mutationFn: async (id: string) => {
+			const { data } = await apiClient.post<ScanBatch>(`${API_BASE}/${id}/complete`);
+			return data;
+		},
 		onSuccess: (_, id) => {
 			queryClient.invalidateQueries({ queryKey: ['batches'] });
 			queryClient.invalidateQueries({ queryKey: ['batch', id] });
@@ -150,8 +148,9 @@ export function useDeleteBatch() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (id: string) =>
-			fetch(`${API_BASE}/${id}`, { method: 'DELETE' }),
+		mutationFn: async (id: string) => {
+			await apiClient.delete(`${API_BASE}/${id}`);
+		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['batches'] });
 			queryClient.invalidateQueries({ queryKey: ['batch-stats'] });
@@ -168,13 +167,13 @@ export function useLocations(options?: {
 }) {
 	return useQuery({
 		queryKey: ['locations', options],
-		queryFn: () => {
-			const params = new URLSearchParams();
-			if (options?.locationType) params.set('location_type', options.locationType);
-			if (options?.parentId) params.set('parent_id', options.parentId);
-			if (options?.activeOnly !== undefined)
-				params.set('active_only', options.activeOnly.toString());
-			return fetchJson<SourceLocation[]>(`${LOCATIONS_API}?${params}`);
+		queryFn: async () => {
+			const params: Record<string, unknown> = {};
+			if (options?.locationType) params.location_type = options.locationType;
+			if (options?.parentId) params.parent_id = options.parentId;
+			if (options?.activeOnly !== undefined) params.active_only = options.activeOnly;
+			const { data } = await apiClient.get<SourceLocation[]>(LOCATIONS_API, { params });
+			return data;
 		},
 	});
 }
@@ -182,17 +181,23 @@ export function useLocations(options?: {
 export function useLocationTree(activeOnly: boolean = true) {
 	return useQuery({
 		queryKey: ['location-tree', activeOnly],
-		queryFn: () =>
-			fetchJson<SourceLocationTree[]>(
-				`${LOCATIONS_API}/tree?active_only=${activeOnly}`
-			),
+		queryFn: async () => {
+			const { data } = await apiClient.get<SourceLocationTree[]>(
+				`${LOCATIONS_API}/tree`,
+				{ params: { active_only: activeOnly } }
+			);
+			return data;
+		},
 	});
 }
 
 export function useLocation(locationId: string) {
 	return useQuery({
 		queryKey: ['location', locationId],
-		queryFn: () => fetchJson<SourceLocation>(`${LOCATIONS_API}/${locationId}`),
+		queryFn: async () => {
+			const { data } = await apiClient.get<SourceLocation>(`${LOCATIONS_API}/${locationId}`);
+			return data;
+		},
 		enabled: !!locationId,
 	});
 }
@@ -201,11 +206,10 @@ export function useCreateLocation() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (data: CreateLocationInput) =>
-			fetchJson<SourceLocation>(`${LOCATIONS_API}`, {
-				method: 'POST',
-				body: JSON.stringify(data),
-			}),
+		mutationFn: async (input: CreateLocationInput) => {
+			const { data } = await apiClient.post<SourceLocation>(LOCATIONS_API, input);
+			return data;
+		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['locations'] });
 			queryClient.invalidateQueries({ queryKey: ['location-tree'] });
@@ -217,11 +221,10 @@ export function useUpdateLocation() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({ id, ...data }: { id: string } & Partial<SourceLocation>) =>
-			fetchJson<SourceLocation>(`${LOCATIONS_API}/${id}`, {
-				method: 'PATCH',
-				body: JSON.stringify(data),
-			}),
+		mutationFn: async ({ id, ...input }: { id: string } & Partial<SourceLocation>) => {
+			const { data } = await apiClient.patch<SourceLocation>(`${LOCATIONS_API}/${id}`, input);
+			return data;
+		},
 		onSuccess: (_, variables) => {
 			queryClient.invalidateQueries({ queryKey: ['locations'] });
 			queryClient.invalidateQueries({ queryKey: ['location', variables.id] });
@@ -234,8 +237,9 @@ export function useDeleteLocation() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (id: string) =>
-			fetch(`${LOCATIONS_API}/${id}`, { method: 'DELETE' }),
+		mutationFn: async (id: string) => {
+			await apiClient.delete(`${LOCATIONS_API}/${id}`);
+		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['locations'] });
 			queryClient.invalidateQueries({ queryKey: ['location-tree'] });

@@ -156,7 +156,7 @@ function StatusTab({ scanner, status }: { scanner: Scanner; status?: any }) {
 		<div className="grid lg:grid-cols-2 gap-6">
 			<TechPanel title="Device Status">
 				<div className="grid grid-cols-2 gap-4">
-					<Readout label="Status" value={STATUS_CONFIG[status?.status || scanner.status].label} highlight={status?.available} />
+					<Readout label="Status" value={STATUS_CONFIG[status?.status as keyof typeof STATUS_CONFIG || scanner.status]?.label || status?.status || scanner.status} highlight={status?.available} />
 					<Readout label="Active Jobs" value={status?.active_jobs || 0} />
 					<Readout label="State" value={status?.state || 'Idle'} />
 					<Readout label="ADF State" value={status?.adf_state || 'N/A'} />

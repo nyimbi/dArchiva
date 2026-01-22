@@ -3,10 +3,8 @@
  * Dashboard API hooks.
  */
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
+import { apiClient } from '@/lib/api-client';
 import type { DashboardStats, ActivityListResponse, PendingTasksResponse } from './types';
-
-const API_BASE = '/api/v1';
 
 export const dashboardKeys = {
 	all: ['dashboard'] as const,
@@ -19,8 +17,8 @@ export function useDashboardStats() {
 	return useQuery({
 		queryKey: dashboardKeys.stats(),
 		queryFn: async () => {
-			const response = await axios.get<DashboardStats>(`${API_BASE}/dashboard/stats`);
-			return response.data;
+			const { data } = await apiClient.get<DashboardStats>('/dashboard/stats');
+			return data;
 		},
 		refetchInterval: 60000, // Refresh every minute
 	});
@@ -30,10 +28,10 @@ export function useRecentActivity(limit = 10) {
 	return useQuery({
 		queryKey: dashboardKeys.activity(limit),
 		queryFn: async () => {
-			const response = await axios.get<ActivityListResponse>(`${API_BASE}/dashboard/activity`, {
+			const { data } = await apiClient.get<ActivityListResponse>('/dashboard/activity', {
 				params: { limit },
 			});
-			return response.data;
+			return data;
 		},
 		refetchInterval: 30000, // Refresh every 30 seconds
 	});
@@ -43,8 +41,8 @@ export function useDashboardPendingTasks() {
 	return useQuery({
 		queryKey: dashboardKeys.pendingTasks(),
 		queryFn: async () => {
-			const response = await axios.get<PendingTasksResponse>(`${API_BASE}/workflows/instances/pending`);
-			return response.data;
+			const { data } = await apiClient.get<PendingTasksResponse>('/workflows/instances/pending');
+			return data;
 		},
 		refetchInterval: 30000,
 	});

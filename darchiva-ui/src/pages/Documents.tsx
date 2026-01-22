@@ -22,10 +22,12 @@ import {
 	Trash2,
 	GitBranch,
 	Loader2,
+	Share2,
 } from 'lucide-react';
 import { cn, formatBytes, formatRelativeTime } from '@/lib/utils';
 import { useStore } from '@/hooks/useStore';
 import { useFolderTree, useDocuments, type TreeNode as APITreeNode, type Document as APIDocument } from '@/features/documents';
+import { ShareDialog } from '@/features/shared-nodes/components/ShareDialog';
 
 function FolderTreeItem({ node, depth = 0 }: { node: APITreeNode; depth?: number }) {
 	const { expandedFolders, toggleFolder, currentFolderId, setCurrentFolderId } = useStore();
@@ -85,7 +87,7 @@ function FolderTreeItem({ node, depth = 0 }: { node: APITreeNode; depth?: number
 	);
 }
 
-function DocumentCard({ doc }: { doc: APIDocument }) {
+function DocumentCard({ doc, onShare }: { doc: APIDocument; onShare: (doc: APIDocument) => void }) {
 	const { selectedNodeIds, toggleNodeSelection } = useStore();
 	const isSelected = selectedNodeIds.has(doc.id);
 	const FileIcon = doc.title.includes('image') ? Image : doc.title.includes('xls') ? Table : FileText;
@@ -144,7 +146,14 @@ function DocumentCard({ doc }: { doc: APIDocument }) {
 			)}
 
 			{/* Actions overlay */}
-			<div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+			<div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+				<button
+					className="p-1.5 rounded-lg bg-slate-900/90 text-slate-400 hover:text-brass-400 transition-colors"
+					onClick={(e) => { e.stopPropagation(); onShare(doc); }}
+					title="Share"
+				>
+					<Share2 className="w-4 h-4" />
+				</button>
 				<button className="p-1.5 rounded-lg bg-slate-900/90 text-slate-400 hover:text-slate-200">
 					<MoreVertical className="w-4 h-4" />
 				</button>
@@ -153,7 +162,7 @@ function DocumentCard({ doc }: { doc: APIDocument }) {
 	);
 }
 
-function DocumentRow({ doc }: { doc: APIDocument }) {
+function DocumentRow({ doc, onShare }: { doc: APIDocument; onShare: (doc: APIDocument) => void }) {
 	const { selectedNodeIds, toggleNodeSelection } = useStore();
 	const isSelected = selectedNodeIds.has(doc.id);
 	const FileIcon = doc.title.includes('image') ? Image : doc.title.includes('xls') ? Table : FileText;
@@ -172,7 +181,7 @@ function DocumentRow({ doc }: { doc: APIDocument }) {
 				<input
 					type="checkbox"
 					checked={isSelected}
-					onChange={() => {}}
+					onChange={() => { }}
 					className="rounded border-slate-600 bg-slate-800 text-brass-500 focus:ring-brass-500/50"
 				/>
 			</td>
@@ -200,19 +209,20 @@ function DocumentRow({ doc }: { doc: APIDocument }) {
 				<span className={cn(
 					'badge',
 					statusLabel === 'ready' ? 'badge-green' :
-					statusLabel === 'processing' ? 'badge-brass' :
-					'badge-gray'
+						statusLabel === 'processing' ? 'badge-brass' :
+							'badge-gray'
 				)}>
 					{statusLabel}
 				</span>
 			</td>
 			<td>
 				<div className="flex items-center gap-1">
-					<button className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded">
-						<Eye className="w-4 h-4" />
-					</button>
-					<button className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded">
-						<Download className="w-4 h-4" />
+					<button
+						className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded"
+						onClick={(e) => { e.stopPropagation(); onShare(doc); }}
+						title="Share"
+					>
+						<Share2 className="w-4 h-4" />
 					</button>
 					<button className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded">
 						<GitBranch className="w-4 h-4" />
@@ -231,6 +241,7 @@ export function Documents() {
 	const { data: documentsData, isLoading: docsLoading } = useDocuments(currentFolderId || undefined);
 
 	const documents = documentsData?.items.filter(d => d.ctype === 'document') || [];
+	const [sharingNode, setSharingNode] = useState<APIDocument | null>(null);
 
 	return (
 		<div className="flex gap-6 h-[calc(100vh-8rem)]">
@@ -354,7 +365,7 @@ export function Documents() {
 					) : viewMode === 'grid' ? (
 						<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
 							{documents.map((doc) => (
-								<DocumentCard key={doc.id} doc={doc} />
+								<DocumentCard key={doc.id} doc={doc} onShare={setSharingNode} />
 							))}
 						</div>
 					) : (
@@ -385,7 +396,7 @@ export function Documents() {
 								</thead>
 								<tbody>
 									{documents.map((doc) => (
-										<DocumentRow key={doc.id} doc={doc} />
+										<DocumentRow key={doc.id} doc={doc} onShare={setSharingNode} />
 									))}
 								</tbody>
 							</table>
@@ -393,6 +404,16 @@ export function Documents() {
 					)}
 				</div>
 			</motion.div>
+
+			{sharingNode && (
+				<ShareDialog
+					nodeId={sharingNode.id}
+					nodeTitle={sharingNode.title}
+					nodeType="document"
+					open={!!sharingNode}
+					onOpenChange={(open) => !open && setSharingNode(null)}
+				/>
+			)}
 		</div>
 	);
 }

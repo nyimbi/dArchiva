@@ -3,9 +3,9 @@
  * Encryption API hooks.
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
+import { apiClient } from '@/lib/api-client';
 
-const API_BASE = '/api/v1/encryption';
+const API_BASE = '/encryption';
 
 export type KeyStatus = 'active' | 'rotated' | 'revoked';
 export type RequestStatus = 'pending' | 'approved' | 'denied';
@@ -62,8 +62,8 @@ export function useEncryptionKeys() {
 	return useQuery({
 		queryKey: encryptionKeys.keys(),
 		queryFn: async () => {
-			const response = await axios.get<EncryptionKey[]>(`${API_BASE}/keys`);
-			return response.data;
+			const { data } = await apiClient.get<EncryptionKey[]>(`${API_BASE}/keys`);
+			return data;
 		},
 	});
 }
@@ -72,8 +72,8 @@ export function useEncryptionStats() {
 	return useQuery({
 		queryKey: encryptionKeys.stats(),
 		queryFn: async () => {
-			const response = await axios.get<EncryptionStats>(`${API_BASE}/stats`);
-			return response.data;
+			const { data } = await apiClient.get<EncryptionStats>(`${API_BASE}/stats`);
+			return data;
 		},
 	});
 }
@@ -82,10 +82,10 @@ export function useAccessRequests(status?: RequestStatus) {
 	return useQuery({
 		queryKey: encryptionKeys.requests(status),
 		queryFn: async () => {
-			const response = await axios.get<AccessRequest[]>(`${API_BASE}/access-requests`, {
+			const { data } = await apiClient.get<AccessRequest[]>(`${API_BASE}/access-requests`, {
 				params: status ? { status } : undefined,
 			});
-			return response.data;
+			return data;
 		},
 	});
 }
@@ -94,11 +94,11 @@ export function useEncryptedDocuments(page = 1, pageSize = 20) {
 	return useQuery({
 		queryKey: encryptionKeys.documents(page),
 		queryFn: async () => {
-			const response = await axios.get<{ items: EncryptedDocument[]; total: number }>(
+			const { data } = await apiClient.get<{ items: EncryptedDocument[]; total: number }>(
 				`${API_BASE}/documents`,
 				{ params: { page, page_size: pageSize } }
 			);
-			return response.data;
+			return data;
 		},
 	});
 }
@@ -107,8 +107,8 @@ export function useRotateKey() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async () => {
-			const response = await axios.post<EncryptionKey>(`${API_BASE}/keys/rotate`);
-			return response.data;
+			const { data } = await apiClient.post<EncryptionKey>(`${API_BASE}/keys/rotate`);
+			return data;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: encryptionKeys.all });
@@ -120,8 +120,8 @@ export function useResolveAccessRequest() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async ({ id, action }: { id: string; action: 'approve' | 'deny' }) => {
-			const response = await axios.post<AccessRequest>(`${API_BASE}/access-requests/${id}/${action}`);
-			return response.data;
+			const { data } = await apiClient.post<AccessRequest>(`${API_BASE}/access-requests/${id}/${action}`);
+			return data;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: encryptionKeys.requests() });
@@ -133,8 +133,8 @@ export function useEncryptDocument() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async (documentId: string) => {
-			const response = await axios.post<EncryptedDocument>(`${API_BASE}/documents/${documentId}/encrypt`);
-			return response.data;
+			const { data } = await apiClient.post<EncryptedDocument>(`${API_BASE}/documents/${documentId}/encrypt`);
+			return data;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: encryptionKeys.documents() });
@@ -146,7 +146,7 @@ export function useDecryptDocument() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async (documentId: string) => {
-			await axios.post(`${API_BASE}/documents/${documentId}/decrypt`);
+			await apiClient.post(`${API_BASE}/documents/${documentId}/decrypt`);
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: encryptionKeys.documents() });

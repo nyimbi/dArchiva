@@ -55,7 +55,7 @@ export function ScannerDiscovery({ onScannerSelect }: ScannerDiscoveryProps) {
 								className="glass-card p-4 flex items-center gap-4 hover:border-brass-500/50 transition-colors text-left w-full"
 								whileHover={{ scale: 1.01 }}
 							>
-								<div className={cn('p-3 rounded-xl', scanner.status === 'idle' ? 'bg-emerald-500/10 text-emerald-400' : scanner.status === 'error' || scanner.status === 'offline' ? 'bg-red-500/10 text-red-400' : 'bg-brass-500/10 text-brass-400')}>
+								<div className={cn('p-3 rounded-xl', scanner.status === 'online' ? 'bg-emerald-500/10 text-emerald-400' : scanner.status === 'error' || scanner.status === 'offline' ? 'bg-red-500/10 text-red-400' : 'bg-brass-500/10 text-brass-400')}>
 									<Printer className="w-6 h-6" />
 								</div>
 								<div className="flex-1 min-w-0">
@@ -84,7 +84,7 @@ export function ScannerDiscovery({ onScannerSelect }: ScannerDiscoveryProps) {
 						<h3 className="font-display font-semibold text-slate-100 mb-4">Discovered Scanners</h3>
 						<div className="grid gap-3">
 							{discover.data.map((discovered, idx) => {
-								const isRegistered = scanners?.some((s) => s.connectionUri === discovered.connectionUri);
+								const isRegistered = scanners?.some((s) => s.connection_uri === discovered.root_url);
 								return (
 									<motion.div
 										key={idx}
@@ -94,7 +94,7 @@ export function ScannerDiscovery({ onScannerSelect }: ScannerDiscoveryProps) {
 										<div className="p-3 rounded-xl bg-slate-700/50 text-slate-400"><Wifi className="w-6 h-6" /></div>
 										<div className="flex-1 min-w-0">
 											<p className="font-medium text-slate-200">{discovered.name}</p>
-											<p className="text-sm text-slate-500">{discovered.protocol.toUpperCase()} • {discovered.connectionUri}</p>
+											<p className="text-sm text-slate-500">{discovered.protocol.toUpperCase()} • {discovered.root_url}</p>
 										</div>
 										{isRegistered ? <span className="text-xs text-slate-500">Already registered</span> : <Plus className="w-5 h-5 text-brass-400" />}
 									</motion.div>
@@ -118,7 +118,7 @@ export function ScannerDiscovery({ onScannerSelect }: ScannerDiscoveryProps) {
 								</div>
 								<div className="p-3 bg-slate-800/50 rounded-lg text-sm text-slate-400">
 									<p><strong>Protocol:</strong> {selectedDiscovered.protocol.toUpperCase()}</p>
-									<p><strong>URI:</strong> {selectedDiscovered.connectionUri}</p>
+									<p><strong>URI:</strong> {selectedDiscovered.root_url}</p>
 								</div>
 							</div>
 							<div className="mt-6 flex gap-2 justify-end">

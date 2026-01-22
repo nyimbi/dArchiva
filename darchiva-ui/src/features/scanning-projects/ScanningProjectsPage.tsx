@@ -4,11 +4,13 @@ import { ProjectList } from './components/ProjectList';
 import { ProjectDetail } from './components/ProjectDetail';
 import { QuickActionsPanel } from './components/QuickActionsPanel';
 import type { ScanningProject } from './types';
+import { useStore } from '@/hooks/useStore';
 import './styles/theme.css';
 
 type ViewMode = 'list' | 'detail';
 
 export function ScanningProjectsPage() {
+  const { openModal } = useStore();
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [selectedProject, setSelectedProject] = useState<ScanningProject | null>(null);
 
@@ -32,10 +34,7 @@ export function ScanningProjectsPage() {
             {viewMode === 'list' ? (
               <ProjectList
                 onSelectProject={handleSelectProject}
-                onCreateProject={() => {
-                  // TODO: Open create project modal
-                  console.log('Create project');
-                }}
+                onCreateProject={() => openModal('create-project')}
               />
             ) : selectedProject ? (
               <ProjectDetail projectId={selectedProject.id} onBack={handleBack} />
