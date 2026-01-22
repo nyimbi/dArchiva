@@ -2,3 +2,4 @@
 export { WorkflowNodeView } from './WorkflowNode';
 export { Designer } from './Designer';
 export { NodeConfigPanel } from './NodeConfigPanel';
+export { SLADashboard } from './SLADashboard';

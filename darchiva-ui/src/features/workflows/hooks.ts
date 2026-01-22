@@ -277,3 +277,99 @@ export function useCancelWorkflowInstance() {
 		},
 	});
 }
+
+// ============================================================================
+// SLA Monitoring Hooks
+// ============================================================================
+
+// SLA Query keys
+export const slaKeys = {
+	all: ['sla'] as const,
+	dashboard: (periodDays: number) => [...slaKeys.all, 'dashboard', periodDays] as const,
+	metrics: (filters: { page?: number; workflowId?: string; slaStatus?: string }) =>
+		[...slaKeys.all, 'metrics', filters] as const,
+	alerts: (filters: { page?: number; acknowledged?: boolean; severity?: string }) =>
+		[...slaKeys.all, 'alerts', filters] as const,
+	configs: (workflowId?: string) => [...slaKeys.all, 'configs', workflowId] as const,
+};
+
+export function useSLADashboard(periodDays = 30) {
+	return useQuery({
+		queryKey: slaKeys.dashboard(periodDays),
+		queryFn: () => api.getSLADashboard(periodDays),
+		refetchInterval: 60000, // Refresh every minute
+	});
+}
+
+export function useSLAMetrics(
+	page = 1,
+	pageSize = 20,
+	workflowId?: string,
+	slaStatus?: string,
+) {
+	return useQuery({
+		queryKey: slaKeys.metrics({ page, workflowId, slaStatus }),
+		queryFn: () => api.getSLAMetrics(page, pageSize, workflowId, slaStatus),
+	});
+}
+
+export function useSLAAlerts(
+	page = 1,
+	pageSize = 20,
+	acknowledged?: boolean,
+	severity?: string,
+) {
+	return useQuery({
+		queryKey: slaKeys.alerts({ page, acknowledged, severity }),
+		queryFn: () => api.getSLAAlerts(page, pageSize, acknowledged, severity),
+	});
+}
+
+export function useAcknowledgeSLAAlert() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({ alertId, notes }: { alertId: string; notes?: string }) =>
+			api.acknowledgeSLAAlert(alertId, notes),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: slaKeys.all });
+		},
+	});
+}
+
+export function useSLAConfigs(workflowId?: string) {
+	return useQuery({
+		queryKey: slaKeys.configs(workflowId),
+		queryFn: () => api.getSLAConfigs(workflowId),
+	});
+}
+
+export function useCreateSLAConfig() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: api.createSLAConfig,
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: slaKeys.configs() });
+		},
+	});
+}
+
+export function useDelegateApproval() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({
+			requestId,
+			delegateToId,
+			reason,
+		}: {
+			requestId: string;
+			delegateToId: string;
+			reason?: string;
+		}) => api.delegateApprovalRequest(requestId, { delegate_to_id: delegateToId, reason }),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: workflowKeys.pendingTasks() });
+		},
+	});
+}

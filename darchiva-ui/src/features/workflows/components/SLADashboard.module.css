@@ -1,0 +1,336 @@
+/* SLA Dashboard Styles */
+
+.dashboard {
+	padding: 1.5rem;
+	background: var(--color-surface, #1a1a2e);
+	border-radius: 8px;
+}
+
+.header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 1.5rem;
+}
+
+.header h2 {
+	margin: 0;
+	font-size: 1.5rem;
+	color: var(--color-text-primary, #f0e6d3);
+}
+
+.periodSelector {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.periodSelector label {
+	color: var(--color-text-secondary, #8b7355);
+}
+
+.periodSelector select {
+	padding: 0.5rem;
+	border-radius: 4px;
+	background: var(--color-surface-elevated, #252538);
+	border: 1px solid var(--color-border, #3d3d5c);
+	color: var(--color-text-primary, #f0e6d3);
+}
+
+/* Stats Grid */
+.statsGrid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+	gap: 1rem;
+	margin-bottom: 2rem;
+}
+
+.statCard {
+	padding: 1rem;
+	border-radius: 8px;
+	text-align: center;
+	background: var(--color-surface-elevated, #252538);
+	border: 1px solid var(--color-border, #3d3d5c);
+}
+
+.statCard.success {
+	border-color: var(--color-success, #4a9d5a);
+}
+
+.statCard.warning {
+	border-color: var(--color-warning, #c9a227);
+}
+
+.statCard.danger {
+	border-color: var(--color-danger, #b34747);
+}
+
+.statValue {
+	display: block;
+	font-size: 2rem;
+	font-weight: 600;
+	color: var(--color-text-primary, #f0e6d3);
+}
+
+.statLabel {
+	display: block;
+	font-size: 0.875rem;
+	color: var(--color-text-secondary, #8b7355);
+	margin-top: 0.25rem;
+}
+
+/* Gauge Section */
+.gaugeSection {
+	margin-bottom: 2rem;
+}
+
+.gaugeSection h3 {
+	margin: 0 0 1rem;
+	font-size: 1.125rem;
+	color: var(--color-text-primary, #f0e6d3);
+}
+
+.gauge {
+	padding: 1rem;
+	background: var(--color-surface-elevated, #252538);
+	border-radius: 8px;
+}
+
+.gaugeBar {
+	display: flex;
+	height: 24px;
+	border-radius: 4px;
+	overflow: hidden;
+	background: var(--color-border, #3d3d5c);
+}
+
+.gaugeSegment {
+	transition: width 0.3s ease;
+}
+
+.gaugeSegment.success {
+	background: var(--color-success, #4a9d5a);
+}
+
+.gaugeSegment.warning {
+	background: var(--color-warning, #c9a227);
+}
+
+.gaugeSegment.danger {
+	background: var(--color-danger, #b34747);
+}
+
+.gaugeEmpty {
+	text-align: center;
+	padding: 2rem;
+	color: var(--color-text-secondary, #8b7355);
+}
+
+.gaugeLegend {
+	display: flex;
+	justify-content: center;
+	gap: 1.5rem;
+	margin-top: 1rem;
+}
+
+.legendItem {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 0.875rem;
+	color: var(--color-text-secondary, #8b7355);
+}
+
+.legendDot {
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+}
+
+.legendDot.success {
+	background: var(--color-success, #4a9d5a);
+}
+
+.legendDot.warning {
+	background: var(--color-warning, #c9a227);
+}
+
+.legendDot.danger {
+	background: var(--color-danger, #b34747);
+}
+
+/* Alerts Section */
+.alertsSection {
+	margin-bottom: 2rem;
+}
+
+.alertsSection h3 {
+	margin: 0 0 1rem;
+	font-size: 1.125rem;
+	color: var(--color-text-primary, #f0e6d3);
+}
+
+.noAlerts,
+.noMetrics {
+	color: var(--color-text-secondary, #8b7355);
+	padding: 1rem;
+	text-align: center;
+}
+
+.alertsList {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.alertItem {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 1rem;
+	background: var(--color-surface-elevated, #252538);
+	border-radius: 6px;
+	border-left: 4px solid;
+}
+
+.alertItem.severityLow {
+	border-color: var(--color-info, #5a8dc9);
+}
+
+.alertItem.severityMedium {
+	border-color: var(--color-warning, #c9a227);
+}
+
+.alertItem.severityHigh {
+	border-color: var(--color-danger, #b34747);
+}
+
+.alertItem.severityCritical {
+	border-color: #ff4444;
+	background: rgba(179, 71, 71, 0.1);
+}
+
+.alertContent {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+}
+
+.alertTitle {
+	font-weight: 500;
+	color: var(--color-text-primary, #f0e6d3);
+}
+
+.alertMessage {
+	font-size: 0.875rem;
+	color: var(--color-text-secondary, #8b7355);
+}
+
+.alertTime {
+	font-size: 0.75rem;
+	color: var(--color-text-muted, #6b5b4f);
+}
+
+.acknowledgeBtn {
+	padding: 0.5rem 1rem;
+	border-radius: 4px;
+	background: var(--color-primary, #c9a227);
+	color: var(--color-surface, #1a1a2e);
+	border: none;
+	cursor: pointer;
+	font-weight: 500;
+	transition: background 0.2s;
+}
+
+.acknowledgeBtn:hover:not(:disabled) {
+	background: var(--color-primary-hover, #d4b33c);
+}
+
+.acknowledgeBtn:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+.acknowledgedBadge {
+	padding: 0.25rem 0.75rem;
+	border-radius: 4px;
+	background: var(--color-success, #4a9d5a);
+	color: white;
+	font-size: 0.75rem;
+}
+
+/* Metrics Section */
+.metricsSection h3 {
+	margin: 0 0 1rem;
+	font-size: 1.125rem;
+	color: var(--color-text-primary, #f0e6d3);
+}
+
+.metricsTable {
+	width: 100%;
+	border-collapse: collapse;
+	background: var(--color-surface-elevated, #252538);
+	border-radius: 8px;
+	overflow: hidden;
+}
+
+.metricsTable th,
+.metricsTable td {
+	padding: 0.75rem 1rem;
+	text-align: left;
+	border-bottom: 1px solid var(--color-border, #3d3d5c);
+}
+
+.metricsTable th {
+	background: var(--color-surface, #1a1a2e);
+	color: var(--color-text-secondary, #8b7355);
+	font-weight: 500;
+	font-size: 0.875rem;
+}
+
+.metricsTable td {
+	color: var(--color-text-primary, #f0e6d3);
+}
+
+.metricsTable tr:last-child td {
+	border-bottom: none;
+}
+
+/* Status Badge */
+.statusBadge {
+	display: inline-block;
+	padding: 0.25rem 0.5rem;
+	border-radius: 4px;
+	font-size: 0.75rem;
+	font-weight: 500;
+}
+
+.statusBadge.ontrack {
+	background: rgba(74, 157, 90, 0.2);
+	color: var(--color-success, #4a9d5a);
+}
+
+.statusBadge.warning {
+	background: rgba(201, 162, 39, 0.2);
+	color: var(--color-warning, #c9a227);
+}
+
+.statusBadge.breached {
+	background: rgba(179, 71, 71, 0.2);
+	color: var(--color-danger, #b34747);
+}
+
+/* Loading & Error */
+.loading,
+.error {
+	padding: 2rem;
+	text-align: center;
+	color: var(--color-text-secondary, #8b7355);
+}
+
+.error {
+	color: var(--color-danger, #b34747);
+}
