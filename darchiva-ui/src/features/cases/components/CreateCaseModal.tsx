@@ -20,7 +20,6 @@ export function CreateCaseModal({ onClose }: CreateCaseModalProps) {
 
         try {
             await createCaseMutation.mutateAsync({
-                caseNumber: `CASE-${Date.now()}`,
                 title: title.trim(),
                 description: description.trim() || undefined
             });

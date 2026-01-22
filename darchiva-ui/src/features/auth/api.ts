@@ -199,12 +199,55 @@ export function useDeletePasskey() {
 
 	return useMutation<{ success: boolean }, Error, { passkeyId: string }>({
 		mutationFn: async ({ passkeyId }) => {
-			const { data } = await apiClient.delete<{ success: boolean }>(`${WEBAUTHN_API}/passkeys/${passkeyId}`);
-			return data;
+			await apiClient.delete(`${WEBAUTHN_API}/passkeys/${passkeyId}`);
+			return { success: true };
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['webauthn', 'passkeys'] });
 			queryClient.invalidateQueries({ queryKey: ['mfa', 'status'] });
+		},
+	});
+}
+
+// ============ User Profile ============
+
+export interface UserProfile {
+	id: string;
+	email: string;
+	first_name?: string;
+	last_name?: string;
+	avatar_url?: string;
+	job_title?: string;
+	phone?: string;
+	preferences?: {
+		language?: string;
+		date_format?: string;
+		time_format?: string;
+		compact_view?: boolean;
+		keyboard_shortcuts?: boolean;
+	};
+}
+
+export function useCurrentUser() {
+	return useQuery<UserProfile>({
+		queryKey: ['auth', 'me'],
+		queryFn: async () => {
+			const { data } = await apiClient.get<UserProfile>('/users/me');
+			return data;
+		},
+	});
+}
+
+export function useUpdateProfile() {
+	const queryClient = useQueryClient();
+
+	return useMutation<UserProfile, Error, Partial<UserProfile>>({
+		mutationFn: async (updates) => {
+			const { data } = await apiClient.patch<UserProfile>('/users/me', updates);
+			return data;
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
 		},
 	});
 }

@@ -35,7 +35,7 @@ export interface IngestionJob {
 	error?: string;
 }
 
-export interface IngestionStats {
+export interface IngestionStatsData {
 	active: number;
 	total: number;
 	jobsToday: number;
@@ -91,11 +91,11 @@ export function useIngestionJobs(filters?: { sourceId?: string; status?: JobStat
 	});
 }
 
-export function useIngestionStats() {
+export function useIngestionStatsData() {
 	return useQuery({
 		queryKey: ingestionKeys.stats(),
 		queryFn: async () => {
-			const { data } = await apiClient.get<IngestionStats>(`${API_BASE}/stats`);
+			const { data } = await apiClient.get<IngestionStatsData>(`${API_BASE}/stats`);
 			return data;
 		},
 	});
@@ -217,7 +217,7 @@ export function useIngestionBatch(id: string) {
 			return data;
 		},
 		enabled: !!id,
-		refetchInterval: (data) => data?.status === 'processing' ? 2000 : false,
+		refetchInterval: (query) => query.state.data?.status === 'processing' ? 2000 : false,
 	});
 }
 

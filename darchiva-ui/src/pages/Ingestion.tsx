@@ -25,7 +25,7 @@ import { cn, formatRelativeTime } from '@/lib/utils';
 import {
 	useIngestionSources,
 	useIngestionJobs,
-	useIngestionStats,
+	useIngestionStatsData,
 	useToggleSource,
 	BatchUploader,
 	IngestionTemplates,
@@ -142,7 +142,7 @@ export function Ingestion() {
 	const handleViewJob = (j: IngestionJob) => openModal('view-ingestion-job', j);
 	const handleRetryJob = (j: IngestionJob) => openModal('retry-ingestion-job', j);
 	const { data: jobsData, isLoading: jobsLoading } = useIngestionJobs({ limit: 20 });
-	const { data: stats, isLoading: statsLoading } = useIngestionStats();
+	const { data: stats, isLoading: statsLoading } = useIngestionStatsData();
 
 	const sources = sourcesData?.items || [];
 	const jobs = jobsData?.items || [];

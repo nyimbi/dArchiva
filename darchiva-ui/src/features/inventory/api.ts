@@ -90,26 +90,34 @@ const API_BASE = '/inventory';
 
 // ============ QR Code Generation ============
 
+async function fetchBlob(url: string, body: unknown): Promise<Blob> {
+	const token = localStorage.getItem('darchiva_token');
+	const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+	if (token) headers['Authorization'] = `Bearer ${token}`;
+	const response = await fetch(`/api/v1${url}`, {
+		method: 'POST',
+		headers,
+		body: JSON.stringify(body),
+	});
+	if (!response.ok) throw new Error('Failed to generate');
+	return response.blob();
+}
+
 export function useGenerateQRCode() {
 	return useMutation({
 		mutationFn: async (input: QRCodeRequest): Promise<Blob> => {
-			const { data } = await apiClient.post<Blob>(
-				`${API_BASE}/qr/generate`,
-				{
-					document_id: input.documentId,
-					batch_id: input.batchId,
-					location_code: input.locationCode,
-					box_label: input.boxLabel,
-					folder_label: input.folderLabel,
-					sequence_number: input.sequenceNumber,
-					format: input.format || 'compact',
-					base_url: input.baseUrl,
-					size: input.size || 200,
-					include_label: input.includeLabel || false,
-				},
-				{ responseType: 'blob' }
-			);
-			return data;
+			return fetchBlob(`${API_BASE}/qr/generate`, {
+				document_id: input.documentId,
+				batch_id: input.batchId,
+				location_code: input.locationCode,
+				box_label: input.boxLabel,
+				folder_label: input.folderLabel,
+				sequence_number: input.sequenceNumber,
+				format: input.format || 'compact',
+				base_url: input.baseUrl,
+				size: input.size || 200,
+				include_label: input.includeLabel || false,
+			});
 		},
 	});
 }
@@ -117,20 +125,15 @@ export function useGenerateQRCode() {
 export function useGenerateDataMatrix() {
 	return useMutation({
 		mutationFn: async (input: QRCodeRequest): Promise<Blob> => {
-			const { data } = await apiClient.post<Blob>(
-				`${API_BASE}/qr/datamatrix`,
-				{
-					document_id: input.documentId,
-					batch_id: input.batchId,
-					location_code: input.locationCode,
-					box_label: input.boxLabel,
-					folder_label: input.folderLabel,
-					sequence_number: input.sequenceNumber,
-					size: input.size || 200,
-				},
-				{ responseType: 'blob' }
-			);
-			return data;
+			return fetchBlob(`${API_BASE}/qr/datamatrix`, {
+				document_id: input.documentId,
+				batch_id: input.batchId,
+				location_code: input.locationCode,
+				box_label: input.boxLabel,
+				folder_label: input.folderLabel,
+				sequence_number: input.sequenceNumber,
+				size: input.size || 200,
+			});
 		},
 	});
 }
@@ -138,23 +141,18 @@ export function useGenerateDataMatrix() {
 export function useGenerateLabelSheet() {
 	return useMutation({
 		mutationFn: async (input: LabelSheetRequest): Promise<Blob> => {
-			const { data } = await apiClient.post<Blob>(
-				`${API_BASE}/qr/sheet`,
-				{
-					documents: input.documents.map((doc) => ({
-						document_id: doc.documentId,
-						batch_id: doc.batchId,
-						location_code: doc.locationCode,
-						box_label: doc.boxLabel,
-						folder_label: doc.folderLabel,
-						sequence_number: doc.sequenceNumber,
-					})),
-					sheet_type: input.sheetType || 'letter',
-					include_text: input.includeText !== false,
-				},
-				{ responseType: 'blob' }
-			);
-			return data;
+			return fetchBlob(`${API_BASE}/qr/sheet`, {
+				documents: input.documents.map((doc) => ({
+					document_id: doc.documentId,
+					batch_id: doc.batchId,
+					location_code: doc.locationCode,
+					box_label: doc.boxLabel,
+					folder_label: doc.folderLabel,
+					sequence_number: doc.sequenceNumber,
+				})),
+				sheet_type: input.sheetType || 'letter',
+				include_text: input.includeText !== false,
+			});
 		},
 	});
 }
@@ -233,23 +231,31 @@ export function useReconcileInventory() {
 	});
 }
 
+interface DiscrepancyResolution {
+	discrepancy_id: string;
+	resolved: boolean;
+	resolved_at: string;
+	resolved_by: string;
+	resolution_notes: string;
+}
+
 export function useResolveDiscrepancy() {
 	return useMutation({
 		mutationFn: async (input: {
 			discrepancyId: string;
 			resolutionNotes: string;
-		}): Promise<{
-			discrepancyId: string;
-			resolved: boolean;
-			resolvedAt: string;
-			resolvedBy: string;
-			resolutionNotes: string;
-		}> => {
-			const { data } = await apiClient.post(`${API_BASE}/reconcile/resolve`, {
+		}) => {
+			const { data } = await apiClient.post<DiscrepancyResolution>(`${API_BASE}/reconcile/resolve`, {
 				discrepancy_id: input.discrepancyId,
 				resolution_notes: input.resolutionNotes,
 			});
-			return data;
+			return {
+				discrepancyId: data.discrepancy_id,
+				resolved: data.resolved,
+				resolvedAt: data.resolved_at,
+				resolvedBy: data.resolved_by,
+				resolutionNotes: data.resolution_notes,
+			};
 		},
 	});
 }
@@ -257,32 +263,39 @@ export function useResolveDiscrepancy() {
 
 // ============ Warehouse Locations ============
 
+type LocationApiResponse = Array<Record<string, unknown>>;
+type LocationSingleResponse = Record<string, unknown>;
+
+function mapLocation(l: Record<string, unknown>): WarehouseLocation {
+	return {
+		id: l.id as string,
+		code: l.code as string,
+		name: l.name as string,
+		description: l.description as string | undefined,
+		parentId: l.parent_id as string | undefined,
+		path: l.path as string,
+		level: l.level as number,
+		capacity: l.capacity as number | undefined,
+		currentCount: l.current_count as number,
+		climateControlled: l.climate_controlled as boolean,
+		fireSuppression: l.fire_suppression as boolean,
+		accessRestricted: l.access_restricted as boolean,
+		aisle: l.aisle as string | undefined,
+		bay: l.bay as string | undefined,
+		shelfNumber: l.shelf_number as string | undefined,
+		position: l.position as string | undefined,
+		createdAt: l.created_at as string,
+	};
+}
+
 export function useLocations(parentId?: string) {
 	return useQuery({
 		queryKey: ['inventory', 'locations', parentId],
 		queryFn: async (): Promise<WarehouseLocation[]> => {
 			const params = new URLSearchParams();
 			if (parentId) params.append('parent_id', parentId);
-			const { data } = await apiClient.get(`${API_BASE}/locations?${params}`);
-			return data.map((l: Record<string, unknown>) => ({
-				id: l.id,
-				code: l.code,
-				name: l.name,
-				description: l.description,
-				parentId: l.parent_id,
-				path: l.path,
-				level: l.level,
-				capacity: l.capacity,
-				currentCount: l.current_count,
-				climateControlled: l.climate_controlled,
-				fireSuppression: l.fire_suppression,
-				accessRestricted: l.access_restricted,
-				aisle: l.aisle,
-				bay: l.bay,
-				shelfNumber: l.shelf_number,
-				position: l.position,
-				createdAt: l.created_at,
-			}));
+			const { data } = await apiClient.get<LocationApiResponse>(`${API_BASE}/locations?${params}`);
+			return data.map(mapLocation);
 		},
 	});
 }
@@ -291,26 +304,8 @@ export function useLocation(locationId: string) {
 	return useQuery({
 		queryKey: ['inventory', 'location', locationId],
 		queryFn: async (): Promise<WarehouseLocation> => {
-			const { data } = await apiClient.get(`${API_BASE}/locations/${locationId}`);
-			return {
-				id: data.id,
-				code: data.code,
-				name: data.name,
-				description: data.description,
-				parentId: data.parent_id,
-				path: data.path,
-				level: data.level,
-				capacity: data.capacity,
-				currentCount: data.current_count,
-				climateControlled: data.climate_controlled,
-				fireSuppression: data.fire_suppression,
-				accessRestricted: data.access_restricted,
-				aisle: data.aisle,
-				bay: data.bay,
-				shelfNumber: data.shelf_number,
-				position: data.position,
-				createdAt: data.created_at,
-			};
+			const { data } = await apiClient.get<LocationSingleResponse>(`${API_BASE}/locations/${locationId}`);
+			return mapLocation(data);
 		},
 		enabled: !!locationId,
 	});
@@ -320,26 +315,8 @@ export function useLocationTree(locationId: string) {
 	return useQuery({
 		queryKey: ['inventory', 'location', 'tree', locationId],
 		queryFn: async (): Promise<WarehouseLocation[]> => {
-			const { data } = await apiClient.get(`${API_BASE}/locations/${locationId}/tree`);
-			return data.map((l: Record<string, unknown>) => ({
-				id: l.id,
-				code: l.code,
-				name: l.name,
-				description: l.description,
-				parentId: l.parent_id,
-				path: l.path,
-				level: l.level,
-				capacity: l.capacity,
-				currentCount: l.current_count,
-				climateControlled: l.climate_controlled,
-				fireSuppression: l.fire_suppression,
-				accessRestricted: l.access_restricted,
-				aisle: l.aisle,
-				bay: l.bay,
-				shelfNumber: l.shelf_number,
-				position: l.position,
-				createdAt: l.created_at,
-			}));
+			const { data } = await apiClient.get<LocationApiResponse>(`${API_BASE}/locations/${locationId}/tree`);
+			return data.map(mapLocation);
 		},
 		enabled: !!locationId,
 	});
@@ -362,7 +339,7 @@ export function useCreateLocation() {
 			shelfNumber?: string;
 			position?: string;
 		}): Promise<WarehouseLocation> => {
-			const { data } = await apiClient.post(`${API_BASE}/locations`, {
+			const { data } = await apiClient.post<LocationSingleResponse>(`${API_BASE}/locations`, {
 				code: input.code,
 				name: input.name,
 				description: input.description,
@@ -376,7 +353,7 @@ export function useCreateLocation() {
 				shelf_number: input.shelfNumber,
 				position: input.position,
 			});
-			return data;
+			return mapLocation(data);
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['inventory', 'locations'] });
@@ -386,6 +363,32 @@ export function useCreateLocation() {
 
 
 // ============ Physical Containers ============
+
+type ContainerApiResponse = Array<Record<string, unknown>>;
+type ContainerSingleResponse = Record<string, unknown>;
+
+function mapContainer(c: Record<string, unknown>): PhysicalContainer {
+	return {
+		id: c.id as string,
+		barcode: c.barcode as string,
+		containerType: c.container_type as PhysicalContainer['containerType'],
+		label: c.label as string | undefined,
+		description: c.description as string | undefined,
+		locationId: c.location_id as string | undefined,
+		parentContainerId: c.parent_container_id as string | undefined,
+		status: c.status as PhysicalContainer['status'],
+		itemCount: c.item_count as number,
+		weightKg: c.weight_kg ? Number(c.weight_kg) / 100 : undefined,
+		dimensions: c.dimensions as PhysicalContainer['dimensions'],
+		retentionDate: c.retention_date as string | undefined,
+		destructionEligible: c.destruction_eligible as boolean,
+		legalHold: c.legal_hold as boolean,
+		currentCustodianId: c.current_custodian_id as string | undefined,
+		lastVerifiedAt: c.last_verified_at as string | undefined,
+		createdAt: c.created_at as string,
+		scanningProjectId: c.scanning_project_id as string | undefined,
+	};
+}
 
 export function useContainers(filters?: {
 	locationId?: string;
@@ -403,27 +406,8 @@ export function useContainers(filters?: {
 			if (filters?.containerType) params.append('container_type', filters.containerType);
 			if (filters?.limit) params.append('limit', filters.limit.toString());
 			if (filters?.offset) params.append('offset', filters.offset.toString());
-			const { data } = await apiClient.get(`${API_BASE}/containers?${params}`);
-			return data.map((c: Record<string, unknown>) => ({
-				id: c.id,
-				barcode: c.barcode,
-				containerType: c.container_type,
-				label: c.label,
-				description: c.description,
-				locationId: c.location_id,
-				parentContainerId: c.parent_container_id,
-				status: c.status,
-				itemCount: c.item_count,
-				weightKg: c.weight_kg ? Number(c.weight_kg) / 100 : undefined,
-				dimensions: c.dimensions,
-				retentionDate: c.retention_date,
-				destructionEligible: c.destruction_eligible,
-				legalHold: c.legal_hold,
-				currentCustodianId: c.current_custodian_id,
-				lastVerifiedAt: c.last_verified_at,
-				createdAt: c.created_at,
-				scanningProjectId: c.scanning_project_id,
-			}));
+			const { data } = await apiClient.get<ContainerApiResponse>(`${API_BASE}/containers?${params}`);
+			return data.map(mapContainer);
 		},
 	});
 }
@@ -432,27 +416,8 @@ export function useContainer(containerId: string) {
 	return useQuery({
 		queryKey: ['inventory', 'container', containerId],
 		queryFn: async (): Promise<PhysicalContainer> => {
-			const { data } = await apiClient.get(`${API_BASE}/containers/${containerId}`);
-			return {
-				id: data.id,
-				barcode: data.barcode,
-				containerType: data.container_type,
-				label: data.label,
-				description: data.description,
-				locationId: data.location_id,
-				parentContainerId: data.parent_container_id,
-				status: data.status,
-				itemCount: data.item_count,
-				weightKg: data.weight_kg ? Number(data.weight_kg) / 100 : undefined,
-				dimensions: data.dimensions,
-				retentionDate: data.retention_date,
-				destructionEligible: data.destruction_eligible,
-				legalHold: data.legal_hold,
-				currentCustodianId: data.current_custodian_id,
-				lastVerifiedAt: data.last_verified_at,
-				createdAt: data.created_at,
-				scanningProjectId: data.scanning_project_id,
-			};
+			const { data } = await apiClient.get<ContainerSingleResponse>(`${API_BASE}/containers/${containerId}`);
+			return mapContainer(data);
 		},
 		enabled: !!containerId,
 	});
@@ -462,27 +427,8 @@ export function useContainerByBarcode(barcode: string) {
 	return useQuery({
 		queryKey: ['inventory', 'container', 'barcode', barcode],
 		queryFn: async (): Promise<PhysicalContainer> => {
-			const { data } = await apiClient.get(`${API_BASE}/containers/barcode/${encodeURIComponent(barcode)}`);
-			return {
-				id: data.id,
-				barcode: data.barcode,
-				containerType: data.container_type,
-				label: data.label,
-				description: data.description,
-				locationId: data.location_id,
-				parentContainerId: data.parent_container_id,
-				status: data.status,
-				itemCount: data.item_count,
-				weightKg: data.weight_kg ? Number(data.weight_kg) / 100 : undefined,
-				dimensions: data.dimensions,
-				retentionDate: data.retention_date,
-				destructionEligible: data.destruction_eligible,
-				legalHold: data.legal_hold,
-				currentCustodianId: data.current_custodian_id,
-				lastVerifiedAt: data.last_verified_at,
-				createdAt: data.created_at,
-				scanningProjectId: data.scanning_project_id,
-			};
+			const { data } = await apiClient.get<ContainerSingleResponse>(`${API_BASE}/containers/barcode/${encodeURIComponent(barcode)}`);
+			return mapContainer(data);
 		},
 		enabled: !!barcode,
 	});
@@ -503,7 +449,7 @@ export function useCreateContainer() {
 			retentionDate?: string;
 			scanningProjectId?: string;
 		}): Promise<PhysicalContainer> => {
-			const { data } = await apiClient.post(`${API_BASE}/containers`, {
+			const { data } = await apiClient.post<ContainerSingleResponse>(`${API_BASE}/containers`, {
 				barcode: input.barcode,
 				container_type: input.containerType || 'box',
 				label: input.label,
@@ -515,13 +461,15 @@ export function useCreateContainer() {
 				retention_date: input.retentionDate,
 				scanning_project_id: input.scanningProjectId,
 			});
-			return data;
+			return mapContainer(data);
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['inventory', 'containers'] });
 		},
 	});
 }
+
+interface ContainerActionResponse { status: string; container_id: string }
 
 export function useMoveContainer() {
 	const queryClient = useQueryClient();
@@ -532,15 +480,15 @@ export function useMoveContainer() {
 			toCustodianId?: string;
 			reason?: string;
 			notes?: string;
-		}): Promise<{ status: string; containerId: string }> => {
-			const { data } = await apiClient.post(`${API_BASE}/containers/${input.containerId}/move`, {
+		}) => {
+			const { data } = await apiClient.post<ContainerActionResponse>(`${API_BASE}/containers/${input.containerId}/move`, {
 				container_id: input.containerId,
 				to_location_id: input.toLocationId,
 				to_custodian_id: input.toCustodianId,
 				reason: input.reason,
 				notes: input.notes,
 			});
-			return data;
+			return { status: data.status, containerId: data.container_id };
 		},
 		onSuccess: (_, variables) => {
 			queryClient.invalidateQueries({ queryKey: ['inventory', 'container', variables.containerId] });
@@ -557,14 +505,14 @@ export function useCheckoutContainer() {
 			toUserId: string;
 			reason: string;
 			expectedReturnDate?: string;
-		}): Promise<{ status: string; containerId: string }> => {
-			const { data } = await apiClient.post(`${API_BASE}/containers/${input.containerId}/checkout`, {
+		}) => {
+			const { data } = await apiClient.post<ContainerActionResponse>(`${API_BASE}/containers/${input.containerId}/checkout`, {
 				container_id: input.containerId,
 				to_user_id: input.toUserId,
 				reason: input.reason,
 				expected_return_date: input.expectedReturnDate,
 			});
-			return data;
+			return { status: data.status, containerId: data.container_id };
 		},
 		onSuccess: (_, variables) => {
 			queryClient.invalidateQueries({ queryKey: ['inventory', 'container', variables.containerId] });
@@ -580,13 +528,13 @@ export function useCheckinContainer() {
 			containerId: string;
 			toLocationId: string;
 			notes?: string;
-		}): Promise<{ status: string; containerId: string }> => {
-			const { data } = await apiClient.post(`${API_BASE}/containers/${input.containerId}/checkin`, {
+		}) => {
+			const { data } = await apiClient.post<ContainerActionResponse>(`${API_BASE}/containers/${input.containerId}/checkin`, {
 				container_id: input.containerId,
 				to_location_id: input.toLocationId,
 				notes: input.notes,
 			});
-			return data;
+			return { status: data.status, containerId: data.container_id };
 		},
 		onSuccess: (_, variables) => {
 			queryClient.invalidateQueries({ queryKey: ['inventory', 'container', variables.containerId] });
@@ -595,12 +543,14 @@ export function useCheckinContainer() {
 	});
 }
 
+interface VerifyResponse { status: string; verified_at: string }
+
 export function useVerifyContainer() {
 	const queryClient = useQueryClient();
 	return useMutation({
-		mutationFn: async (containerId: string): Promise<{ status: string; verifiedAt: string }> => {
-			const { data } = await apiClient.post(`${API_BASE}/containers/${containerId}/verify`);
-			return data;
+		mutationFn: async (containerId: string) => {
+			const { data } = await apiClient.post<VerifyResponse>(`${API_BASE}/containers/${containerId}/verify`);
+			return { status: data.status, verifiedAt: data.verified_at };
 		},
 		onSuccess: (_, containerId) => {
 			queryClient.invalidateQueries({ queryKey: ['inventory', 'container', containerId] });
@@ -608,25 +558,31 @@ export function useVerifyContainer() {
 	});
 }
 
+type CustodyApiResponse = Array<Record<string, unknown>>;
+
+function mapCustodyEvent(e: Record<string, unknown>): CustodyEvent {
+	return {
+		id: e.id as string,
+		containerId: e.container_id as string,
+		eventType: e.event_type as CustodyEvent['eventType'],
+		fromUserId: e.from_user_id as string | undefined,
+		toUserId: e.to_user_id as string | undefined,
+		performedById: e.performed_by_id as string,
+		fromLocationId: e.from_location_id as string | undefined,
+		toLocationId: e.to_location_id as string | undefined,
+		reason: e.reason as string | undefined,
+		notes: e.notes as string | undefined,
+		signatureCaptured: e.signature_captured as boolean,
+		createdAt: e.created_at as string,
+	};
+}
+
 export function useContainerCustodyHistory(containerId: string) {
 	return useQuery({
 		queryKey: ['inventory', 'container', 'custody', containerId],
 		queryFn: async (): Promise<CustodyEvent[]> => {
-			const { data } = await apiClient.get(`${API_BASE}/containers/${containerId}/custody`);
-			return data.map((e: Record<string, unknown>) => ({
-				id: e.id,
-				containerId: e.container_id,
-				eventType: e.event_type,
-				fromUserId: e.from_user_id,
-				toUserId: e.to_user_id,
-				performedById: e.performed_by_id,
-				fromLocationId: e.from_location_id,
-				toLocationId: e.to_location_id,
-				reason: e.reason,
-				notes: e.notes,
-				signatureCaptured: e.signature_captured,
-				createdAt: e.created_at,
-			}));
+			const { data } = await apiClient.get<CustodyApiResponse>(`${API_BASE}/containers/${containerId}/custody`);
+			return data.map(mapCustodyEvent);
 		},
 		enabled: !!containerId,
 	});
@@ -634,6 +590,14 @@ export function useContainerCustodyHistory(containerId: string) {
 
 
 // ============ Barcode Scanning ============
+
+interface ScanApiResponse {
+	success: boolean;
+	resolved_type?: string;
+	resolved_id?: string;
+	resolved_data?: Record<string, unknown>;
+	error_message?: string;
+}
 
 export function useScanBarcode() {
 	const queryClient = useQueryClient();
@@ -646,7 +610,7 @@ export function useScanBarcode() {
 			latitude?: number;
 			longitude?: number;
 		}): Promise<ScanResult> => {
-			const { data } = await apiClient.post(`${API_BASE}/scan`, {
+			const { data } = await apiClient.post<ScanApiResponse>(`${API_BASE}/scan`, {
 				scanned_code: input.scannedCode,
 				code_type: input.codeType || 'qr',
 				scan_purpose: input.scanPurpose || 'lookup',
@@ -656,7 +620,7 @@ export function useScanBarcode() {
 			});
 			return {
 				success: data.success,
-				resolvedType: data.resolved_type,
+				resolvedType: data.resolved_type as ScanResult['resolvedType'],
 				resolvedId: data.resolved_id,
 				resolvedData: data.resolved_data,
 				errorMessage: data.error_message,
@@ -668,25 +632,20 @@ export function useScanBarcode() {
 	});
 }
 
+type ScanHistoryResponse = Array<Record<string, unknown>>;
+
 export function useScanHistory(limit = 50, offset = 0) {
 	return useQuery({
 		queryKey: ['inventory', 'scan', 'history', limit, offset],
-		queryFn: async (): Promise<{
-			id: string;
-			scannedCode: string;
-			codeType: string;
-			success: boolean;
-			scanPurpose?: string;
-			createdAt: string;
-		}[]> => {
-			const { data } = await apiClient.get(`${API_BASE}/scan/history?limit=${limit}&offset=${offset}`);
-			return data.map((s: Record<string, unknown>) => ({
-				id: s.id,
-				scannedCode: s.scanned_code,
-				codeType: s.code_type,
-				success: s.success,
-				scanPurpose: s.scan_purpose,
-				createdAt: s.created_at,
+		queryFn: async () => {
+			const { data } = await apiClient.get<ScanHistoryResponse>(`${API_BASE}/scan/history?limit=${limit}&offset=${offset}`);
+			return data.map((s) => ({
+				id: s.id as string,
+				scannedCode: s.scanned_code as string,
+				codeType: s.code_type as string,
+				success: s.success as boolean,
+				scanPurpose: s.scan_purpose as string | undefined,
+				createdAt: s.created_at as string,
 			}));
 		},
 	});
@@ -703,13 +662,13 @@ export function useAddDocumentToContainer() {
 			documentId: string;
 			sequenceNumber?: number;
 			pageCount?: number;
-		}): Promise<{ status: string; containerId: string; documentId: string }> => {
+		}) => {
 			const params = new URLSearchParams();
 			params.append('document_id', input.documentId);
 			if (input.sequenceNumber !== undefined) params.append('sequence_number', input.sequenceNumber.toString());
 			if (input.pageCount !== undefined) params.append('page_count', input.pageCount.toString());
-			const { data } = await apiClient.post(`${API_BASE}/containers/${input.containerId}/documents?${params}`);
-			return data;
+			const { data } = await apiClient.post<{ status: string; container_id: string; document_id: string }>(`${API_BASE}/containers/${input.containerId}/documents?${params}`);
+			return { status: data.status, containerId: data.container_id, documentId: data.document_id };
 		},
 		onSuccess: (_, variables) => {
 			queryClient.invalidateQueries({ queryKey: ['inventory', 'container', variables.containerId] });
@@ -718,25 +677,20 @@ export function useAddDocumentToContainer() {
 	});
 }
 
+type ContainerDocumentsResponse = Array<Record<string, unknown>>;
+
 export function useContainerDocuments(containerId: string) {
 	return useQuery({
 		queryKey: ['inventory', 'container', 'documents', containerId],
-		queryFn: async (): Promise<{
-			id: string;
-			documentId: string;
-			sequenceNumber?: number;
-			pageCount?: number;
-			hasPhysical: boolean;
-			verified: boolean;
-		}[]> => {
-			const { data } = await apiClient.get(`${API_BASE}/containers/${containerId}/documents`);
-			return data.map((d: Record<string, unknown>) => ({
-				id: d.id,
-				documentId: d.document_id,
-				sequenceNumber: d.sequence_number,
-				pageCount: d.page_count,
-				hasPhysical: d.has_physical,
-				verified: d.verified,
+		queryFn: async () => {
+			const { data } = await apiClient.get<ContainerDocumentsResponse>(`${API_BASE}/containers/${containerId}/documents`);
+			return data.map((d) => ({
+				id: d.id as string,
+				documentId: d.document_id as string,
+				sequenceNumber: d.sequence_number as number | undefined,
+				pageCount: d.page_count as number | undefined,
+				hasPhysical: d.has_physical as boolean,
+				verified: d.verified as boolean,
 			}));
 		},
 		enabled: !!containerId,
@@ -746,11 +700,19 @@ export function useContainerDocuments(containerId: string) {
 
 // ============ Reports ============
 
+interface InventorySummaryResponse {
+	containers_by_status: Record<string, number>;
+	containers_by_type: Record<string, number>;
+	total_locations: number;
+	overdue_for_retention: number;
+	legal_holds: number;
+}
+
 export function useInventorySummary() {
 	return useQuery({
 		queryKey: ['inventory', 'summary'],
 		queryFn: async (): Promise<InventorySummary> => {
-			const { data } = await apiClient.get(`${API_BASE}/reports/summary`);
+			const { data } = await apiClient.get<InventorySummaryResponse>(`${API_BASE}/reports/summary`);
 			return {
 				containersByStatus: data.containers_by_status,
 				containersByType: data.containers_by_type,

@@ -1,9 +1,9 @@
 // (c) Copyright Datacraft, 2026
-import { useIngestionStats, useIngestionJobs } from '../api';
+import { useIngestionStatsData, useIngestionJobs } from '../api';
 import styles from './IngestionStats.module.css';
 
 export function IngestionStats() {
-	const { data: stats, isLoading } = useIngestionStats();
+	const { data: stats, isLoading } = useIngestionStatsData();
 	const { data: recentJobs } = useIngestionJobs({ limit: 5 });
 
 	if (isLoading) {

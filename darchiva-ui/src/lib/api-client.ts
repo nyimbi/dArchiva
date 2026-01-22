@@ -84,14 +84,17 @@ export const apiClient = {
 		return { data, status: response.status };
 	},
 
-	async delete(endpoint: string): Promise<ApiResponse<void>> {
+	async delete<T = void>(endpoint: string): Promise<ApiResponse<T>> {
 		const response = await fetch(`${API_BASE}${endpoint}`, {
 			method: 'DELETE',
 			headers: getAuthHeaders(),
 		});
 		if (!response.ok) return await handleApiError(response);
 
-		return { data: undefined as void, status: response.status };
+		// Try to parse JSON response, return undefined if empty
+		const text = await response.text();
+		const data = text ? snakeToCamel<T>(JSON.parse(text)) : (undefined as T);
+		return { data, status: response.status };
 	},
 
 	async put<T>(endpoint: string, body?: unknown): Promise<ApiResponse<T>> {
