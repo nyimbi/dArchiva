@@ -40,8 +40,8 @@ function buildTagTree(tags: Tag[]): TagTreeNode[] {
 	// Build tree
 	tags.forEach((tag) => {
 		const node = map.get(tag.id)!;
-		if (tag.parent_id && map.has(tag.parent_id)) {
-			map.get(tag.parent_id)!.children.push(node);
+		if (tag.parentId && map.has(tag.parentId)) {
+			map.get(tag.parentId)!.children.push(node);
 		} else {
 			roots.push(node);
 		}
@@ -193,7 +193,7 @@ function TagTreeItem({ node, level, selectedId, expandedIds, onToggleExpand, onS
 
 				<span className="text-xs text-muted-foreground flex items-center gap-1">
 					<FileText className="h-3 w-3" />
-					{node.document_count}
+					{node.documentCount}
 				</span>
 
 				<div className="hidden group-hover:flex items-center gap-1">

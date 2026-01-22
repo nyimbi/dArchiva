@@ -1,5 +1,5 @@
 // (c) Copyright Datacraft, 2026
-import { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
 	Settings as SettingsIcon,
@@ -131,6 +131,27 @@ function GeneralSettings() {
 }
 
 function BrandingSettings() {
+	const [logoLight, setLogoLight] = useState<string | null>(null);
+	const [logoDark, setLogoDark] = useState<string | null>(null);
+	const [favicon, setFavicon] = useState<string | null>(null);
+	const [bgImage, setBgImage] = useState<string | null>(null);
+
+	const logoLightRef = useRef<HTMLInputElement>(null);
+	const logoDarkRef = useRef<HTMLInputElement>(null);
+	const faviconRef = useRef<HTMLInputElement>(null);
+	const bgImageRef = useRef<HTMLInputElement>(null);
+
+	const handleFileChange = (
+		e: React.ChangeEvent<HTMLInputElement>,
+		setter: (url: string | null) => void
+	) => {
+		const file = e.target.files?.[0];
+		if (file) {
+			const url = URL.createObjectURL(file);
+			setter(url);
+		}
+	};
+
 	return (
 		<div className="space-y-6">
 			<div>
@@ -138,18 +159,60 @@ function BrandingSettings() {
 					Logo & Icons
 				</h3>
 				<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-					<div className="p-6 bg-slate-800/30 rounded-xl border-2 border-dashed border-slate-700 hover:border-brass-500/50 transition-colors cursor-pointer text-center">
-						<Upload className="w-8 h-8 mx-auto text-slate-500 mb-2" />
+					<div
+						onClick={() => logoLightRef.current?.click()}
+						className="p-6 bg-slate-800/30 rounded-xl border-2 border-dashed border-slate-700 hover:border-brass-500/50 transition-colors cursor-pointer text-center"
+					>
+						<input
+							ref={logoLightRef}
+							type="file"
+							accept="image/png,image/svg+xml"
+							className="hidden"
+							onChange={(e) => handleFileChange(e, setLogoLight)}
+						/>
+						{logoLight ? (
+							<img src={logoLight} alt="Logo Light" className="h-12 mx-auto object-contain" />
+						) : (
+							<Upload className="w-8 h-8 mx-auto text-slate-500 mb-2" />
+						)}
 						<p className="text-sm text-slate-400">Logo (Light)</p>
 						<p className="text-xs text-slate-600 mt-1">PNG, SVG • Max 2MB</p>
 					</div>
-					<div className="p-6 bg-slate-800/30 rounded-xl border-2 border-dashed border-slate-700 hover:border-brass-500/50 transition-colors cursor-pointer text-center">
-						<Upload className="w-8 h-8 mx-auto text-slate-500 mb-2" />
+					<div
+						onClick={() => logoDarkRef.current?.click()}
+						className="p-6 bg-slate-800/30 rounded-xl border-2 border-dashed border-slate-700 hover:border-brass-500/50 transition-colors cursor-pointer text-center"
+					>
+						<input
+							ref={logoDarkRef}
+							type="file"
+							accept="image/png,image/svg+xml"
+							className="hidden"
+							onChange={(e) => handleFileChange(e, setLogoDark)}
+						/>
+						{logoDark ? (
+							<img src={logoDark} alt="Logo Dark" className="h-12 mx-auto object-contain" />
+						) : (
+							<Upload className="w-8 h-8 mx-auto text-slate-500 mb-2" />
+						)}
 						<p className="text-sm text-slate-400">Logo (Dark)</p>
 						<p className="text-xs text-slate-600 mt-1">PNG, SVG • Max 2MB</p>
 					</div>
-					<div className="p-6 bg-slate-800/30 rounded-xl border-2 border-dashed border-slate-700 hover:border-brass-500/50 transition-colors cursor-pointer text-center">
-						<Upload className="w-8 h-8 mx-auto text-slate-500 mb-2" />
+					<div
+						onClick={() => faviconRef.current?.click()}
+						className="p-6 bg-slate-800/30 rounded-xl border-2 border-dashed border-slate-700 hover:border-brass-500/50 transition-colors cursor-pointer text-center"
+					>
+						<input
+							ref={faviconRef}
+							type="file"
+							accept="image/x-icon,image/png"
+							className="hidden"
+							onChange={(e) => handleFileChange(e, setFavicon)}
+						/>
+						{favicon ? (
+							<img src={favicon} alt="Favicon" className="w-8 h-8 mx-auto object-contain" />
+						) : (
+							<Upload className="w-8 h-8 mx-auto text-slate-500 mb-2" />
+						)}
 						<p className="text-sm text-slate-400">Favicon</p>
 						<p className="text-xs text-slate-600 mt-1">ICO, PNG • 32x32</p>
 					</div>
@@ -185,9 +248,25 @@ function BrandingSettings() {
 				<div className="space-y-4">
 					<div>
 						<label className="text-sm text-slate-400 mb-1 block">Background Image</label>
-						<div className="p-6 bg-slate-800/30 rounded-xl border-2 border-dashed border-slate-700 hover:border-brass-500/50 transition-colors cursor-pointer text-center">
-							<Upload className="w-8 h-8 mx-auto text-slate-500 mb-2" />
-							<p className="text-sm text-slate-400">Drop image or click to upload</p>
+						<div
+							onClick={() => bgImageRef.current?.click()}
+							className="p-6 bg-slate-800/30 rounded-xl border-2 border-dashed border-slate-700 hover:border-brass-500/50 transition-colors cursor-pointer text-center"
+						>
+							<input
+								ref={bgImageRef}
+								type="file"
+								accept="image/*"
+								className="hidden"
+								onChange={(e) => handleFileChange(e, setBgImage)}
+							/>
+							{bgImage ? (
+								<img src={bgImage} alt="Background" className="h-24 mx-auto object-cover rounded" />
+							) : (
+								<>
+									<Upload className="w-8 h-8 mx-auto text-slate-500 mb-2" />
+									<p className="text-sm text-slate-400">Drop image or click to upload</p>
+								</>
+							)}
 						</div>
 					</div>
 					<div>

@@ -46,7 +46,7 @@ export function TagForm({ tag, onSuccess, onCancel }: TagFormProps) {
 	const [name, setName] = useState(tag?.name ?? '');
 	const [description, setDescription] = useState(tag?.description ?? '');
 	const [color, setColor] = useState(tag?.color ?? '#64748b');
-	const [parentId, setParentId] = useState<string | undefined>(tag?.parent_id);
+	const [parentId, setParentId] = useState<string | undefined>(tag?.parentId);
 
 	const tags = tagsData?.items ?? [];
 	const availableParents = tags.filter((t) => t.id !== tag?.id);
@@ -63,7 +63,7 @@ export function TagForm({ tag, onSuccess, onCancel }: TagFormProps) {
 			name: name.trim(),
 			description: description.trim() || undefined,
 			color,
-			parent_id: parentId,
+			parentId: parentId,
 		};
 
 		try {

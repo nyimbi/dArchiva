@@ -9,10 +9,10 @@ export interface Tag {
 	description?: string;
 	color?: string;
 	icon?: string;
-	parent_id?: string;
-	document_count: number;
-	created_at: string;
-	updated_at: string;
+	parentId?: string;
+	documentCount: number;
+	createdAt: string;
+	updatedAt: string;
 }
 
 export interface TagCreate {
@@ -20,7 +20,7 @@ export interface TagCreate {
 	description?: string;
 	color?: string;
 	icon?: string;
-	parent_id?: string;
+	parentId?: string;
 }
 
 export interface TagUpdate {
@@ -28,7 +28,7 @@ export interface TagUpdate {
 	description?: string;
 	color?: string;
 	icon?: string;
-	parent_id?: string;
+	parentId?: string;
 }
 
 export interface TagListResponse {
