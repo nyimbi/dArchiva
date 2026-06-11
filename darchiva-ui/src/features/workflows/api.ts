@@ -2,19 +2,26 @@
 /**
  * Workflow API client.
  *
- * The backend has a step-based workflow system for document approvals,
- * while the frontend Designer uses a visual node/edge graph.
+ * The backend exposes step-based workflow definitions. The frontend uses
+ * visual nodes/edges, so this module maps between both representations.
  */
 import { apiClient } from '@/lib/api-client';
 import type {
-	Workflow,
-	WorkflowExecution,
-	WorkflowNode,
-	WorkflowEdge,
-	WorkflowTemplate,
+  Workflow,
+  WorkflowEdge,
+  WorkflowExecution,
+  WorkflowNode,
+  WorkflowTemplate,
 } from './types';
 
 const API_BASE = '/workflows';
+
+const UUID_RE =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isUuid(value: unknown): value is string {
+	return typeof value === 'string' && UUID_RE.test(value);
+}
 
 // Backend workflow types (step-based)
 export interface WorkflowStep {
@@ -26,28 +33,168 @@ export interface WorkflowStep {
 	deadline_hours?: number;
 }
 
-export interface BackendWorkflow {
+interface BackendWorkflowSummary {
 	id: string;
 	name: string;
 	description?: string;
 	is_active: boolean;
-	steps: WorkflowStep[];
-	created_at: string;
-	updated_at: string;
+	created_at?: string;
 }
 
-export interface WorkflowInstance {
+interface BackendWorkflowDetail extends BackendWorkflowSummary {
+	steps?: WorkflowStep[];
+}
+
+interface BackendWorkflowExecution {
 	id: string;
 	workflow_id: string;
-	workflow_name: string;
+	workflow_name?: string | null;
 	document_id: string;
-	document_title: string;
-	current_step: number;
-	status: 'pending' | 'in_progress' | 'on_hold' | 'completed' | 'rejected' | 'cancelled';
-	started_at: string;
-	completed_at?: string;
-	/** Prefect flow run ID for execution tracking */
-	prefect_flow_run_id?: string;
+	status: string;
+	current_step_id?: string | null;
+	started_at?: string | null;
+	completed_at?: string | null;
+	prefect_flow_run_id?: string | null;
+}
+
+function toFrontendStatus(status: string): WorkflowExecution['status'] {
+	switch (status) {
+		case 'in_progress':
+			return 'running';
+		case 'completed':
+			return 'completed';
+		case 'cancelled':
+			return 'cancelled';
+		case 'failed':
+		case 'rejected':
+			return 'failed';
+		case 'on_hold':
+			return 'on_hold';
+		case 'pending':
+		default:
+			return 'pending';
+	}
+}
+
+function toWorkflowNodes(steps: WorkflowStep[]): WorkflowNode[] {
+	if (steps.length === 0) {
+		return [
+			{
+				id: 'source-1',
+				type: 'source',
+				label: 'Start',
+				config: {},
+				position: { x: 120, y: 120 },
+			},
+		];
+	}
+
+	const sorted = [...steps].sort((a, b) => a.step_order - b.step_order);
+	return sorted.map((step, index) => ({
+		id: step.id,
+		type: 'approval',
+		label: step.name,
+		config: {
+			assigneeType: step.assignee_type,
+			assigneeId: step.assignee_id,
+			deadlineHours: step.deadline_hours,
+		},
+		position: { x: 220 + index * 240, y: 140 },
+	}));
+}
+
+function toWorkflowEdges(steps: WorkflowStep[]): WorkflowEdge[] {
+	const sorted = [...steps].sort((a, b) => a.step_order - b.step_order);
+	if (sorted.length < 2) return [];
+
+	const edges: WorkflowEdge[] = [];
+	for (let i = 0; i < sorted.length - 1; i += 1) {
+		edges.push({
+			id: `edge-${sorted[i].id}-${sorted[i + 1].id}`,
+			source: sorted[i].id,
+			target: sorted[i + 1].id,
+		});
+	}
+	return edges;
+}
+
+function toWorkflowModel(workflow: BackendWorkflowDetail): Workflow {
+	const steps = workflow.steps ?? [];
+	return {
+		id: workflow.id,
+		name: workflow.name,
+		description: workflow.description ?? '',
+		version: 1,
+		status: workflow.is_active ? 'active' : 'archived',
+		nodes: toWorkflowNodes(steps),
+		edges: toWorkflowEdges(steps),
+		trigger: {
+			type: 'manual',
+			config: {},
+		},
+		createdAt: workflow.created_at ?? new Date().toISOString(),
+		updatedAt: workflow.created_at ?? new Date().toISOString(),
+		createdBy: 'system',
+	};
+}
+
+function toWorkflowExecutionModel(exec: BackendWorkflowExecution): WorkflowExecution {
+	return {
+		id: exec.id,
+		workflowId: exec.workflow_id,
+		workflowVersion: 1,
+		status: toFrontendStatus(exec.status),
+		startTime: exec.started_at ?? new Date().toISOString(),
+		endTime: exec.completed_at ?? undefined,
+		currentNodeId: exec.current_step_id ?? undefined,
+		documentId: exec.document_id,
+		error: undefined,
+		nodeExecutions: [],
+		prefectFlowRunId: exec.prefect_flow_run_id ?? undefined,
+	};
+}
+
+function toBackendSteps(nodes: WorkflowNode[]): Array<{
+	name: string;
+	assignee_type: 'user' | 'role' | 'group';
+	assignee_id?: string;
+	deadline_hours?: number;
+}> {
+	const sorted = [...nodes]
+		.filter((node) => node.type !== 'source')
+		.sort((a, b) => a.position.x - b.position.x);
+
+	const effective = sorted.length > 0
+		? sorted
+		: [{ id: 'generated-step', type: 'approval', label: 'Review', config: {}, position: { x: 0, y: 0 } } as WorkflowNode];
+
+	return effective.map((node, index) => {
+		const assigneeTypeRaw = node.config?.assigneeType;
+		const assigneeType =
+			assigneeTypeRaw === 'role' || assigneeTypeRaw === 'group' ? assigneeTypeRaw : 'user';
+
+		const assigneeIdRaw = node.config?.assigneeId;
+		const deadlineRaw = node.config?.deadlineHours;
+
+		const step: {
+			name: string;
+			assignee_type: 'user' | 'role' | 'group';
+			assignee_id?: string;
+			deadline_hours?: number;
+		} = {
+			name: node.label?.trim() || `Step ${index + 1}`,
+			assignee_type: assigneeType,
+		};
+
+		if (isUuid(assigneeIdRaw)) {
+			step.assignee_id = assigneeIdRaw;
+		}
+		if (typeof deadlineRaw === 'number' && Number.isFinite(deadlineRaw)) {
+			step.deadline_hours = Math.max(1, Math.floor(deadlineRaw));
+		}
+
+		return step;
+	});
 }
 
 export interface PendingTask {
@@ -60,6 +207,32 @@ export interface PendingTask {
 	assigned_at: string;
 	deadline?: string;
 	priority: 'low' | 'normal' | 'high' | 'urgent';
+}
+
+function toPendingTask(raw: Record<string, unknown>): PendingTask {
+	const id = String(raw.id ?? '');
+	const instanceId = String(raw.instance_id ?? raw.instanceId ?? '');
+	const documentId = String(raw.document_id ?? raw.documentId ?? '');
+	const assignedAt = String(raw.assigned_at ?? raw.assignedAt ?? raw.started_at ?? new Date().toISOString());
+	const deadline = raw.deadline ?? raw.deadline_at ?? raw.deadlineAt;
+	const priorityRaw = raw.priority;
+
+	const priority: PendingTask['priority'] =
+		priorityRaw === 'low' || priorityRaw === 'high' || priorityRaw === 'urgent'
+			? priorityRaw
+			: 'normal';
+
+	return {
+		id,
+		instance_id: instanceId,
+		step_name: String(raw.step_name ?? raw.stepName ?? raw.status ?? 'Review'),
+		document_id: documentId,
+		document_title: String(raw.document_title ?? raw.documentTitle ?? documentId ?? 'Document'),
+		workflow_name: String(raw.workflow_name ?? raw.workflowName ?? 'Workflow'),
+		assigned_at: assignedAt,
+		deadline: typeof deadline === 'string' ? deadline : undefined,
+		priority,
+	};
 }
 
 export interface WorkflowListResponse {
@@ -110,25 +283,47 @@ export async function listWorkflows(
 		page: String(page),
 		page_size: String(pageSize),
 	});
-	if (status) params.append('status', status);
 
-	const response = await apiClient.get<WorkflowListResponse>(`${API_BASE}/?${params}`);
-	return response.data;
+	const response = await apiClient.get<{
+		items: BackendWorkflowSummary[];
+		total: number;
+		page: number;
+		page_size: number;
+	}>(`${API_BASE}/?${params.toString()}`);
+
+	const mapped = response.data.items.map((item) => toWorkflowModel(item));
+	const filtered =
+		status != null ? mapped.filter((item) => item.status === status) : mapped;
+
+	return {
+		items: filtered,
+		total: status != null ? filtered.length : response.data.total,
+		page: response.data.page,
+		page_size: response.data.page_size,
+	};
 }
 
 export async function getWorkflow(id: string): Promise<Workflow> {
-	const response = await apiClient.get<Workflow>(`${API_BASE}/${id}`);
-	return response.data;
+	const response = await apiClient.get<BackendWorkflowDetail>(`${API_BASE}/${id}`);
+	return toWorkflowModel(response.data);
 }
 
 export async function createWorkflow(data: WorkflowCreate): Promise<Workflow> {
-	const response = await apiClient.post<Workflow>(API_BASE, data);
-	return response.data;
+	const response = await apiClient.post<BackendWorkflowDetail>(API_BASE, {
+		name: data.name,
+		description: data.description,
+		steps: toBackendSteps(data.nodes),
+	});
+	return toWorkflowModel(response.data);
 }
 
 export async function updateWorkflow(id: string, data: WorkflowUpdate): Promise<Workflow> {
-	const response = await apiClient.patch<Workflow>(`${API_BASE}/${id}`, data);
-	return response.data;
+	const response = await apiClient.patch<BackendWorkflowDetail>(`${API_BASE}/${id}`, {
+		name: data.name,
+		description: data.description,
+		steps: data.nodes ? toBackendSteps(data.nodes) : undefined,
+	});
+	return toWorkflowModel(response.data);
 }
 
 export async function deleteWorkflow(id: string): Promise<void> {
@@ -136,13 +331,16 @@ export async function deleteWorkflow(id: string): Promise<void> {
 }
 
 export async function activateWorkflow(id: string): Promise<Workflow> {
-	const response = await apiClient.post<Workflow>(`${API_BASE}/${id}/activate`);
-	return response.data;
+	const response = await apiClient.post<BackendWorkflowDetail>(`${API_BASE}/${id}/activate`, {});
+	return toWorkflowModel(response.data);
 }
 
 export async function deactivateWorkflow(id: string): Promise<Workflow> {
-	const response = await apiClient.post<Workflow>(`${API_BASE}/${id}/deactivate`);
-	return response.data;
+	const response = await apiClient.post<BackendWorkflowDetail>(
+		`${API_BASE}/${id}/deactivate`,
+		{},
+	);
+	return toWorkflowModel(response.data);
 }
 
 // --- Executions ---
@@ -160,51 +358,90 @@ export async function listExecutions(
 	if (workflowId) params.append('workflow_id', workflowId);
 	if (status) params.append('status', status);
 
-	const response = await apiClient.get<WorkflowExecutionListResponse>(
-		`${API_BASE}/executions/?${params}`,
-	);
-	return response.data;
+	const response = await apiClient.get<{
+		items: BackendWorkflowExecution[];
+		total: number;
+		page: number;
+		page_size: number;
+	}>(`${API_BASE}/executions/?${params.toString()}`);
+
+	return {
+		items: response.data.items.map(toWorkflowExecutionModel),
+		total: response.data.total,
+		page: response.data.page,
+		page_size: response.data.page_size,
+	};
 }
 
 export async function getExecution(id: string): Promise<WorkflowExecution> {
-	const response = await apiClient.get<WorkflowExecution>(`${API_BASE}/executions/${id}`);
-	return response.data;
+	const response = await apiClient.get<BackendWorkflowExecution>(
+		`${API_BASE}/instances/${id}`,
+	);
+	return toWorkflowExecutionModel(response.data);
 }
 
 export async function runWorkflow(
 	id: string,
 	input?: Record<string, unknown>,
 ): Promise<WorkflowExecution> {
-	const response = await apiClient.post<WorkflowExecution>(`${API_BASE}/${id}/run`, {
-		input,
+	const documentId = input?.documentId;
+	if (!isUuid(documentId)) {
+		throw new Error('A valid documentId is required to start a workflow.');
+	}
+
+	const response = await apiClient.post<BackendWorkflowExecution>(`${API_BASE}/${id}/start`, {
+		documentId,
+		context: input ?? {},
 	});
-	return response.data;
+	return toWorkflowExecutionModel(response.data);
 }
 
 export async function cancelExecution(executionId: string): Promise<WorkflowExecution> {
-	const response = await apiClient.post<WorkflowExecution>(
-		`${API_BASE}/executions/${executionId}/cancel`,
+	const response = await apiClient.post<BackendWorkflowExecution>(
+		`${API_BASE}/instances/${executionId}/cancel`,
+		{},
 	);
-	return response.data;
+	return toWorkflowExecutionModel(response.data);
 }
 
 export async function retryExecution(executionId: string): Promise<WorkflowExecution> {
-	const response = await apiClient.post<WorkflowExecution>(
-		`${API_BASE}/executions/${executionId}/retry`,
+	const response = await apiClient.post<BackendWorkflowExecution>(
+		`${API_BASE}/instances/${executionId}/retry`,
+		{},
 	);
-	return response.data;
+	return toWorkflowExecutionModel(response.data);
 }
 
 // --- Templates ---
 
+interface BackendWorkflowTemplate {
+	id: string;
+	name: string;
+	description?: string;
+	steps: WorkflowStep[];
+	created_at: string;
+	updated_at?: string;
+}
+
+function toWorkflowTemplateModel(t: BackendWorkflowTemplate): WorkflowTemplate {
+	return {
+		id: t.id,
+		name: t.name,
+		description: t.description ?? '',
+		category: 'custom',
+		nodes: toWorkflowNodes(t.steps ?? []),
+		edges: toWorkflowEdges(t.steps ?? []),
+	};
+}
+
 export async function listTemplates(): Promise<WorkflowTemplate[]> {
-	const response = await apiClient.get<WorkflowTemplate[]>(`${API_BASE}/templates`);
-	return response.data;
+	const response = await apiClient.get<BackendWorkflowTemplate[]>(`${API_BASE}/templates/`);
+	return response.data.map(toWorkflowTemplateModel);
 }
 
 export async function getTemplate(id: string): Promise<WorkflowTemplate> {
-	const response = await apiClient.get<WorkflowTemplate>(`${API_BASE}/templates/${id}`);
-	return response.data;
+	const response = await apiClient.get<BackendWorkflowTemplate>(`${API_BASE}/templates/${id}`);
+	return toWorkflowTemplateModel(response.data);
 }
 
 export async function createFromTemplate(
@@ -212,11 +449,11 @@ export async function createFromTemplate(
 	name: string,
 	description?: string,
 ): Promise<Workflow> {
-	const response = await apiClient.post<Workflow>(`${API_BASE}/templates/${templateId}/create`, {
-		name,
-		description,
-	});
-	return response.data;
+	const response = await apiClient.post<BackendWorkflowDetail>(
+		`${API_BASE}/templates/${templateId}/instantiate`,
+		{ name, description },
+	);
+	return toWorkflowModel(response.data);
 }
 
 // --- Validation ---
@@ -235,26 +472,44 @@ export async function validateWorkflow(
 	nodes: WorkflowNode[],
 	edges: WorkflowEdge[],
 ): Promise<ValidationResult> {
-	const response = await apiClient.post<ValidationResult>(`${API_BASE}/validate`, {
-		nodes,
-		edges,
-	});
-	return response.data;
+	const errors: ValidationResult['errors'] = [];
+
+	if (nodes.length === 0) {
+		errors.push({ message: 'Workflow must contain at least one node.', severity: 'error' });
+	}
+
+	const nodeIds = new Set<string>();
+	for (const node of nodes) {
+		if (nodeIds.has(node.id)) {
+			errors.push({ nodeId: node.id, message: 'Duplicate node id.', severity: 'error' });
+		}
+		nodeIds.add(node.id);
+	}
+
+	for (const edge of edges) {
+		if (!nodeIds.has(edge.source) || !nodeIds.has(edge.target)) {
+			errors.push({
+				edgeId: edge.id,
+				message: 'Edge source/target must reference existing nodes.',
+				severity: 'error',
+			});
+		}
+	}
+
+	return {
+		valid: errors.every((e) => e.severity !== 'error'),
+		errors,
+	};
 }
 
 // --- Test Run ---
 
 export async function testRun(
-	nodes: WorkflowNode[],
-	edges: WorkflowEdge[],
-	testDocument?: string,
+	_nodes: WorkflowNode[],
+	_edges: WorkflowEdge[],
+	_testDocument?: string,
 ): Promise<WorkflowExecution> {
-	const response = await apiClient.post<WorkflowExecution>(`${API_BASE}/test-run`, {
-		nodes,
-		edges,
-		test_document_id: testDocument,
-	});
-	return response.data;
+	throw new Error('Workflow test-run is not supported by the backend API yet.');
 }
 
 // --- Pending Tasks (Step-Based Workflows) ---
@@ -264,8 +519,13 @@ export interface PendingTasksResponse {
 }
 
 export async function getPendingTasks(): Promise<PendingTasksResponse> {
-	const response = await apiClient.get<PendingTasksResponse>(`${API_BASE}/instances/pending`);
-	return response.data;
+	const response = await apiClient.get<{ tasks: Array<Record<string, unknown>> }>(
+		`${API_BASE}/instances/pending`,
+	);
+
+	return {
+		tasks: (response.data.tasks ?? []).map(toPendingTask),
+	};
 }
 
 export interface WorkflowActionRequest {
@@ -277,40 +537,39 @@ export interface WorkflowActionRequest {
 export async function processWorkflowAction(
 	instanceId: string,
 	request: WorkflowActionRequest,
-): Promise<WorkflowInstance> {
-	const response = await apiClient.post<WorkflowInstance>(
+): Promise<WorkflowExecution> {
+	const response = await apiClient.post<BackendWorkflowExecution>(
 		`${API_BASE}/instances/${instanceId}/actions`,
 		request,
 	);
-	return response.data;
+	return toWorkflowExecutionModel(response.data);
 }
 
 export async function startWorkflow(
 	workflowId: string,
 	documentId: string,
 	context?: Record<string, unknown>,
-): Promise<WorkflowInstance> {
-	const response = await apiClient.post<WorkflowInstance>(`${API_BASE}/${workflowId}/start`, {
-		document_id: documentId,
+): Promise<WorkflowExecution> {
+	const response = await apiClient.post<BackendWorkflowExecution>(`${API_BASE}/${workflowId}/start`, {
+		documentId,
 		context,
 	});
-	return response.data;
+	return toWorkflowExecutionModel(response.data);
 }
 
 export async function cancelWorkflowInstance(
 	instanceId: string,
 	reason?: string,
-): Promise<WorkflowInstance> {
-	const response = await apiClient.post<WorkflowInstance>(
+): Promise<WorkflowExecution> {
+	const response = await apiClient.post<BackendWorkflowExecution>(
 		`${API_BASE}/instances/${instanceId}/cancel`,
 		{ reason },
 	);
-	return response.data;
+	return toWorkflowExecutionModel(response.data);
 }
 
 /**
  * Resume a paused workflow (e.g., after human approval).
- * Used when a workflow is waiting for input at an approval node.
  */
 export interface ResumeWorkflowRequest {
 	decision: 'approved' | 'rejected' | 'returned';
@@ -320,12 +579,12 @@ export interface ResumeWorkflowRequest {
 export async function resumeWorkflow(
 	instanceId: string,
 	request: ResumeWorkflowRequest,
-): Promise<WorkflowInstance> {
-	const response = await apiClient.post<WorkflowInstance>(
+): Promise<WorkflowExecution> {
+	const response = await apiClient.post<BackendWorkflowExecution>(
 		`${API_BASE}/instances/${instanceId}/resume`,
 		request,
 	);
-	return response.data;
+	return toWorkflowExecutionModel(response.data);
 }
 
 /**
@@ -333,17 +592,22 @@ export async function resumeWorkflow(
  */
 export async function getWorkflowInstanceStatus(
 	instanceId: string,
-): Promise<WorkflowInstance & { prefect_state?: string }> {
-	const response = await apiClient.get<WorkflowInstance & { prefect_state?: string }>(
-		`${API_BASE}/instances/${instanceId}/status`,
-	);
-	return response.data;
+): Promise<WorkflowExecution & { prefect_state?: string }> {
+	const response = await apiClient.get<
+		BackendWorkflowExecution & { prefect_state?: string }
+	>(`${API_BASE}/instances/${instanceId}/status`);
+
+	const mapped = toWorkflowExecutionModel(response.data);
+	return {
+		...mapped,
+		prefect_state: response.data.prefect_state,
+	};
 }
 
 // --- Backend Workflow Management ---
 
 export interface BackendWorkflowListResponse {
-	items: BackendWorkflow[];
+	items: BackendWorkflowDetail[];
 	total: number;
 	page: number;
 	page_size: number;
@@ -372,8 +636,8 @@ export interface BackendWorkflowCreate {
 
 export async function createBackendWorkflow(
 	data: BackendWorkflowCreate,
-): Promise<BackendWorkflow> {
-	const response = await apiClient.post<BackendWorkflow>(API_BASE, data);
+): Promise<BackendWorkflowDetail> {
+	const response = await apiClient.post<BackendWorkflowDetail>(API_BASE, data);
 	return response.data;
 }
 

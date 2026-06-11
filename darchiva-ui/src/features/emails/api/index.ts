@@ -2,21 +2,21 @@
 /**
  * Email feature API hooks.
  */
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import type {
-	EmailImport,
-	EmailImportListResponse,
-	EmailThreadDetail,
-	EmailThreadListResponse,
-	EmailAccount,
-	EmailAccountCreate,
-	EmailAccountUpdate,
-	EmailAccountListResponse,
-	EmailRule,
-	EmailRuleCreate,
-	EmailRuleUpdate,
-	EmailRuleListResponse,
+  EmailAccount,
+  EmailAccountCreate,
+  EmailAccountListResponse,
+  EmailAccountUpdate,
+  EmailImport,
+  EmailImportListResponse,
+  EmailRule,
+  EmailRuleCreate,
+  EmailRuleListResponse,
+  EmailRuleUpdate,
+  EmailThreadDetail,
+  EmailThreadListResponse,
 } from '../types';
 
 const EMAILS_KEY = ['emails'];
@@ -76,12 +76,7 @@ export function useImportEmail() {
 			if (folderId) params.set('folder_id', folderId);
 			if (importAttachments !== undefined) params.set('import_attachments', String(importAttachments));
 
-			const response = await fetch(`/api/v1/emails/import?${params}`, {
-				method: 'POST',
-				body: formData,
-			});
-			if (!response.ok) throw new Error(`API error: ${response.status}`);
-			return response.json() as Promise<EmailImport>;
+			return api.upload<EmailImport>(`/emails/import?${params}`, formData);
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: EMAILS_KEY });

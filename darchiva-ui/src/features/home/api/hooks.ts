@@ -1,10 +1,16 @@
 // User Home Page API Hooks
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import type {
-	UserHomeData, WorkflowTask, RecentDocument, FavoriteItem,
-	Notification, CalendarEvent, TaskActionRequest, FavoriteRequest,
-	RecentSearch, ActivityEvent,
+  ActivityEvent,
+  CalendarEvent,
+  FavoriteItem,
+  FavoriteRequest,
+  Notification,
+  RecentDocument,
+  RecentSearch,
+  TaskActionRequest,
+  UserHomeData,WorkflowTask,
 } from '../types';
 
 // Fetch user home data (aggregated)
@@ -205,30 +211,18 @@ export function useActivityFeed(options?: { limit?: number; types?: string[] }) 
 	});
 }
 
-// Quick upload - needs special handling for FormData
-const API_BASE = '/api/v1';
-const TOKEN_KEY = 'darchiva_token';
-
 export function useQuickUpload() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
 		mutationFn: async ({ files, folder_id }: { files: File[]; folder_id?: string }) => {
 			const formData = new FormData();
-			files.forEach(file => formData.append('files', file));
+			files.forEach((file) => formData.append('files', file));
 			if (folder_id) formData.append('folder_id', folder_id);
 
-			const headers: Record<string, string> = {};
-			const token = localStorage.getItem(TOKEN_KEY);
-			if (token) headers['Authorization'] = `Bearer ${token}`;
-
-			const response = await fetch(`${API_BASE}/documents/upload`, {
-				method: 'POST',
-				headers,
-				body: formData,
-			});
-			if (!response.ok) throw new Error('Failed to upload files');
-			return response.json();
+			// Axios detects FormData and sets multipart Content-Type with boundary automatically
+			const response = await apiClient.post('/documents/upload', formData);
+			return response.data;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['documents'] });
