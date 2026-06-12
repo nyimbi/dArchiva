@@ -402,7 +402,7 @@ export function useAddFavorite() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: (data: { item_type: string; item_id: string; title: string }) =>
-			apiClient.post('/user-home/favorites', data),
+			apiClient.post('/users/me/favorites', data),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: keys.userHome });
 		},
@@ -412,7 +412,7 @@ export function useAddFavorite() {
 export function useRemoveFavorite() {
 	const qc = useQueryClient();
 	return useMutation({
-		mutationFn: (id: string) => apiClient.delete(`/user-home/favorites/${id}`),
+		mutationFn: (id: string) => apiClient.delete(`/users/me/favorites/${id}`),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: keys.userHome });
 		},

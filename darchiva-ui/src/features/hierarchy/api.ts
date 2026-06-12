@@ -92,10 +92,10 @@ export async function getDocument(id: string): Promise<Document> {
 }
 
 export async function searchHierarchy(query: string): Promise<AnyHierarchyNode[]> {
-	const res = await apiClient.get<AnyHierarchyNode[]>(`/hierarchy/search?q=${encodeURIComponent(query)}`);
+	const res = await apiClient.get<AnyHierarchyNode[]>(`/search?q=${encodeURIComponent(query)}`);
 	return res.data;
 }
 
 export async function moveNode(nodeId: string, targetId: string, nodeType: string): Promise<void> {
-	await apiClient.post(`/hierarchy/move`, { node_id: nodeId, target_id: targetId, node_type: nodeType });
+	await apiClient.post(`/nodes/move`, { source_ids: [nodeId], target_id: targetId });
 }

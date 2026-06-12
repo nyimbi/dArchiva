@@ -62,7 +62,7 @@ export function useNodeShareLinks(nodeId: string) {
 	return useQuery({
 		queryKey: [...SHARED_KEY, 'node', nodeId, 'links'],
 		queryFn: async () => {
-			const { data } = await apiClient.get<ShareLink[]>(`/nodes/${nodeId}/share-links`);
+			const { data } = await apiClient.get<ShareLink[]>(`/shared-nodes/links/${nodeId}`);
 			return data;
 		},
 		enabled: !!nodeId,
@@ -89,7 +89,7 @@ export function useCreateShareLink() {
 
 	return useMutation({
 		mutationFn: async (data: CreateLinkShareInput) => {
-			const { data: response } = await apiClient.post<ShareLink>('/share-links', data);
+			const { data: response } = await apiClient.post<ShareLink>('/shared-nodes/links', data);
 			return response;
 		},
 		onSuccess: (_, variables) => {
@@ -131,7 +131,7 @@ export function useDeleteShareLink() {
 
 	return useMutation({
 		mutationFn: async (linkId: string) => {
-			await apiClient.delete(`/share-links/${linkId}`);
+			await apiClient.delete(`/shared-nodes/links/${linkId}`);
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: SHARED_KEY });

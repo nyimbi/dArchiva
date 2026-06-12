@@ -133,7 +133,7 @@ export function useMarkNotificationRead() {
 
 	return useMutation({
 		mutationFn: async (notificationId: string) => {
-			await apiClient.post(`/notifications/${notificationId}/read`);
+			await apiClient.patch(`/notifications/${notificationId}/read`);
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['notifications'] });
