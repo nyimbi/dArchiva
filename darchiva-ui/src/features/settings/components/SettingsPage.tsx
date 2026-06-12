@@ -31,6 +31,7 @@ import { SecuritySettings } from './sections/SecuritySettings';
 import { StorageSettings } from './sections/StorageSettings';
 import { UsersAccessSettings } from './sections/UsersAccessSettings';
 import { WorkflowSettings } from './sections/WorkflowSettings';
+import { NotificationSettings } from './sections/NotificationSettings';
 import { QueuesPanel } from './services/QueuesPanel';
 import { SchedulerPanel } from './services/SchedulerPanel';
 import { ServicesPanel } from './services/ServicesPanel';
@@ -186,6 +187,34 @@ function SettingsContent({ section }: SettingsContentProps) {
 			return <IntegrationSettings />;
 		case 'users-access':
 			return <UsersAccessSettings />;
+		case 'notifications':
+			return <NotificationSettings />;
+		case 'scanner':
+			return (
+				<div className="space-y-6">
+					<div>
+						<h2 className="text-xl font-semibold text-slate-100">Scanner Settings</h2>
+						<p className="text-sm text-slate-400 mt-1">Configure scanning hardware and default options.</p>
+					</div>
+					<div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 text-blue-300 text-sm">
+						Scanner device management is available in the <strong>Scanning</strong> section of the main navigation.
+						Settings here control global defaults for all scan jobs.
+					</div>
+				</div>
+			);
+		case 'privacy':
+			return (
+				<div className="space-y-6">
+					<div>
+						<h2 className="text-xl font-semibold text-slate-100">Privacy Settings</h2>
+						<p className="text-sm text-slate-400 mt-1">Control data retention, telemetry, and privacy preferences.</p>
+					</div>
+					<div className="bg-slate-900 border border-slate-700 rounded-lg p-6 space-y-4">
+						<p className="text-slate-300 text-sm">Privacy controls are managed at the system level by administrators.</p>
+						<p className="text-slate-400 text-sm">Contact your system administrator to adjust data retention periods or telemetry settings.</p>
+					</div>
+				</div>
+			);
 		case 'services' as SettingsSectionId:
 			return <ServicesPanel />;
 		case 'workers' as SettingsSectionId:
