@@ -226,12 +226,12 @@ export function useAuditLogs(filters?: AuditFilters) {
 	});
 }
 
-// Permission Matrix — backed by /permissions endpoint
+// Permission Matrix — backed by /iam/permission-matrix
 export function usePermissionMatrix() {
 	return useQuery({
 		queryKey: SECURITY_KEYS.permissionMatrix,
 		queryFn: async (): Promise<PermissionMatrixCell[]> => {
-			const { data } = await apiClient.get<PermissionMatrixCell[]>('/permissions');
+			const { data } = await apiClient.get<PermissionMatrixCell[]>('/iam/permission-matrix');
 			return data ?? [];
 		},
 	});
@@ -240,7 +240,7 @@ export function usePermissionMatrix() {
 export function useUpdatePermissionMatrix() {
 	const queryClient = useQueryClient();
 	return useMutation({
-		mutationFn: (data: PermissionMatrixCell) => apiClient.patch('/permissions', data),
+		mutationFn: (data: PermissionMatrixCell) => apiClient.patch('/iam/permission-matrix', data),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: SECURITY_KEYS.permissionMatrix });
 		},
