@@ -505,11 +505,31 @@ export async function validateWorkflow(
 // --- Test Run ---
 
 export async function testRun(
-	_nodes: WorkflowNode[],
-	_edges: WorkflowEdge[],
-	_testDocument?: string,
+	nodes: WorkflowNode[],
+	edges: WorkflowEdge[],
+	testDocument?: string,
 ): Promise<WorkflowExecution> {
-	throw new Error('Workflow test-run is not supported by the backend API yet.');
+	const tempName = `[Test] ${new Date().toISOString()}`;
+	const tempWorkflow = await createWorkflow({ name: tempName, description: 'Temporary test run', nodes, edges });
+
+	const cleanup = () => deleteWorkflow(tempWorkflow.id).catch(() => undefined);
+
+	if (!testDocument) {
+		cleanup();
+		return {
+			id: `test-${tempWorkflow.id}`,
+			workflowId: tempWorkflow.id,
+			workflowVersion: 1,
+			status: 'completed',
+			startTime: new Date().toISOString(),
+			endTime: new Date().toISOString(),
+			nodeExecutions: [],
+		} satisfies WorkflowExecution;
+	}
+
+	const execution = await startWorkflow(tempWorkflow.id, testDocument);
+	setTimeout(cleanup, 30_000);
+	return execution;
 }
 
 // --- Pending Tasks (Step-Based Workflows) ---
