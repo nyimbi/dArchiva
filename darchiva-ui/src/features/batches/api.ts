@@ -18,7 +18,7 @@ import type {
 } from './types';
 
 const API_BASE = '/batches';
-const LOCATIONS_API = '/locations';
+const LOCATIONS_API = '/batches/locations';
 
 // ============ Batches ============
 
