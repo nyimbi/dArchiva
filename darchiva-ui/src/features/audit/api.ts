@@ -27,7 +27,7 @@ export function useAuditLogs(params: ListAuditParams = {}) {
 			if (params.date_from) searchParams.set('date_from', params.date_from);
 			if (params.date_to) searchParams.set('date_to', params.date_to);
 
-			const { data } = await apiClient.get<AuditListResponse>(`/audit?${searchParams}`);
+			const { data } = await apiClient.get<AuditListResponse>(`/audit-logs?${searchParams}`);
 			return data;
 		},
 	});
@@ -37,7 +37,7 @@ export function useDocumentAudit(documentId: string) {
 	return useQuery({
 		queryKey: [...AUDIT_KEY, 'document', documentId],
 		queryFn: async () => {
-			const { data } = await apiClient.get<AuditListResponse>(`/audit?resource_type=document&resource_id=${documentId}`);
+			const { data } = await apiClient.get<AuditListResponse>(`/audit-logs?resource_type=document&resource_id=${documentId}`);
 			return data;
 		},
 		enabled: !!documentId,
@@ -48,7 +48,7 @@ export function useUserAudit(userId: string) {
 	return useQuery({
 		queryKey: [...AUDIT_KEY, 'user', userId],
 		queryFn: async () => {
-			const { data } = await apiClient.get<AuditListResponse>(`/audit?user_id=${userId}`);
+			const { data } = await apiClient.get<AuditListResponse>(`/audit-logs?user_id=${userId}`);
 			return data;
 		},
 		enabled: !!userId,
