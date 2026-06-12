@@ -1,35 +1,33 @@
 // (c) Copyright Datacraft, 2026
-import { useState, useMemo, useCallback } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import * as Dialog from '@radix-ui/react-dialog';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-	BrainCircuit,
-	Sparkles,
-	Calendar,
-	FileText,
-	Target,
-	Clock,
-	Users,
-	ChevronRight,
-	ChevronDown,
-	Check,
-	X,
-	Edit2,
-	Trash2,
-	Plus,
-	RefreshCw,
-	AlertTriangle,
-	Save,
-	ArrowRight,
-	Wand2,
-	Sun,
-	Moon,
-	Sunset,
-} from 'lucide-react';
 import { cn } from '@/lib/utils';
+import * as Dialog from '@radix-ui/react-dialog';
+import { useMutation,useQueryClient } from '@tanstack/react-query';
+import { AnimatePresence,motion } from 'framer-motion';
+import {
+  AlertTriangle,
+  ArrowRight,
+  BrainCircuit,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  Edit2,
+  Moon,
+  Plus,
+  RefreshCw,
+  Save,
+  Sparkles,
+  Sun,
+  Sunset,
+  Target,
+  Trash2,
+  Wand2,
+  X
+} from 'lucide-react';
+import { useCallback,useMemo,useRef,useState } from 'react';
 import * as api from '../api';
+import { useAIAnalysis } from '../api/hooks';
 import { scanningProjectKeys } from '../hooks';
+import type { AIAdvisorResponse } from '../types';
 
 // ============================================================================
 // Types
@@ -71,6 +69,23 @@ interface AIProjectPlannerProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	initialConfig?: Partial<ProjectPlanConfig>;
+}
+
+const DAY_INDEX: Record<string, string> = {
+	Monday: '1',
+	Tuesday: '2',
+	Wednesday: '3',
+	Thursday: '4',
+	Friday: '5',
+	Saturday: '6',
+	Sunday: '7',
+};
+
+function daysToSchedule(days: string[]): string {
+	const mapped = days
+		.map((day) => DAY_INDEX[day])
+		.filter((value): value is string => Boolean(value));
+	return mapped.length > 0 ? mapped.join(',') : '1,2,3,4,5';
 }
 
 // ============================================================================
@@ -656,6 +671,9 @@ export function AIProjectPlanner({
 	const [milestones, setMilestones] = useState<GeneratedMilestone[]>([]);
 	const [shifts, setShifts] = useState<GeneratedShift[]>([]);
 	const [isGenerating, setIsGenerating] = useState(false);
+	const [aiAnalysis, setAiAnalysis] = useState<AIAdvisorResponse | null>(null);
+	const [aiEnabled, setAiEnabled] = useState(false);
+	const { data: aiData, isLoading: aiLoading } = useAIAnalysis(projectId, aiEnabled);
 
 	// Create milestones mutation
 	const createMilestones = useMutation({
@@ -677,19 +695,65 @@ export function AIProjectPlanner({
 		},
 	});
 
-	// Generate plan
-	const handleGenerate = useCallback(() => {
+	const createShifts = useMutation({
+		mutationFn: async (generatedShifts: GeneratedShift[]) => {
+			const results = [];
+			for (const shift of generatedShifts) {
+				const result = await api.createShift({
+					name: shift.name,
+					startTime: shift.startTime,
+					endTime: shift.endTime,
+					daysOfWeek: daysToSchedule(shift.daysOfWeek),
+					targetPagesPerOperator: shift.pagesPerOperator,
+					breakMinutes: 60,
+				});
+				results.push(result);
+			}
+			return results;
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: scanningProjectKeys.all });
+		},
+	});
+
+	// Generate plan — local arithmetic + AI analysis in parallel
+	const handleGenerate = useCallback(async () => {
 		setIsGenerating(true);
-		// Simulate AI processing delay
-		setTimeout(() => {
-			const generatedMilestones = generateMilestones(config);
-			const generatedShifts = generateShifts(config);
-			setMilestones(generatedMilestones);
-			setShifts(generatedShifts);
-			setStep('review');
-			setIsGenerating(false);
-		}, 800);
-	}, [config]);
+		setAiEnabled(true);
+
+		const generatedMilestones = generateMilestones(config);
+		const generatedShifts = generateShifts(config);
+
+		// Fetch AI analysis — if it finishes fast, apply its insights before showing review
+		try {
+			const { data: analysis } = await Promise.race([
+				// 8 second timeout so we don't block the UX on slow LLM calls
+				new Promise<{ data: null }>((resolve) => setTimeout(() => resolve({ data: null }), 8000)),
+				fetch(`/api/v1/scanning-projects/${projectId}/ai-analysis`, {
+					headers: { Authorization: `Bearer ${localStorage.getItem('darchiva_token') ?? ''}` },
+				})
+					.then((r) => r.json() as Promise<AIAdvisorResponse>)
+					.then((d) => ({ data: d })),
+			]);
+			if (analysis) {
+				setAiAnalysis(analysis);
+				// Apply AI operator recommendation to shift config
+				const opt = analysis.resource_optimization;
+				if (opt?.optimal_operator_count > 0) {
+					setShifts((prev) =>
+						prev.map((s) => ({ ...s, operatorsRequired: opt.optimal_operator_count })),
+					);
+				}
+			}
+		} catch {
+			// AI analysis failed — show the arithmetic plan anyway
+		}
+
+		setMilestones(generatedMilestones);
+		setShifts(generatedShifts);
+		setStep('review');
+		setIsGenerating(false);
+	}, [config, projectId]);
 
 	// Update milestone
 	const handleUpdateMilestone = useCallback((id: string, updates: Partial<GeneratedMilestone>) => {
@@ -745,9 +809,9 @@ export function AIProjectPlanner({
 	// Save plan
 	const handleSave = useCallback(async () => {
 		await createMilestones.mutateAsync(milestones);
-		// TODO: Save shifts via API when endpoint is available
+		await createShifts.mutateAsync(shifts);
 		onOpenChange(false);
-	}, [milestones, createMilestones, onOpenChange]);
+	}, [milestones, shifts, createMilestones, createShifts, onOpenChange]);
 
 	// Validation
 	const isValidConfig = useMemo(() => {

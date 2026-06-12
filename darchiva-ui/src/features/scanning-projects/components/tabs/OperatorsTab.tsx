@@ -1,23 +1,23 @@
 import { cn } from '@/lib/utils';
-import { useShiftAssignments, useOperatorCertifications } from '../../api/hooks';
-import { StatusBadge } from '../core/StatusBadge';
-import { MetricCard } from '../core/MetricCard';
-import type { ShiftAssignment, OperatorCertification } from '../../types';
 import {
-  UsersIcon,
-  ClockIcon,
-  AwardIcon,
   AlertTriangleIcon,
+  AwardIcon,
+  ClockIcon,
   TrendingUpIcon,
+  UsersIcon,
 } from 'lucide-react';
+import { useOperatorCertifications,useShiftAssignments } from '../../api/hooks';
+import type { OperatorCertification,ShiftAssignment } from '../../types';
+import { MetricCard } from '../core/MetricCard';
+import { StatusBadge } from '../core/StatusBadge';
 
 interface OperatorsTabProps {
   projectId: string;
 }
 
-export function OperatorsTab({ projectId }: OperatorsTabProps) {
+export function OperatorsTab({ projectId: _projectId }: OperatorsTabProps) {
   const today = new Date().toISOString().split('T')[0];
-  const { data: assignments, isLoading: assignmentsLoading } = useShiftAssignments(today);
+  const { data: assignments, isLoading: assignmentsLoading } = useShiftAssignments({ date: today });
   const { data: certifications, isLoading: certsLoading } = useOperatorCertifications();
 
   const activeOperators = assignments?.filter((a: ShiftAssignment) => a.status === 'active') ?? [];

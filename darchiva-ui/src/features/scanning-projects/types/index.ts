@@ -473,3 +473,73 @@ export interface BulkOperationResult {
   failed_count: number;
   errors: Array<{ id: string; error: string }>;
 }
+
+// =====================================================
+// AI Advisor Types
+// =====================================================
+
+export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
+export type RecommendationType =
+  | 'resource_allocation'
+  | 'scheduling'
+  | 'quality_improvement'
+  | 'risk_mitigation'
+  | 'efficiency';
+
+export interface AIRecommendation {
+  id: string;
+  type: RecommendationType;
+  title: string;
+  description: string;
+  priority: number;
+  risk_level: RiskLevel;
+  estimated_impact?: string;
+  action_items: string[];
+  created_at: string;
+}
+
+export interface ProjectRiskAssessment {
+  project_id: string;
+  overall_risk_level: RiskLevel;
+  schedule_risk: RiskLevel;
+  quality_risk: RiskLevel;
+  resource_risk: RiskLevel;
+  risk_factors: string[];
+  mitigation_suggestions: string[];
+  confidence_score: number;
+  assessed_at: string;
+}
+
+export interface ScheduleForecast {
+  project_id: string;
+  target_date: string;
+  predicted_completion_date: string;
+  on_track: boolean;
+  days_ahead_or_behind: number;
+  confidence_score: number;
+  bottlenecks: string[];
+  recommendations: string[];
+  forecasted_at: string;
+}
+
+export interface ResourceOptimization {
+  project_id: string;
+  current_efficiency: number;
+  optimal_operator_count: number;
+  optimal_scanner_count: number;
+  suggested_schedule_changes: string[];
+  underutilized_resources: string[];
+  overloaded_resources: string[];
+  estimated_efficiency_gain: number;
+  analyzed_at: string;
+}
+
+export interface AIAdvisorResponse {
+  project_id: string;
+  risk_assessment: ProjectRiskAssessment;
+  schedule_forecast: ScheduleForecast;
+  resource_optimization: ResourceOptimization;
+  recommendations: AIRecommendation[];
+  summary: string;
+  generated_at: string;
+}

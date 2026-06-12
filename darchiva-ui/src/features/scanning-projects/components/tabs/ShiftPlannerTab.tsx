@@ -1,25 +1,34 @@
 // (c) Copyright Datacraft, 2026
-import { useState, useMemo } from 'react';
-import * as Dialog from '@radix-ui/react-dialog';
 import { cn } from '@/lib/utils';
-import { MetricCard } from '../core/MetricCard';
+import * as Dialog from '@radix-ui/react-dialog';
 import {
-	CalendarIcon,
-	ClockIcon,
-	UsersIcon,
-	PlusIcon,
-	ChevronLeftIcon,
-	ChevronRightIcon,
-	AlertTriangleIcon,
-	CheckCircleIcon,
-	XIcon,
-	SunIcon,
-	SunsetIcon,
-	MoonIcon,
-	CopyIcon,
-	Trash2Icon,
-	EditIcon,
+  AlertTriangleIcon,
+  CalendarIcon,
+  CheckCircleIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ClockIcon,
+  CopyIcon,
+  EditIcon,
+  MoonIcon,
+  PlusIcon,
+  SunIcon,
+  SunsetIcon,
+  Trash2Icon,
+  UsersIcon,
+  XIcon,
 } from 'lucide-react';
+import { useCallback,useMemo,useState } from 'react';
+import {
+  useBulkCreateShiftAssignments,
+  useCreateShift,
+  useDeleteShiftAssignment,
+  useShiftAssignments,
+  useShifts,
+} from '../../api/hooks';
+import type { ShiftAssignment as ApiShiftAssignment,Shift as ApiShift } from '../../types';
+import { useUsers } from '../../../users/api';
+import { MetricCard } from '../core/MetricCard';
 
 // Types
 interface Operator {
@@ -56,22 +65,12 @@ const SHIFT_TEMPLATES: Record<ShiftTemplate, { label: string; startTime: string;
 	custom: { label: 'Custom', startTime: '09:00', endTime: '17:00', icon: ClockIcon, color: 'slate' },
 };
 
-// Mock data - replace with actual API hooks
-const MOCK_OPERATORS: Operator[] = [
-	{ id: 'op-1', name: 'Alice Chen', skills: ['scanning', 'qa'], maxHoursPerWeek: 40 },
-	{ id: 'op-2', name: 'Bob Martinez', skills: ['scanning', 'indexing'], maxHoursPerWeek: 40 },
-	{ id: 'op-3', name: 'Carol Singh', skills: ['scanning', 'qa', 'indexing'], maxHoursPerWeek: 32 },
-	{ id: 'op-4', name: 'David Kim', skills: ['scanning'], maxHoursPerWeek: 40 },
-	{ id: 'op-5', name: 'Eva Thompson', skills: ['scanning', 'qa'], maxHoursPerWeek: 24 },
-];
-
-const MOCK_SHIFTS: Shift[] = [
-	{ id: 'sh-1', date: '2026-01-19', startTime: '06:00', endTime: '14:00', template: 'morning', operatorIds: ['op-1', 'op-2'], requiredOperators: 3, status: 'published' },
-	{ id: 'sh-2', date: '2026-01-19', startTime: '14:00', endTime: '22:00', template: 'afternoon', operatorIds: ['op-3'], requiredOperators: 2, status: 'published' },
-	{ id: 'sh-3', date: '2026-01-20', startTime: '06:00', endTime: '14:00', template: 'morning', operatorIds: ['op-4', 'op-5', 'op-1'], requiredOperators: 3, status: 'draft' },
-	{ id: 'sh-4', date: '2026-01-21', startTime: '14:00', endTime: '22:00', template: 'afternoon', operatorIds: ['op-2', 'op-3'], requiredOperators: 2, status: 'draft' },
-	{ id: 'sh-5', date: '2026-01-22', startTime: '22:00', endTime: '06:00', template: 'night', operatorIds: [], requiredOperators: 2, status: 'draft' },
-];
+function inferTemplate(startTime: string): ShiftTemplate {
+	const hour = parseInt(startTime.split(':')[0], 10);
+	if (hour < 14) return 'morning';
+	if (hour < 22) return 'afternoon';
+	return 'night';
+}
 
 // Utility functions
 function getWeekDates(date: Date): Date[] {
@@ -114,8 +113,58 @@ export function ShiftPlannerTab({ projectId }: ShiftPlannerTabProps) {
 		const diff = now.getDate() - day + (day === 0 ? -6 : 1);
 		return new Date(now.setDate(diff));
 	});
-	const [shifts, setShifts] = useState<Shift[]>(MOCK_SHIFTS);
-	const [operators] = useState<Operator[]>(MOCK_OPERATORS);
+
+	const weekDateRange = useMemo(() => {
+		const dates = getWeekDates(currentWeekStart);
+		return { dateFrom: formatDateKey(dates[0]), dateTo: formatDateKey(dates[6]) };
+	}, [currentWeekStart]);
+
+	const { data: shiftTemplates = [] } = useShifts();
+	const { data: assignmentsData = [] } = useShiftAssignments({
+		projectId,
+		dateFrom: weekDateRange.dateFrom,
+		dateTo: weekDateRange.dateTo,
+	});
+	const { data: usersData } = useUsers({ is_active: true, pageSize: 100 });
+	const createShiftMutation = useCreateShift();
+	const bulkCreateMutation = useBulkCreateShiftAssignments();
+	const deleteAssignmentMutation = useDeleteShiftAssignment();
+
+	const shifts = useMemo((): Shift[] => {
+		if (!assignmentsData.length) return [];
+		const groups = new Map<string, { operatorIds: string[]; shiftId: string; date: string }>();
+		for (const a of assignmentsData) {
+			const date = a.assignment_date.split('T')[0];
+			const key = `${a.shift_id}::${date}`;
+			if (!groups.has(key)) groups.set(key, { operatorIds: [], shiftId: a.shift_id, date });
+			groups.get(key)!.operatorIds.push(a.operator_id);
+		}
+		return Array.from(groups.entries()).map(([key, g]) => {
+			const tmpl = (shiftTemplates as ApiShift[]).find((t) => t.id === g.shiftId);
+			const startTime = tmpl?.start_time ?? '09:00';
+			const endTime = tmpl?.end_time ?? '17:00';
+			return {
+				id: key,
+				date: g.date,
+				startTime,
+				endTime,
+				template: inferTemplate(startTime),
+				operatorIds: g.operatorIds,
+				requiredOperators: Math.max(g.operatorIds.length, 1),
+				status: 'published' as const,
+			};
+		});
+	}, [assignmentsData, shiftTemplates]);
+
+	const operators = useMemo((): Operator[] => {
+		if (!usersData?.items?.length) return [];
+		return usersData.items.map((u) => ({
+			id: u.id,
+			name: u.first_name ? `${u.first_name} ${u.username}` : u.username,
+			skills: [],
+			maxHoursPerWeek: 40,
+		}));
+	}, [usersData]);
 	const [dialogOpen, setDialogOpen] = useState(false);
 	const [editingShift, setEditingShift] = useState<Shift | null>(null);
 	const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -166,30 +215,67 @@ export function ShiftPlannerTab({ projectId }: ShiftPlannerTabProps) {
 		setDialogOpen(true);
 	};
 
-	const handleSaveShift = (shiftData: Omit<Shift, 'id'>) => {
+	const resolveOrCreateTemplate = useCallback(async (shiftData: Omit<Shift, 'id'>): Promise<string> => {
+		const existing = (shiftTemplates as ApiShift[]).find(
+			(t) => t.start_time === shiftData.startTime && t.end_time === shiftData.endTime,
+		);
+		if (existing) return existing.id;
+		const created = await createShiftMutation.mutateAsync({
+			name: SHIFT_TEMPLATES[shiftData.template].label,
+			start_time: shiftData.startTime,
+			end_time: shiftData.endTime,
+			days_of_week: '1,2,3,4,5,6,7',
+			target_pages_per_operator: 500,
+		});
+		return created.id;
+	}, [shiftTemplates, createShiftMutation]);
+
+	const handleSaveShift = useCallback(async (shiftData: Omit<Shift, 'id'>) => {
 		if (editingShift) {
-			setShifts(prev => prev.map(s => s.id === editingShift.id ? { ...shiftData, id: editingShift.id } : s));
-		} else {
-			const newShift: Shift = { ...shiftData, id: `sh-${Date.now()}` };
-			setShifts(prev => [...prev, newShift]);
+			const [oldShiftId, oldDate] = editingShift.id.split('::');
+			const oldAssignments = (assignmentsData as ApiShiftAssignment[]).filter(
+				(a) => a.shift_id === oldShiftId && a.assignment_date.startsWith(oldDate),
+			);
+			await Promise.all(oldAssignments.map((a) => deleteAssignmentMutation.mutateAsync(a.id)));
+		}
+		const shiftId = await resolveOrCreateTemplate(shiftData);
+		if (shiftData.operatorIds.length > 0) {
+			await bulkCreateMutation.mutateAsync(
+				shiftData.operatorIds.map((opId) => ({
+					shift_id: shiftId,
+					operator_id: opId,
+					operator_name: operators.find((o) => o.id === opId)?.name,
+					project_id: projectId,
+					assignment_date: shiftData.date,
+				})),
+			);
 		}
 		setDialogOpen(false);
 		setEditingShift(null);
-	};
+	}, [editingShift, assignmentsData, resolveOrCreateTemplate, bulkCreateMutation, deleteAssignmentMutation, operators, projectId]);
 
-	const handleDeleteShift = (shiftId: string) => {
-		setShifts(prev => prev.filter(s => s.id !== shiftId));
-	};
+	const handleDeleteShift = useCallback(async (shiftId: string) => {
+		const [templateId, date] = shiftId.split('::');
+		const toDelete = (assignmentsData as ApiShiftAssignment[]).filter(
+			(a) => a.shift_id === templateId && a.assignment_date.startsWith(date),
+		);
+		await Promise.all(toDelete.map((a) => deleteAssignmentMutation.mutateAsync(a.id)));
+	}, [assignmentsData, deleteAssignmentMutation]);
 
-	const handleDuplicateShift = (shift: Shift, targetDate: string) => {
-		const newShift: Shift = {
-			...shift,
-			id: `sh-${Date.now()}`,
-			date: targetDate,
-			status: 'draft',
-		};
-		setShifts(prev => [...prev, newShift]);
-	};
+	const handleDuplicateShift = useCallback(async (shift: Shift, targetDate: string) => {
+		const [templateId] = shift.id.split('::');
+		if (shift.operatorIds.length > 0) {
+			await bulkCreateMutation.mutateAsync(
+				shift.operatorIds.map((opId) => ({
+					shift_id: templateId,
+					operator_id: opId,
+					operator_name: operators.find((o) => o.id === opId)?.name,
+					project_id: projectId,
+					assignment_date: targetDate,
+				})),
+			);
+		}
+	}, [bulkCreateMutation, operators, projectId]);
 
 	// Get shifts for a specific date
 	const getShiftsForDate = (date: Date): Shift[] => {
@@ -532,7 +618,7 @@ interface ShiftDialogProps {
 	shift: Shift | null;
 	selectedDate: string | null;
 	operators: Operator[];
-	onSave: (shift: Omit<Shift, 'id'>) => void;
+	onSave: (shift: Omit<Shift, 'id'>) => void | Promise<void>;
 }
 
 function ShiftDialog({ open, onOpenChange, shift, selectedDate, operators, onSave }: ShiftDialogProps) {

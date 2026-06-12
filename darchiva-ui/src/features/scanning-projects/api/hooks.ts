@@ -1,34 +1,35 @@
 // dArchiva Scanning Projects - API Hooks
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import type {
-  ScanningProject,
-  SubProject,
-  ScanningBatch,
-  ScanningLocation,
-  Shift,
-  ShiftAssignment,
-  ProjectCost,
-  ProjectBudget,
-  ProjectSLA,
-  SLAAlert,
-  EquipmentMaintenance,
-  OperatorCertification,
+  AIAdvisorResponse,
+  BatchFilters,
+  BatchPriorityQueue,
+  BulkOperationResult,
+  BurndownDataPoint,
   CapacityPlan,
   DocumentTypeDistribution,
-  BatchPriorityQueue,
-  ProjectContract,
-  WorkloadForecast,
-  ProjectCheckpoint,
-  ProjectDashboard,
-  BurndownDataPoint,
-  VelocityDataPoint,
+  EquipmentMaintenance,
   MultiLocationDashboard,
-  ProjectFilters,
-  BatchFilters,
+  OperatorCertification,
   PaginatedResponse,
-  BulkOperationResult,
+  ProjectBudget,
+  ProjectCheckpoint,
+  ProjectContract,
+  ProjectCost,
+  ProjectDashboard,
+  ProjectFilters,
+  ProjectSLA,
+  ScanningBatch,
+  ScanningLocation,
+  ScanningProject,
+  Shift,
+  ShiftAssignment,
+  SLAAlert,
+  SubProject,
+  VelocityDataPoint,
+  WorkloadForecast,
 } from '../types';
 
 const BASE_URL = '/scanning-projects';
@@ -106,6 +107,19 @@ export function useProjectDashboard(id: string) {
     },
     enabled: !!id,
     refetchInterval: 30000, // Refresh every 30 seconds for live data
+  });
+}
+
+export function useAIAnalysis(projectId: string, enabled = true) {
+  return useQuery({
+    queryKey: [...scanningProjectKeys.detail(projectId), 'ai-analysis'],
+    queryFn: async () => {
+      const res = await apiClient.get<AIAdvisorResponse>(`${BASE_URL}/${projectId}/ai-analysis`);
+      return res.data;
+    },
+    enabled: !!projectId && enabled,
+    staleTime: 5 * 60 * 1000, // 5 min — LLM calls are expensive
+    retry: 1,
   });
 }
 
@@ -238,13 +252,69 @@ export function useShifts() {
   });
 }
 
-export function useShiftAssignments(date?: string) {
+export function useShiftAssignments(opts?: { date?: string; projectId?: string; dateFrom?: string; dateTo?: string }) {
   return useQuery({
-    queryKey: scanningProjectKeys.shiftAssignments(date),
+    queryKey: scanningProjectKeys.shiftAssignments(opts?.date ?? opts?.projectId ?? opts?.dateFrom),
     queryFn: async () => {
-      const params = date ? `?date=${date}` : '';
-      const res = await apiClient.get<ShiftAssignment[]>(`${BASE_URL}/shift-assignments${params}`);
+      const params = new URLSearchParams();
+      if (opts?.date) params.set('assignment_date', opts.date);
+      if (opts?.projectId) params.set('project_id', opts.projectId);
+      if (opts?.dateFrom) params.set('date_from', opts.dateFrom);
+      if (opts?.dateTo) params.set('date_to', opts.dateTo);
+      const qs = params.toString();
+      const res = await apiClient.get<ShiftAssignment[]>(`${BASE_URL}/shift-assignments${qs ? `?${qs}` : ''}`);
       return res.data;
+    },
+  });
+}
+
+export function useCreateShiftAssignment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { shift_id: string; operator_id: string; operator_name?: string; project_id?: string; assignment_date: string }) => {
+      const res = await apiClient.post<ShiftAssignment>(`${BASE_URL}/shift-assignments`, data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: scanningProjectKeys.all });
+    },
+  });
+}
+
+export function useBulkCreateShiftAssignments() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (assignments: Array<{ shift_id: string; operator_id: string; operator_name?: string; project_id?: string; assignment_date: string }>) => {
+      const res = await apiClient.post<ShiftAssignment[]>(`${BASE_URL}/shifts/assignments/bulk`, { assignments });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: scanningProjectKeys.all });
+    },
+  });
+}
+
+export function useDeleteShiftAssignment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (assignmentId: string) => {
+      await apiClient.delete(`${BASE_URL}/shift-assignments/${assignmentId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: scanningProjectKeys.all });
+    },
+  });
+}
+
+export function useCreateShift() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { name: string; start_time: string; end_time: string; days_of_week?: string; target_pages_per_operator?: number }) => {
+      const res = await apiClient.post<Shift>(`${BASE_URL}/shifts`, data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: scanningProjectKeys.shifts() });
     },
   });
 }
