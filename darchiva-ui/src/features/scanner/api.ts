@@ -2,7 +2,7 @@
 /**
  * Scanner feature API hooks.
  */
-import { api } from '@/lib/api';
+import { apiClient } from '@/lib/api-client';
 import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import type {
   DiscoveredScanner,
@@ -18,8 +18,8 @@ export function useScanners() {
 	return useQuery({
 		queryKey: [...SCANNER_KEY, 'list'],
 		queryFn: async () => {
-			const response = await api.get<Scanner[]>('/scanners');
-			return response;
+			const { data } = await apiClient.get<Scanner[]>('/scanners');
+			return data;
 		},
 	});
 }
@@ -28,8 +28,8 @@ export function useScanner(scannerId: string) {
 	return useQuery({
 		queryKey: [...SCANNER_KEY, 'detail', scannerId],
 		queryFn: async () => {
-			const response = await api.get<Scanner>(`/scanners/${scannerId}`);
-			return response;
+			const { data } = await apiClient.get<Scanner>(`/scanners/${scannerId}`);
+			return data;
 		},
 		enabled: !!scannerId,
 		refetchInterval: 5000, // Poll scanner status
@@ -39,8 +39,8 @@ export function useScanner(scannerId: string) {
 export function useDiscoverScanners() {
 	return useMutation({
 		mutationFn: async () => {
-			const response = await api.post<DiscoveredScanner[]>('/scanners/discover');
-			return response;
+			const { data } = await apiClient.post<DiscoveredScanner[]>('/scanners/discover');
+			return data;
 		},
 	});
 }
@@ -50,8 +50,8 @@ export function useRegisterScanner() {
 
 	return useMutation({
 		mutationFn: async (scanner: DiscoveredScanner & { name?: string }) => {
-			const response = await api.post<Scanner>('/scanners', scanner);
-			return response;
+			const { data } = await apiClient.post<Scanner>('/scanners', scanner);
+			return data;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: [...SCANNER_KEY, 'list'] });
@@ -64,7 +64,7 @@ export function useDeleteScanner() {
 
 	return useMutation({
 		mutationFn: async (scannerId: string) => {
-			await api.delete(`/scanners/${scannerId}`);
+			await apiClient.delete(`/scanners/${scannerId}`);
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: [...SCANNER_KEY, 'list'] });
@@ -77,7 +77,7 @@ export function useUpdateScanner() {
 
 	return useMutation({
 		mutationFn: async ({ scannerId, data }: { scannerId: string; data: Partial<Scanner> }) => {
-			const response = await api.patch<Scanner>(`/scanners/${scannerId}`, data);
+			const { data: response } = await apiClient.patch<Scanner>(`/scanners/${scannerId}`, data);
 			return response;
 		},
 		onSuccess: (_, { scannerId }) => {
@@ -90,11 +90,11 @@ export function useUpdateScanner() {
 export function useScanPreview(scannerId: string) {
 	return useMutation({
 		mutationFn: async (options: Partial<ScanOptions>) => {
-			const response = await api.post<ScanPreviewData>(
+			const { data } = await apiClient.post<ScanPreviewData>(
 				`/scanners/${scannerId}/preview`,
 				options
 			);
-			return response;
+			return data;
 		},
 	});
 }
@@ -112,11 +112,11 @@ export function useStartScan() {
 			options: ScanOptions;
 			targetFolderId?: string;
 		}) => {
-			const response = await api.post<ScanJob>(`/scanners/${scannerId}/scan`, {
+			const { data } = await apiClient.post<ScanJob>(`/scanners/${scannerId}/scan`, {
 				options,
 				target_folder_id: targetFolderId,
 			});
-			return response;
+			return data;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: [...SCANNER_KEY, 'jobs'] });
@@ -129,7 +129,7 @@ export function useCancelScan() {
 
 	return useMutation({
 		mutationFn: async (jobId: string) => {
-			await api.post(`/scanners/jobs/${jobId}/cancel`);
+			await apiClient.post(`/scanners/jobs/${jobId}/cancel`);
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: [...SCANNER_KEY, 'jobs'] });
@@ -141,8 +141,8 @@ export function useScanJob(jobId: string) {
 	return useQuery({
 		queryKey: [...SCANNER_KEY, 'jobs', jobId],
 		queryFn: async () => {
-			const response = await api.get<ScanJob>(`/scanners/jobs/${jobId}`);
-			return response;
+			const { data } = await apiClient.get<ScanJob>(`/scanners/jobs/${jobId}`);
+			return data;
 		},
 		enabled: !!jobId,
 		refetchInterval: (query) => {
@@ -160,8 +160,8 @@ export function useScanJobs() {
 	return useQuery({
 		queryKey: [...SCANNER_KEY, 'jobs'],
 		queryFn: async () => {
-			const response = await api.get<ScanJob[]>('/scanners/jobs');
-			return response;
+			const { data } = await apiClient.get<ScanJob[]>('/scanners/jobs');
+			return data;
 		},
 	});
 }
@@ -170,10 +170,10 @@ export function useRecentScans(limit = 10) {
 	return useQuery({
 		queryKey: [...SCANNER_KEY, 'recent', limit],
 		queryFn: async () => {
-			const response = await api.get<ScanJob[]>('/scanners/jobs/recent', {
+			const { data } = await apiClient.get<ScanJob[]>('/scanners/jobs/recent', {
 				params: { limit },
 			});
-			return response;
+			return data;
 		},
 	});
 }

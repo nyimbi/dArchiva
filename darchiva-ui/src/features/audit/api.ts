@@ -2,7 +2,7 @@
 /**
  * Audit log API hooks.
  */
-import { api } from '@/lib/api';
+import { apiClient } from '@/lib/api-client';
 import { useQuery } from '@tanstack/react-query';
 import type { AuditFilters,AuditListResponse } from './types';
 
@@ -27,8 +27,8 @@ export function useAuditLogs(params: ListAuditParams = {}) {
 			if (params.date_from) searchParams.set('date_from', params.date_from);
 			if (params.date_to) searchParams.set('date_to', params.date_to);
 
-			const response = await api.get<AuditListResponse>(`/audit?${searchParams}`);
-			return response;
+			const { data } = await apiClient.get<AuditListResponse>(`/audit?${searchParams}`);
+			return data;
 		},
 	});
 }
@@ -37,8 +37,8 @@ export function useDocumentAudit(documentId: string) {
 	return useQuery({
 		queryKey: [...AUDIT_KEY, 'document', documentId],
 		queryFn: async () => {
-			const response = await api.get<AuditListResponse>(`/audit?resource_type=document&resource_id=${documentId}`);
-			return response;
+			const { data } = await apiClient.get<AuditListResponse>(`/audit?resource_type=document&resource_id=${documentId}`);
+			return data;
 		},
 		enabled: !!documentId,
 	});
@@ -48,8 +48,8 @@ export function useUserAudit(userId: string) {
 	return useQuery({
 		queryKey: [...AUDIT_KEY, 'user', userId],
 		queryFn: async () => {
-			const response = await api.get<AuditListResponse>(`/audit?user_id=${userId}`);
-			return response;
+			const { data } = await apiClient.get<AuditListResponse>(`/audit?user_id=${userId}`);
+			return data;
 		},
 		enabled: !!userId,
 	});

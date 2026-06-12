@@ -6,7 +6,7 @@
  * the backend is remote but the scanner is local to the user.
  */
 
-import { api } from '@/lib/api';
+import { apiClient } from '@/lib/api-client';
 import {
   ESCLCapabilities,
   ESCLScanOptions,
@@ -99,8 +99,8 @@ async function uploadScannedPages(
 		}
 
 		// Upload to backend
-		const response = await api.upload<{ id: string }>('/documents/upload-scan', formData);
-		documentIds.push(response.id);
+		const { data } = await apiClient.post<{ id: string }>('/documents/upload-scan', formData);
+		documentIds.push(data.id);
 	}
 
 	return documentIds;

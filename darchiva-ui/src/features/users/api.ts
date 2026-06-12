@@ -2,7 +2,7 @@
 /**
  * User management API hooks.
  */
-import { api } from '@/lib/api';
+import { apiClient } from '@/lib/api-client';
 import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import type {
   PasswordChangeInput,
@@ -33,8 +33,8 @@ export function useUsers(params: ListUsersParams = {}) {
 			if (params.group_id) searchParams.set('group_id', params.group_id);
 			if (params.role_id) searchParams.set('role_id', params.role_id);
 
-			const response = await api.get<UserListResponse>(`/users?${searchParams}`);
-			return response;
+			const { data } = await apiClient.get<UserListResponse>(`/users?${searchParams}`);
+			return data;
 		},
 	});
 }
@@ -43,8 +43,8 @@ export function useUser(userId: string) {
 	return useQuery({
 		queryKey: [...USERS_KEY, userId],
 		queryFn: async () => {
-			const response = await api.get<User>(`/users/${userId}`);
-			return response;
+			const { data } = await apiClient.get<User>(`/users/${userId}`);
+			return data;
 		},
 		enabled: !!userId,
 	});
@@ -54,8 +54,8 @@ export function useCurrentUser() {
 	return useQuery({
 		queryKey: ['current-user'],
 		queryFn: async () => {
-			const response = await api.get<User>('/users/me');
-			return response;
+			const { data } = await apiClient.get<User>('/users/me');
+			return data;
 		},
 	});
 }
@@ -65,7 +65,7 @@ export function useCreateUser() {
 
 	return useMutation({
 		mutationFn: async (data: UserCreateInput) => {
-			const response = await api.post<User>('/users', data);
+			const { data: response } = await apiClient.post<User>('/users', data);
 			return response;
 		},
 		onSuccess: () => {
@@ -79,7 +79,7 @@ export function useUpdateUser(userId: string) {
 
 	return useMutation({
 		mutationFn: async (data: UserUpdateInput) => {
-			const response = await api.patch<User>(`/users/${userId}`, data);
+			const { data: response } = await apiClient.patch<User>(`/users/${userId}`, data);
 			return response;
 		},
 		onSuccess: () => {
@@ -94,7 +94,7 @@ export function useDeleteUser() {
 
 	return useMutation({
 		mutationFn: async (userId: string) => {
-			await api.delete(`/users/${userId}`);
+			await apiClient.delete(`/users/${userId}`);
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: USERS_KEY });
@@ -105,7 +105,7 @@ export function useDeleteUser() {
 export function useChangePassword(userId: string) {
 	return useMutation({
 		mutationFn: async (data: PasswordChangeInput) => {
-			await api.post(`/users/${userId}/change-password`, data);
+			await apiClient.post(`/users/${userId}/change-password`, data);
 		},
 	});
 }
@@ -113,8 +113,8 @@ export function useChangePassword(userId: string) {
 export function useResetPassword() {
 	return useMutation({
 		mutationFn: async (userId: string) => {
-			const response = await api.post<{ temporary_password: string }>(`/users/${userId}/reset-password`);
-			return response;
+			const { data } = await apiClient.post<{ temporary_password: string }>(`/users/${userId}/reset-password`);
+			return data;
 		},
 	});
 }
@@ -124,8 +124,8 @@ export function useEnableMfa(userId: string) {
 
 	return useMutation({
 		mutationFn: async () => {
-			const response = await api.post<{ qr_code: string; secret: string }>(`/users/${userId}/mfa/enable`);
-			return response;
+			const { data } = await apiClient.post<{ qr_code: string; secret: string }>(`/users/${userId}/mfa/enable`);
+			return data;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: [...USERS_KEY, userId] });
@@ -138,7 +138,7 @@ export function useDisableMfa(userId: string) {
 
 	return useMutation({
 		mutationFn: async () => {
-			await api.post(`/users/${userId}/mfa/disable`);
+			await apiClient.post(`/users/${userId}/mfa/disable`);
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: [...USERS_KEY, userId] });

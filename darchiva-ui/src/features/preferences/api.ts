@@ -2,7 +2,7 @@
 /**
  * User preferences API hooks.
  */
-import { api } from '@/lib/api';
+import { apiClient } from '@/lib/api-client';
 import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import type { UserPreferences } from './types';
 import { DEFAULT_PREFERENCES } from './types';
@@ -13,8 +13,8 @@ export function usePreferences() {
 	return useQuery({
 		queryKey: PREFERENCES_KEY,
 		queryFn: async () => {
-			const response = await api.get<UserPreferences>('/users/me/preferences');
-			return { ...DEFAULT_PREFERENCES, ...response };
+			const { data } = await apiClient.get<UserPreferences>('/users/me/preferences');
+			return { ...DEFAULT_PREFERENCES, ...data };
 		},
 	});
 }
@@ -24,7 +24,7 @@ export function useUpdatePreferences() {
 
 	return useMutation({
 		mutationFn: async (data: Partial<UserPreferences>) => {
-			const response = await api.patch<UserPreferences>('/users/me/preferences', data);
+			const { data: response } = await apiClient.patch<UserPreferences>('/users/me/preferences', data);
 			return response;
 		},
 		onMutate: async (newPrefs) => {
@@ -53,7 +53,7 @@ export function useResetPreferences() {
 
 	return useMutation({
 		mutationFn: async () => {
-			await api.delete('/users/me/preferences');
+			await apiClient.delete('/users/me/preferences');
 			return DEFAULT_PREFERENCES;
 		},
 		onSuccess: () => {

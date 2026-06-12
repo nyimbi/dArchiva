@@ -2,7 +2,7 @@
 /**
  * Group management API hooks.
  */
-import { api } from '@/lib/api';
+import { apiClient } from '@/lib/api-client';
 import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import type {
   Group,
@@ -31,8 +31,8 @@ export function useGroups(params: ListGroupsParams = {}) {
 			if (params.search) searchParams.set('search', params.search);
 			if (params.parent_id) searchParams.set('parent_id', params.parent_id);
 
-			const response = await api.get<GroupListResponse>(`/groups?${searchParams}`);
-			return response;
+			const { data } = await apiClient.get<GroupListResponse>(`/groups?${searchParams}`);
+			return data;
 		},
 	});
 }
@@ -41,8 +41,8 @@ export function useGroupTree() {
 	return useQuery({
 		queryKey: [...GROUPS_KEY, 'tree'],
 		queryFn: async () => {
-			const response = await api.get<GroupTree[]>('/groups/tree');
-			return response;
+			const { data } = await apiClient.get<GroupTree[]>('/groups/tree');
+			return data;
 		},
 	});
 }
@@ -51,8 +51,8 @@ export function useGroup(groupId: string) {
 	return useQuery({
 		queryKey: [...GROUPS_KEY, groupId],
 		queryFn: async () => {
-			const response = await api.get<Group>(`/groups/${groupId}`);
-			return response;
+			const { data } = await apiClient.get<Group>(`/groups/${groupId}`);
+			return data;
 		},
 		enabled: !!groupId,
 	});
@@ -62,8 +62,8 @@ export function useGroupMembers(groupId: string) {
 	return useQuery({
 		queryKey: [...GROUPS_KEY, groupId, 'members'],
 		queryFn: async () => {
-			const response = await api.get<GroupMember[]>(`/groups/${groupId}/members`);
-			return response;
+			const { data } = await apiClient.get<GroupMember[]>(`/groups/${groupId}/members`);
+			return data;
 		},
 		enabled: !!groupId,
 	});
@@ -74,7 +74,7 @@ export function useCreateGroup() {
 
 	return useMutation({
 		mutationFn: async (data: GroupCreateInput) => {
-			const response = await api.post<Group>('/groups', data);
+			const { data: response } = await apiClient.post<Group>('/groups', data);
 			return response;
 		},
 		onSuccess: () => {
@@ -88,7 +88,7 @@ export function useUpdateGroup(groupId: string) {
 
 	return useMutation({
 		mutationFn: async (data: GroupUpdateInput) => {
-			const response = await api.patch<Group>(`/groups/${groupId}`, data);
+			const { data: response } = await apiClient.patch<Group>(`/groups/${groupId}`, data);
 			return response;
 		},
 		onSuccess: () => {
@@ -103,7 +103,7 @@ export function useDeleteGroup() {
 
 	return useMutation({
 		mutationFn: async (groupId: string) => {
-			await api.delete(`/groups/${groupId}`);
+			await apiClient.delete(`/groups/${groupId}`);
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: GROUPS_KEY });
@@ -116,7 +116,7 @@ export function useAddGroupMembers(groupId: string) {
 
 	return useMutation({
 		mutationFn: async (userIds: string[]) => {
-			await api.post(`/groups/${groupId}/members`, { user_ids: userIds });
+			await apiClient.post(`/groups/${groupId}/members`, { user_ids: userIds });
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: [...GROUPS_KEY, groupId, 'members'] });
@@ -130,7 +130,7 @@ export function useRemoveGroupMember(groupId: string) {
 
 	return useMutation({
 		mutationFn: async (userId: string) => {
-			await api.delete(`/groups/${groupId}/members/${userId}`);
+			await apiClient.delete(`/groups/${groupId}/members/${userId}`);
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: [...GROUPS_KEY, groupId, 'members'] });

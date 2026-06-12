@@ -1,5 +1,5 @@
 // IAM API Hooks
-import { api } from '@/lib/api';
+import { apiClient } from '@/lib/api-client';
 import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import type {
   AccessEvent,
@@ -51,7 +51,7 @@ const keys = {
 export function useIAMStats() {
 	return useQuery({
 		queryKey: keys.stats,
-		queryFn: () => api.get<IAMStats>('/api/iam/stats'),
+		queryFn: () => apiClient.get<IAMStats>('/api/iam/stats').then(r => r.data),
 		staleTime: 30_000,
 	});
 }
@@ -60,14 +60,14 @@ export function useIAMStats() {
 export function useIAMUsers(params?: { page?: number; pageSize?: number; search?: string; status?: string; role_id?: string; group_id?: string; department_id?: string }) {
 	return useQuery({
 		queryKey: keys.users(params),
-		queryFn: () => api.get<{ items: IAMUser[]; total: number }>('/api/iam/users', { params }),
+		queryFn: () => apiClient.get<{ items: IAMUser[]; total: number }>('/api/iam/users', { params }).then(r => r.data),
 	});
 }
 
 export function useIAMUser(id: string) {
 	return useQuery({
 		queryKey: keys.user(id),
-		queryFn: () => api.get<IAMUser>(`/api/iam/users/${id}`),
+		queryFn: () => apiClient.get<IAMUser>(`/api/iam/users/${id}`).then(r => r.data),
 		enabled: !!id,
 	});
 }
@@ -75,7 +75,7 @@ export function useIAMUser(id: string) {
 export function useUserSessions(userId: string) {
 	return useQuery({
 		queryKey: keys.userSessions(userId),
-		queryFn: () => api.get<UserSession[]>(`/api/iam/users/${userId}/sessions`),
+		queryFn: () => apiClient.get<UserSession[]>(`/api/iam/users/${userId}/sessions`).then(r => r.data),
 		enabled: !!userId,
 	});
 }
@@ -84,7 +84,7 @@ export function useRevokeSession() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: ({ userId, sessionId }: { userId: string; sessionId: string }) =>
-			api.delete(`/api/iam/users/${userId}/sessions/${sessionId}`),
+			apiClient.delete(`/api/iam/users/${userId}/sessions/${sessionId}`),
 		onSuccess: (_, { userId }) => {
 			qc.invalidateQueries({ queryKey: keys.userSessions(userId) });
 		},
@@ -94,7 +94,7 @@ export function useRevokeSession() {
 export function useRevokeAllSessions() {
 	const qc = useQueryClient();
 	return useMutation({
-		mutationFn: (userId: string) => api.delete(`/api/iam/users/${userId}/sessions`),
+		mutationFn: (userId: string) => apiClient.delete(`/api/iam/users/${userId}/sessions`),
 		onSuccess: (_, userId) => {
 			qc.invalidateQueries({ queryKey: keys.userSessions(userId) });
 		},
@@ -104,7 +104,7 @@ export function useRevokeAllSessions() {
 export function useBulkUserOperation() {
 	const qc = useQueryClient();
 	return useMutation({
-		mutationFn: (data: BulkUserOperation) => api.post('/api/iam/users/bulk', data),
+		mutationFn: (data: BulkUserOperation) => apiClient.post('/api/iam/users/bulk', data),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: ['iam', 'users'] });
 			qc.invalidateQueries({ queryKey: keys.stats });
@@ -116,14 +116,14 @@ export function useBulkUserOperation() {
 export function useRoles(params?: { page?: number; pageSize?: number; search?: string; is_system?: boolean }) {
 	return useQuery({
 		queryKey: keys.roles(params),
-		queryFn: () => api.get<{ items: Role[]; total: number }>('/api/iam/roles', { params }),
+		queryFn: () => apiClient.get<{ items: Role[]; total: number }>('/api/iam/roles', { params }).then(r => r.data),
 	});
 }
 
 export function useRole(id: string) {
 	return useQuery({
 		queryKey: keys.role(id),
-		queryFn: () => api.get<Role>(`/api/iam/roles/${id}`),
+		queryFn: () => apiClient.get<Role>(`/api/iam/roles/${id}`).then(r => r.data),
 		enabled: !!id,
 	});
 }
@@ -131,14 +131,14 @@ export function useRole(id: string) {
 export function useRoleTemplates() {
 	return useQuery({
 		queryKey: keys.roleTemplates,
-		queryFn: () => api.get<RoleTemplate[]>('/api/iam/roles/templates'),
+		queryFn: () => apiClient.get<RoleTemplate[]>('/api/iam/roles/templates').then(r => r.data),
 	});
 }
 
 export function useCreateRole() {
 	const qc = useQueryClient();
 	return useMutation({
-		mutationFn: (data: CreateRoleInput) => api.post<Role>('/api/iam/roles', data),
+		mutationFn: (data: CreateRoleInput) => apiClient.post<Role>('/api/iam/roles', data).then(r => r.data),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: ['iam', 'roles'] });
 			qc.invalidateQueries({ queryKey: keys.stats });
@@ -150,7 +150,7 @@ export function useUpdateRole() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: ({ id, data }: { id: string; data: UpdateRoleInput }) =>
-			api.patch<Role>(`/api/iam/roles/${id}`, data),
+			apiClient.patch<Role>(`/api/iam/roles/${id}`, data).then(r => r.data),
 		onSuccess: (_, { id }) => {
 			qc.invalidateQueries({ queryKey: keys.role(id) });
 			qc.invalidateQueries({ queryKey: ['iam', 'roles'] });
@@ -161,7 +161,7 @@ export function useUpdateRole() {
 export function useDeleteRole() {
 	const qc = useQueryClient();
 	return useMutation({
-		mutationFn: (id: string) => api.delete(`/api/iam/roles/${id}`),
+		mutationFn: (id: string) => apiClient.delete(`/api/iam/roles/${id}`),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: ['iam', 'roles'] });
 			qc.invalidateQueries({ queryKey: keys.stats });
@@ -173,7 +173,7 @@ export function useCloneRole() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: ({ roleId, newName }: { roleId: string; newName: string }) =>
-			api.post<Role>(`/api/iam/roles/${roleId}/clone`, { name: newName }),
+			apiClient.post<Role>(`/api/iam/roles/${roleId}/clone`, { name: newName }).then(r => r.data),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: ['iam', 'roles'] });
 		},
@@ -184,7 +184,7 @@ export function useCloneRole() {
 export function usePermissions() {
 	return useQuery({
 		queryKey: keys.permissions,
-		queryFn: () => api.get<Permission[]>('/api/iam/permissions'),
+		queryFn: () => apiClient.get<Permission[]>('/api/iam/permissions').then(r => r.data),
 		staleTime: 300_000, // Permissions rarely change
 	});
 }
@@ -192,7 +192,7 @@ export function usePermissions() {
 export function usePermissionGroups() {
 	return useQuery({
 		queryKey: keys.permissionGroups,
-		queryFn: () => api.get<PermissionGroup[]>('/api/iam/permissions/grouped'),
+		queryFn: () => apiClient.get<PermissionGroup[]>('/api/iam/permissions/grouped').then(r => r.data),
 		staleTime: 300_000,
 	});
 }
@@ -201,21 +201,21 @@ export function usePermissionGroups() {
 export function useGroups(params?: { page?: number; pageSize?: number; search?: string; parent_id?: string }) {
 	return useQuery({
 		queryKey: keys.groups(params),
-		queryFn: () => api.get<{ items: Group[]; total: number }>('/api/iam/groups', { params }),
+		queryFn: () => apiClient.get<{ items: Group[]; total: number }>('/api/iam/groups', { params }).then(r => r.data),
 	});
 }
 
 export function useGroupTree() {
 	return useQuery({
 		queryKey: keys.groupTree,
-		queryFn: () => api.get<Group[]>('/api/iam/groups/tree'),
+		queryFn: () => apiClient.get<Group[]>('/api/iam/groups/tree').then(r => r.data),
 	});
 }
 
 export function useGroup(id: string) {
 	return useQuery({
 		queryKey: keys.group(id),
-		queryFn: () => api.get<Group>(`/api/iam/groups/${id}`),
+		queryFn: () => apiClient.get<Group>(`/api/iam/groups/${id}`).then(r => r.data),
 		enabled: !!id,
 	});
 }
@@ -223,7 +223,7 @@ export function useGroup(id: string) {
 export function useGroupMembers(groupId: string, params?: { include_inherited?: boolean }) {
 	return useQuery({
 		queryKey: keys.groupMembers(groupId),
-		queryFn: () => api.get<GroupMember[]>(`/api/iam/groups/${groupId}/members`, { params }),
+		queryFn: () => apiClient.get<GroupMember[]>(`/api/iam/groups/${groupId}/members`, { params }).then(r => r.data),
 		enabled: !!groupId,
 	});
 }
@@ -231,7 +231,7 @@ export function useGroupMembers(groupId: string, params?: { include_inherited?: 
 export function useCreateGroup() {
 	const qc = useQueryClient();
 	return useMutation({
-		mutationFn: (data: CreateGroupInput) => api.post<Group>('/api/iam/groups', data),
+		mutationFn: (data: CreateGroupInput) => apiClient.post<Group>('/api/iam/groups', data).then(r => r.data),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: ['iam', 'groups'] });
 			qc.invalidateQueries({ queryKey: keys.groupTree });
@@ -244,7 +244,7 @@ export function useAddGroupMembers() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: ({ groupId, userIds }: { groupId: string; userIds: string[] }) =>
-			api.post(`/api/iam/groups/${groupId}/members`, { user_ids: userIds }),
+			apiClient.post(`/api/iam/groups/${groupId}/members`, { user_ids: userIds }),
 		onSuccess: (_, { groupId }) => {
 			qc.invalidateQueries({ queryKey: keys.groupMembers(groupId) });
 			qc.invalidateQueries({ queryKey: keys.group(groupId) });
@@ -256,7 +256,7 @@ export function useRemoveGroupMember() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: ({ groupId, userId }: { groupId: string; userId: string }) =>
-			api.delete(`/api/iam/groups/${groupId}/members/${userId}`),
+			apiClient.delete(`/api/iam/groups/${groupId}/members/${userId}`),
 		onSuccess: (_, { groupId }) => {
 			qc.invalidateQueries({ queryKey: keys.groupMembers(groupId) });
 			qc.invalidateQueries({ queryKey: keys.group(groupId) });
@@ -268,14 +268,14 @@ export function useRemoveGroupMember() {
 export function useDepartments() {
 	return useQuery({
 		queryKey: keys.departments,
-		queryFn: () => api.get<Department[]>('/api/iam/departments'),
+		queryFn: () => apiClient.get<Department[]>('/api/iam/departments').then(r => r.data),
 	});
 }
 
 export function useDepartmentTree() {
 	return useQuery({
 		queryKey: keys.departmentTree,
-		queryFn: () => api.get<Department[]>('/api/iam/departments/tree'),
+		queryFn: () => apiClient.get<Department[]>('/api/iam/departments/tree').then(r => r.data),
 	});
 }
 
@@ -283,7 +283,7 @@ export function useDepartmentTree() {
 export function useAccessEvents(params?: { page?: number; pageSize?: number; user_id?: string; action?: string; start_date?: string; end_date?: string }) {
 	return useQuery({
 		queryKey: keys.accessEvents(params),
-		queryFn: () => api.get<{ items: AccessEvent[]; total: number }>('/api/iam/access-events', { params }),
+		queryFn: () => apiClient.get<{ items: AccessEvent[]; total: number }>('/api/iam/access-events', { params }).then(r => r.data),
 	});
 }
 
@@ -291,14 +291,14 @@ export function useAccessEvents(params?: { page?: number; pageSize?: number; use
 export function useInvitations() {
 	return useQuery({
 		queryKey: keys.invitations,
-		queryFn: () => api.get<UserInvitation[]>('/api/iam/invitations'),
+		queryFn: () => apiClient.get<UserInvitation[]>('/api/iam/invitations').then(r => r.data),
 	});
 }
 
 export function useInviteUser() {
 	const qc = useQueryClient();
 	return useMutation({
-		mutationFn: (data: InviteUserInput) => api.post<UserInvitation>('/api/iam/invitations', data),
+		mutationFn: (data: InviteUserInput) => apiClient.post<UserInvitation>('/api/iam/invitations', data).then(r => r.data),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: keys.invitations });
 			qc.invalidateQueries({ queryKey: keys.stats });
@@ -309,7 +309,7 @@ export function useInviteUser() {
 export function useRevokeInvitation() {
 	const qc = useQueryClient();
 	return useMutation({
-		mutationFn: (id: string) => api.delete(`/api/iam/invitations/${id}`),
+		mutationFn: (id: string) => apiClient.delete(`/api/iam/invitations/${id}`),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: keys.invitations });
 		},
@@ -318,7 +318,7 @@ export function useRevokeInvitation() {
 
 export function useResendInvitation() {
 	return useMutation({
-		mutationFn: (id: string) => api.post(`/api/iam/invitations/${id}/resend`),
+		mutationFn: (id: string) => apiClient.post(`/api/iam/invitations/${id}/resend`),
 	});
 }
 
@@ -326,7 +326,7 @@ export function useResendInvitation() {
 export function usePermissionMatrix(params?: { resource_type?: string; entity_type?: 'user' | 'group' }) {
 	return useQuery({
 		queryKey: keys.permissionMatrix(params),
-		queryFn: () => api.get<PermissionMatrixRow[]>('/api/iam/permission-matrix', { params }),
+		queryFn: () => apiClient.get<PermissionMatrixRow[]>('/api/iam/permission-matrix', { params }).then(r => r.data),
 	});
 }
 
@@ -334,7 +334,7 @@ export function useUpdatePermissionCell() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: (data: { entity_type: 'user' | 'group'; entity_id: string; resource: string; level: string }) =>
-			api.patch('/api/iam/permission-matrix', data),
+			apiClient.patch('/api/iam/permission-matrix', data),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: ['iam', 'permission-matrix'] });
 		},
@@ -345,7 +345,7 @@ export function useUpdatePermissionCell() {
 export function useUserHome() {
 	return useQuery({
 		queryKey: keys.userHome,
-		queryFn: () => api.get<UserHomeData>('/api/user/home'),
+		queryFn: () => apiClient.get<UserHomeData>('/api/user/home').then(r => r.data),
 		staleTime: 60_000,
 	});
 }
@@ -353,7 +353,7 @@ export function useUserHome() {
 export function useUserTasks(params?: { status?: string; priority?: string }) {
 	return useQuery({
 		queryKey: [...keys.userTasks, params],
-		queryFn: () => api.get<WorkflowTask[]>('/api/user/tasks', { params }),
+		queryFn: () => apiClient.get<WorkflowTask[]>('/api/user/tasks', { params }).then(r => r.data),
 	});
 }
 
@@ -361,7 +361,7 @@ export function useCompleteTask() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: ({ taskId, action, comment }: { taskId: string; action: 'approve' | 'reject' | 'complete'; comment?: string }) =>
-			api.post(`/api/user/tasks/${taskId}/${action}`, { comment }),
+			apiClient.post(`/api/user/tasks/${taskId}/${action}`, { comment }),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: keys.userTasks });
 			qc.invalidateQueries({ queryKey: keys.userHome });
@@ -372,7 +372,7 @@ export function useCompleteTask() {
 export function useUserNotifications() {
 	return useQuery({
 		queryKey: keys.userNotifications,
-		queryFn: () => api.get<{ items: import('../types').UserNotification[]; unread_count: number }>('/api/user/notifications'),
+		queryFn: () => apiClient.get<{ items: import('../types').UserNotification[]; unread_count: number }>('/api/user/notifications').then(r => r.data),
 		refetchInterval: 30_000,
 	});
 }
@@ -380,7 +380,7 @@ export function useUserNotifications() {
 export function useMarkNotificationRead() {
 	const qc = useQueryClient();
 	return useMutation({
-		mutationFn: (id: string) => api.patch(`/api/user/notifications/${id}/read`),
+		mutationFn: (id: string) => apiClient.patch(`/api/user/notifications/${id}/read`),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: keys.userNotifications });
 		},
@@ -390,7 +390,7 @@ export function useMarkNotificationRead() {
 export function useMarkAllNotificationsRead() {
 	const qc = useQueryClient();
 	return useMutation({
-		mutationFn: () => api.post('/api/user/notifications/read-all'),
+		mutationFn: () => apiClient.post('/api/user/notifications/read-all'),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: keys.userNotifications });
 		},
@@ -402,7 +402,7 @@ export function useAddFavorite() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: (data: { item_type: string; item_id: string; title: string }) =>
-			api.post('/api/user/favorites', data),
+			apiClient.post('/api/user/favorites', data),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: keys.userHome });
 		},
@@ -412,7 +412,7 @@ export function useAddFavorite() {
 export function useRemoveFavorite() {
 	const qc = useQueryClient();
 	return useMutation({
-		mutationFn: (id: string) => api.delete(`/api/user/favorites/${id}`),
+		mutationFn: (id: string) => apiClient.delete(`/api/user/favorites/${id}`),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: keys.userHome });
 		},

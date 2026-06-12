@@ -2,7 +2,7 @@
 /**
  * Tag feature API hooks.
  */
-import { api } from '@/lib/api';
+import { apiClient } from '@/lib/api-client';
 import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import type { Tag,TagCreate,TagListResponse,TagUpdate } from './types';
 
@@ -12,8 +12,8 @@ export function useTags() {
 	return useQuery({
 		queryKey: TAGS_KEY,
 		queryFn: async () => {
-			const response = await api.get<TagListResponse>('/tags');
-			return response;
+			const { data } = await apiClient.get<TagListResponse>('/tags');
+			return data;
 		},
 	});
 }
@@ -22,8 +22,8 @@ export function useTag(tagId: string) {
 	return useQuery({
 		queryKey: [...TAGS_KEY, tagId],
 		queryFn: async () => {
-			const response = await api.get<Tag>(`/tags/${tagId}`);
-			return response;
+			const { data } = await apiClient.get<Tag>(`/tags/${tagId}`);
+			return data;
 		},
 		enabled: !!tagId,
 	});
@@ -34,7 +34,7 @@ export function useCreateTag() {
 
 	return useMutation({
 		mutationFn: async (data: TagCreate) => {
-			const response = await api.post<Tag>('/tags', data);
+			const { data: response } = await apiClient.post<Tag>('/tags', data);
 			return response;
 		},
 		onSuccess: () => {
@@ -48,7 +48,7 @@ export function useUpdateTag() {
 
 	return useMutation({
 		mutationFn: async ({ tagId, data }: { tagId: string; data: TagUpdate }) => {
-			const response = await api.patch<Tag>(`/tags/${tagId}`, data);
+			const { data: response } = await apiClient.patch<Tag>(`/tags/${tagId}`, data);
 			return response;
 		},
 		onSuccess: (_, { tagId }) => {
@@ -63,7 +63,7 @@ export function useDeleteTag() {
 
 	return useMutation({
 		mutationFn: async (tagId: string) => {
-			await api.delete(`/tags/${tagId}`);
+			await apiClient.delete(`/tags/${tagId}`);
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: TAGS_KEY });
@@ -74,7 +74,7 @@ export function useDeleteTag() {
 export function useTagDocuments(tagId: string) {
 	return useMutation({
 		mutationFn: async (documentIds: string[]) => {
-			await api.post(`/tags/${tagId}/documents`, { document_ids: documentIds });
+			await apiClient.post(`/tags/${tagId}/documents`, { document_ids: documentIds });
 		},
 	});
 }
@@ -82,7 +82,7 @@ export function useTagDocuments(tagId: string) {
 export function useUntagDocuments(tagId: string) {
 	return useMutation({
 		mutationFn: async (documentIds: string[]) => {
-			await api.delete(`/tags/${tagId}/documents`, { data: { document_ids: documentIds } });
+			await apiClient.delete(`/tags/${tagId}/documents`, { data: { document_ids: documentIds } });
 		},
 	});
 }

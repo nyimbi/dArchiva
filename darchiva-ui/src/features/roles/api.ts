@@ -2,7 +2,7 @@
 /**
  * Role management API hooks.
  */
-import { api } from '@/lib/api';
+import { apiClient } from '@/lib/api-client';
 import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import type {
   Permission,
@@ -32,8 +32,8 @@ export function useRoles(params: ListRolesParams = {}) {
 			if (params.search) searchParams.set('search', params.search);
 			if (params.is_system !== undefined) searchParams.set('is_system', String(params.is_system));
 
-			const response = await api.get<RoleListResponse>(`/roles?${searchParams}`);
-			return response;
+			const { data } = await apiClient.get<RoleListResponse>(`/roles?${searchParams}`);
+			return data;
 		},
 	});
 }
@@ -42,8 +42,8 @@ export function useRole(roleId: string) {
 	return useQuery({
 		queryKey: [...ROLES_KEY, roleId],
 		queryFn: async () => {
-			const response = await api.get<Role>(`/roles/${roleId}`);
-			return response;
+			const { data } = await apiClient.get<Role>(`/roles/${roleId}`);
+			return data;
 		},
 		enabled: !!roleId,
 	});
@@ -53,8 +53,8 @@ export function usePermissions() {
 	return useQuery({
 		queryKey: PERMISSIONS_KEY,
 		queryFn: async () => {
-			const response = await api.get<Permission[]>('/permissions');
-			return response;
+			const { data } = await apiClient.get<Permission[]>('/permissions');
+			return data;
 		},
 	});
 }
@@ -63,8 +63,8 @@ export function usePermissionsByCategory() {
 	return useQuery({
 		queryKey: [...PERMISSIONS_KEY, 'by-category'],
 		queryFn: async () => {
-			const response = await api.get<PermissionCategory[]>('/permissions/by-category');
-			return response;
+			const { data } = await apiClient.get<PermissionCategory[]>('/permissions/by-category');
+			return data;
 		},
 	});
 }
@@ -74,7 +74,7 @@ export function useCreateRole() {
 
 	return useMutation({
 		mutationFn: async (data: RoleCreateInput) => {
-			const response = await api.post<Role>('/roles', data);
+			const { data: response } = await apiClient.post<Role>('/roles', data);
 			return response;
 		},
 		onSuccess: () => {
@@ -88,7 +88,7 @@ export function useUpdateRole(roleId: string) {
 
 	return useMutation({
 		mutationFn: async (data: RoleUpdateInput) => {
-			const response = await api.patch<Role>(`/roles/${roleId}`, data);
+			const { data: response } = await apiClient.patch<Role>(`/roles/${roleId}`, data);
 			return response;
 		},
 		onSuccess: () => {
@@ -103,7 +103,7 @@ export function useDeleteRole() {
 
 	return useMutation({
 		mutationFn: async (roleId: string) => {
-			await api.delete(`/roles/${roleId}`);
+			await apiClient.delete(`/roles/${roleId}`);
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ROLES_KEY });
@@ -116,8 +116,8 @@ export function useCloneRole() {
 
 	return useMutation({
 		mutationFn: async ({ roleId, newName }: { roleId: string; newName: string }) => {
-			const response = await api.post<Role>(`/roles/${roleId}/clone`, { name: newName });
-			return response;
+			const { data } = await apiClient.post<Role>(`/roles/${roleId}/clone`, { name: newName });
+			return data;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ROLES_KEY });

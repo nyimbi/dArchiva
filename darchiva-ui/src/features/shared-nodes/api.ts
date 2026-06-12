@@ -2,7 +2,7 @@
 /**
  * Shared nodes API hooks.
  */
-import { api } from '@/lib/api';
+import { apiClient } from '@/lib/api-client';
 import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import type {
   CreateLinkShareInput,
@@ -33,8 +33,8 @@ export function useSharedNodes(params: ListSharedParams = {}) {
 			if (params.shared_by_me) searchParams.set('shared_by_me', 'true');
 			if (params.shared_with_me) searchParams.set('shared_with_me', 'true');
 
-			const response = await api.get<SharedNodesListResponse>(`/shared-nodes?${searchParams}`);
-			return response;
+			const { data } = await apiClient.get<SharedNodesListResponse>(`/shared-nodes?${searchParams}`);
+			return data;
 		},
 	});
 }
@@ -51,8 +51,8 @@ export function useNodeShares(nodeId: string) {
 	return useQuery({
 		queryKey: [...SHARED_KEY, 'node', nodeId],
 		queryFn: async () => {
-			const response = await api.get<SharedNode[]>(`/nodes/${nodeId}/shares`);
-			return response;
+			const { data } = await apiClient.get<SharedNode[]>(`/nodes/${nodeId}/shares`);
+			return data;
 		},
 		enabled: !!nodeId,
 	});
@@ -62,8 +62,8 @@ export function useNodeShareLinks(nodeId: string) {
 	return useQuery({
 		queryKey: [...SHARED_KEY, 'node', nodeId, 'links'],
 		queryFn: async () => {
-			const response = await api.get<ShareLink[]>(`/nodes/${nodeId}/share-links`);
-			return response;
+			const { data } = await apiClient.get<ShareLink[]>(`/nodes/${nodeId}/share-links`);
+			return data;
 		},
 		enabled: !!nodeId,
 	});
@@ -74,7 +74,7 @@ export function useCreateShare() {
 
 	return useMutation({
 		mutationFn: async (data: CreateShareInput) => {
-			const response = await api.post<SharedNode>('/shared-nodes', data);
+			const { data: response } = await apiClient.post<SharedNode>('/shared-nodes', data);
 			return response;
 		},
 		onSuccess: (_, variables) => {
@@ -89,7 +89,7 @@ export function useCreateShareLink() {
 
 	return useMutation({
 		mutationFn: async (data: CreateLinkShareInput) => {
-			const response = await api.post<ShareLink>('/share-links', data);
+			const { data: response } = await apiClient.post<ShareLink>('/share-links', data);
 			return response;
 		},
 		onSuccess: (_, variables) => {
@@ -104,7 +104,7 @@ export function useUpdateShare(shareId: string) {
 
 	return useMutation({
 		mutationFn: async (data: UpdateShareInput) => {
-			const response = await api.patch<SharedNode>(`/shared-nodes/${shareId}`, data);
+			const { data: response } = await apiClient.patch<SharedNode>(`/shared-nodes/${shareId}`, data);
 			return response;
 		},
 		onSuccess: () => {
@@ -118,7 +118,7 @@ export function useDeleteShare() {
 
 	return useMutation({
 		mutationFn: async (shareId: string) => {
-			await api.delete(`/shared-nodes/${shareId}`);
+			await apiClient.delete(`/shared-nodes/${shareId}`);
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: SHARED_KEY });
@@ -131,7 +131,7 @@ export function useDeleteShareLink() {
 
 	return useMutation({
 		mutationFn: async (linkId: string) => {
-			await api.delete(`/share-links/${linkId}`);
+			await apiClient.delete(`/share-links/${linkId}`);
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: SHARED_KEY });

@@ -2,7 +2,7 @@
 /**
  * Custom fields API hooks.
  */
-import { api } from '@/lib/api';
+import { apiClient } from '@/lib/api-client';
 import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import type { CustomField,CustomFieldCreate,CustomFieldListResponse,CustomFieldUpdate,CustomFieldValue } from './types';
 
@@ -12,8 +12,8 @@ export function useCustomFields() {
 	return useQuery({
 		queryKey: CUSTOM_FIELDS_KEY,
 		queryFn: async () => {
-			const response = await api.get<CustomFieldListResponse>('/custom-fields');
-			return response;
+			const { data } = await apiClient.get<CustomFieldListResponse>('/custom-fields');
+			return data;
 		},
 	});
 }
@@ -22,8 +22,8 @@ export function useCustomField(fieldId: string) {
 	return useQuery({
 		queryKey: [...CUSTOM_FIELDS_KEY, fieldId],
 		queryFn: async () => {
-			const response = await api.get<CustomField>(`/custom-fields/${fieldId}`);
-			return response;
+			const { data } = await apiClient.get<CustomField>(`/custom-fields/${fieldId}`);
+			return data;
 		},
 		enabled: !!fieldId,
 	});
@@ -34,7 +34,7 @@ export function useCreateCustomField() {
 
 	return useMutation({
 		mutationFn: async (data: CustomFieldCreate) => {
-			const response = await api.post<CustomField>('/custom-fields', data);
+			const { data: response } = await apiClient.post<CustomField>('/custom-fields', data);
 			return response;
 		},
 		onSuccess: () => {
@@ -48,7 +48,7 @@ export function useUpdateCustomField() {
 
 	return useMutation({
 		mutationFn: async ({ fieldId, data }: { fieldId: string; data: CustomFieldUpdate }) => {
-			const response = await api.patch<CustomField>(`/custom-fields/${fieldId}`, data);
+			const { data: response } = await apiClient.patch<CustomField>(`/custom-fields/${fieldId}`, data);
 			return response;
 		},
 		onSuccess: (_, { fieldId }) => {
@@ -63,7 +63,7 @@ export function useDeleteCustomField() {
 
 	return useMutation({
 		mutationFn: async (fieldId: string) => {
-			await api.delete(`/custom-fields/${fieldId}`);
+			await apiClient.delete(`/custom-fields/${fieldId}`);
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: CUSTOM_FIELDS_KEY });
@@ -75,8 +75,8 @@ export function useDocumentCustomFields(documentId: string) {
 	return useQuery({
 		queryKey: ['documents', documentId, 'custom-fields'],
 		queryFn: async () => {
-			const response = await api.get<CustomFieldValue[]>(`/documents/${documentId}/custom-fields`);
-			return response;
+			const { data } = await apiClient.get<CustomFieldValue[]>(`/documents/${documentId}/custom-fields`);
+			return data;
 		},
 		enabled: !!documentId,
 	});
@@ -87,8 +87,8 @@ export function useUpdateDocumentCustomFields(documentId: string) {
 
 	return useMutation({
 		mutationFn: async (values: Record<string, string | number | boolean | null>) => {
-			const response = await api.put(`/documents/${documentId}/custom-fields`, values);
-			return response;
+			const { data } = await apiClient.put(`/documents/${documentId}/custom-fields`, values);
+			return data;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['documents', documentId, 'custom-fields'] });
