@@ -40,7 +40,7 @@ describe('PreferencesPanel', () => {
 
 		render(<PreferencesPanel />);
 
-		expect(document.querySelectorAll('[class*="skeleton"]').length).toBeGreaterThan(0);
+		expect(document.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
 	});
 
 	it('renders preference sections when loaded', async () => {
@@ -52,15 +52,15 @@ describe('PreferencesPanel', () => {
 		render(<PreferencesPanel />);
 
 		await waitFor(() => {
-			expect(screen.getByText('Appearance')).toBeInTheDocument();
-			expect(screen.getByText('Document Browser')).toBeInTheDocument();
-			expect(screen.getByText('Language & Region')).toBeInTheDocument();
-			expect(screen.getByText('Notifications')).toBeInTheDocument();
-			expect(screen.getByText('Keyboard')).toBeInTheDocument();
-			expect(screen.getByText('Privacy')).toBeInTheDocument();
-			expect(screen.getByText('Scanner')).toBeInTheDocument();
-			expect(screen.getByText('OCR')).toBeInTheDocument();
-			expect(screen.getByText('Editor')).toBeInTheDocument();
+			expect(screen.getByRole('button', { name: 'Appearance' })).toBeInTheDocument();
+			expect(screen.getByRole('button', { name: 'Document Browser' })).toBeInTheDocument();
+			expect(screen.getByRole('button', { name: 'Language & Region' })).toBeInTheDocument();
+			expect(screen.getByRole('button', { name: 'Notifications' })).toBeInTheDocument();
+			expect(screen.getByRole('button', { name: 'Keyboard' })).toBeInTheDocument();
+			expect(screen.getByRole('button', { name: 'Privacy' })).toBeInTheDocument();
+			expect(screen.getByRole('button', { name: 'Scanner' })).toBeInTheDocument();
+			expect(screen.getByRole('button', { name: 'OCR' })).toBeInTheDocument();
+			expect(screen.getByRole('button', { name: 'Editor' })).toBeInTheDocument();
 		});
 	});
 
@@ -90,7 +90,7 @@ describe('PreferencesPanel', () => {
 		render(<PreferencesPanel />);
 
 		await waitFor(() => {
-			expect(screen.getByText('Appearance')).toBeInTheDocument();
+			expect(screen.getByRole('button', { name: 'Appearance' })).toBeInTheDocument();
 		});
 
 		// Click on Notifications section

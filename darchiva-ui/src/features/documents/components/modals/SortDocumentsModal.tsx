@@ -1,8 +1,10 @@
 // (c) Copyright Datacraft, 2026
-import { X, SortAsc, Clock, FileText, HardDrive } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { useStore } from '@/hooks/useStore';
 import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
+import { Clock,FileText,HardDrive,SortAsc,X } from 'lucide-react';
+
+type SortField = 'title' | 'created_at' | 'updated_at' | 'size';
 
 interface SortDocumentsModalProps {
     onClose: () => void;
@@ -11,7 +13,7 @@ interface SortDocumentsModalProps {
 export function SortDocumentsModal({ onClose }: SortDocumentsModalProps) {
     const { sortBy, sortOrder, setSorting } = useStore();
 
-    const sortOptions = [
+    const sortOptions: Array<{ id: SortField; label: string; icon: typeof FileText }> = [
         { id: 'title', label: 'Name', icon: FileText },
         { id: 'updated_at', label: 'Last Modified', icon: Clock },
         { id: 'created_at', label: 'Date Created', icon: Clock },
@@ -53,7 +55,7 @@ export function SortDocumentsModal({ onClose }: SortDocumentsModalProps) {
                                 key={option.id}
                                 onClick={() => {
                                     const newOrder = isActive ? (sortOrder === 'asc' ? 'desc' : 'asc') : 'desc';
-                                    setSorting(option.id as any, newOrder);
+                                    setSorting(option.id, newOrder);
                                 }}
                                 className={cn(
                                     "w-full flex items-center justify-between p-4 rounded-xl transition-all",

@@ -3,24 +3,24 @@
  * Interactive permission matrix for role-based access control.
  * Editable grid showing permissions per role and resource type.
  */
-import { useState, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-	Check,
-	X,
-	Shield,
-	ShieldCheck,
-	ShieldX,
-	Lock,
-	Edit3,
-	Save,
-	RotateCcw,
-	Search,
-	Filter,
-	ChevronDown,
-} from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Role, PermissionAction, PermissionMatrixCell } from '../types';
+import { AnimatePresence,motion } from 'framer-motion';
+import {
+  Check,
+  ChevronDown,
+  Edit3,
+  Filter,
+  Lock,
+  RotateCcw,
+  Save,
+  Search,
+  Shield,
+  ShieldCheck,
+  ShieldX,
+  X,
+} from 'lucide-react';
+import { useCallback,useMemo,useState } from 'react';
+import type { PermissionAction,PermissionMatrixCell,Role } from '../types';
 
 interface PermissionMatrixProps {
 	roles: Role[];

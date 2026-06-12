@@ -1,13 +1,13 @@
 // (c) Copyright Datacraft, 2026
-import { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence,motion } from 'framer-motion';
+import { useMemo,useState } from 'react';
 import {
-	useTenants,
-	Tenant,
+  Tenant,
+  useTenants,
 } from '../api';
-import { TenantProvisionWizard } from './TenantProvisionWizard';
 import { TenantDetailPanel } from './TenantDetailPanel';
 import styles from './TenantManagement.module.css';
+import { TenantProvisionWizard } from './TenantProvisionWizard';
 
 type View = 'dashboard' | 'provision';
 

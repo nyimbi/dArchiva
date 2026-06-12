@@ -4,9 +4,16 @@
  */
 import { apiClient } from '@/lib/api-client';
 import type {
-	PBACPolicy, PolicyApproval, PolicyAnalytics, EvaluationLog,
-	EncryptionKey, HiddenAccessRequest, DepartmentAccess,
-	PolicyStatus, PolicyEffect, PBACRule
+  DepartmentAccess,
+  EncryptionKey,
+  EvaluationLog,
+  HiddenAccessRequest,
+  PBACPolicy,
+  PBACRule,
+  PolicyAnalytics,
+  PolicyApproval,
+  PolicyEffect,
+  PolicyStatus
 } from '../types';
 
 // --- Policy API ---

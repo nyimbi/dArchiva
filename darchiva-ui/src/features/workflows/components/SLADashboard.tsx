@@ -2,14 +2,12 @@
 /**
  * SLA Dashboard component for workflow compliance monitoring.
  */
+import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-	getSLADashboard,
-	getSLAAlerts,
-	acknowledgeSLAAlert,
-	type SLADashboardResponse,
-	type SLAAlert,
+  acknowledgeSLAAlert,
+  getSLADashboard,
+  type SLAAlert
 } from '../api';
 
 import styles from './SLADashboard.module.css';

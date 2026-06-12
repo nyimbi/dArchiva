@@ -1,41 +1,42 @@
 // (c) Copyright Datacraft, 2026
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient,QueryClientProvider } from '@tanstack/react-query';
+import { BrowserRouter,Route,Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
-import { AuthProvider, LoginPage, ProtectedRoute } from './features/auth';
+import { AuthProvider,LoginPage,ProtectedRoute } from './features/auth';
 import {
-	Dashboard,
-	Documents,
-	Workflows,
-	Forms,
-	Cases,
-	Portfolios,
-	Ingestion,
-	Routing,
-	Settings,
-	Encryption,
-	Security,
-	AuditLogs,
-	Inbox,
-	SharedDocuments,
-	UserHomePage,
-	UnauthorizedPage,
-	SearchPage,
+  AuditLogs,
+  Cases,
+  Dashboard,
+  DocumentDetail,
+  Documents,
+  Encryption,
+  Forms,
+  Inbox,
+  Ingestion,
+  Portfolios,
+  Routing,
+  SearchPage,
+  Security,
+  Settings,
+  SharedDocuments,
+  UnauthorizedPage,
+  UserHomePage,
+  Workflows,
 } from './pages';
 
 import {
-	ScanningProjects,
-	ProjectDetails,
-	QCReview,
-	Resources,
-	ScanningStation,
+  ProjectDetails,
+  QCReview,
+  Resources,
+  ScanningProjects,
+  ScanningStation,
 } from './features/scanning-projects/pages';
 
 import { ScanningLayout } from './features/scanning-ops/layouts/ScanningLayout';
-import { WarehouseDashboard } from './features/scanning-ops/pages/WarehouseDashboard';
 import { OperatorDashboard } from './features/scanning-ops/pages/OperatorDashboard';
 import { ScanningInterface } from './features/scanning-ops/pages/ScanningInterface';
 import { StationHome } from './features/scanning-ops/pages/StationHome';
+import { WarehouseDashboard } from './features/scanning-ops/pages/WarehouseDashboard';
 
 const queryClient = new QueryClient({
 	defaultOptions: {
@@ -66,6 +67,7 @@ export default function App() {
 								<Route path="dashboard" element={<Dashboard />} />
 								<Route path="documents" element={<Documents />} />
 								<Route path="documents/:folderId" element={<Documents />} />
+								<Route path="document/:id" element={<DocumentDetail />} />
 								<Route path="workflows" element={<Workflows />} />
 								<Route path="forms" element={<Forms />} />
 								<Route path="cases" element={<Cases />} />
@@ -73,6 +75,7 @@ export default function App() {
 								<Route path="ingestion" element={<Ingestion />} />
 								<Route path="routing" element={<Routing />} />
 								<Route path="audit" element={<AuditLogs />} />
+								<Route path="search" element={<SearchPage />} />
 								<Route path="settings" element={<Settings />} />
 								<Route path="encryption" element={<Encryption />} />
 								<Route path="security" element={<Security />} />

@@ -2,22 +2,22 @@
 /**
  * TOTP setup dialog with QR code and verification.
  */
-import { useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence,motion } from 'framer-motion';
 import {
-	X,
-	Smartphone,
-	Copy,
-	Check,
-	AlertTriangle,
-	ChevronRight,
-	ChevronLeft,
-	Eye,
-	EyeOff,
-	Download,
-	Shield,
+  AlertTriangle,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Download,
+  Eye,
+  EyeOff,
+  Shield,
+  Smartphone,
+  X,
 } from 'lucide-react';
-import { useTOTPSetup, useEnableTOTP } from '../api';
+import { useCallback,useState } from 'react';
+import { useEnableTOTP,useTOTPSetup } from '../api';
 import type { TOTPSetup } from '../types';
 
 interface TOTPSetupDialogProps {
@@ -67,7 +67,7 @@ export function TOTPSetupDialog({ isOpen, onClose }: TOTPSetupDialogProps) {
 		try {
 			await enableMutation.mutateAsync({ code: verifyCode });
 			setStep('backup');
-		} catch (e) {
+		} catch {
 			// Error is handled by mutation
 		}
 	};

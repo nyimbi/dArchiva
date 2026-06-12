@@ -1,16 +1,15 @@
-import { cn } from '@/lib/utils';
-import { useProjectContracts } from '../../api/hooks';
-import { StatusBadge } from '../core/StatusBadge';
-import type { ProjectContract } from '../../types';
 import {
-  FileTextIcon,
   CalendarIcon,
   DollarSignIcon,
-  UserIcon,
+  ExternalLinkIcon,
+  FileTextIcon,
   MailIcon,
   PlusIcon,
-  ExternalLinkIcon,
+  UserIcon,
 } from 'lucide-react';
+import { useProjectContracts } from '../../api/hooks';
+import type { ProjectContract } from '../../types';
+import { StatusBadge } from '../core/StatusBadge';
 
 interface ContractsTabProps {
   projectId: string;

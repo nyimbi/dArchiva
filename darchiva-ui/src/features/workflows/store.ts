@@ -4,7 +4,7 @@
  */
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import type { WorkflowNode, WorkflowEdge, Workflow, WorkflowNodeType } from './types';
+import type { Workflow,WorkflowEdge,WorkflowNode,WorkflowNodeType } from './types';
 import { NODE_METADATA } from './types';
 
 interface WorkflowDesignerState {

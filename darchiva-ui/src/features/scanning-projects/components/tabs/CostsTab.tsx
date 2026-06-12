@@ -1,27 +1,27 @@
 import { cn } from '@/lib/utils';
-import { useProjectCosts, useProjectBudget } from '../../api/hooks';
-import { MetricCard } from '../core/MetricCard';
-import { DataTable, type Column } from '../core/DataTable';
-import type { ProjectCost } from '../../types';
 import {
-  PieChart,
-  Pie,
+  AlertTriangleIcon,
+  DollarSignIcon,
+  DownloadIcon,
+  PlusIcon,
+  TrendingUpIcon,
+} from 'lucide-react';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
   Cell,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
-  CartesianGrid,
 } from 'recharts';
-import {
-  DollarSignIcon,
-  TrendingUpIcon,
-  AlertTriangleIcon,
-  PlusIcon,
-  DownloadIcon,
-} from 'lucide-react';
+import { useProjectBudget,useProjectCosts } from '../../api/hooks';
+import type { ProjectCost } from '../../types';
+import { DataTable,type Column } from '../core/DataTable';
+import { MetricCard } from '../core/MetricCard';
 
 interface CostsTabProps {
   projectId: string;
@@ -156,7 +156,7 @@ export function CostsTab({ projectId }: CostsTabProps) {
               { label: 'Storage', value: budget.storage_budget },
               { label: 'Other', value: budget.other_budget },
               { label: 'Contingency', value: budget.contingency_budget },
-            ].map((item, idx) => (
+            ].map((item) => (
               <div key={item.label} className="text-center">
                 <div className="text-xs text-white/50 mb-1">{item.label}</div>
                 <div className="font-mono text-sm text-white">${item.value.toLocaleString()}</div>

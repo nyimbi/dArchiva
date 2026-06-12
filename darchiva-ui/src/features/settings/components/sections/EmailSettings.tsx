@@ -1,7 +1,7 @@
 // Email Settings Section
-import { SettingsCard, SettingsField, SettingsToggle, SettingsButton, SettingsBadge } from '../ui/SettingsControls';
-import { useEmailSettings, useUpdateEmailSettings, useTestEmailSettings } from '../../api/hooks';
 import { useState } from 'react';
+import { useEmailSettings,useTestEmailSettings,useUpdateEmailSettings } from '../../api/hooks';
+import { SettingsButton,SettingsCard,SettingsField,SettingsToggle } from '../ui/SettingsControls';
 
 export function EmailSettings() {
 	const { data: settings } = useEmailSettings();

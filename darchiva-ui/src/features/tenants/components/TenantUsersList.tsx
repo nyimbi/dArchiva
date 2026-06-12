@@ -1,8 +1,9 @@
 // (c) Copyright Datacraft, 2026
-import { useState, useEffect } from 'react';
-import type { TenantUser, InviteUserRequest } from '../types';
-import { getTenantUsers, inviteUserToTenant, removeUserFromTenant } from '../api';
+import { useCallback,useEffect,useState } from 'react';
+import { toast } from 'sonner';
+import { getTenantUsers,inviteUserToTenant,removeUserFromTenant } from '../api';
 import styles from '../tenants.module.css';
+import type { TenantUser } from '../types';
 
 interface TenantUsersListProps {
 	tenantId: string;
@@ -24,21 +25,21 @@ export function TenantUsersList({ tenantId }: TenantUsersListProps) {
 	const [inviteEmail, setInviteEmail] = useState('');
 	const [inviting, setInviting] = useState(false);
 
-	useEffect(() => {
-		loadUsers();
-	}, [tenantId]);
-
-	const loadUsers = async () => {
+	const loadUsers = useCallback(async () => {
 		setLoading(true);
 		try {
 			const data = await getTenantUsers(tenantId);
 			setUsers(data);
 		} catch (err) {
-			console.error('Failed to load users:', err);
+			toast.error(err instanceof Error ? err.message : 'Failed to load users');
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, [tenantId]);
+
+	useEffect(() => {
+		loadUsers();
+	}, [loadUsers]);
 
 	const handleInvite = async () => {
 		if (!inviteEmail.trim()) return;
@@ -53,7 +54,7 @@ export function TenantUsersList({ tenantId }: TenantUsersListProps) {
 			setShowInviteModal(false);
 			await loadUsers();
 		} catch (err) {
-			console.error('Failed to invite user:', err);
+			toast.error(err instanceof Error ? err.message : 'Failed to invite user');
 		} finally {
 			setInviting(false);
 		}
@@ -65,7 +66,7 @@ export function TenantUsersList({ tenantId }: TenantUsersListProps) {
 			await removeUserFromTenant(tenantId, userId);
 			await loadUsers();
 		} catch (err) {
-			console.error('Failed to remove user:', err);
+			toast.error(err instanceof Error ? err.message : 'Failed to remove user');
 		}
 	};
 

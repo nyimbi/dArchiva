@@ -2,39 +2,38 @@
 /**
  * Document type management list.
  */
-import { useState } from 'react';
-import { FileType, Plus, Edit, Trash2, Settings, FileText } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from '@/components/ui/card';
 import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-	AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { useDocumentTypes, useDeleteDocumentType } from '../api';
-import { DocumentTypeForm } from './DocumentTypeForm';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Edit,FileText,FileType,Plus,Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { useDeleteDocumentType,useDocumentTypes } from '../api';
 import type { DocumentType } from '../types';
+import { DocumentTypeForm } from './DocumentTypeForm';
 
 interface DocumentTypeListProps {
 	onEdit?: (type: DocumentType) => void;

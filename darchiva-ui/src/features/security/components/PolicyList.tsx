@@ -2,14 +2,21 @@
 /**
  * Policy list with filtering, sorting, and actions.
  */
-import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence,motion } from 'framer-motion';
 import {
-	Shield, ShieldOff, Plus, Search, Filter, ChevronDown, ChevronUp,
-	MoreHorizontal, Edit2, Trash2, Send, Copy, Eye
+  ChevronDown,ChevronUp,
+  Copy,
+  Edit2,
+  MoreHorizontal,
+  Plus,Search,
+  Send,
+  Shield,ShieldOff,
+  Trash2
 } from 'lucide-react';
-import type { PBACPolicy, PolicyStatus, PolicyEffect } from '../types';
-import { fetchPolicies, deletePolicy, submitForApproval } from '../api';
+import { useCallback,useEffect,useState } from 'react';
+import { toast } from 'sonner';
+import { deletePolicy,fetchPolicies,submitForApproval } from '../api';
+import type { PBACPolicy,PolicyEffect,PolicyStatus } from '../types';
 
 const STATUS_CONFIG: Record<PolicyStatus, { label: string; color: string; bg: string }> = {
 	draft: { label: 'Draft', color: 'text-charcoal/70', bg: 'bg-charcoal/10' },
@@ -188,7 +195,7 @@ export function PolicyList({ onEdit, onCreate }: PolicyListProps) {
 			});
 			setPolicies(result.items);
 		} catch (err) {
-			console.error('Failed to load policies:', err);
+			toast.error(err instanceof Error ? err.message : 'Failed to load policies');
 		} finally {
 			setLoading(false);
 		}
@@ -204,7 +211,7 @@ export function PolicyList({ onEdit, onCreate }: PolicyListProps) {
 			await deletePolicy(id);
 			setPolicies(p => p.filter(policy => policy.id !== id));
 		} catch (err) {
-			console.error('Failed to delete policy:', err);
+			toast.error(err instanceof Error ? err.message : 'Failed to delete policy');
 		}
 	};
 
@@ -213,7 +220,7 @@ export function PolicyList({ onEdit, onCreate }: PolicyListProps) {
 			await submitForApproval(id);
 			loadPolicies();
 		} catch (err) {
-			console.error('Failed to submit for approval:', err);
+			toast.error(err instanceof Error ? err.message : 'Failed to submit policy for approval');
 		}
 	};
 

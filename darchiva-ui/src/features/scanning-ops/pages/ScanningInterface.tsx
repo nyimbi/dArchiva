@@ -1,25 +1,26 @@
-import { useState } from 'react';
-import { motion, AnimatePresence, Reorder } from 'framer-motion';
+import { BrowserScannerConfig,type ScanMode } from '@/features/scanning-projects/components/BrowserScannerConfig';
+import { useBrowserScanner } from '@/features/scanning-projects/hooks';
+import { AnimatePresence,motion,Reorder } from 'framer-motion';
 import {
-    ArrowLeft,
-    Box,
-    CheckCircle,
-    Scan,
-    FileText,
-    AlertTriangle,
-    ChevronRight,
-    RotateCcw,
-    Mic,
-    MicOff,
-    Trash2,
-    RotateCw,
-    Maximize2,
-    Keyboard
+  AlertTriangle,
+  ArrowLeft,
+  Box,
+  CheckCircle,
+  ChevronRight,
+  FileText,
+  Keyboard,
+  Maximize2,
+  Mic,
+  MicOff,
+  RotateCcw,
+  RotateCw,
+  Scan,
+  Trash2
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate,useSearchParams } from 'react-router-dom';
 import { useScanningControls } from '../hooks/useScanningControls';
-import { autoQC, QCResult } from '../services/AutoQCService';
-import { useScanPage } from '../api/hooks';
+import { autoQC,QCResult } from '../services/AutoQCService';
 
 type Step = 'receive' | 'unbundle' | 'scan' | 'repack' | 'return';
 
@@ -32,35 +33,71 @@ interface ScannedPage {
 
 export function ScanningInterface() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const [currentStep, setCurrentStep] = useState<Step>('receive');
     const [pages, setPages] = useState<ScannedPage[]>([]);
     const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
-    const [batchId] = useState('BATCH-2026-001'); // TODO: Get from route params
+    const [showScannerConfig, setShowScannerConfig] = useState(false);
+    const [scanMode, setScanMode] = useState<ScanMode>('browser');
+    const [scanError, setScanError] = useState<string | null>(null);
+    const projectId = searchParams.get('projectId') || '';
+    const batchId = searchParams.get('batchId') || '';
+    const batchNumber = searchParams.get('batchNumber') || batchId || 'UNASSIGNED';
 
-    const scanPage = useScanPage();
+    const {
+        activeScanner,
+        isScanning,
+        scan: browserScan,
+    } = useBrowserScanner({
+        autoDiscover: false,
+    });
 
     // Real scanning function using API
     const handleScan = async () => {
+        if (!projectId || !batchId) {
+            setScanError('No batch is selected. Choose a batch from Operator Dashboard.');
+            return;
+        }
+
+        if (scanMode !== 'browser') {
+            setScanError('Backend scan mode is not configured. Use browser scanner mode.');
+            return;
+        }
+
         try {
-            const result = await scanPage.mutateAsync({
-                batch_id: batchId,
-                simulate: true
-            }) as { id: string; url: string; page_number: number; batch_id: string; scanned_at: string; qc_status: string };
+            setScanError(null);
+            const result = await browserScan({
+                resolution: 300,
+                colorMode: 'color',
+                format: 'jpeg',
+                duplex: true,
+                inputSource: 'adf_duplex',
+                projectId,
+                batchId,
+            });
 
-            // Run QC on the scanned image
-            const qcResult = await autoQC.analyzeImage(result.url);
+            if (!result.success || result.pages.length === 0) {
+                setScanError(result.errors[0] || 'No pages were produced by the scanner.');
+                return;
+            }
 
-            const newPage: ScannedPage = {
-                id: result.id,
-                url: result.url,
-                qc: qcResult,
-                rotation: 0
-            };
+            const scannedPages = await Promise.all(
+                result.pages.map(async (blob, index) => {
+                    const url = URL.createObjectURL(blob);
+                    const qcResult = await autoQC.analyzeImage(url);
+                    return {
+                        id: result.documentIds[index] || `${Date.now()}-${index + 1}`,
+                        url,
+                        qc: qcResult,
+                        rotation: 0,
+                    } satisfies ScannedPage;
+                }),
+            );
 
-            setPages(prev => [...prev, newPage]);
-            setSelectedPageId(result.id);
+            setPages((prev) => [...prev, ...scannedPages]);
+            setSelectedPageId(scannedPages[scannedPages.length - 1]?.id ?? null);
         } catch (error) {
-            console.error('Scan failed:', error);
+            setScanError(error instanceof Error ? error.message : 'Scan failed');
         }
     };
 
@@ -115,10 +152,16 @@ export function ScanningInterface() {
                 </button>
 
                 <div className="flex items-center gap-4">
-                    <span className="text-slate-500 font-mono">BATCH-2026-001</span>
+                    <span className="text-slate-500 font-mono">{batchNumber}</span>
                     <span className="px-3 py-1 bg-blue-500/10 text-blue-400 rounded-full text-xs font-bold uppercase">
                         In Progress
                     </span>
+                    <button
+                        onClick={() => setShowScannerConfig(true)}
+                        className="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded-full text-xs font-bold uppercase text-slate-300 transition-colors"
+                    >
+                        Configure Scanner
+                    </button>
                     {/* Voice Status Indicator */}
                     <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase transition-colors ${isListening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'bg-slate-800 text-slate-500'}`}>
                         {isListening ? <Mic className="w-3 h-3" /> : <MicOff className="w-3 h-3" />}
@@ -160,6 +203,11 @@ export function ScanningInterface() {
 
             {/* Main Action Area */}
             <div className="flex-1 bg-slate-900 border border-slate-800 rounded-2xl p-6 relative overflow-hidden flex flex-col">
+                {scanError && (
+                    <div className="mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm">
+                        {scanError}
+                    </div>
+                )}
                 <AnimatePresence mode="wait">
                     {currentStep === 'receive' && (
                         <motion.div
@@ -226,12 +274,12 @@ export function ScanningInterface() {
                                 <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
                                     <div className="flex items-center justify-between mb-2">
                                         <span className="text-xs font-bold text-slate-500 uppercase">Scanner</span>
-                                        <div className="flex items-center gap-1 text-green-400 text-xs">
-                                            <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                                            Ready
+                                        <div className={`flex items-center gap-1 text-xs ${activeScanner ? 'text-green-400' : 'text-amber-400'}`}>
+                                            <div className={`w-1.5 h-1.5 rounded-full ${activeScanner ? 'bg-green-500 animate-pulse' : 'bg-amber-400'}`} />
+                                            {activeScanner ? 'Connected' : 'Not Configured'}
                                         </div>
                                     </div>
-                                    <div className="text-slate-300 font-bold">Fujitsu fi-7160</div>
+                                    <div className="text-slate-300 font-bold">{activeScanner?.name || 'No scanner selected'}</div>
                                     <div className="text-slate-500 text-xs">300 DPI • Color • Duplex</div>
                                 </div>
 
@@ -253,10 +301,11 @@ export function ScanningInterface() {
                                 {/* Big Scan Button */}
                                 <button
                                     onClick={handleScan}
+                                    disabled={isScanning}
                                     className="bg-brass-600 hover:bg-brass-500 text-slate-900 rounded-xl font-bold text-xl py-6 flex flex-col items-center justify-center gap-2 transition-colors shadow-lg shadow-brass-900/20"
                                 >
                                     <Scan className="w-8 h-8" />
-                                    SCAN PAGE
+                                    {isScanning ? 'SCANNING...' : 'SCAN PAGE'}
                                 </button>
 
                                 {/* Thumbnails / Reorder List */}
@@ -395,6 +444,13 @@ export function ScanningInterface() {
                     )}
                 </AnimatePresence>
             </div>
+
+            <BrowserScannerConfig
+                open={showScannerConfig}
+                onOpenChange={setShowScannerConfig}
+                scanMode={scanMode}
+                onScanModeChange={setScanMode}
+            />
         </div>
     );
 }

@@ -1,7 +1,7 @@
 // (c) Copyright Datacraft, 2026
-import { CheckCircle, XCircle, Clock, RotateCcw, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { QualityControlSample } from '@/types';
+import { AlertTriangle,CheckCircle,Clock,RotateCcw,XCircle } from 'lucide-react';
 
 interface QCSampleCardProps {
 	sample: QualityControlSample;

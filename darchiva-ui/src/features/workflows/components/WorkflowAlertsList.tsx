@@ -3,9 +3,9 @@
  * Workflow Alerts List - Filterable alert management console
  * with bulk actions and expandable detail views.
  */
-import { useState, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getSLAAlerts, acknowledgeSLAAlert, type SLAAlert } from '../api';
+import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
+import { useCallback,useState } from 'react';
+import { acknowledgeSLAAlert,getSLAAlerts,type SLAAlert } from '../api';
 import styles from './WorkflowAlertsList.module.css';
 
 interface WorkflowAlertsListProps {
@@ -192,9 +192,7 @@ interface AlertCardProps {
 function AlertCard({
 	alert,
 	isExpanded,
-	isSelected,
 	onToggleExpand,
-	onToggleSelect,
 	onAcknowledge,
 	isAcknowledging,
 }: AlertCardProps) {

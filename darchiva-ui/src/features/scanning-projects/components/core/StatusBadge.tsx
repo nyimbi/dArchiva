@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import type { ProjectStatus, BatchStatus, SLAStatus } from '../../types';
+import type { BatchStatus,ProjectStatus,SLAStatus } from '../../types';
 
 type StatusType = ProjectStatus | BatchStatus | SLAStatus | string;
 

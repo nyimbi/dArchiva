@@ -1,8 +1,8 @@
 // (c) Copyright Datacraft, 2026
-import { Link, useNavigate } from 'react-router-dom';
-import { Package, Barcode, MapPin, User, FileText, CheckCircle, Clock, AlertCircle, Loader2, ScanLine } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ScanningBatch } from '@/types';
+import { AlertCircle,Barcode,CheckCircle,Clock,FileText,Loader2,MapPin,Package,ScanLine,User } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 interface BatchCardProps {
 	batch: ScanningBatch;
@@ -26,7 +26,6 @@ const typeIcons: Record<ScanningBatch['type'], typeof Package> = {
 };
 
 export function BatchCard({ batch, projectId }: BatchCardProps) {
-	const navigate = useNavigate();
 	const status = statusConfig[batch.status];
 	const StatusIcon = status.icon;
 	const TypeIcon = typeIcons[batch.type];

@@ -1,8 +1,8 @@
 // (c) Copyright Datacraft, 2026
 // Profile Settings - User's personal preferences
+import { useCurrentUser,useUpdateProfile } from '@/features/auth/api';
 import { useState } from 'react';
-import { SettingsCard, SettingsField, SettingsToggle, SettingsSelect } from '../ui/SettingsControls';
-import { useCurrentUser, useUpdateProfile } from '@/features/auth/api';
+import { SettingsCard,SettingsField,SettingsSelect,SettingsToggle } from '../ui/SettingsControls';
 
 function SettingsHeader({ title, description }: { title: string; description: string }) {
 	return (

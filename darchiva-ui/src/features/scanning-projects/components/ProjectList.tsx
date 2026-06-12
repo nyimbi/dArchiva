@@ -1,19 +1,19 @@
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
-import { useProjects } from '../api/hooks';
-import { StatusBadge } from './core/StatusBadge';
-import type { ScanningProject, ProjectStatus, ProjectFilters } from '../types';
 import {
-  SearchIcon,
-  GridIcon,
-  ListIcon,
-  FilterIcon,
-  PlusIcon,
+  AlertTriangleIcon,
   CalendarIcon,
   FileTextIcon,
+  FilterIcon,
+  GridIcon,
+  ListIcon,
+  PlusIcon,
+  SearchIcon,
   TrendingUpIcon,
-  AlertTriangleIcon,
 } from 'lucide-react';
+import { useState } from 'react';
+import { useProjects } from '../api/hooks';
+import type { ProjectFilters,ProjectStatus,ScanningProject } from '../types';
+import { StatusBadge } from './core/StatusBadge';
 
 interface ProjectListProps {
   onSelectProject: (project: ScanningProject) => void;

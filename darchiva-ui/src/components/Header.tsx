@@ -1,35 +1,37 @@
 // (c) Copyright Datacraft, 2026
+import { useAuth } from '@/features/auth';
+import { useStore } from '@/hooks/useStore';
+import { AnimatePresence,motion } from 'framer-motion';
+import {
+  Bell,
+  ChevronDown,
+  FileText,
+  FolderPlus,
+  LogOut,
+  Moon,
+  Plus,
+  Search,
+  Settings,
+  Sun,
+  Upload,
+  User,
+} from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-	Search,
-	Bell,
-	Sun,
-	Moon,
-	User,
-	Settings,
-	LogOut,
-	ChevronDown,
-	Plus,
-	Upload,
-	FileText,
-	FolderPlus,
-} from 'lucide-react';
-import { useStore } from '@/hooks/useStore';
-import { cn } from '@/lib/utils';
 
 export function Header() {
 	const navigate = useNavigate();
 	const { theme, toggleTheme, user, pendingTasks, openModal, setUser } = useStore();
+	const { logout } = useAuth();
 	const [searchOpen, setSearchOpen] = useState(false);
 	const [userMenuOpen, setUserMenuOpen] = useState(false);
 	const [createMenuOpen, setCreateMenuOpen] = useState(false);
 
 	const handleSignOut = () => {
+		logout();
 		setUser(null);
 		setUserMenuOpen(false);
-		navigate('/');
+		navigate('/login');
 	};
 
 	return (

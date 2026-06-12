@@ -1,15 +1,15 @@
 // (c) Copyright Datacraft, 2026
-import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useState } from 'react';
 import {
-	Tenant,
-	useTenant,
-	useTenantStorage,
-	useTenantAI,
-	useTenantSubscription,
-	useUpdateTenant,
-	useVerifyTenantStorage,
-	useResetTenantAITokens,
+  Tenant,
+  useResetTenantAITokens,
+  useTenant,
+  useTenantAI,
+  useTenantStorage,
+  useTenantSubscription,
+  useUpdateTenant,
+  useVerifyTenantStorage,
 } from '../api';
 import styles from './TenantDetailPanel.module.css';
 

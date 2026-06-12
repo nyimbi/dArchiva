@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
-import { useState, useMemo, type ReactNode } from 'react';
-import { ChevronUpIcon, ChevronDownIcon, ChevronsUpDownIcon } from 'lucide-react';
+import { ChevronDownIcon,ChevronsUpDownIcon,ChevronUpIcon } from 'lucide-react';
+import { useMemo,useState,type ReactNode } from 'react';
 
 export interface Column<T> {
   key: string;
@@ -77,7 +77,11 @@ export function DataTable<T extends { id: string }>({
   const toggleRow = (id: string) => {
     if (!onSelectionChange) return;
     const next = new Set(selectedIds);
-    next.has(id) ? next.delete(id) : next.add(id);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
     onSelectionChange(next);
   };
 

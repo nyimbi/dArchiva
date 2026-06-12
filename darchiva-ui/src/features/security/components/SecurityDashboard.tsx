@@ -2,21 +2,27 @@
 /**
  * Security Dashboard - Comprehensive security management interface.
  */
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence,motion } from 'framer-motion';
 import {
-	Shield, Lock, Key, Building2, FileText, Activity,
-	ChevronRight, Settings
+  Activity,
+  Building2,
+  ChevronRight,
+  FileText,
+  Key,
+  Lock,
+  Settings,
+  Shield
 } from 'lucide-react';
+import { useState } from 'react';
 import type { PBACPolicy } from '../types';
-import { SecurityMetrics } from './SecurityMetrics';
-import { PolicyList } from './PolicyList';
-import { PolicyEditor } from './PolicyEditor';
-import { PolicyApprovalQueue } from './PolicyApprovalQueue';
-import { EvaluationLogViewer } from './EvaluationLogViewer';
-import { KeyManagement } from './KeyManagement';
-import { HiddenDocumentRequests } from './HiddenDocumentRequests';
 import { DepartmentAccessMatrix } from './DepartmentAccessMatrix';
+import { EvaluationLogViewer } from './EvaluationLogViewer';
+import { HiddenDocumentRequests } from './HiddenDocumentRequests';
+import { KeyManagement } from './KeyManagement';
+import { PolicyApprovalQueue } from './PolicyApprovalQueue';
+import { PolicyEditor } from './PolicyEditor';
+import { PolicyList } from './PolicyList';
+import { SecurityMetrics } from './SecurityMetrics';
 
 type TabId = 'overview' | 'policies' | 'approvals' | 'encryption' | 'departments' | 'logs';
 
@@ -79,7 +85,7 @@ export function SecurityDashboard() {
 		setShowPolicyEditor(true);
 	};
 
-	const handleSavePolicy = (policy: PBACPolicy) => {
+	const handleSavePolicy = () => {
 		setShowPolicyEditor(false);
 		setEditingPolicy(undefined);
 		// Refresh would happen through state management in real app

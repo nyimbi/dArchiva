@@ -2,14 +2,25 @@
 /**
  * Visual ABAC Policy Editor with condition builder and DSL preview.
  */
-import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence,motion } from 'framer-motion';
 import {
-	Shield, ShieldOff, Plus, X, Code, Eye, Save, ChevronDown,
-	User, File, Zap, Globe, Trash2, GripVertical, AlertCircle
+  AlertCircle,
+  Code,Eye,
+  File,
+  Globe,
+  GripVertical,
+  Plus,
+  Save,
+  Shield,ShieldOff,
+  Trash2,
+  User,
+  X,
+  Zap
 } from 'lucide-react';
-import type { PBACPolicy, PBACRule, PBACCondition, AttributeCategory, ConditionOperator, PolicyEffect } from '../types';
-import { createPolicy, updatePolicy, validateDSL, createPolicyFromDSL } from '../api';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { createPolicy,createPolicyFromDSL,updatePolicy,validateDSL } from '../api';
+import type { AttributeCategory,ConditionOperator,PBACCondition,PBACPolicy,PBACRule,PolicyEffect } from '../types';
 
 const CATEGORY_CONFIG: Record<AttributeCategory, { label: string; icon: typeof User; color: string; attributes: string[] }> = {
 	subject: {
@@ -69,7 +80,6 @@ interface ConditionEditorProps {
 
 function ConditionEditor({ condition, onChange, onRemove }: ConditionEditorProps) {
 	const categoryConfig = CATEGORY_CONFIG[condition.category];
-	const CategoryIcon = categoryConfig.icon;
 
 	return (
 		<motion.div
@@ -305,7 +315,7 @@ export function PolicyEditor({ policy, onSave, onCancel }: PolicyEditorProps) {
 			} else {
 				setDslError(result.error);
 			}
-		} catch (err) {
+		} catch {
 			setDslError('Failed to validate DSL');
 		}
 	};
@@ -345,11 +355,11 @@ export function PolicyEditor({ policy, onSave, onCancel }: PolicyEditorProps) {
 			}
 
 			onSave(savedPolicy);
-		} catch (err) {
-			console.error('Failed to save policy:', err);
-		} finally {
-			setSaving(false);
-		}
+			} catch {
+				toast.error('Failed to save policy');
+			} finally {
+				setSaving(false);
+			}
 	};
 
 	return (

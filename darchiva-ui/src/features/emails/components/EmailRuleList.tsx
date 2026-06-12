@@ -2,53 +2,52 @@
 /**
  * Email rule list component.
  */
-import { useState } from 'react';
 import {
-	Filter,
-	Settings,
-	Trash2,
-	GripVertical,
-	ChevronRight,
-	Loader2,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
 import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from '@/components/ui/card';
 import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-} from '@/components/ui/dialog';
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-	AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import {
-	Collapsible,
-	CollapsibleContent,
-	CollapsibleTrigger,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import {
+  ChevronRight,
+  Filter,
+  GripVertical,
+  Settings,
+  Trash2
+} from 'lucide-react';
+import { useState } from 'react';
+import { useDeleteEmailRule,useEmailRules,useUpdateEmailRule } from '../api';
+import type { EmailRule,RuleAction,RuleCondition } from '../types';
 import { EmailRuleForm } from './EmailRuleForm';
-import { useEmailRules, useUpdateEmailRule, useDeleteEmailRule } from '../api';
-import type { EmailRule, RuleCondition, RuleAction } from '../types';
 
 const FIELD_LABELS: Record<string, string> = {
 	from: 'From',
@@ -163,7 +162,7 @@ function RuleCard({ rule, onEdit }: RuleCardProps) {
 				ruleId: rule.id,
 				data: { is_active: !rule.is_active },
 			});
-		} catch (error) {
+		} catch {
 			toast({
 				title: 'Error',
 				description: 'Failed to update rule',
@@ -176,7 +175,7 @@ function RuleCard({ rule, onEdit }: RuleCardProps) {
 		try {
 			await deleteMutation.mutateAsync(rule.id);
 			toast({ title: 'Rule deleted' });
-		} catch (error) {
+		} catch {
 			toast({
 				title: 'Error',
 				description: 'Failed to delete rule',

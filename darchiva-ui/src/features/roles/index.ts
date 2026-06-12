@@ -3,7 +3,7 @@
  * Roles feature exports.
  */
 
-export * from './components/RoleList';
-export * from './components/RoleForm';
 export * from './api';
+export * from './components/RoleForm';
+export * from './components/RoleList';
 export * from './types';

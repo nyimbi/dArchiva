@@ -1,6 +1,6 @@
 // (c) Copyright Datacraft, 2026
+import { ArrowLeft,Home,ShieldAlert } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { ShieldAlert, Home, ArrowLeft } from 'lucide-react';
 
 export function UnauthorizedPage() {
     return (

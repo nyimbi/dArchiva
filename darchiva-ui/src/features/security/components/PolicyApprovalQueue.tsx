@@ -2,11 +2,12 @@
 /**
  * Policy approval queue for reviewing pending policy changes.
  */
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, CheckCircle, XCircle, User, FileText, MessageSquare, Shield, ShieldOff } from 'lucide-react';
+import { AnimatePresence,motion } from 'framer-motion';
+import { CheckCircle,Clock,MessageSquare,User,XCircle } from 'lucide-react';
+import { useEffect,useState } from 'react';
+import { toast } from 'sonner';
+import { approvePolicy,fetchPendingApprovals,rejectPolicy } from '../api';
 import type { PolicyApproval } from '../types';
-import { fetchPendingApprovals, approvePolicy, rejectPolicy } from '../api';
 
 interface ApprovalCardProps {
 	approval: PolicyApproval;
@@ -157,7 +158,7 @@ export function PolicyApprovalQueue() {
 			const data = await fetchPendingApprovals();
 			setApprovals(data);
 		} catch (err) {
-			console.error('Failed to load approvals:', err);
+			toast.error(err instanceof Error ? err.message : 'Failed to load pending approvals');
 		} finally {
 			setLoading(false);
 		}

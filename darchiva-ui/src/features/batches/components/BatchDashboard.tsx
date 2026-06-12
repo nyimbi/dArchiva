@@ -2,25 +2,25 @@
 /**
  * Batch management dashboard with statistics and batch list.
  */
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence,motion } from 'framer-motion';
 import {
-	Package,
-	Play,
-	Pause,
-	CheckCircle,
-	AlertCircle,
-	Clock,
-	FileText,
-	Layers,
-	Plus,
-	RefreshCw,
-	ChevronRight,
-	BarChart3,
-	TrendingUp,
+  AlertCircle,
+  BarChart3,
+  CheckCircle,
+  ChevronRight,
+  Clock,
+  FileText,
+  Layers,
+  Package,
+  Pause,
+  Play,
+  Plus,
+  RefreshCw,
+  TrendingUp,
 } from 'lucide-react';
-import { useBatchStats, useBatches, useStartBatch, usePauseBatch, useCompleteBatch } from '../api';
-import type { BatchStatus, ScanBatchSummary } from '../types';
+import { useState } from 'react';
+import { useBatchStats,useBatches,useCompleteBatch,usePauseBatch,useStartBatch } from '../api';
+import type { BatchStatus,ScanBatchSummary } from '../types';
 
 const statusConfig: Record<
 	BatchStatus,

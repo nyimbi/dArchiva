@@ -1,7 +1,8 @@
 // (c) Copyright Datacraft, 2026
+import { AnimatePresence,motion } from 'framer-motion';
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useProvisionTenant, TenantProvisionRequest } from '../api';
+import { toast } from 'sonner';
+import { TenantProvisionRequest,useProvisionTenant } from '../api';
 import styles from './TenantProvisionWizard.module.css';
 
 type Step = 'organization' | 'plan' | 'storage' | 'ai' | 'review';
@@ -95,7 +96,7 @@ export function TenantProvisionWizard({ onComplete, onCancel }: Props) {
 			await provision.mutateAsync(formData);
 			onComplete();
 		} catch (error) {
-			console.error('Provisioning failed:', error);
+			toast.error(error instanceof Error ? error.message : 'Provisioning failed');
 		}
 	};
 

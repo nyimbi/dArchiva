@@ -2,37 +2,37 @@
 /**
  * Audit log viewer component.
  */
-import { useState } from 'react';
-import { formatDistanceToNow, format } from 'date-fns';
-import {
-	Activity,
-	User,
-	FileText,
-	Folder,
-	Tag,
-	Shield,
-	Download,
-	Upload,
-	Eye,
-	Trash2,
-	Edit,
-	Share2,
-	RefreshCw,
-	Filter,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
+import { format,formatDistanceToNow } from 'date-fns';
+import {
+  Activity,
+  Download,
+  Edit,
+  Eye,
+  FileText,
+  Filter,
+  Folder,
+  RefreshCw,
+  Share2,
+  Shield,
+  Tag,
+  Trash2,
+  Upload,
+  User,
+} from 'lucide-react';
+import { useState } from 'react';
 import { useAuditLogs } from '../api';
-import type { AuditEntry, AuditAction, AuditResourceType } from '../types';
+import type { AuditAction,AuditEntry,AuditResourceType } from '../types';
 
 const actionIcons: Partial<Record<AuditAction, typeof Eye>> = {
 	view: Eye,

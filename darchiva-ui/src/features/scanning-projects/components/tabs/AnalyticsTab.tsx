@@ -1,34 +1,31 @@
 import { cn } from '@/lib/utils';
 import {
-  useBurndownChart,
-  useVelocityChart,
-  useCapacityPlans,
-  useWorkloadForecasts,
-} from '../../api/hooks';
-import { MetricCard } from '../core/MetricCard';
-import { BurndownChart } from '../dashboard/charts/BurndownChart';
-import { VelocityChart } from '../dashboard/charts/VelocityChart';
-import type { CapacityPlan, WorkloadForecast } from '../../types';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Area,
-  AreaChart,
-} from 'recharts';
-import {
-  TrendingUpIcon,
-  TargetIcon,
-  BarChart3Icon,
   ActivityIcon,
   CalendarIcon,
-  UsersIcon,
   PrinterIcon,
+  TargetIcon,
+  TrendingUpIcon,
+  UsersIcon
 } from 'lucide-react';
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis
+} from 'recharts';
+import {
+  useBurndownChart,
+  useCapacityPlans,
+  useVelocityChart,
+  useWorkloadForecasts,
+} from '../../api/hooks';
+import type { WorkloadForecast } from '../../types';
+import { BurndownChart } from '../dashboard/charts/BurndownChart';
+import { VelocityChart } from '../dashboard/charts/VelocityChart';
 
 interface AnalyticsTabProps {
   projectId: string;

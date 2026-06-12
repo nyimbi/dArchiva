@@ -188,7 +188,7 @@ export interface ServiceInfo {
 	cpu_percent: number | null;
 	healthy: boolean;
 	error_message: string | null;
-	config: Record<string, any>;
+	config: Record<string, unknown>;
 	metrics: ServiceMetrics | null;
 }
 

@@ -1,8 +1,8 @@
 // (c) Copyright Datacraft, 2026
-import { useState } from 'react';
-import { X, Filter, Tag, Calendar, FileText, User } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { useStore } from '@/hooks/useStore';
+import { motion } from 'framer-motion';
+import { Calendar,FileText,Filter,Tag,X } from 'lucide-react';
+import { useState } from 'react';
 
 interface FilterDocumentsModalProps {
     onClose: () => void;

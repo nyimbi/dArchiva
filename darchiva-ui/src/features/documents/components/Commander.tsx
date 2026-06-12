@@ -1,21 +1,19 @@
 // (c) Copyright Datacraft, 2026
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import {
-	Folder,
-	FileText,
-	Grid,
-	List,
-	Upload,
-	FolderPlus,
-	ChevronRight,
-	MoreHorizontal,
-	ArrowUp,
-} from 'lucide-react';
 import { useStore } from '@/hooks/useStore';
 import { cn } from '@/lib/utils';
 import type { NodeItem } from '@/types';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import {
+  ArrowUp,
+  ChevronRight,
+  FileText,
+  Folder,
+  FolderPlus,
+  Grid,
+  List,
+  Upload
+} from 'lucide-react';
+import { useNavigate,useParams } from 'react-router-dom';
 
 interface CommanderProps {
 	nodes?: NodeItem[];

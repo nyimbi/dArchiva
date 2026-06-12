@@ -1,32 +1,32 @@
 // (c) Copyright Datacraft, 2026
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { useStore } from '@/hooks/useStore';
 import {
-	Route,
-	Plus,
-	Pencil,
-	Trash2,
-	Play,
-	Pause,
-	ArrowRight,
-	FolderOpen,
-	GitBranch,
-	User,
-	Tag,
-	MoreVertical,
-	GripVertical,
-	TestTube,
-	Loader2,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import {
-	useRoutingRules,
-	useRoutingStats,
-	useToggleRoutingRule,
-	useTestRoutingRules,
+  useRoutingRules,
+  useRoutingStats,
+  useTestRoutingRules,
+  useToggleRoutingRule,
 } from '@/features/routing';
+import { useStore } from '@/hooks/useStore';
+import { cn } from '@/lib/utils';
 import type { RoutingRule } from '@/types';
+import { motion } from 'framer-motion';
+import {
+  ArrowRight,
+  FolderOpen,
+  GitBranch,
+  GripVertical,
+  Loader2,
+  MoreVertical,
+  Pause,
+  Pencil,
+  Play,
+  Plus,
+  Route,
+  Tag,
+  TestTube,
+  Trash2,
+  User,
+} from 'lucide-react';
+import { useState } from 'react';
 
 type RoutingMode = 'operational' | 'archival';
 
@@ -80,7 +80,7 @@ function RuleCard({ rule, index, onEdit, onTest, onDelete, onOptions }: { rule: 
 								When
 							</p>
 							<div className="flex flex-wrap gap-1">
-								{Object.entries(rule.conditions).map(([key, value]) => (
+								{Object.entries(rule.conditions || {}).map(([key, value]) => (
 									<span
 										key={key}
 										className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-800 rounded text-xs text-slate-300"

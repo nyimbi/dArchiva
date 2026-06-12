@@ -3,8 +3,8 @@
  * Search feature exports.
  */
 
-export * from './components/AdvancedSearch';
-export * from './components/SemanticSearch';
-export * from './components/SearchResults';
 export * from './api';
+export * from './components/AdvancedSearch';
+export * from './components/SearchResults';
+export * from './components/SemanticSearch';
 export * from './types';

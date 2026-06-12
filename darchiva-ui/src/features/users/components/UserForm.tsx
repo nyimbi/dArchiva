@@ -2,27 +2,27 @@
 /**
  * User create/edit form component.
  */
-import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
-	Sheet,
-	SheetContent,
-	SheetDescription,
-	SheetFooter,
-	SheetHeader,
-	SheetTitle,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
 } from '@/components/ui/sheet';
-import { useCreateUser, useUpdateUser } from '../api';
+import { Switch } from '@/components/ui/switch';
 import { useGroups } from '@/features/groups/api';
 import { useRoles } from '@/features/roles/api';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Loader2 } from 'lucide-react';
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { useCreateUser,useUpdateUser } from '../api';
 import type { User } from '../types';
 
 const userSchema = z.object({
@@ -109,11 +109,11 @@ export function UserForm({ open, onOpenChange, user }: UserFormProps) {
 		}
 	}, [user, reset]);
 
-	const onSubmit = async (data: UserFormData) => {
-		if (isEditing) {
-			const { password, ...rest } = data;
-			await updateUser.mutateAsync(rest);
-		} else {
+		const onSubmit = async (data: UserFormData) => {
+			if (isEditing) {
+				const { password: _password, ...rest } = data;
+				await updateUser.mutateAsync(rest);
+			} else {
 			await createUser.mutateAsync({
 				...data,
 				password: data.password!,

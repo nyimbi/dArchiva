@@ -2,27 +2,26 @@
 /**
  * Search results display with highlighting and faceted navigation.
  */
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { cn,formatBytes,formatRelativeTime } from '@/lib/utils';
+import { motion } from 'framer-motion';
 import {
-	FileText,
-	Folder,
-	User,
-	Calendar,
-	Tag,
-	ChevronDown,
-	ChevronUp,
-	Grid,
-	List,
-	Eye,
-	Download,
-	MoreVertical,
-	Clock,
-	Zap,
-	ArrowUpDown,
+  ArrowUpDown,
+  Calendar,
+  ChevronDown,
+  ChevronUp,
+  Download,
+  Eye,
+  FileText,
+  Folder,
+  Grid,
+  List,
+  MoreVertical,
+  Tag,
+  User,
+  Zap
 } from 'lucide-react';
-import { cn, formatBytes, formatRelativeTime } from '@/lib/utils';
-import type { SearchResponse, SearchResult, SearchFacets } from '../types';
+import { useState } from 'react';
+import type { SearchResponse,SearchResult } from '../types';
 
 interface SearchResultsProps {
 	results: SearchResponse | null;

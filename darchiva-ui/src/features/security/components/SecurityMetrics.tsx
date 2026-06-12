@@ -2,11 +2,12 @@
 /**
  * Security metrics dashboard cards with analytics.
  */
-import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, CheckCircle, XCircle, Clock, TrendingUp, AlertTriangle, Activity } from 'lucide-react';
-import type { PolicyAnalytics } from '../types';
+import { Activity,AlertTriangle,Clock,Shield,TrendingUp } from 'lucide-react';
+import { useEffect,useState } from 'react';
+import { toast } from 'sonner';
 import { fetchPolicyAnalytics } from '../api';
+import type { PolicyAnalytics } from '../types';
 
 const cardVariants = {
 	hidden: { opacity: 0, y: 20 },
@@ -223,7 +224,9 @@ export function SecurityMetrics() {
 	useEffect(() => {
 		fetchPolicyAnalytics()
 			.then(setAnalytics)
-			.catch(console.error)
+			.catch((error) => {
+				toast.error(error instanceof Error ? error.message : 'Failed to load security analytics');
+			})
 			.finally(() => setLoading(false));
 	}, []);
 

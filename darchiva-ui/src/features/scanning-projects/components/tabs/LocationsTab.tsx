@@ -1,17 +1,17 @@
 import { cn } from '@/lib/utils';
-import { useLocations, useMultiLocationDashboard } from '../../api/hooks';
-import { MetricCard } from '../core/MetricCard';
-import type { ScanningLocation, LocationDashboard } from '../../types';
 import {
-  MapPinIcon,
-  UsersIcon,
-  PrinterIcon,
-  GaugeIcon,
-  PlusIcon,
   BuildingIcon,
-  PhoneIcon,
+  GaugeIcon,
   MailIcon,
+  MapPinIcon,
+  PhoneIcon,
+  PlusIcon,
+  PrinterIcon,
+  UsersIcon,
 } from 'lucide-react';
+import { useLocations,useMultiLocationDashboard } from '../../api/hooks';
+import type { LocationDashboard,ScanningLocation } from '../../types';
+import { MetricCard } from '../core/MetricCard';
 
 export function LocationsTab() {
   const { data: locations, isLoading: locationsLoading } = useLocations();

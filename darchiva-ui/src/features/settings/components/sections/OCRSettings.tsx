@@ -1,6 +1,7 @@
 // OCR Settings Section
-import { SettingsCard, SettingsToggle, SettingsSelect, SettingsSlider } from '../ui/SettingsControls';
-import { useOCRSettings, useUpdateOCRSettings } from '../../api/hooks';
+import { useOCRSettings,useUpdateOCRSettings } from '../../api/hooks';
+import type { OCRSettings as OCRSettingsType } from '../../types';
+import { SettingsCard,SettingsSelect,SettingsSlider,SettingsToggle } from '../ui/SettingsControls';
 
 export function OCRSettings() {
 	const { data: settings } = useOCRSettings();
@@ -18,14 +19,14 @@ export function OCRSettings() {
 					label="Default Engine"
 					description="Primary OCR engine for text extraction"
 					value={settings?.default_engine || 'hybrid'}
-					options={[
-						{ value: 'tesseract', label: 'Tesseract (Fastest)' },
-						{ value: 'paddleocr', label: 'PaddleOCR (Accurate)' },
-						{ value: 'qwen-vl', label: 'Qwen-VL (AI Vision)' },
-						{ value: 'hybrid', label: 'Hybrid (Auto-select)' },
-					]}
-					onChange={(v) => updateMutation.mutate({ default_engine: v as any })}
-				/>
+						options={[
+							{ value: 'tesseract', label: 'Tesseract (Fastest)' },
+							{ value: 'paddleocr', label: 'PaddleOCR (Accurate)' },
+							{ value: 'qwen-vl', label: 'Qwen-VL (AI Vision)' },
+							{ value: 'hybrid', label: 'Hybrid (Auto-select)' },
+						]}
+						onChange={(v) => updateMutation.mutate({ default_engine: v as OCRSettingsType['default_engine'] })}
+					/>
 				<SettingsSelect
 					label="Fallback Engine"
 					description="Used when primary fails"

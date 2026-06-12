@@ -2,9 +2,9 @@
 /**
  * Document types API hooks.
  */
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { DocumentType, DocumentTypeCreate, DocumentTypeUpdate, DocumentTypeListResponse } from './types';
+import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
+import type { DocumentType,DocumentTypeCreate,DocumentTypeListResponse,DocumentTypeUpdate } from './types';
 
 const DOC_TYPES_KEY = ['document-types'];
 

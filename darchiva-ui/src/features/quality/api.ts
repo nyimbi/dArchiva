@@ -2,13 +2,13 @@
 /**
  * Quality API hooks using React Query.
  */
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import type {
-	QualityRule,
-	QualityAssessment,
-	QualityStats,
-	QualityIssueDetail,
+  QualityAssessment,
+  QualityIssueDetail,
+  QualityRule,
+  QualityStats,
 } from './types';
 
 const API_BASE = '/quality';

@@ -1,10 +1,11 @@
 // Storage Settings Section
 import { cn } from '@/lib/utils';
-import { SettingsCard, SettingsField, SettingsToggle, SettingsSelect, SettingsSlider, SettingsBadge, SettingsButton } from '../ui/SettingsControls';
-import { useStorageSettings, useUpdateStorageSettings } from '../../api/hooks';
+import { useStorageSettings,useUpdateStorageSettings } from '../../api/hooks';
+import type { StorageSettings as StorageSettingsType } from '../../types';
+import { SettingsBadge,SettingsCard,SettingsField,SettingsSelect,SettingsSlider,SettingsToggle } from '../ui/SettingsControls';
 
 export function StorageSettings() {
-	const { data: settings, isLoading } = useStorageSettings();
+	const { data: settings } = useStorageSettings();
 	const updateMutation = useUpdateStorageSettings();
 
 	const usagePercent = settings ? (settings.used_storage_bytes / settings.total_storage_bytes) * 100 : 0;
@@ -46,13 +47,13 @@ export function StorageSettings() {
 					label="Backend"
 					description="Where files are stored"
 					value={settings?.provider || 'local'}
-					options={[
-						{ value: 'local', label: 'Local Filesystem' },
-						{ value: 's3', label: 'Amazon S3' },
-						{ value: 'linode', label: 'Linode Object Storage' },
-						{ value: 'r2', label: 'Cloudflare R2' },
-					]}
-					onChange={(v) => updateMutation.mutate({ provider: v as any })}
+						options={[
+							{ value: 'local', label: 'Local Filesystem' },
+							{ value: 's3', label: 'Amazon S3' },
+							{ value: 'linode', label: 'Linode Object Storage' },
+							{ value: 'r2', label: 'Cloudflare R2' },
+						]}
+						onChange={(v) => updateMutation.mutate({ provider: v as StorageSettingsType['provider'] })}
 				/>
 				{settings?.provider !== 'local' && (
 					<>
@@ -110,13 +111,13 @@ export function StorageSettings() {
 				<SettingsSelect
 					label="Archive Tier"
 					value={settings?.archive_tier || 'cold'}
-					options={[
-						{ value: 'hot', label: 'Hot (Instant access)' },
-						{ value: 'cold', label: 'Cold (Minutes to access)' },
-						{ value: 'archive', label: 'Archive (Hours to access)' },
-					]}
-					onChange={(v) => updateMutation.mutate({ archive_tier: v as any })}
-				/>
+						options={[
+							{ value: 'hot', label: 'Hot (Instant access)' },
+							{ value: 'cold', label: 'Cold (Minutes to access)' },
+							{ value: 'archive', label: 'Archive (Hours to access)' },
+						]}
+						onChange={(v) => updateMutation.mutate({ archive_tier: v as StorageSettingsType['archive_tier'] })}
+					/>
 			</SettingsCard>
 		</div>
 	);

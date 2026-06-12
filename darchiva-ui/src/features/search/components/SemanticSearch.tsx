@@ -2,22 +2,22 @@
 /**
  * Semantic search with natural language queries and AI suggestions.
  */
-import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-	Sparkles,
-	Search,
-	Wand2,
-	MessageSquare,
-	ArrowRight,
-	Clock,
-	Star,
-	Trash2,
-	Loader2,
-} from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useSemanticSuggestions, useRecentSearches, useSavedSearches, useClearRecentSearches } from '../api';
-import type { SearchQuery, SemanticSearchSuggestion, RecentSearch, SavedSearch } from '../types';
+import { AnimatePresence,motion } from 'framer-motion';
+import {
+  ArrowRight,
+  Clock,
+  Loader2,
+  MessageSquare,
+  Search,
+  Sparkles,
+  Star,
+  Trash2,
+  Wand2,
+} from 'lucide-react';
+import { useEffect,useRef,useState } from 'react';
+import { useClearRecentSearches,useRecentSearches,useSavedSearches,useSemanticSuggestions } from '../api';
+import type { SavedSearch,SearchQuery,SemanticSearchSuggestion } from '../types';
 
 interface SemanticSearchProps {
 	onSearch: (query: SearchQuery) => void;

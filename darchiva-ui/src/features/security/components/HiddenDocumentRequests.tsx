@@ -2,11 +2,12 @@
 /**
  * Hidden document access request approval queue.
  */
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { EyeOff, CheckCircle, XCircle, User, FileText, Clock, MessageSquare } from 'lucide-react';
+import { AnimatePresence,motion } from 'framer-motion';
+import { CheckCircle,Clock,EyeOff,MessageSquare,User,XCircle } from 'lucide-react';
+import { useEffect,useState } from 'react';
+import { toast } from 'sonner';
+import { approveHiddenAccess,denyHiddenAccess,fetchPendingAccessRequests } from '../api';
 import type { HiddenAccessRequest } from '../types';
-import { fetchPendingAccessRequests, approveHiddenAccess, denyHiddenAccess } from '../api';
 
 interface RequestCardProps {
 	request: HiddenAccessRequest;
@@ -145,7 +146,7 @@ export function HiddenDocumentRequests() {
 			const data = await fetchPendingAccessRequests();
 			setRequests(data.items);
 		} catch (err) {
-			console.error('Failed to load requests:', err);
+			toast.error(err instanceof Error ? err.message : 'Failed to load hidden document requests');
 		} finally {
 			setLoading(false);
 		}

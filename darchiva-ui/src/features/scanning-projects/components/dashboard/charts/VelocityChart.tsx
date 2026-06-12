@@ -1,13 +1,13 @@
 import {
-  ComposedChart,
   Bar,
+  CartesianGrid,
+  ComposedChart,
   Line,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  ReferenceLine,
 } from 'recharts';
 import type { VelocityDataPoint } from '../../../types';
 

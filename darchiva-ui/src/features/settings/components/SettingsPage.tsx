@@ -1,43 +1,43 @@
 // Unified Settings Page
-import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { EXTENDED_SETTINGS_SECTIONS, type SettingsSectionId, type SettingsSection } from '../types';
-import { GeneralSettings } from './sections/GeneralSettings';
+import {
+  BellIcon,
+  BoltIcon,
+  CircleStackIcon,
+  ClockIcon,
+  CogIcon,
+  DocumentMagnifyingGlassIcon,
+  EnvelopeIcon,
+  EyeSlashIcon,
+  MagnifyingGlassIcon,
+  PaintBrushIcon,
+  PrinterIcon,
+  PuzzlePieceIcon,
+  QueueListIcon,
+  ServerIcon,
+  ShieldCheckIcon,
+  UserIcon,
+  UsersIcon,
+} from '@heroicons/react/24/outline';
+import { useState } from 'react';
+import { EXTENDED_SETTINGS_SECTIONS,type SettingsSection,type SettingsSectionId } from '../types';
 import { AppearanceSettings } from './sections/AppearanceSettings';
-import { StorageSettings } from './sections/StorageSettings';
+import { EmailSettings } from './sections/EmailSettings';
+import { GeneralSettings } from './sections/GeneralSettings';
+import { IntegrationSettings } from './sections/IntegrationSettings';
 import { OCRSettings } from './sections/OCRSettings';
 import { SearchSettings } from './sections/SearchSettings';
 import { SecuritySettings } from './sections/SecuritySettings';
-import { EmailSettings } from './sections/EmailSettings';
-import { WorkflowSettings } from './sections/WorkflowSettings';
-import { IntegrationSettings } from './sections/IntegrationSettings';
+import { StorageSettings } from './sections/StorageSettings';
 import { UsersAccessSettings } from './sections/UsersAccessSettings';
-import { ServicesPanel } from './services/ServicesPanel';
-import { WorkersPanel } from './services/WorkersPanel';
+import { WorkflowSettings } from './sections/WorkflowSettings';
 import { QueuesPanel } from './services/QueuesPanel';
 import { SchedulerPanel } from './services/SchedulerPanel';
+import { ServicesPanel } from './services/ServicesPanel';
+import { WorkersPanel } from './services/WorkersPanel';
 import { SystemHealthBanner } from './SystemHealthBanner';
-import {
-	UserIcon,
-	UsersIcon,
-	PaintBrushIcon,
-	CircleStackIcon,
-	DocumentMagnifyingGlassIcon,
-	MagnifyingGlassIcon,
-	ShieldCheckIcon,
-	EnvelopeIcon,
-	BoltIcon,
-	PuzzlePieceIcon,
-	ServerIcon,
-	CogIcon,
-	QueueListIcon,
-	ClockIcon,
-	BellIcon,
-	EyeSlashIcon,
-	PrinterIcon,
-} from '@heroicons/react/24/outline';
 
-const SECTION_ICONS: Record<string, React.ComponentType<any>> = {
+const SECTION_ICONS: Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
 	general: UserIcon,
 	appearance: PaintBrushIcon,
 	storage: CircleStackIcon,
@@ -164,7 +164,7 @@ interface SettingsContentProps {
 	isAdmin: boolean;
 }
 
-function SettingsContent({ section, isAdmin }: SettingsContentProps) {
+function SettingsContent({ section }: SettingsContentProps) {
 	switch (section) {
 		case 'general':
 			return <GeneralSettings />;

@@ -1,10 +1,11 @@
 // (c) Copyright Datacraft, 2026
-import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Plus, FileText, CheckCircle, AlertTriangle, Calendar, Gauge, Wand2, Wrench } from 'lucide-react';
-import { useScanningProject, useScanningProjectMetrics, useProjectBatches, useProjectMilestones } from '../hooks';
-import { BatchCard, MilestoneTimeline, CreateBatchDialog, AIProjectPlanner, ScannerDiscovery } from '../components';
 import { cn } from '@/lib/utils';
+import { AlertTriangle,ArrowLeft,Calendar,CheckCircle,FileText,Gauge,Plus,Wand2,Wrench } from 'lucide-react';
+import { useState } from 'react';
+import { Link,useParams } from 'react-router-dom';
+import { toast } from 'sonner';
+import { AIProjectPlanner,BatchCard,CreateBatchDialog,MilestoneTimeline,ScannerDiscovery } from '../components';
+import { useProjectBatches,useProjectMilestones,useScanningProject,useScanningProjectMetrics } from '../hooks';
 
 function formatDate(date: string): string {
 	const d = new Date(date);
@@ -222,8 +223,8 @@ export function ProjectDetails() {
 					</div>
 					<ScannerDiscovery
 						projectId={project.id}
-						onScannerAdded={(scanner, config) => {
-							console.log('Scanner added:', scanner, config);
+						onScannerAdded={(scanner) => {
+							toast.success(`Scanner ${scanner.name} registered successfully.`);
 						}}
 					/>
 				</div>

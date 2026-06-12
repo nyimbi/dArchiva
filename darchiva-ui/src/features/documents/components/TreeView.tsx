@@ -1,16 +1,28 @@
 // TreeView Component - GitHub Issue #1042
 // Hierarchical folder/document navigation with virtualization support
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import {
+  DropdownMenu,DropdownMenuContent,DropdownMenuItem,
+  DropdownMenuSeparator,DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import {
-	ChevronRight, ChevronDown, Folder, FolderOpen, File, FileText,
-	Image, FileSpreadsheet, Presentation, Archive, MoreHorizontal,
-	Plus, Trash2, Edit, Move, Copy, Download, Share2, Star, StarOff,
+  Archive,
+  ChevronRight,
+  Copy,Download,
+  Edit,
+  File,
+  FileSpreadsheet,
+  FileText,
+  Folder,FolderOpen,
+  Image,
+  MoreHorizontal,
+  Move,
+  Plus,
+  Presentation,
+  Share2,Star,StarOff,
+  Trash2
 } from 'lucide-react';
-import {
-	DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-	DropdownMenuSeparator, DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { useCallback,useMemo,useState } from 'react';
 
 export interface TreeNode {
 	id: string;

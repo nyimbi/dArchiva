@@ -2,8 +2,8 @@
 /**
  * Login page with warm archival aesthetic.
  */
-import { useState, type FormEvent } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useState,type FormEvent } from 'react';
+import { useLocation,useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export function LoginPage() {

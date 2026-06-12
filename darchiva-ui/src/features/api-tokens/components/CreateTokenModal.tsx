@@ -1,12 +1,19 @@
 // Create Token Modal - Warm Archival Theme
-import { useState, useCallback } from 'react';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
-	X, Key, Copy, Check, Eye, EyeOff, AlertTriangle, Shield, Clock,
+  AlertTriangle,
+  Check,
+  Clock,
+  Copy,
+  Eye,EyeOff,
+  Key,
+  Shield,
+  X,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useCallback,useState } from 'react';
 import { useCreateToken } from '../api/hooks';
-import { SCOPE_GROUPS, EXPIRY_OPTIONS, type TokenScope, type APITokenCreated } from '../types';
+import { EXPIRY_OPTIONS,SCOPE_GROUPS,type APITokenCreated,type TokenScope } from '../types';
 
 interface Props {
 	open: boolean;
@@ -43,7 +50,11 @@ export function CreateTokenModal({ open, onClose }: Props) {
 	const toggleScope = (scope: TokenScope) => {
 		setScopes(prev => {
 			const next = new Set(prev);
-			next.has(scope) ? next.delete(scope) : next.add(scope);
+			if (next.has(scope)) {
+				next.delete(scope);
+			} else {
+				next.add(scope);
+			}
 			return next;
 		});
 	};

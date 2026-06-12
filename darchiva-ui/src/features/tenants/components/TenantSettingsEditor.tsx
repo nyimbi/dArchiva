@@ -1,7 +1,7 @@
 // (c) Copyright Datacraft, 2026
 import { useState } from 'react';
-import type { TenantSettings, SettingsUpdate } from '../types';
 import styles from '../tenants.module.css';
+import type { SettingsUpdate,TenantSettings } from '../types';
 
 interface TenantSettingsEditorProps {
 	settings?: TenantSettings;

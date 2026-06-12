@@ -1,12 +1,18 @@
 // Notification Center - Warm Archival Theme
-import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import {
-	Bell, X, CheckCircle2, AlertCircle, AlertTriangle, Info,
-	Check, Trash2, ExternalLink, Clock,
+  AlertCircle,AlertTriangle,
+  Bell,
+  Check,
+  CheckCircle2,
+  Clock,
+  ExternalLink,
+  Info,
+  Trash2
 } from 'lucide-react';
+import { useEffect,useRef,useState } from 'react';
 import { useNotificationStore } from '../store';
-import type { Notification, NotificationType } from '../types';
+import type { Notification,NotificationType } from '../types';
 
 const ICONS: Record<NotificationType, typeof CheckCircle2> = {
 	success: CheckCircle2,

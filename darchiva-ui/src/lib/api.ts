@@ -1,23 +1,23 @@
 // (c) Copyright Datacraft, 2026
 import type {
-	User,
-	Document,
-	Folder,
-	Workflow,
-	PendingTask,
-	FormTemplate,
-	ExtractionResult,
-	Case,
-	Portfolio,
-	Bundle,
-	IngestionSource,
-	IngestionJob,
-	RoutingRule,
-	DashboardStats,
-	RecentActivity,
+  Bundle,
+  Case,
+  DashboardStats,
+  Document,
+  ExtractionResult,
+  Folder,
+  FormTemplate,
+  IngestionJob,
+  IngestionSource,
+  PendingTask,
+  Portfolio,
+  RecentActivity,
+  RoutingRule,
+  User,
+  Workflow,
 } from '@/types';
-import { snakeToCamel, camelToSnake } from './utils';
 import { handleApiError } from './error-handler';
+import { camelToSnake,snakeToCamel } from './utils';
 
 
 const API_BASE = '/api/v1';
@@ -146,6 +146,28 @@ export const api = {
 			method: 'PUT',
 			headers: getAuthHeaders(),
 			body: transformedBody ? JSON.stringify(transformedBody) : undefined,
+		});
+		if (!response.ok) return await handleApiError(response);
+
+		const rawData = await response.json();
+		return snakeToCamel<T>(rawData);
+	},
+
+	/**
+	 * Upload FormData (for file uploads)
+	 * Note: Don't set Content-Type header - browser will set it with boundary for multipart/form-data
+	 */
+	async upload<T>(endpoint: string, formData: FormData): Promise<T> {
+		const token = localStorage.getItem(TOKEN_KEY);
+		const headers: Record<string, string> = {};
+		if (token) {
+			headers['Authorization'] = `Bearer ${token}`;
+		}
+
+		const response = await fetch(`${API_BASE}${endpoint}`, {
+			method: 'POST',
+			headers,
+			body: formData,
 		});
 		if (!response.ok) return await handleApiError(response);
 

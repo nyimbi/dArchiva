@@ -1,22 +1,21 @@
 // (c) Copyright Datacraft, 2026
+import { AnimatePresence,motion } from 'framer-motion';
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
-	useInventorySummary,
-	useContainers,
-	useLocations,
-	useScanBarcode,
-	useScanHistory,
-	PhysicalContainer,
-	WarehouseLocation,
+  PhysicalContainer,
+  useContainers,
+  useInventorySummary,
+  useLocations,
+  useScanHistory,
+  WarehouseLocation
 } from '../api';
-import { LocationTree } from './LocationTree';
-import { ContainerList } from './ContainerList';
-import { ContainerDetail } from './ContainerDetail';
 import { BarcodeScanner } from './BarcodeScanner';
+import { ContainerDetail } from './ContainerDetail';
+import { ContainerList } from './ContainerList';
 import { CreateContainerModal } from './CreateContainerModal';
 import { CreateLocationModal } from './CreateLocationModal';
 import styles from './InventoryDashboard.module.css';
+import { LocationTree } from './LocationTree';
 
 type Tab = 'overview' | 'containers' | 'locations' | 'scanner' | 'reports';
 

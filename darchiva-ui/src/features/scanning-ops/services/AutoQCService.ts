@@ -44,7 +44,6 @@ class AutoQCService {
 
                 // 1. Blank Page Detection (Simple brightness/variance check)
                 let totalBrightness = 0;
-                let variance = 0;
                 for (let i = 0; i < data.length; i += 4) {
                     totalBrightness += (data[i] + data[i + 1] + data[i + 2]) / 3;
                 }

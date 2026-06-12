@@ -1,19 +1,19 @@
 // (c) Copyright Datacraft, 2026
+import { useDashboardPendingTasks,useDashboardStats,useRecentActivity } from '@/features/dashboard';
+import { cn,formatBytes,formatRelativeTime } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import {
-	FileText,
-	FolderOpen,
-	GitBranch,
-	HardDrive,
-	TrendingUp,
-	Clock,
-	AlertCircle,
-	ArrowUpRight,
-	FileSearch,
-	Loader2,
+  AlertCircle,
+  ArrowUpRight,
+  Clock,
+  FileSearch,
+  FileText,
+  FolderOpen,
+  GitBranch,
+  HardDrive,
+  Loader2,
+  TrendingUp,
 } from 'lucide-react';
-import { formatBytes, formatRelativeTime, cn } from '@/lib/utils';
-import { useDashboardStats, useRecentActivity, useDashboardPendingTasks } from '@/features/dashboard';
 
 const containerVariants = {
 	hidden: { opacity: 0 },

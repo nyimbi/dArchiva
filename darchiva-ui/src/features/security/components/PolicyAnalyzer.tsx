@@ -3,30 +3,28 @@
  * Policy analyzer for "what-if" access analysis.
  * Simulates access decisions without making changes.
  */
-import { useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-	Search,
-	Play,
-	CheckCircle2,
-	XCircle,
-	AlertTriangle,
-	User,
-	FileText,
-	Shield,
-	Clock,
-	ChevronRight,
-	HelpCircle,
-	Zap,
-	BookOpen,
-} from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { AnimatePresence,motion } from 'framer-motion';
+import {
+  BookOpen,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  FileText,
+  HelpCircle,
+  Play,
+  Search,
+  Shield,
+  User,
+  XCircle,
+  Zap
+} from 'lucide-react';
+import { useCallback,useState } from 'react';
 import type {
-	User as UserType,
-	PermissionAction,
-	AccessRequest,
-	AccessDecision,
-	PolicyRule,
+  AccessDecision,
+  AccessRequest,
+  PermissionAction,
+  User as UserType
 } from '../types';
 
 interface PolicyAnalyzerProps {

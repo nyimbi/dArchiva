@@ -1,7 +1,7 @@
 // (c) Copyright Datacraft, 2026
-import type { TenantDetail, TenantUsage } from '../types';
 import { formatBytes } from '../api';
 import styles from '../tenants.module.css';
+import type { TenantDetail,TenantUsage } from '../types';
 
 interface TenantUsageStatsProps {
 	tenant: TenantDetail;
@@ -103,9 +103,11 @@ export function TenantUsageStats({ tenant, usage }: TenantUsageStatsProps) {
 						<path d="M3 3v18h18" />
 						<path d="M18 9l-5 5-4-4-4 4" />
 					</svg>
-					<p style={{ margin: 0 }}>Usage analytics charts coming soon</p>
+						<p style={{ margin: 0 }}>
+							Usage trend visualization is not available for this tenant yet.
+						</p>
+					</div>
 				</div>
-			</div>
 
 			<div className={styles.section}>
 				<h3 className={styles.sectionTitle}>Quotas & Warnings</h3>

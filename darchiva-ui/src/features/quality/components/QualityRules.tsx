@@ -2,32 +2,31 @@
 /**
  * Quality rules configuration UI.
  */
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-	Plus,
-	Pencil,
-	Trash2,
-	MoreVertical,
-	Power,
-	PowerOff,
-	GripVertical,
-	AlertCircle,
-	CheckCircle,
-	XCircle,
-	Info,
-} from 'lucide-react';
+import { cn } from '@/lib/utils';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
+import {
+  AlertCircle,
+  GripVertical,
+  Info,
+  MoreVertical,
+  Pencil,
+  Plus,
+  Power,
+  PowerOff,
+  Trash2,
+  XCircle
+} from 'lucide-react';
+import { useState } from 'react';
 import type {
-	QualityRule,
-	QualityMetricType,
-	RuleOperator,
-	RuleSeverity,
-	RuleAction,
+  QualityMetricType,
+  QualityRule,
+  RuleAction,
+  RuleOperator,
+  RuleSeverity,
 } from '../types';
-import { METRIC_LABELS, OPERATOR_LABELS, SEVERITY_CONFIG } from '../types';
+import { METRIC_LABELS,OPERATOR_LABELS,SEVERITY_CONFIG } from '../types';
 
 interface QualityRulesProps {
 	rules: QualityRule[];

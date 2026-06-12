@@ -2,34 +2,31 @@
 /**
  * Email detail view component.
  */
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import {
-	Mail,
-	Paperclip,
-	Download,
-	Trash2,
-	FileText,
-	Image,
-	File,
-	ExternalLink,
+  ExternalLink,
+  File,
+  FileText,
+  Image,
+  Paperclip,
+  Trash2
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-	AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { useEmailImport, useDeleteEmailImport } from '../api';
-import type { EmailImport, EmailAttachment, AttachmentStatus } from '../types';
+import { useDeleteEmailImport,useEmailImport } from '../api';
+import type { AttachmentStatus,EmailAttachment } from '../types';
 
 interface EmailDetailProps {
 	emailId: string;

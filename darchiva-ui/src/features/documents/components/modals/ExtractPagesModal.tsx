@@ -1,8 +1,7 @@
 // Extract Pages Modal - Create new document from selected pages
-import { useState } from 'react';
-import { cn } from '@/lib/utils';
-import { X, FileOutput, FileText, Loader2, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { FileOutput,FileText,FolderOpen,Loader2,X } from 'lucide-react';
+import { useState } from 'react';
 
 interface Props {
 	open: boolean;

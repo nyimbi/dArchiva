@@ -1,8 +1,8 @@
 // (c) Copyright Datacraft, 2026
-import { X, User, Mail, Shield, Calendar, LogOut } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { useStore } from '@/hooks/useStore';
 import { formatRelativeTime } from '@/lib/utils';
+import { motion } from 'framer-motion';
+import { Calendar,LogOut,Mail,Shield,User,X } from 'lucide-react';
 
 interface UserProfileModalProps {
     onClose: () => void;

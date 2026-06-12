@@ -1,28 +1,28 @@
 // (c) Copyright Datacraft, 2026
-import { Link, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-	LayoutDashboard,
-	FolderTree,
-	GitBranch,
-	FileSearch,
-	Briefcase,
-	FolderKanban,
-	Upload,
-	Route,
-	Settings,
-	ChevronLeft,
-	ChevronRight,
-	FileText,
-	Shield,
-	ScanLine,
-	Home,
-	History,
-	Inbox,
-	Share2,
-} from 'lucide-react';
 import { useStore } from '@/hooks/useStore';
 import { cn } from '@/lib/utils';
+import { AnimatePresence,motion } from 'framer-motion';
+import {
+  Briefcase,
+  ChevronLeft,
+  ChevronRight,
+  FileSearch,
+  FileText,
+  FolderKanban,
+  FolderTree,
+  GitBranch,
+  History,
+  Home,
+  Inbox,
+  LayoutDashboard,
+  Route,
+  ScanLine,
+  Settings,
+  Share2,
+  Shield,
+  Upload,
+} from 'lucide-react';
+import { Link,useLocation } from 'react-router-dom';
 
 const navItems = [
 	{ id: 'home', label: 'Home', icon: Home, path: '/' },

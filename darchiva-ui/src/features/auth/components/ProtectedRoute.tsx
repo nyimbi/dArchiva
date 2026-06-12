@@ -2,7 +2,7 @@
 /**
  * Protected route wrapper that redirects to login if not authenticated.
  */
-import { Navigate, useLocation, Outlet } from 'react-router-dom';
+import { Navigate,Outlet,useLocation } from 'react-router-dom';
 
 import { useAuth } from '../context/AuthContext';
 

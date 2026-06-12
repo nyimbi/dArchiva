@@ -1,7 +1,7 @@
 // (c) Copyright Datacraft, 2026
-import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useCreateLocation, WarehouseLocation } from '../api';
+import { useState } from 'react';
+import { useCreateLocation,WarehouseLocation } from '../api';
 import styles from './CreateModal.module.css';
 
 interface Props {

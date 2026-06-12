@@ -1,5 +1,4 @@
 // (c) Copyright Datacraft, 2026
-import { Activity } from 'lucide-react';
 import { AuditLog } from '@/features/audit/components/AuditLog';
 
 export function AuditLogs() {

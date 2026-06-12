@@ -1,7 +1,7 @@
 // DataTable - Reusable table with sorting, selection, pagination
-import { useState, useMemo, useCallback } from 'react';
 import { cn } from '@/lib/utils';
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { ChevronDown,ChevronLeft,ChevronRight,ChevronUp,Loader2 } from 'lucide-react';
+import { useCallback } from 'react';
 
 export interface Column<T> {
 	key: string;
@@ -69,7 +69,11 @@ export function DataTable<T>({
 	const toggleRow = useCallback((id: string) => {
 		if (!onSelectionChange || !selectedRows) return;
 		const next = new Set(selectedRows);
-		next.has(id) ? next.delete(id) : next.add(id);
+		if (next.has(id)) {
+			next.delete(id);
+		} else {
+			next.add(id);
+		}
 		onSelectionChange(next);
 	}, [selectedRows, onSelectionChange]);
 
@@ -157,7 +161,9 @@ export function DataTable<T>({
 										)}
 										{columns.map(col => (
 											<td key={col.key} className="dt-td">
-												{col.render ? col.render(row) : (row as any)[col.key]}
+												{col.render
+													? col.render(row)
+													: (row as Record<string, React.ReactNode | undefined>)[col.key]}
 											</td>
 										))}
 									</tr>

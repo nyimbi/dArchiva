@@ -1,18 +1,18 @@
 // Scan Profiles Manager - CRUD for Scan Presets
-import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { TechPanel, TechButton, GridOverlay } from './core/TechPanel';
-import { useScanProfiles, useCreateScanProfile, useUpdateScanProfile, useDeleteScanProfile } from '../api/hooks';
-import type { ScanProfile, ScanOptions, ScanProfileCreate } from '../types';
-import { DEFAULT_SCAN_OPTIONS } from '../types';
 import {
-	PlusIcon,
-	PencilIcon,
-	TrashIcon,
-	StarIcon,
-	XMarkIcon,
-	DocumentDuplicateIcon,
+  DocumentDuplicateIcon,
+  PencilIcon,
+  PlusIcon,
+  StarIcon,
+  TrashIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
+import { useState } from 'react';
+import { useCreateScanProfile,useDeleteScanProfile,useScanProfiles,useUpdateScanProfile } from '../api/hooks';
+import type { ColorMode,ImageFormat,InputSource,ScanOptions,ScanProfile,ScanProfileCreate } from '../types';
+import { DEFAULT_SCAN_OPTIONS } from '../types';
+import { GridOverlay,TechButton } from './core/TechPanel';
 
 interface ScanProfilesManagerProps {
 	onProfileSelect?: (profile: ScanProfile) => void;
@@ -298,7 +298,7 @@ function ProfileEditor({ profile, onClose, onSave, isSaving }: ProfileEditorProp
 								</label>
 								<select
 									value={options.color_mode}
-									onChange={(e) => updateOption('color_mode', e.target.value as any)}
+									onChange={(e) => updateOption('color_mode', e.target.value as ColorMode)}
 									className={cn(
 										'w-full px-3 py-2 rounded',
 										'bg-[var(--scan-bg-tertiary)] border border-[var(--scan-border)]',
@@ -318,7 +318,7 @@ function ProfileEditor({ profile, onClose, onSave, isSaving }: ProfileEditorProp
 								</label>
 								<select
 									value={options.input_source}
-									onChange={(e) => updateOption('input_source', e.target.value as any)}
+									onChange={(e) => updateOption('input_source', e.target.value as InputSource)}
 									className={cn(
 										'w-full px-3 py-2 rounded',
 										'bg-[var(--scan-bg-tertiary)] border border-[var(--scan-border)]',
@@ -338,7 +338,7 @@ function ProfileEditor({ profile, onClose, onSave, isSaving }: ProfileEditorProp
 								</label>
 								<select
 									value={options.format}
-									onChange={(e) => updateOption('format', e.target.value as any)}
+									onChange={(e) => updateOption('format', e.target.value as ImageFormat)}
 									className={cn(
 										'w-full px-3 py-2 rounded',
 										'bg-[var(--scan-bg-tertiary)] border border-[var(--scan-border)]',

@@ -1,33 +1,33 @@
 import { cn } from '@/lib/utils';
+import {
+  ArrowLeftIcon,
+  BarChart3Icon,
+  BoxIcon,
+  DollarSignIcon,
+  FileTextIcon,
+  FlagIcon,
+  FolderTreeIcon,
+  LayoutDashboardIcon,
+  MapPinIcon,
+  SettingsIcon,
+  ShieldCheckIcon,
+  UsersIcon,
+  WrenchIcon,
+} from 'lucide-react';
 import { useState } from 'react';
 import { useProject } from '../api/hooks';
 import { StatusBadge } from './core/StatusBadge';
 import { ProjectDashboard } from './dashboard/ProjectDashboard';
-import { SubProjectsTab } from './tabs/SubProjectsTab';
-import { BatchesTab } from './tabs/BatchesTab';
-import { OperatorsTab } from './tabs/OperatorsTab';
-import { LocationsTab } from './tabs/LocationsTab';
-import { CostsTab } from './tabs/CostsTab';
-import { SLAsTab } from './tabs/SLAsTab';
-import { EquipmentTab } from './tabs/EquipmentTab';
 import { AnalyticsTab } from './tabs/AnalyticsTab';
-import { ContractsTab } from './tabs/ContractsTab';
+import { BatchesTab } from './tabs/BatchesTab';
 import { CheckpointsTab } from './tabs/CheckpointsTab';
-import {
-  ArrowLeftIcon,
-  LayoutDashboardIcon,
-  FolderTreeIcon,
-  BoxIcon,
-  UsersIcon,
-  MapPinIcon,
-  DollarSignIcon,
-  ShieldCheckIcon,
-  WrenchIcon,
-  BarChart3Icon,
-  FileTextIcon,
-  FlagIcon,
-  SettingsIcon,
-} from 'lucide-react';
+import { ContractsTab } from './tabs/ContractsTab';
+import { CostsTab } from './tabs/CostsTab';
+import { EquipmentTab } from './tabs/EquipmentTab';
+import { LocationsTab } from './tabs/LocationsTab';
+import { OperatorsTab } from './tabs/OperatorsTab';
+import { SLAsTab } from './tabs/SLAsTab';
+import { SubProjectsTab } from './tabs/SubProjectsTab';
 
 type TabId =
   | 'dashboard'

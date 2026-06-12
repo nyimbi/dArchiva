@@ -1,6 +1,6 @@
 // Delete Token Dialog - Warm Archival Theme
-import { AlertTriangle, Key, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { AlertTriangle,Trash2 } from 'lucide-react';
 import { useDeleteToken } from '../api/hooks';
 import type { APIToken } from '../types';
 

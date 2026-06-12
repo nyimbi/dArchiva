@@ -2,28 +2,56 @@
 // dArchiva User Home Page - "Warm Archival" Theme
 // A vintage library aesthetic meets modern productivity
 // ═══════════════════════════════════════════════════════════════════════════
-import { useState, useCallback, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { cn } from '@/lib/utils';
-import { useStore } from '@/hooks/useStore';
-import {
-	Search, Bell, Star, Clock, FileText, Folder, Upload, Plus,
-	CheckCircle2, AlertCircle, Calendar, ArrowRight, ChevronRight,
-	Eye, Pencil, Share2, MessageSquare, MoreHorizontal, X,
-	TrendingUp, Inbox, History, Zap, ExternalLink, ChevronLeft,
-	Check, Sparkles, Archive, BookOpen,
-} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { useStore } from '@/hooks/useStore';
+import { cn } from '@/lib/utils';
 import {
-	useUserHome, useTaskAction, useQuickUpload, useMarkNotificationRead,
-	useClearRecentSearches,
+  AlertCircle,
+  Archive,
+  ArrowRight,
+  Bell,
+  BookOpen,
+  Calendar,
+  Check,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  ExternalLink,
+  Eye,
+  FileText,Folder,
+  History,
+  Inbox,
+  MessageSquare,MoreHorizontal,
+  Pencil,
+  Plus,
+  Search,
+  Share2,
+  Sparkles,
+  Star,
+  TrendingUp,
+  Upload,
+  X,
+  Zap,
+} from 'lucide-react';
+import { useCallback,useMemo,useRef,useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  useClearRecentSearches,
+  useMarkNotificationRead,
+  useQuickUpload,
+  useTaskAction,
+  useUserHome,
 } from '../api/hooks';
-import type {
-	WorkflowTask, RecentDocument, FavoriteItem, Notification,
-	CalendarEvent, ActivityEvent, RecentSearch, TaskPriority,
-} from '../types';
 import '../styles/theme.css';
+import type {
+  ActivityEvent,
+  CalendarEvent,
+  FavoriteItem,Notification,
+  RecentDocument,
+  RecentSearch,TaskPriority,
+  WorkflowTask,
+} from '../types';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Main Component

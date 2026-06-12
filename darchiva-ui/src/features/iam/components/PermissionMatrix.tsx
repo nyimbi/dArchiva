@@ -1,20 +1,17 @@
 // Permission Matrix - Interactive permissions grid
-import { useState, useMemo, useRef } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import {
-	Download, Filter, Search, User, Users, ArrowUpDown,
-	ChevronLeft, ChevronRight, Eye, Pencil, Shield, Crown, Ban,
+  ArrowUpDown,
+  ChevronLeft,ChevronRight,
+  Download,Search,User,Users,
 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import {
-	Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
-import { PermissionBadge, PermissionSelector } from './core/PermissionBadge';
-import { usePermissionMatrix, useUpdatePermissionCell } from '../api/hooks';
-import type { PermissionLevel, PermissionMatrixRow } from '../types';
+import { useMemo,useRef,useState } from 'react';
+import { usePermissionMatrix,useUpdatePermissionCell } from '../api/hooks';
 import '../styles/theme.css';
+import type { PermissionLevel,PermissionMatrixRow } from '../types';
+import { PermissionBadge,PermissionSelector } from './core/PermissionBadge';
 
 interface PermissionMatrixProps {
 	resourceType?: string;
@@ -32,7 +29,7 @@ const RESOURCE_COLUMNS = [
 	{ key: 'billing', label: 'Billing' },
 ];
 
-export function PermissionMatrix({ resourceType, onExport }: PermissionMatrixProps) {
+export function PermissionMatrix({ resourceType }: PermissionMatrixProps) {
 	const [entityType, setEntityType] = useState<'user' | 'group'>('user');
 	const [searchQuery, setSearchQuery] = useState('');
 	const [sortBy, setSortBy] = useState<string>('name');

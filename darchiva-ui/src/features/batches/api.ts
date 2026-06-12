@@ -2,19 +2,19 @@
 /**
  * Batch tracking API hooks using React Query.
  */
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import type {
-	ScanBatch,
-	ScanBatchSummary,
-	BatchDashboardStats,
-	SourceLocation,
-	SourceLocationTree,
-	CreateBatchInput,
-	UpdateBatchInput,
-	CreateLocationInput,
-	BatchStatus,
-	LocationType,
+  BatchDashboardStats,
+  BatchStatus,
+  CreateBatchInput,
+  CreateLocationInput,
+  LocationType,
+  ScanBatch,
+  ScanBatchSummary,
+  SourceLocation,
+  SourceLocationTree,
+  UpdateBatchInput,
 } from './types';
 
 const API_BASE = '/batches';

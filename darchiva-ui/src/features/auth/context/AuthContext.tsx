@@ -2,7 +2,7 @@
 /**
  * Authentication context and provider.
  */
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext,useCallback,useContext,useEffect,useState,type ReactNode } from 'react';
 
 interface User {
 	id: string;
@@ -49,7 +49,7 @@ function isTokenExpired(token: string): boolean {
 }
 
 import { toast } from '@/hooks/use-toast';
-import { AUTH_UNAUTHORIZED_EVENT, AUTH_FORBIDDEN_EVENT } from '@/lib/error-handler';
+import { AUTH_FORBIDDEN_EVENT,AUTH_UNAUTHORIZED_EVENT } from '@/lib/error-handler';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
 

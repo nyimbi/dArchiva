@@ -2,26 +2,26 @@
 /**
  * Custom workflow node component for React Flow.
  */
-import { memo, useMemo } from 'react';
-import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
+import { cn } from '@/lib/utils';
+import { Handle,Position,type Node,type NodeProps } from '@xyflow/react';
 import { motion } from 'framer-motion';
 import {
-	FileInput,
-	Wand2,
-	Scan,
-	Brain,
-	Tag,
-	CheckCircle2,
-	GitBranch,
-	Database,
-	Search,
-	Bell,
-	Shuffle,
-	GitMerge,
-	UserCheck,
-	Split,
+  Bell,
+  Brain,
+  CheckCircle2,
+  Database,
+  FileInput,
+  GitBranch,
+  GitMerge,
+  Scan,
+  Search,
+  Shuffle,
+  Split,
+  Tag,
+  UserCheck,
+  Wand2,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { memo,useMemo } from 'react';
 import type { WorkflowNodeType } from '../types';
 import { NODE_METADATA } from '../types';
 

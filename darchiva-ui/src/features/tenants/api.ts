@@ -4,18 +4,17 @@
  */
 import { apiClient } from '@/lib/api-client';
 import type {
-	Tenant,
-	TenantDetail,
-	TenantListResponse,
-	TenantCreate,
-	TenantUpdate,
-	TenantBranding,
-	TenantSettings,
-	TenantUsage,
-	BrandingUpdate,
-	SettingsUpdate,
-	TenantUser,
-	InviteUserRequest,
+  BrandingUpdate,
+  InviteUserRequest,
+  SettingsUpdate,
+  TenantBranding,
+  TenantCreate,
+  TenantDetail,
+  TenantListResponse,
+  TenantSettings,
+  TenantUpdate,
+  TenantUsage,
+  TenantUser
 } from './types';
 
 const API_BASE = '/tenants';

@@ -2,48 +2,47 @@
 /**
  * Shared nodes list component.
  */
-import { useState } from 'react';
-import { formatDistanceToNow, format } from 'date-fns';
 import {
-	Share2,
-	FileText,
-	Folder,
-	User,
-	Users,
-	Link,
-	MoreHorizontal,
-	Trash2,
-	Edit,
-	ExternalLink,
-	Eye,
-	Download,
-	Pencil,
-	Clock,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useSharedByMe, useSharedWithMe, useDeleteShare } from '../api';
-import type { SharedNode, SharePermission } from '../types';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs,TabsContent,TabsList,TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
+import { format,formatDistanceToNow } from 'date-fns';
+import {
+  Clock,
+  Download,
+  Edit,
+  Eye,
+  FileText,
+  Folder,
+  Link,
+  MoreHorizontal,
+  Pencil,
+  Share2,
+  Trash2,
+  User,
+  Users
+} from 'lucide-react';
+import { useState } from 'react';
+import { useDeleteShare,useSharedByMe,useSharedWithMe } from '../api';
+import type { SharedNode,SharePermission } from '../types';
 
 const permissionIcons: Record<SharePermission, typeof Eye> = {
 	view: Eye,

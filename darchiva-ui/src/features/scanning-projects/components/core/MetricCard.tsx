@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { ArrowUpIcon, ArrowDownIcon, MinusIcon } from 'lucide-react';
+import { ArrowDownIcon,ArrowUpIcon,MinusIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 type TrendDirection = 'up' | 'down' | 'neutral';

@@ -1,7 +1,6 @@
 // General Settings Section
-import { cn } from '@/lib/utils';
-import { SettingsCard, SettingsField, SettingsToggle, SettingsSelect } from '../ui/SettingsControls';
-import { useTenantSettings, useUpdateTenantSettings } from '../../api/hooks';
+import { useTenantSettings,useUpdateTenantSettings } from '../../api/hooks';
+import { SettingsCard,SettingsField,SettingsSelect } from '../ui/SettingsControls';
 
 export function GeneralSettings() {
 	const { data: settings, isLoading } = useTenantSettings();

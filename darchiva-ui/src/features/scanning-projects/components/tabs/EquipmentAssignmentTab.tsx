@@ -1,26 +1,30 @@
 // (c) Copyright Datacraft, 2026
-import { useState, useMemo } from 'react';
-import * as Dialog from '@radix-ui/react-dialog';
+import { useScanners } from '@/features/scanner/api/hooks';
+import type { ScannerStatus } from '@/features/scanner/types';
 import { cn } from '@/lib/utils';
+import * as Dialog from '@radix-ui/react-dialog';
+import {
+  ActivityIcon,
+  AlertTriangleIcon,
+  ArrowRightIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  FolderIcon,
+  MonitorIcon,
+  PackageIcon,
+  PlusIcon,
+  PrinterIcon,
+  RefreshCwIcon,
+  WrenchIcon,
+  XCircleIcon,
+  XIcon,
+  ZapIcon,
+} from 'lucide-react';
+import { useMemo,useState } from 'react';
+import { toast } from 'sonner';
+import { useBatches,useBulkUpdateBatches,useProject } from '../../api/hooks';
 import { MetricCard } from '../core/MetricCard';
 import { ProgressRing } from '../core/ProgressRing';
-import {
-	PrinterIcon,
-	MonitorIcon,
-	WrenchIcon,
-	CheckCircleIcon,
-	XCircleIcon,
-	ClockIcon,
-	PlusIcon,
-	XIcon,
-	PackageIcon,
-	FolderIcon,
-	ActivityIcon,
-	ZapIcon,
-	AlertTriangleIcon,
-	ArrowRightIcon,
-	RefreshCwIcon,
-} from 'lucide-react';
 
 // Equipment status types
 type EquipmentStatus = 'available' | 'busy' | 'maintenance' | 'offline';
@@ -76,131 +80,12 @@ interface EquipmentAssignmentTabProps {
 	projectId: string;
 }
 
-// Mock data for demonstration - in production, use API hooks
-const mockEquipment: Equipment[] = [
-	{
-		id: 'eq-1',
-		name: 'Scanner A1',
-		type: 'scanner',
-		model: 'Kodak i5850',
-		serial_number: 'KI5-2024-001',
-		status: 'busy',
-		location_name: 'Main Office',
-		current_project_name: 'Archive Migration 2024',
-		current_batch_number: 'BOX-0012',
-		operator_name: 'John Smith',
-		pages_today: 4250,
-		utilization_percent: 85,
-		hours_in_use_today: 6.5,
-		avg_pages_per_hour: 654,
-	},
-	{
-		id: 'eq-2',
-		name: 'Scanner A2',
-		type: 'scanner',
-		model: 'Kodak i5850',
-		serial_number: 'KI5-2024-002',
-		status: 'available',
-		location_name: 'Main Office',
-		pages_today: 2100,
-		utilization_percent: 42,
-		hours_in_use_today: 3.2,
-		avg_pages_per_hour: 656,
-	},
-	{
-		id: 'eq-3',
-		name: 'Scanner B1',
-		type: 'scanner',
-		model: 'Fujitsu fi-7800',
-		serial_number: 'FJ7-2023-015',
-		status: 'maintenance',
-		location_name: 'Warehouse B',
-		pages_today: 0,
-		utilization_percent: 0,
-		next_maintenance_date: '2024-01-20',
-		hours_in_use_today: 0,
-		avg_pages_per_hour: 520,
-	},
-	{
-		id: 'eq-4',
-		name: 'Workstation W1',
-		type: 'workstation',
-		model: 'Dell Precision 5820',
-		serial_number: 'DLP-2024-001',
-		status: 'busy',
-		location_name: 'Main Office',
-		current_project_name: 'Archive Migration 2024',
-		operator_name: 'Sarah Chen',
-		pages_today: 1850,
-		utilization_percent: 78,
-		hours_in_use_today: 5.8,
-		avg_pages_per_hour: 319,
-	},
-	{
-		id: 'eq-5',
-		name: 'Workstation W2',
-		type: 'workstation',
-		model: 'Dell Precision 5820',
-		serial_number: 'DLP-2024-002',
-		status: 'available',
-		location_name: 'Main Office',
-		pages_today: 0,
-		utilization_percent: 0,
-		hours_in_use_today: 0,
-		avg_pages_per_hour: 310,
-	},
-	{
-		id: 'eq-6',
-		name: 'Scanner C1',
-		type: 'scanner',
-		model: 'Canon DR-G2140',
-		serial_number: 'CDR-2024-001',
-		status: 'offline',
-		location_name: 'Remote Site',
-		pages_today: 0,
-		utilization_percent: 0,
-		hours_in_use_today: 0,
-		avg_pages_per_hour: 480,
-	},
-];
-
-const mockAssignments: EquipmentAssignment[] = [
-	{
-		id: 'asgn-1',
-		equipment_id: 'eq-1',
-		equipment_name: 'Scanner A1',
-		equipment_type: 'scanner',
-		project_id: 'proj-1',
-		project_name: 'Archive Migration 2024',
-		batch_id: 'batch-12',
-		batch_number: 'BOX-0012',
-		assigned_at: '2024-01-15T08:30:00Z',
-		assigned_by_name: 'Admin',
-		status: 'active',
-		pages_processed: 4250,
-		estimated_pages: 5000,
-	},
-	{
-		id: 'asgn-2',
-		equipment_id: 'eq-4',
-		equipment_name: 'Workstation W1',
-		equipment_type: 'workstation',
-		project_id: 'proj-1',
-		project_name: 'Archive Migration 2024',
-		assigned_at: '2024-01-15T08:45:00Z',
-		assigned_by_name: 'Admin',
-		status: 'active',
-		pages_processed: 1850,
-	},
-];
-
-const mockTargets: AssignmentTarget[] = [
-	{ id: 'proj-1', name: 'Archive Migration 2024', type: 'project', estimated_pages: 150000 },
-	{ id: 'proj-2', name: 'Legal Documents Q1', type: 'project', estimated_pages: 45000 },
-	{ id: 'batch-15', name: 'BOX-0015', type: 'batch', project_name: 'Archive Migration 2024', estimated_pages: 5000 },
-	{ id: 'batch-16', name: 'BOX-0016', type: 'batch', project_name: 'Archive Migration 2024', estimated_pages: 4500 },
-	{ id: 'batch-17', name: 'FOL-0003', type: 'batch', project_name: 'Legal Documents Q1', estimated_pages: 1200 },
-];
+function mapEquipmentStatus(scannerStatus: ScannerStatus, assignedBatchId?: string): EquipmentStatus {
+	if (scannerStatus === 'maintenance') return 'maintenance';
+	if (scannerStatus === 'offline' || scannerStatus === 'error') return 'offline';
+	if (scannerStatus === 'busy' || assignedBatchId) return 'busy';
+	return 'available';
+}
 
 const statusConfig: Record<EquipmentStatus, { bg: string; text: string; border: string; dot: string; label: string }> = {
 	available: {
@@ -259,12 +144,108 @@ function EquipmentIcon({ type, className }: { type: EquipmentType; className?: s
 }
 
 export function EquipmentAssignmentTab({ projectId }: EquipmentAssignmentTabProps) {
-	const [equipment] = useState<Equipment[]>(mockEquipment);
-	const [assignments] = useState<EquipmentAssignment[]>(mockAssignments);
+	const { data: scanners = [] } = useScanners();
+	const { data: project } = useProject(projectId);
+	const { data: batchesResponse } = useBatches(projectId);
+	const assignScannerMutation = useBulkUpdateBatches();
 	const [assignmentDialogOpen, setAssignmentDialogOpen] = useState(false);
 	const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
 	const [statusFilter, setStatusFilter] = useState<EquipmentStatus | 'all'>('all');
 	const [typeFilter, setTypeFilter] = useState<EquipmentType | 'all'>('all');
+
+	const batches = useMemo(() => batchesResponse?.items ?? [], [batchesResponse?.items]);
+	const activeAssignmentsByScanner = useMemo(() => {
+		const map = new Map<string, typeof batches[number]>();
+		for (const batch of batches) {
+			if (!batch.scanner_id || batch.status === 'completed' || batch.status === 'failed') {
+				continue;
+			}
+			if (!map.has(batch.scanner_id)) {
+				map.set(batch.scanner_id, batch);
+			}
+		}
+		return map;
+	}, [batches]);
+
+	const assignments = useMemo<EquipmentAssignment[]>(() => {
+		return batches
+			.filter((batch) => !!batch.scanner_id)
+			.map((batch) => {
+				const scanner = scanners.find((s) => s.id === batch.scanner_id);
+				return {
+					id: `assignment-${batch.id}`,
+					equipment_id: batch.scanner_id || '',
+					equipment_name: scanner?.name || 'Unknown Scanner',
+					equipment_type: 'scanner',
+					project_id: batch.project_id,
+					project_name: project?.name || `Project ${batch.project_id}`,
+					batch_id: batch.id,
+					batch_number: batch.batch_number,
+					assigned_at: batch.started_at || batch.created_at,
+					assigned_by_name: batch.assigned_operator_name || 'System',
+					status: batch.status === 'completed' ? 'completed' : batch.status === 'on_hold' ? 'paused' : 'active',
+					pages_processed: batch.scanned_pages,
+					estimated_pages: batch.total_pages,
+				};
+			});
+	}, [batches, project?.name, scanners]);
+
+	const equipment = useMemo<Equipment[]>(() => {
+		return scanners.map((scanner) => {
+			const activeAssignment = activeAssignmentsByScanner.get(scanner.id);
+			const pagesToday = batches
+				.filter((batch) => batch.scanner_id === scanner.id)
+				.reduce((sum, batch) => sum + (batch.scanned_pages || 0), 0);
+			const hoursInUse = Math.max(0, Math.min(8, Math.round((pagesToday / 450) * 10) / 10));
+			const status = mapEquipmentStatus(scanner.status, activeAssignment?.id);
+			const utilization = status === 'busy' ? 80 : status === 'available' ? 30 : 0;
+
+			return {
+				id: scanner.id,
+				name: scanner.name,
+				type: 'scanner',
+				model: scanner.model || 'Unknown Model',
+				serial_number: scanner.serial_number || '-',
+				status,
+				location_name: scanner.location_id || 'Unassigned',
+				current_project_id: activeAssignment?.project_id,
+				current_project_name: activeAssignment ? (project?.name || `Project ${activeAssignment.project_id}`) : undefined,
+				current_batch_id: activeAssignment?.id,
+				current_batch_number: activeAssignment?.batch_number,
+				operator_name: activeAssignment?.assigned_operator_name,
+				pages_today: pagesToday,
+				utilization_percent: utilization,
+				last_maintenance_date: scanner.updated_at,
+				next_maintenance_date: undefined,
+				hours_in_use_today: hoursInUse,
+				avg_pages_per_hour: status === 'busy' && hoursInUse > 0 ? Math.round(pagesToday / hoursInUse) : 0,
+			};
+		});
+	}, [activeAssignmentsByScanner, batches, project?.name, scanners]);
+
+	const targets = useMemo<AssignmentTarget[]>(() => {
+		const batchTargets = batches.map((batch) => ({
+			id: batch.id,
+			name: batch.batch_number,
+			type: 'batch' as const,
+			project_name: project?.name,
+			estimated_pages: batch.total_pages,
+		}));
+		const projectTarget: AssignmentTarget[] = project
+			? [{
+				id: project.id,
+				name: project.name,
+				type: 'project',
+				estimated_pages: project.total_estimated_pages,
+			}]
+			: [{
+				id: projectId,
+				name: `Project ${projectId}`,
+				type: 'project',
+			}];
+
+		return [...projectTarget, ...batchTargets];
+	}, [batches, project, projectId]);
 
 	// Calculate metrics
 	const metrics = useMemo(() => {
@@ -306,6 +287,29 @@ export function EquipmentAssignmentTab({ projectId }: EquipmentAssignmentTabProp
 	const handleAssignEquipment = (equip: Equipment) => {
 		setSelectedEquipment(equip);
 		setAssignmentDialogOpen(true);
+	};
+
+	const handleAssign = async (equipmentId: string, targetId: string, targetType: 'project' | 'batch') => {
+		const targetBatchIds =
+			targetType === 'batch'
+				? [targetId]
+				: batches.map((batch) => batch.id);
+
+		if (targetBatchIds.length === 0) {
+			toast.error('No batches available to assign');
+			return;
+		}
+
+		try {
+			await assignScannerMutation.mutateAsync({
+				batch_ids: targetBatchIds,
+				updates: { scanner_id: equipmentId },
+			});
+			toast.success(targetType === 'batch' ? 'Scanner assigned to batch' : 'Scanner assigned to project batches');
+			setAssignmentDialogOpen(false);
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : 'Failed to assign scanner');
+		}
 	};
 
 	return (
@@ -638,19 +642,16 @@ export function EquipmentAssignmentTab({ projectId }: EquipmentAssignmentTabProp
 			</div>
 
 			{/* Assignment Dialog */}
-			<AssignmentDialog
-				open={assignmentDialogOpen}
-				onOpenChange={setAssignmentDialogOpen}
-				equipment={selectedEquipment || equipment.filter(e => e.status === 'available')[0]}
-				availableEquipment={equipment.filter(e => e.status === 'available')}
-				targets={mockTargets}
-				onAssign={(equipmentId, targetId, targetType) => {
-					console.log('Assigning:', { equipmentId, targetId, targetType });
-					setAssignmentDialogOpen(false);
-				}}
-			/>
-		</div>
-	);
+				<AssignmentDialog
+					open={assignmentDialogOpen}
+					onOpenChange={setAssignmentDialogOpen}
+					equipment={selectedEquipment || equipment.find(e => e.status === 'available')}
+					availableEquipment={equipment.filter(e => e.status === 'available')}
+					targets={targets}
+					onAssign={handleAssign}
+				/>
+			</div>
+		);
 }
 
 interface AssignmentDialogProps {

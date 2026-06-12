@@ -2,32 +2,32 @@
 /**
  * Group members management component.
  */
-import { useState } from 'react';
-import { User, UserPlus, Trash2, Search, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar,AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import {
-	Sheet,
-	SheetContent,
-	SheetDescription,
-	SheetHeader,
-	SheetTitle,
-} from '@/components/ui/sheet';
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useGroupMembers, useAddGroupMembers, useRemoveGroupMember } from '../api';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useUsers } from '@/features/users/api';
-import type { Group, GroupMember } from '../types';
+import { Search,User,UserPlus,X } from 'lucide-react';
+import { useState } from 'react';
+import { useAddGroupMembers,useGroupMembers,useRemoveGroupMember } from '../api';
+import type { Group,GroupMember } from '../types';
 
 interface GroupMembersProps {
 	open: boolean;

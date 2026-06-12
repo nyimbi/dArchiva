@@ -1,22 +1,22 @@
-import { useState } from 'react';
-import * as Dialog from '@radix-ui/react-dialog';
 import { cn } from '@/lib/utils';
-import { useEquipmentMaintenance } from '../../api/hooks';
-import { StatusBadge } from '../core/StatusBadge';
-import { MetricCard } from '../core/MetricCard';
-import { ScannerDiscovery } from '../ScannerDiscovery';
-import type { EquipmentMaintenance, MaintenanceStatus } from '../../types';
+import * as Dialog from '@radix-ui/react-dialog';
 import {
-  WrenchIcon,
-  PrinterIcon,
-  CalendarIcon,
   AlertTriangleIcon,
-  CheckCircleIcon,
+  CalendarIcon,
   ClockIcon,
   PlusIcon,
+  PrinterIcon,
   Search,
-  X,
+  WrenchIcon,
+  X
 } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { useEquipmentMaintenance } from '../../api/hooks';
+import type { EquipmentMaintenance,MaintenanceStatus } from '../../types';
+import { MetricCard } from '../core/MetricCard';
+import { StatusBadge } from '../core/StatusBadge';
+import { ScannerDiscovery } from '../ScannerDiscovery';
 
 const statusColors: Record<MaintenanceStatus, string> = {
   scheduled: 'border-l-blue-400',
@@ -128,8 +128,8 @@ export function EquipmentTab() {
             </div>
             <div className="p-4 overflow-y-auto max-h-[calc(85vh-80px)]">
               <ScannerDiscovery
-                onScannerAdded={(scanner, config) => {
-                  console.log('Scanner added:', scanner, config);
+                onScannerAdded={(scanner) => {
+                  toast.success(`Scanner ${scanner.name} added to equipment inventory.`);
                   setShowDiscovery(false);
                 }}
               />

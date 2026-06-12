@@ -1,7 +1,7 @@
 // Copy Button - Copy text to clipboard with feedback
-import { useState, useCallback } from 'react';
-import { Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Check,Copy } from 'lucide-react';
+import { useCallback,useState } from 'react';
 
 interface Props {
 	text: string;
@@ -36,16 +36,16 @@ export function CopyButton({
 }: Props) {
 	const [copied, setCopied] = useState(false);
 
-	const handleCopy = useCallback(async () => {
-		try {
-			await navigator.clipboard.writeText(text);
-			setCopied(true);
-			onCopy?.();
-			setTimeout(() => setCopied(false), 2000);
-		} catch (err) {
-			console.error('Failed to copy:', err);
-		}
-	}, [text, onCopy]);
+		const handleCopy = useCallback(async () => {
+			try {
+				await navigator.clipboard.writeText(text);
+				setCopied(true);
+				onCopy?.();
+				setTimeout(() => setCopied(false), 2000);
+			} catch {
+				setCopied(false);
+			}
+		}, [text, onCopy]);
 
 	return (
 		<button

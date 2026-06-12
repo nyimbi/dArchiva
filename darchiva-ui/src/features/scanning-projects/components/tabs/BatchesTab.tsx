@@ -1,20 +1,20 @@
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
-import { useBatches, usePriorityQueue, useBulkUpdateBatches } from '../../api/hooks';
-import { StatusBadge } from '../core/StatusBadge';
-import { DataTable, type Column } from '../core/DataTable';
-import type { ScanningBatch, BatchStatus, BatchFilters, BatchPriorityQueue } from '../../types';
 import {
-  PlusIcon,
-  FilterIcon,
-  ZapIcon,
-  UploadIcon,
-  PlayIcon,
-  PauseIcon,
-  CheckIcon,
-  XIcon,
   ArrowUpIcon,
+  CheckIcon,
+  FilterIcon,
+  PauseIcon,
+  PlayIcon,
+  PlusIcon,
+  UploadIcon,
+  XIcon,
+  ZapIcon,
 } from 'lucide-react';
+import { useState } from 'react';
+import { useBatches,useBulkUpdateBatches,usePriorityQueue } from '../../api/hooks';
+import type { BatchFilters,BatchPriorityQueue,BatchStatus,ScanningBatch } from '../../types';
+import { DataTable,type Column } from '../core/DataTable';
+import { StatusBadge } from '../core/StatusBadge';
 
 interface BatchesTabProps {
   projectId: string;

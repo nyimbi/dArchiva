@@ -3,18 +3,17 @@
  * Unified Hierarchy View - Master-detail navigation for
  * Portfolio > Case > Bundle > Document hierarchy.
  */
-import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useCallback,useState } from 'react';
 import {
-	getPortfolios,
-	getCases,
-	getBundles,
-	getDocuments,
-	type AnyHierarchyNode,
-	type Portfolio,
-	type Case,
-	type Bundle,
-	type Document,
+  getBundles,
+  getCases,
+  getDocuments,
+  getPortfolios,
+  type AnyHierarchyNode,
+  type Case,
+  type Document,
+  type Portfolio,
 } from './api';
 import styles from './UnifiedHierarchyView.module.css';
 
@@ -52,7 +51,6 @@ export function UnifiedHierarchyView() {
 	}, []);
 
 	const handleBreadcrumbClick = (index: number) => {
-		const item = breadcrumbs[index];
 		setBreadcrumbs(breadcrumbs.slice(0, index + 1));
 		// Would re-fetch and select the node
 	};

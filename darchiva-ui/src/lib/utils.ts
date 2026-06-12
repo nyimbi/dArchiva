@@ -1,5 +1,5 @@
 // (c) Copyright Datacraft, 2026
-import { type ClassValue, clsx } from 'clsx';
+import { type ClassValue,clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 export function cn(...inputs: ClassValue[]) {
@@ -18,8 +18,10 @@ export function formatBytes(bytes: number, decimals = 2): string {
 	return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 }
 
-export function formatDate(dateString: string): string {
+export function formatDate(dateString: string | null | undefined): string {
+	if (!dateString) return '-';
 	const date = new Date(dateString);
+	if (isNaN(date.getTime())) return '-';
 	return new Intl.DateTimeFormat('en-US', {
 		month: 'short',
 		day: 'numeric',
@@ -27,8 +29,10 @@ export function formatDate(dateString: string): string {
 	}).format(date);
 }
 
-export function formatDateTime(dateString: string): string {
+export function formatDateTime(dateString: string | null | undefined): string {
+	if (!dateString) return '-';
 	const date = new Date(dateString);
+	if (isNaN(date.getTime())) return '-';
 	return new Intl.DateTimeFormat('en-US', {
 		month: 'short',
 		day: 'numeric',
@@ -38,8 +42,10 @@ export function formatDateTime(dateString: string): string {
 	}).format(date);
 }
 
-export function formatRelativeTime(dateString: string): string {
+export function formatRelativeTime(dateString: string | null | undefined): string {
+	if (!dateString) return '-';
 	const date = new Date(dateString);
+	if (isNaN(date.getTime())) return '-';
 	const now = new Date();
 	const diffMs = now.getTime() - date.getTime();
 	const diffMins = Math.floor(diffMs / 60000);

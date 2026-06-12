@@ -2,14 +2,14 @@
 /**
  * Inventory API hooks using React Query.
  */
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import type {
-	QRCodeRequest,
-	LabelSheetRequest,
-	DuplicateCheckResult,
-	ReconciliationResult,
-	ReconcileRequest,
+  DuplicateCheckResult,
+  LabelSheetRequest,
+  QRCodeRequest,
+  ReconcileRequest,
+  ReconciliationResult,
 } from './types';
 
 // ============ Types ============
@@ -91,16 +91,8 @@ const API_BASE = '/inventory';
 // ============ QR Code Generation ============
 
 async function fetchBlob(url: string, body: unknown): Promise<Blob> {
-	const token = localStorage.getItem('darchiva_token');
-	const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-	if (token) headers['Authorization'] = `Bearer ${token}`;
-	const response = await fetch(`/api/v1${url}`, {
-		method: 'POST',
-		headers,
-		body: JSON.stringify(body),
-	});
-	if (!response.ok) throw new Error('Failed to generate');
-	return response.blob();
+	const response = await apiClient.post<Blob>(url, body, { responseType: 'blob' });
+	return response.data;
 }
 
 export function useGenerateQRCode() {
@@ -185,21 +177,12 @@ export function useBatchCheckDuplicates() {
 		}> => {
 			const formData = new FormData();
 			files.forEach((file) => formData.append('files', file));
-
-			// For file uploads, we need to use fetch with auth header
-			const token = localStorage.getItem('darchiva_token');
-			const headers: Record<string, string> = {};
-			if (token) headers['Authorization'] = `Bearer ${token}`;
-
-			const response = await fetch(`/api/v1${API_BASE}/duplicates/batch-check`, {
-				method: 'POST',
-				headers,
-				body: formData,
-			});
-			if (!response.ok) {
-				throw new Error(`Failed to batch check duplicates: ${response.statusText}`);
-			}
-			return response.json();
+			const { data } = await apiClient.post<{
+				totalFiles: number;
+				duplicatesFound: number;
+				results: Record<string, { matchDocumentId: string; similarity: number }[]>;
+			}>(`${API_BASE}/duplicates/batch-check`, formData);
+			return data;
 		},
 	});
 }

@@ -1,4 +1,4 @@
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { Bar,BarChart,Cell,ResponsiveContainer,Tooltip,XAxis,YAxis } from 'recharts';
 import { useOperatorPerformance } from '../api/hooks';
 
 export function PerformanceChart() {

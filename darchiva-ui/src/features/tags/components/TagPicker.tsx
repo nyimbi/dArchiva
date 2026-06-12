@@ -2,18 +2,18 @@
 /**
  * Tag picker for documents.
  */
-import { useState, useMemo } from 'react';
-import { Tag as TagIcon, Plus, Check, X, Search } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
 } from '@/components/ui/popover';
-import { useTags, useCreateTag } from '../api';
+import { cn } from '@/lib/utils';
+import { Check,Plus,Search,Tag as TagIcon,X } from 'lucide-react';
+import { useMemo,useState } from 'react';
+import { useCreateTag,useTags } from '../api';
 import type { Tag } from '../types';
 
 interface TagPickerProps {
@@ -28,7 +28,7 @@ export function TagPicker({ selectedTags, onTagsChange, className }: TagPickerPr
 	const [open, setOpen] = useState(false);
 	const [search, setSearch] = useState('');
 
-	const tags = data?.items ?? [];
+	const tags = useMemo(() => data?.items ?? [], [data?.items]);
 	const selectedIds = new Set(selectedTags.map((t) => t.id));
 
 	const filteredTags = useMemo(() => {
@@ -52,7 +52,7 @@ export function TagPicker({ selectedTags, onTagsChange, className }: TagPickerPr
 			const newTag = await createMutation.mutateAsync({ name: search.trim() });
 			onTagsChange([...selectedTags, newTag]);
 			setSearch('');
-		} catch (error) {
+		} catch {
 			// Handle error
 		}
 	};

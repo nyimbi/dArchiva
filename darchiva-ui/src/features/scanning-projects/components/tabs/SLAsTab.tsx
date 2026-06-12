@@ -1,15 +1,15 @@
 import { cn } from '@/lib/utils';
-import { useProjectSLAs, useSLAAlerts, useAcknowledgeSLAAlert } from '../../api/hooks';
-import { StatusBadge } from '../core/StatusBadge';
-import type { ProjectSLA, SLAAlert, SLAStatus } from '../../types';
 import {
-  ShieldCheckIcon,
   AlertTriangleIcon,
+  BellIcon,
   CheckCircleIcon,
   ClockIcon,
   PlusIcon,
-  BellIcon,
+  ShieldCheckIcon,
 } from 'lucide-react';
+import { useAcknowledgeSLAAlert,useProjectSLAs,useSLAAlerts } from '../../api/hooks';
+import type { ProjectSLA,SLAAlert,SLAStatus } from '../../types';
+import { StatusBadge } from '../core/StatusBadge';
 
 interface SLAsTabProps {
   projectId: string;
@@ -31,7 +31,7 @@ const statusColors: Record<SLAStatus, { bg: string; border: string; text: string
 
 export function SLAsTab({ projectId }: SLAsTabProps) {
   const { data: slas, isLoading: slasLoading } = useProjectSLAs(projectId);
-  const { data: alerts, isLoading: alertsLoading } = useSLAAlerts(projectId);
+  const { data: alerts } = useSLAAlerts(projectId);
   const acknowledgeMutation = useAcknowledgeSLAAlert();
 
   const unacknowledgedAlerts = alerts?.filter((a: SLAAlert) => !a.acknowledged_at) ?? [];

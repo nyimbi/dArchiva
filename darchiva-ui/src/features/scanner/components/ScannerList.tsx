@@ -1,18 +1,18 @@
 // Scanner List/Grid View
-import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { TechPanel, TechButton, GridOverlay } from './core/TechPanel';
-import { ScannerCard } from './ScannerCard';
-import { useScanners } from '../api/hooks';
-import type { Scanner, ScannerStatus, ScannerProtocol } from '../types';
-import { PROTOCOL_LABELS, STATUS_CONFIG } from '../types';
 import {
-	Squares2X2Icon,
-	ListBulletIcon,
-	FunnelIcon,
-	MagnifyingGlassIcon,
-	PlusIcon,
+  FunnelIcon,
+  ListBulletIcon,
+  MagnifyingGlassIcon,
+  PlusIcon,
+  Squares2X2Icon,
 } from '@heroicons/react/24/outline';
+import { useState } from 'react';
+import { useScanners } from '../api/hooks';
+import type { Scanner,ScannerProtocol,ScannerStatus } from '../types';
+import { PROTOCOL_LABELS,STATUS_CONFIG } from '../types';
+import { GridOverlay,TechButton } from './core/TechPanel';
+import { ScannerCard } from './ScannerCard';
 
 interface ScannerListProps {
 	onScannerSelect?: (scanner: Scanner) => void;
@@ -27,7 +27,7 @@ export function ScannerList({ onScannerSelect, onAddScanner, className }: Scanne
 	const [protocolFilter, setProtocolFilter] = useState<ScannerProtocol | 'all'>('all');
 	const [includeInactive, setIncludeInactive] = useState(false);
 
-	const { data: scanners, isLoading, error } = useScanners(includeInactive);
+	const { data: scanners, isLoading } = useScanners(includeInactive);
 
 	// Filter scanners
 	const filteredScanners = scanners?.filter((scanner) => {

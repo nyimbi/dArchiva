@@ -1,8 +1,9 @@
 // Security Settings Section
 import { cn } from '@/lib/utils';
-import { SettingsCard, SettingsToggle, SettingsSlider, SettingsBadge } from '../ui/SettingsControls';
-import { useSecuritySettings, useUpdateSecuritySettings } from '../../api/hooks';
-import { ShieldCheckIcon, KeyIcon, FingerPrintIcon, DevicePhoneMobileIcon } from '@heroicons/react/24/outline';
+import { DevicePhoneMobileIcon,FingerPrintIcon } from '@heroicons/react/24/outline';
+import { useSecuritySettings,useUpdateSecuritySettings } from '../../api/hooks';
+import type { SecuritySettings as SecuritySettingsType } from '../../types';
+import { SettingsCard,SettingsSlider,SettingsToggle } from '../ui/SettingsControls';
 
 export function SecuritySettings() {
 	const { data: settings } = useSecuritySettings();
@@ -31,9 +32,11 @@ export function SecuritySettings() {
 							method="totp"
 							enabled={settings?.mfa_methods?.includes('totp')}
 							onChange={(enabled) => {
-								const methods = settings?.mfa_methods || [];
-								const updated = enabled ? [...methods, 'totp'] : methods.filter(m => m !== 'totp');
-								updateMutation.mutate({ mfa_methods: updated as any });
+								const methods = settings?.mfa_methods ?? [];
+								const updated: SecuritySettingsType['mfa_methods'] = enabled
+									? Array.from(new Set([...methods, 'totp']))
+									: methods.filter((m) => m !== 'totp');
+								updateMutation.mutate({ mfa_methods: updated });
 							}}
 						/>
 						<MFAMethodCard
@@ -42,9 +45,11 @@ export function SecuritySettings() {
 							method="webauthn"
 							enabled={settings?.mfa_methods?.includes('webauthn')}
 							onChange={(enabled) => {
-								const methods = settings?.mfa_methods || [];
-								const updated = enabled ? [...methods, 'webauthn'] : methods.filter(m => m !== 'webauthn');
-								updateMutation.mutate({ mfa_methods: updated as any });
+								const methods = settings?.mfa_methods ?? [];
+								const updated: SecuritySettingsType['mfa_methods'] = enabled
+									? Array.from(new Set([...methods, 'webauthn']))
+									: methods.filter((m) => m !== 'webauthn');
+								updateMutation.mutate({ mfa_methods: updated });
 							}}
 						/>
 					</div>
@@ -140,7 +145,7 @@ export function SecuritySettings() {
 	);
 }
 
-function MFAMethodCard({ icon, label, method, enabled, onChange }: {
+function MFAMethodCard({ icon, label, enabled, onChange }: {
 	icon: React.ReactNode;
 	label: string;
 	method: string;

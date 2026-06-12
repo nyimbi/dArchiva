@@ -2,63 +2,52 @@
 /**
  * Visual workflow designer using React Flow.
  */
-import { useCallback, useMemo, useRef, useState, useEffect } from 'react';
+import { cn } from '@/lib/utils';
 import {
-	ReactFlow,
-	Background,
-	Controls,
-	MiniMap,
-	Panel,
-	useNodesState,
-	useEdgesState,
-	addEdge,
-	type Connection,
-	type Edge,
-	type Node,
-	MarkerType,
-	BackgroundVariant,
-	useReactFlow,
+  Background,
+  BackgroundVariant,
+  Controls,
+  MarkerType,
+  MiniMap,
+  ReactFlow,
+  useEdgesState,
+  useNodesState,
+  type Connection,
+  type Edge,
+  type Node,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence,motion } from 'framer-motion';
 import {
-	Save,
-	Play,
-	Pause,
-	Undo2,
-	Redo2,
-	ZoomIn,
-	ZoomOut,
-	Maximize2,
-	Grid3X3,
-	Plus,
-	Settings,
-	Trash2,
-	Copy,
-	X,
-	ChevronRight,
-	FileInput,
-	Wand2,
-	Scan,
-	Brain,
-	Tag,
-	CheckCircle2,
-	GitBranch,
-	Database,
-	Search,
-	Bell,
-	Shuffle,
-	GitMerge,
-	UserCheck,
-	Split,
-	Layers,
+  Bell,
+  Brain,
+  CheckCircle2,
+  ChevronRight,
+  Database,
+  FileInput,
+  GitBranch,
+  GitMerge,
+  Grid3X3,
+  Layers,
+  Play,
+  Redo2,
+  Save,
+  Scan,
+  Search,
+  Shuffle,
+  Split,
+  Tag,
+  Trash2,
+  Undo2,
+  UserCheck,
+  Wand2,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { WorkflowNodeView } from './WorkflowNode';
-import { NodeConfigPanel } from './NodeConfigPanel';
+import { useCallback,useEffect,useMemo,useRef,useState } from 'react';
 import { useWorkflowStore } from '../store';
-import type { WorkflowNodeType, WorkflowNode as WFNode } from '../types';
-import { NODE_METADATA, NODE_CATEGORIES } from '../types';
+import type { WorkflowEdge as WFEdge,WorkflowNode as WFNode,WorkflowNodeType } from '../types';
+import { NODE_CATEGORIES,NODE_METADATA } from '../types';
+import { NodeConfigPanel } from './NodeConfigPanel';
+import { WorkflowNodeView } from './WorkflowNode';
 
 const nodeTypes = {
 	workflowNode: WorkflowNodeView,
@@ -84,12 +73,12 @@ const ICONS: Record<WorkflowNodeType, typeof FileInput> = {
 
 interface DesignerProps {
 	workflowId?: string;
-	onSave?: (nodes: WFNode[], edges: any[]) => void;
-	onRun?: (nodes: WFNode[], edges: any[]) => void;
+	onSave?: (nodes: WFNode[], edges: WFEdge[]) => void;
+	onRun?: (nodes: WFNode[], edges: WFEdge[]) => void;
 	isReadOnly?: boolean;
 }
 
-export function Designer({ workflowId, onSave, onRun, isReadOnly }: DesignerProps) {
+export function Designer({ onSave, onRun, isReadOnly }: DesignerProps) {
 	const reactFlowWrapper = useRef<HTMLDivElement>(null);
 	const [showNodePalette, setShowNodePalette] = useState(true);
 	const [showMiniMap, setShowMiniMap] = useState(true);
@@ -104,7 +93,6 @@ export function Designer({ workflowId, onSave, onRun, isReadOnly }: DesignerProp
 		updateNode,
 		deleteNode,
 		addEdge: storeAddEdge,
-		deleteEdge,
 		selectNode,
 		undo,
 		redo,

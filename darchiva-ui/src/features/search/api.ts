@@ -2,14 +2,14 @@
 /**
  * Search feature API hooks.
  */
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import type {
-	SearchQuery,
-	SearchResponse,
-	SavedSearch,
-	RecentSearch,
-	SemanticSearchSuggestion,
+  RecentSearch,
+  SavedSearch,
+  SearchQuery,
+  SearchResponse,
+  SemanticSearchSuggestion,
 } from './types';
 
 const SEARCH_KEY = ['search'];

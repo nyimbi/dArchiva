@@ -3,28 +3,28 @@
  * Scanning station workflow interface for processing physical documents.
  * Provides a streamlined scanning workflow with batch management.
  */
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence,motion } from 'framer-motion';
 import {
-	Scan,
-	ChevronRight,
-	ChevronLeft,
-	Check,
-	AlertTriangle,
-	Camera,
-	RotateCcw,
-	ZoomIn,
-	ZoomOut,
-	Trash2,
-	Save,
-	Package,
-	FileImage,
-	Settings,
-	Clock,
-	CheckCircle,
-	Pause,
-	Play,
+  AlertTriangle,
+  Camera,
+  Check,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  FileImage,
+  Package,
+  Pause,
+  Play,
+  RotateCcw,
+  Save,
+  Scan,
+  Settings,
+  Trash2,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
+import { useCallback,useState } from 'react';
 
 interface ScanSession {
 	id: string;

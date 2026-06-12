@@ -3,7 +3,7 @@
  * Users feature exports.
  */
 
-export * from './components/UserList';
-export * from './components/UserForm';
 export * from './api';
+export * from './components/UserForm';
+export * from './components/UserList';
 export * from './types';

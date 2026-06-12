@@ -1,18 +1,30 @@
 // Role Builder - Visual role creation with permission assignment
-import { useState, useMemo, useCallback } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import {
-	Search, Shield, ShieldCheck, ShieldAlert, ChevronDown, ChevronRight,
-	Check, X, Zap, Eye, Pencil, Trash2, Settings, Users, FileText,
-	FolderOpen, Tag, Workflow, Scan, CreditCard, Lock, AlertTriangle,
+  AlertTriangle,
+  ChevronDown,ChevronRight,
+  CreditCard,
+  Eye,
+  FileText,
+  FolderOpen,
+  Lock,
+  Scan,
+  Search,
+  Settings,
+  Shield,ShieldCheck,
+  Tag,
+  Users,
+  Workflow
 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { usePermissionGroups, useRoleTemplates, useCreateRole, useUpdateRole } from '../api/hooks';
-import type { Permission, PermissionGroup, Role, RoleTemplate, PermissionCategory } from '../types';
+import { useMemo,useState } from 'react';
+import { toast } from 'sonner';
+import { useCreateRole,usePermissionGroups,useRoleTemplates,useUpdateRole } from '../api/hooks';
 import '../styles/theme.css';
+import type { Permission,PermissionGroup,Role,RoleTemplate } from '../types';
 
 interface RoleBuilderProps {
 	existingRole?: Role;
@@ -183,7 +195,7 @@ export function RoleBuilder({ existingRole, onSave, onCancel }: RoleBuilderProps
 				onSave?.(created);
 			}
 		} catch (error) {
-			console.error('Failed to save role:', error);
+			toast.error(error instanceof Error ? error.message : 'Failed to save role');
 		}
 	};
 

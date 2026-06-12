@@ -1,18 +1,20 @@
 // Services Management Panel
 import { cn } from '@/lib/utils';
-import { SettingsBadge, SettingsButton } from '../ui/SettingsControls';
-import { useServices, useServiceAction } from '../../api/hooks';
-import type { ServiceInfo, ServiceStatus } from '../../types';
 import {
-	ServerIcon,
-	PlayIcon,
-	StopIcon,
-	ArrowPathIcon,
-	CpuChipIcon,
-	ClockIcon,
+  ArrowPathIcon,
+  ClockIcon,
+  CpuChipIcon,
+  PlayIcon,
+  ServerIcon,
+  StopIcon,
 } from '@heroicons/react/24/outline';
+import { useServiceAction,useServices } from '../../api/hooks';
+import type { ServiceInfo,ServiceStatus } from '../../types';
+import { SettingsBadge } from '../ui/SettingsControls';
 
-const STATUS_CONFIG: Record<ServiceStatus, { color: string; label: string }> = {
+type BadgeVariant = 'default' | 'success' | 'warning' | 'error' | 'info';
+
+const STATUS_CONFIG: Record<ServiceStatus, { color: BadgeVariant; label: string }> = {
 	running: { color: 'success', label: 'Running' },
 	stopped: { color: 'default', label: 'Stopped' },
 	error: { color: 'error', label: 'Error' },
@@ -125,7 +127,7 @@ function ServiceRow({ service, onAction, isActioning }: {
 				<div>
 					<div className="flex items-center gap-2">
 						<span className="font-medium text-slate-200">{service.name}</span>
-						<SettingsBadge variant={statusConfig.color as any}>{statusConfig.label}</SettingsBadge>
+							<SettingsBadge variant={statusConfig.color}>{statusConfig.label}</SettingsBadge>
 					</div>
 					<div className="flex items-center gap-4 text-xs text-slate-500 mt-1">
 						<span className="font-mono">{service.host}:{service.port}</span>

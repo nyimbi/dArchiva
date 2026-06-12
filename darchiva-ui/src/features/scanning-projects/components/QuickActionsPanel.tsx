@@ -1,16 +1,16 @@
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
-import { usePriorityQueue, useSLAAlerts, useEquipmentMaintenance } from '../api/hooks';
-import { StatusBadge } from './core/StatusBadge';
 import {
-  ZapIcon,
+  AlertTriangleIcon,
   BellIcon,
-  WrenchIcon,
+  CheckCircleIcon,
   ChevronRightIcon,
   ClockIcon,
-  AlertTriangleIcon,
-  CheckCircleIcon,
+  WrenchIcon,
+  ZapIcon,
 } from 'lucide-react';
+import { useState } from 'react';
+import { useEquipmentMaintenance,usePriorityQueue,useSLAAlerts } from '../api/hooks';
+import { StatusBadge } from './core/StatusBadge';
 
 interface QuickActionsPanelProps {
   projectId?: string;

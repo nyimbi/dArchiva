@@ -1,7 +1,7 @@
 // (c) Copyright Datacraft, 2026
-import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useScanBarcode, ScanResult } from '../api';
+import { AnimatePresence,motion } from 'framer-motion';
+import { useEffect,useRef,useState } from 'react';
+import { ScanResult,useScanBarcode } from '../api';
 import styles from './BarcodeScanner.module.css';
 
 interface Props {

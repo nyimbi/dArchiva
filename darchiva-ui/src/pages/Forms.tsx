@@ -1,36 +1,36 @@
 // (c) Copyright Datacraft, 2026
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
-	FileSearch,
-	CheckCircle2,
-	AlertTriangle,
-	Pencil,
-	Save,
-	RotateCcw,
-	ZoomIn,
-	ZoomOut,
-	ChevronLeft,
-	ChevronRight,
-	FileText,
-	Settings,
-	Plus,
-	Signature,
-	Check,
-	Loader2,
-} from 'lucide-react';
-import { cn, formatRelativeTime } from '@/lib/utils';
-import {
-	useExtraction,
-	useExtractionQueue,
-	useFormTemplates,
-	useConfirmExtraction,
-	useReExtract,
-	type FieldValue,
-	type FormTemplate,
-	type ExtractionQueueItem,
-	type Signature as SignatureType,
+  useConfirmExtraction,
+  useExtraction,
+  useExtractionQueue,
+  useFormTemplates,
+  useReExtract,
+  type ExtractionQueueItem,
+  type FieldValue,
+  type FormTemplate,
+  type Signature as SignatureType,
 } from '@/features/forms';
+import { cn,formatRelativeTime } from '@/lib/utils';
+import { AnimatePresence,motion } from 'framer-motion';
+import {
+  AlertTriangle,
+  Check,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  FileSearch,
+  FileText,
+  Loader2,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Save,
+  Settings,
+  Signature,
+  ZoomIn,
+  ZoomOut,
+} from 'lucide-react';
+import { useState } from 'react';
 
 function FieldRow({
 	field,

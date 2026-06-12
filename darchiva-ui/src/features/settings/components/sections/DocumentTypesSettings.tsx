@@ -1,10 +1,10 @@
 // (c) Copyright Datacraft, 2026
-import { useState } from 'react';
-import { Plus, FileType } from 'lucide-react';
-import { DocumentTypeList } from '@/features/document-types/components/DocumentTypeList';
+import { Dialog,DialogContent,DialogHeader,DialogTitle } from '@/components/ui/dialog';
 import { DocumentTypeForm } from '@/features/document-types/components/DocumentTypeForm';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DocumentTypeList } from '@/features/document-types/components/DocumentTypeList';
 import type { DocumentType } from '@/features/document-types/types';
+import { Plus } from 'lucide-react';
+import { useState } from 'react';
 
 export function DocumentTypesSettings() {
     const [isFormOpen, setIsFormOpen] = useState(false);

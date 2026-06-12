@@ -1,8 +1,8 @@
 import { cn } from '@/lib/utils';
-import { useProjectSLAs, useSLAAlerts, useAcknowledgeSLAAlert } from '../../api/hooks';
+import { AlertTriangleIcon,CheckCircleIcon,ClockIcon,ShieldAlertIcon } from 'lucide-react';
+import { useAcknowledgeSLAAlert,useProjectSLAs,useSLAAlerts } from '../../api/hooks';
+import type { ProjectSLA,SLAStatus } from '../../types';
 import { StatusBadge } from '../core/StatusBadge';
-import type { SLAStatus, ProjectSLA } from '../../types';
-import { AlertTriangleIcon, CheckCircleIcon, ClockIcon, ShieldAlertIcon } from 'lucide-react';
 
 interface SLAStatusPanelProps {
   projectId: string;

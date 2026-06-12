@@ -1,9 +1,8 @@
 // (c) Copyright Datacraft, 2026
-import { useState } from 'react';
-import { Share2 } from 'lucide-react';
-import { SharedNodesList } from '@/features/shared-nodes/components/SharedNodesList';
 import { ShareDialog } from '@/features/shared-nodes/components/ShareDialog';
+import { SharedNodesList } from '@/features/shared-nodes/components/SharedNodesList';
 import type { SharedNode } from '@/features/shared-nodes/types';
+import { useState } from 'react';
 
 export function SharedDocuments() {
     const [editingShare, setEditingShare] = useState<SharedNode | null>(null);

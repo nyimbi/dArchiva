@@ -1,27 +1,33 @@
 // Scanner API Hooks
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api-client';
+import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import type {
-	Scanner, ScannerCreate, ScannerUpdate, ScannerStatusInfo, ScannerCapabilities,
-	DiscoveredScanner, ScanJob, ScanJobCreate, ScanJobResult,
-	ScanProfile, ScanProfileCreate, ScanProfileUpdate,
-	GlobalScannerSettings, ScannerDashboard, ScannerUsageStats,
+  DiscoveredScanner,
+  GlobalScannerSettings,
+  ScanJob,ScanJobCreate,ScanJobResult,
+  Scanner,
+  ScannerCapabilities,
+  ScannerCreate,
+  ScannerDashboard,
+  ScannerStatusInfo,
+  ScannerUpdate,
+  ScannerUsageStats,
+  ScanProfile,ScanProfileCreate,ScanProfileUpdate,
 } from '../types';
 
-const API_BASE = '/api/scanners';
+const API_BASE = '/scanners';
 
 async function fetchApi<T>(url: string, options?: RequestInit): Promise<T> {
-	const res = await fetch(url, {
-		...options,
-		headers: {
-			'Content-Type': 'application/json',
-			...options?.headers,
-		},
-	});
-	if (!res.ok) {
-		const error = await res.json().catch(() => ({ detail: 'Request failed' }));
-		throw new Error(error.detail || 'Request failed');
-	}
-	return res.json();
+	const method = (options?.method ?? 'GET').toUpperCase();
+	const body = options?.body ? JSON.parse(options.body as string) : undefined;
+
+	let res;
+	if (method === 'POST') res = await apiClient.post<T>(url, body);
+	else if (method === 'PUT') res = await apiClient.put<T>(url, body);
+	else if (method === 'PATCH') res = await apiClient.patch<T>(url, body);
+	else if (method === 'DELETE') { await apiClient.delete(url); return undefined as T; }
+	else res = await apiClient.get<T>(url);
+	return res.data;
 }
 
 // === Discovery ===
@@ -99,7 +105,7 @@ export function useUpdateScanner() {
 export function useDeleteScanner() {
 	const queryClient = useQueryClient();
 	return useMutation({
-		mutationFn: (id: string) => fetch(`${API_BASE}/${id}`, { method: 'DELETE' }),
+		mutationFn: (id: string) => apiClient.delete(`${API_BASE}/${id}`),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['scanners'] });
 		},
@@ -249,7 +255,7 @@ export function useUpdateScanProfile() {
 export function useDeleteScanProfile() {
 	const queryClient = useQueryClient();
 	return useMutation({
-		mutationFn: (id: string) => fetch(`${API_BASE}/profiles/${id}`, { method: 'DELETE' }),
+		mutationFn: (id: string) => apiClient.delete(`${API_BASE}/profiles/${id}`),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['scan-profiles'] });
 		},

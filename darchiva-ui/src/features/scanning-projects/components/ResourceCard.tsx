@@ -1,7 +1,7 @@
 // (c) Copyright Datacraft, 2026
-import { User, Printer, Monitor, CheckCircle, Clock, Wrench, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ScanningResource } from '@/types';
+import { CheckCircle,Clock,Monitor,Printer,User,Wrench,XCircle } from 'lucide-react';
 
 interface ResourceCardProps {
 	resource: ScanningResource;

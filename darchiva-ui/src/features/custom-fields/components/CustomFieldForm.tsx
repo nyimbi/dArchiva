@@ -2,23 +2,23 @@
 /**
  * Custom field create/edit form.
  */
-import { useState } from 'react';
-import { Plus, Trash2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { useCreateCustomField, useUpdateCustomField } from '../api';
-import type { CustomField, CustomFieldCreate, CustomFieldType, CustomFieldOption, FIELD_TYPE_LABELS } from '../types';
+import { Loader2,Plus,Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { useCreateCustomField,useUpdateCustomField } from '../api';
+import type { CustomField,CustomFieldCreate,CustomFieldOption,CustomFieldType } from '../types';
 
 interface CustomFieldFormProps {
 	field?: CustomField;
@@ -92,7 +92,7 @@ export function CustomFieldForm({ field, onSuccess, onCancel }: CustomFieldFormP
 				toast({ title: 'Field created' });
 			}
 			onSuccess?.();
-		} catch (error) {
+		} catch {
 			toast({
 				title: 'Error',
 				description: 'Failed to save field',

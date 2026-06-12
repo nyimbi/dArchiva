@@ -1,22 +1,21 @@
 import { cn } from '@/lib/utils';
-import { useProjectDashboard, useBurndownChart, useVelocityChart, useSLAAlerts } from '../../api/hooks';
-import { ProgressRing } from '../core/ProgressRing';
+import {
+  AlertTriangleIcon,
+  DollarSignIcon,
+  FileTextIcon,
+  PrinterIcon,
+  TargetIcon,
+  TrendingUpIcon,
+  UsersIcon,
+} from 'lucide-react';
+import { useBurndownChart,useProjectDashboard,useSLAAlerts,useVelocityChart } from '../../api/hooks';
 import { MetricCard } from '../core/MetricCard';
+import { ProgressRing } from '../core/ProgressRing';
 import { StatusBadge } from '../core/StatusBadge';
 import { BurndownChart } from './charts/BurndownChart';
 import { VelocityChart } from './charts/VelocityChart';
-import { SLAStatusPanel } from './SLAStatusPanel';
 import { RecentActivityFeed } from './RecentActivityFeed';
-import {
-  FileTextIcon,
-  UsersIcon,
-  PrinterIcon,
-  AlertTriangleIcon,
-  TrendingUpIcon,
-  CalendarIcon,
-  DollarSignIcon,
-  TargetIcon,
-} from 'lucide-react';
+import { SLAStatusPanel } from './SLAStatusPanel';
 
 interface ProjectDashboardProps {
   projectId: string;
@@ -50,7 +49,6 @@ export function ProjectDashboard({ projectId, className }: ProjectDashboardProps
     verification_percentage,
     rejection_rate,
     pages_today,
-    pages_this_week,
     pages_per_day_average,
     days_remaining,
     estimated_completion_date,

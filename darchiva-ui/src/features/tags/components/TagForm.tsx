@@ -2,22 +2,22 @@
 /**
  * Tag create/edit form.
  */
-import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { useTags, useCreateTag, useUpdateTag } from '../api';
-import type { Tag, TagCreate, TAG_COLORS } from '../types';
+import { Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { useCreateTag,useTags,useUpdateTag } from '../api';
+import type { Tag,TagCreate } from '../types';
 
 interface TagFormProps {
 	tag?: Tag;
@@ -75,7 +75,7 @@ export function TagForm({ tag, onSuccess, onCancel }: TagFormProps) {
 				toast({ title: 'Tag created' });
 			}
 			onSuccess?.();
-		} catch (error) {
+		} catch {
 			toast({
 				title: 'Error',
 				description: 'Failed to save tag',

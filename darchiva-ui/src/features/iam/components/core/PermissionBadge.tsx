@@ -1,6 +1,6 @@
 // Permission Badge - Visual permission level indicator
 import { cn } from '@/lib/utils';
-import { Eye, Pencil, Shield, Crown, Ban } from 'lucide-react';
+import { Ban,Crown,Eye,Pencil,Shield } from 'lucide-react';
 import type { PermissionLevel } from '../../types';
 
 interface PermissionBadgeProps {

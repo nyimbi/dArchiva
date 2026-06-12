@@ -1,12 +1,12 @@
 // (c) Copyright Datacraft, 2026
 import { api } from '@/lib/api';
 import type {
-	ScanningProject,
-	ScanningBatch,
-	ScanningMilestone,
-	QualityControlSample,
-	ScanningResource,
-	ScanningProjectMetrics,
+  QualityControlSample,
+  ScanningBatch,
+  ScanningMilestone,
+  ScanningProject,
+  ScanningProjectMetrics,
+  ScanningResource,
 } from '@/types';
 
 // =====================================================
@@ -152,6 +152,58 @@ export async function completeBatchScan(
 }
 
 // =====================================================
+// Batch Documents API
+// =====================================================
+
+export interface BatchDocument {
+	id: string;
+	batchId: string;
+	documentId: string;
+	pageNumber: number;
+	scanJobId: string | null;
+	qualityScore: number;
+	status: 'pending' | 'accepted' | 'rejected' | 'rescanning';
+	needsReview: boolean;
+	hasIssues: boolean;
+	issueDetails: Record<string, unknown> | null;
+	scannedAt: string;
+	createdAt: string;
+}
+
+export async function getBatchDocuments(
+	projectId: string,
+	batchId: string
+): Promise<BatchDocument[]> {
+	const response = await api.get<BatchDocument[]>(
+		`/scanning-projects/${projectId}/batches/${batchId}/documents`
+	);
+	return response;
+}
+
+export interface AddBatchDocumentInput {
+	documentId: string;
+	pageNumber: number;
+	scanJobId?: string;
+	qualityScore?: number;
+	status?: string;
+	needsReview?: boolean;
+	hasIssues?: boolean;
+	issueDetails?: Record<string, unknown>;
+}
+
+export async function addBatchDocument(
+	projectId: string,
+	batchId: string,
+	input: AddBatchDocumentInput
+): Promise<BatchDocument> {
+	const response = await api.post<BatchDocument>(
+		`/scanning-projects/${projectId}/batches/${batchId}/documents`,
+		input
+	);
+	return response;
+}
+
+// =====================================================
 // Milestones API
 // =====================================================
 
@@ -168,6 +220,29 @@ export interface UpdateMilestoneInput {
 	targetDate?: string;
 	targetPages?: number;
 	status?: ScanningMilestone['status'];
+}
+
+export interface CreateShiftInput {
+	name: string;
+	locationId?: string;
+	startTime: string;
+	endTime: string;
+	daysOfWeek: string;
+	targetPagesPerOperator: number;
+	breakMinutes?: number;
+}
+
+export interface Shift {
+	id: string;
+	name: string;
+	locationId?: string;
+	startTime: string;
+	endTime: string;
+	daysOfWeek: string;
+	targetPagesPerOperator: number;
+	breakMinutes: number;
+	isActive: boolean;
+	createdAt: string;
 }
 
 export async function getProjectMilestones(projectId: string): Promise<ScanningMilestone[]> {
@@ -197,6 +272,11 @@ export async function updateMilestone(
 		`/scanning-projects/${projectId}/milestones/${milestoneId}`,
 		input
 	);
+	return response;
+}
+
+export async function createShift(input: CreateShiftInput): Promise<Shift> {
+	const response = await api.post<Shift>('/scanning-projects/shifts', input);
 	return response;
 }
 
@@ -429,4 +509,124 @@ export async function getScannerStatus(scannerId: string): Promise<{
 export async function getScannerCapabilities(scannerId: string): Promise<ScannerCapabilities> {
 	const response = await api.get<ScannerCapabilities>(`/scanners/${scannerId}/capabilities`);
 	return response;
+}
+
+// =====================================================
+// Scan Jobs API - Real Scanner Operations
+// =====================================================
+
+export interface ScanJobOptions {
+	resolution: number;
+	colorMode: 'color' | 'grayscale' | 'monochrome';
+	format: 'jpeg' | 'png' | 'tiff' | 'pdf';
+	duplex?: boolean;
+	inputSource?: 'platen' | 'adf' | 'adf_duplex';
+	width?: number;
+	height?: number;
+	brightness?: number;
+	contrast?: number;
+}
+
+export interface CreateScanJobInput {
+	scannerId: string;
+	options: ScanJobOptions;
+	projectId?: string;
+	batchId?: string;
+	destinationFolderId?: string;
+}
+
+export interface ScanJob {
+	id: string;
+	scannerId: string;
+	userId: string;
+	status: 'pending' | 'scanning' | 'completed' | 'failed' | 'cancelled';
+	options: ScanJobOptions;
+	pagesScanned: number;
+	projectId?: string;
+	batchId?: string;
+	destinationFolderId?: string;
+	errorMessage?: string;
+	createdAt: string;
+	startedAt?: string;
+	completedAt?: string;
+}
+
+export interface ScanJobResult {
+	jobId: string;
+	success: boolean;
+	pagesScanned: number;
+	format: string;
+	scanTimeMs: number;
+	documentIds: string[];
+	errors: string[];
+}
+
+export async function createScanJob(input: CreateScanJobInput): Promise<ScanJob> {
+	const response = await api.post<ScanJob>('/scanners/jobs', input);
+	return response;
+}
+
+export async function getScanJob(jobId: string): Promise<ScanJob> {
+	const response = await api.get<ScanJob>(`/scanners/jobs/${jobId}`);
+	return response;
+}
+
+export async function getScanJobResult(jobId: string): Promise<ScanJobResult> {
+	const response = await api.get<ScanJobResult>(`/scanners/jobs/${jobId}/result`);
+	return response;
+}
+
+export async function getScanJobs(options?: {
+	scannerId?: string;
+	status?: string;
+	limit?: number;
+}): Promise<ScanJob[]> {
+	const response = await api.get<ScanJob[]>('/scanners/jobs', { params: options });
+	return response;
+}
+
+export async function cancelScanJob(jobId: string): Promise<ScanJob> {
+	const response = await api.post<ScanJob>(`/scanners/jobs/${jobId}/cancel`);
+	return response;
+}
+
+// Helper to wait for a condition with timeout
+async function waitFor<T>(
+	fn: () => Promise<T>,
+	predicate: (result: T) => boolean,
+	{ interval = 1000, timeout = 120000 } = {}
+): Promise<T> {
+	const start = Date.now();
+	while (Date.now() - start < timeout) {
+		const result = await fn();
+		if (predicate(result)) {
+			return result;
+		}
+		await new Promise((resolve) => setTimeout(resolve, interval));
+	}
+	throw new Error('Timeout waiting for condition');
+}
+
+// Quick scan function that creates a job, waits for completion, and returns result
+export async function quickScan(input: CreateScanJobInput): Promise<ScanJobResult> {
+	// Create scan job - backend auto-executes via background task
+	const job = await createScanJob(input);
+
+	// Poll for job completion
+	const completedJob = await waitFor(
+		() => getScanJob(job.id),
+		(j) => j.status === 'completed' || j.status === 'failed' || j.status === 'cancelled',
+		{ interval: 1000, timeout: 120000 }
+	);
+
+	if (completedJob.status === 'failed') {
+		throw new Error(completedJob.errorMessage || 'Scan job failed');
+	}
+
+	if (completedJob.status === 'cancelled') {
+		throw new Error('Scan job was cancelled');
+	}
+
+	// Get the full result with document IDs
+	return getScanJobResult(job.id);
 }

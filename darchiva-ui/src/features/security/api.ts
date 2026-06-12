@@ -2,19 +2,19 @@
 /**
  * Security feature API hooks using React Query.
  */
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import type {
-	Role,
-	User,
-	Department,
-	ABACPolicy,
-	AuditLogEntry,
-	PermissionMatrixCell,
-	AccessGraphNode,
-	AccessGraphEdge,
-	AccessRequest,
-	AccessDecision,
+  ABACPolicy,
+  AccessDecision,
+  AccessGraphEdge,
+  AccessGraphNode,
+  AccessRequest,
+  AuditLogEntry,
+  Department,
+  PermissionMatrixCell,
+  Role,
+  User,
 } from './types';
 
 const SECURITY_KEYS = {
@@ -291,28 +291,7 @@ export function useSecurityResources(params?: { type?: string; search?: string }
 
 // Re-export PBAC API functions from api/index.ts
 export {
-	fetchPolicies,
-	fetchPolicy,
-	createPolicy,
-	createPolicyFromDSL,
-	updatePolicy,
-	deletePolicy,
-	validateDSL,
-	convertToDSL,
-	submitForApproval,
-	fetchPendingApprovals,
-	approvePolicy,
-	rejectPolicy,
-	fetchPolicyAnalytics,
-	fetchEvaluationLogs,
-	fetchEncryptionKeys,
-	rotateEncryptionKey,
-	fetchDocumentEncryptionInfo,
-	requestHiddenAccess,
-	fetchPendingAccessRequests,
-	approveHiddenAccess,
-	denyHiddenAccess,
-	grantDepartmentAccess,
-	revokeDepartmentAccess,
-	fetchUserDepartmentAccess,
+  approveHiddenAccess,approvePolicy,convertToDSL,createPolicy,
+  createPolicyFromDSL,deletePolicy,denyHiddenAccess,fetchDocumentEncryptionInfo,fetchEncryptionKeys,fetchEvaluationLogs,fetchPendingAccessRequests,fetchPendingApprovals,fetchPolicies,
+  fetchPolicy,fetchPolicyAnalytics,fetchUserDepartmentAccess,grantDepartmentAccess,rejectPolicy,requestHiddenAccess,revokeDepartmentAccess,rotateEncryptionKey,submitForApproval,updatePolicy,validateDSL
 } from './api/index';

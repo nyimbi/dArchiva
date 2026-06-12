@@ -1,7 +1,7 @@
 // (c) Copyright Datacraft, 2026
 // Notification Settings - Email and in-app notification preferences
-import { SettingsCard, SettingsToggle, SettingsSelect } from '../ui/SettingsControls';
-import { useNotificationPreferences, useUpdateNotificationPreferences } from '../../api/hooks';
+import { useNotificationPreferences,useUpdateNotificationPreferences } from '../../api/hooks';
+import { SettingsCard,SettingsSelect,SettingsToggle } from '../ui/SettingsControls';
 
 function SettingsHeader({ title, description }: { title: string; description: string }) {
 	return (

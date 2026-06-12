@@ -1,11 +1,11 @@
 // (c) Copyright Datacraft, 2026
-import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, XCircle, RotateCcw, AlertTriangle } from 'lucide-react';
-import { usePendingQCSamples, useUpdateQCSample, useScanningProject } from '../hooks';
-import { QCSampleCard } from '../components';
-import type { QualityControlSample, QCIssue } from '@/types';
+import type { QCIssue,QualityControlSample } from '@/types';
 import * as Dialog from '@radix-ui/react-dialog';
+import { AlertTriangle,ArrowLeft,CheckCircle,RotateCcw,XCircle } from 'lucide-react';
+import { useState } from 'react';
+import { Link,useParams } from 'react-router-dom';
+import { QCSampleCard } from '../components';
+import { usePendingQCSamples,useScanningProject,useUpdateQCSample } from '../hooks';
 
 const issueTypes = ['skew', 'blur', 'cutoff', 'dark', 'light', 'missing', 'duplicate', 'other'] as const;
 const severityOptions = ['minor', 'major', 'critical'] as const;

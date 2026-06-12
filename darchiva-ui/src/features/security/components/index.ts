@@ -1,17 +1,17 @@
 // (c) Copyright Datacraft, 2026
-export { PermissionMatrix } from './PermissionMatrix';
 export { AccessGraph } from './AccessGraph';
-export { PolicyAnalyzer } from './PolicyAnalyzer';
 export { AuditDashboard } from './AuditDashboard';
 export { BulkManagement } from './BulkManagement';
+export { PermissionMatrix } from './PermissionMatrix';
+export { PolicyAnalyzer } from './PolicyAnalyzer';
 
 // Security Dashboard Components
+export { DepartmentAccessMatrix } from './DepartmentAccessMatrix';
+export { EvaluationLogViewer } from './EvaluationLogViewer';
+export { HiddenDocumentRequests } from './HiddenDocumentRequests';
+export { KeyManagement } from './KeyManagement';
+export { PolicyApprovalQueue } from './PolicyApprovalQueue';
+export { PolicyEditor } from './PolicyEditor';
+export { PolicyList } from './PolicyList';
 export { SecurityDashboard } from './SecurityDashboard';
 export { SecurityMetrics } from './SecurityMetrics';
-export { PolicyList } from './PolicyList';
-export { PolicyEditor } from './PolicyEditor';
-export { PolicyApprovalQueue } from './PolicyApprovalQueue';
-export { EvaluationLogViewer } from './EvaluationLogViewer';
-export { KeyManagement } from './KeyManagement';
-export { HiddenDocumentRequests } from './HiddenDocumentRequests';
-export { DepartmentAccessMatrix } from './DepartmentAccessMatrix';

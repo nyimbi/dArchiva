@@ -1,6 +1,7 @@
 // Search Settings Section
-import { SettingsCard, SettingsToggle, SettingsSelect, SettingsSlider } from '../ui/SettingsControls';
-import { useSearchSettings, useUpdateSearchSettings } from '../../api/hooks';
+import { useSearchSettings,useUpdateSearchSettings } from '../../api/hooks';
+import type { SearchSettings as SearchSettingsType } from '../../types';
+import { SettingsCard,SettingsSelect,SettingsSlider,SettingsToggle } from '../ui/SettingsControls';
 
 export function SearchSettings() {
 	const { data: settings } = useSearchSettings();
@@ -18,14 +19,14 @@ export function SearchSettings() {
 					label="Engine"
 					description="Search engine for document queries"
 					value={settings?.backend || 'postgres'}
-					options={[
-						{ value: 'postgres', label: 'PostgreSQL Full-Text' },
-						{ value: 'elasticsearch', label: 'Elasticsearch' },
-						{ value: 'meilisearch', label: 'Meilisearch' },
-					]}
-					onChange={(v) => updateMutation.mutate({ backend: v as any })}
-				/>
-			</SettingsCard>
+						options={[
+							{ value: 'postgres', label: 'PostgreSQL Full-Text' },
+							{ value: 'elasticsearch', label: 'Elasticsearch' },
+							{ value: 'meilisearch', label: 'Meilisearch' },
+						]}
+						onChange={(v) => updateMutation.mutate({ backend: v as SearchSettingsType['backend'] })}
+					/>
+				</SettingsCard>
 
 			<SettingsCard title="Semantic Search">
 				<SettingsToggle

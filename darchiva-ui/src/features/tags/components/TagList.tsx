@@ -2,25 +2,25 @@
 /**
  * Tag list with hierarchy support.
  */
-import { useState, useMemo } from 'react';
-import { Tag as TagIcon, Search, ChevronRight, ChevronDown, FileText, Edit, Trash2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-	AlertDialogTrigger,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { useTags, useDeleteTag } from '../api';
-import type { Tag, TagTreeNode } from '../types';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
+import { ChevronDown,ChevronRight,Edit,FileText,Search,Tag as TagIcon,Trash2 } from 'lucide-react';
+import { useMemo,useState } from 'react';
+import { useDeleteTag,useTags } from '../api';
+import type { Tag,TagTreeNode } from '../types';
 
 interface TagListProps {
 	onSelect?: (tag: Tag) => void;
@@ -56,7 +56,7 @@ export function TagList({ onSelect, onEdit, selectedId }: TagListProps) {
 	const [search, setSearch] = useState('');
 	const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
-	const tags = data?.items ?? [];
+	const tags = useMemo(() => data?.items ?? [], [data?.items]);
 
 	const filteredTags = useMemo(() => {
 		if (!search) return tags;

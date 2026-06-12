@@ -2,51 +2,51 @@
 /**
  * User list component with search and filtering.
  */
-import { useState } from 'react';
 import {
-	User,
-	UserPlus,
-	Search,
-	MoreHorizontal,
-	Shield,
-	Key,
-	Trash2,
-	Edit,
-	CheckCircle,
-	XCircle,
-	Mail,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from '@/components/ui/select';
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useUsers, useDeleteUser, useResetPassword } from '../api';
+import { Avatar,AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
+import {
+  CheckCircle,
+  Edit,
+  Key,
+  Mail,
+  MoreHorizontal,
+  Search,
+  Shield,
+  Trash2,
+  User,
+  UserPlus,
+  XCircle,
+} from 'lucide-react';
+import { useState } from 'react';
+import { useDeleteUser,useResetPassword,useUsers } from '../api';
 import type { User as UserType } from '../types';
 
 interface UserListProps {
@@ -213,12 +213,12 @@ export function UserList({ onCreateUser, onEditUser }: UserListProps) {
 								)}
 							</div>
 
-							<DropdownMenu>
-								<DropdownMenuTrigger asChild>
-									<Button variant="ghost" size="icon">
-										<MoreHorizontal className="h-4 w-4" />
-									</Button>
-								</DropdownMenuTrigger>
+								<DropdownMenu>
+									<DropdownMenuTrigger asChild>
+										<Button variant="ghost" size="icon" aria-label={`Actions for user ${user.username}`}>
+											<MoreHorizontal className="h-4 w-4" />
+										</Button>
+									</DropdownMenuTrigger>
 								<DropdownMenuContent align="end">
 									<DropdownMenuItem onClick={() => onEditUser(user)}>
 										<Edit className="h-4 w-4 mr-2" />

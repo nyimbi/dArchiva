@@ -2,12 +2,12 @@
 /**
  * Scanner discovery and registration.
  */
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Wifi, WifiOff, Plus, Loader2, CheckCircle2, AlertCircle, Printer, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useDiscoverScanners, useRegisterScanner, useScanners } from '../api';
-import type { DiscoveredScanner, Scanner } from '../types';
+import { AnimatePresence,motion } from 'framer-motion';
+import { Loader2,Plus,Printer,RefreshCw,Wifi,WifiOff } from 'lucide-react';
+import { useState } from 'react';
+import { useDiscoverScanners,useRegisterScanner,useScanners } from '../api';
+import type { DiscoveredScanner,Scanner } from '../types';
 
 interface ScannerDiscoveryProps {
 	onScannerSelect?: (scanner: Scanner) => void;

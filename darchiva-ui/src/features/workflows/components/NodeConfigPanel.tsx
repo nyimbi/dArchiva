@@ -2,31 +2,29 @@
 /**
  * Configuration panel for workflow nodes.
  */
-import { useState, useCallback } from 'react';
+import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import {
-	X,
-	Trash2,
-	Settings,
-	FileInput,
-	Wand2,
-	Scan,
-	Brain,
-	Tag,
-	CheckCircle2,
-	GitBranch,
-	Database,
-	Search,
-	Bell,
-	Shuffle,
-	GitMerge,
-	UserCheck,
-	Split,
-	Plus,
-	ChevronDown,
+  Bell,
+  Brain,
+  CheckCircle2,
+  ChevronDown,
+  Database,
+  FileInput,
+  GitBranch,
+  GitMerge,
+  Scan,
+  Search,
+  Shuffle,
+  Split,
+  Tag,
+  Trash2,
+  UserCheck,
+  Wand2,
+  X
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import type { WorkflowNode, WorkflowNodeType } from '../types';
+import { useCallback,useState } from 'react';
+import type { WorkflowNode,WorkflowNodeType } from '../types';
 import { NODE_METADATA } from '../types';
 
 interface NodeConfigPanelProps {

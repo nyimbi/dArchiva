@@ -1,10 +1,10 @@
 import { cn } from '@/lib/utils';
+import { ChevronRightIcon,FolderIcon,PlusIcon } from 'lucide-react';
 import { useState } from 'react';
-import { useSubProjects, useCreateSubProject } from '../../api/hooks';
-import { StatusBadge } from '../core/StatusBadge';
-import { DataTable, type Column } from '../core/DataTable';
+import { useCreateSubProject,useSubProjects } from '../../api/hooks';
 import type { SubProject } from '../../types';
-import { PlusIcon, ChevronRightIcon, FolderIcon } from 'lucide-react';
+import { DataTable,type Column } from '../core/DataTable';
+import { StatusBadge } from '../core/StatusBadge';
 
 interface SubProjectsTabProps {
   projectId: string;
@@ -18,7 +18,11 @@ export function SubProjectsTab({ projectId }: SubProjectsTabProps) {
   const toggleExpand = (id: string) => {
     setExpandedIds(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   };

@@ -1,5 +1,5 @@
 // (c) Copyright Datacraft, 2026
-import { useIngestionStatsData, useIngestionJobs } from '../api';
+import { useIngestionJobs,useIngestionStatsData } from '../api';
 import styles from './IngestionStats.module.css';
 
 export function IngestionStats() {

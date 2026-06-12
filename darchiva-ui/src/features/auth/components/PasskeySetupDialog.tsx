@@ -2,18 +2,17 @@
 /**
  * Passkey (WebAuthn) setup dialog.
  */
-import { useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence,motion } from 'framer-motion';
 import {
-	X,
-	Key,
-	Fingerprint,
-	Check,
-	AlertTriangle,
-	Loader2,
-	Shield,
+  AlertTriangle,
+  Check,
+  Fingerprint,
+  Key,
+  Loader2,
+  X,
 } from 'lucide-react';
-import { useRegisterPasskeyBegin, useRegisterPasskeyComplete } from '../api';
+import { useCallback,useState } from 'react';
+import { useRegisterPasskeyBegin,useRegisterPasskeyComplete } from '../api';
 
 interface PasskeySetupDialogProps {
 	isOpen: boolean;
@@ -47,7 +46,7 @@ export function PasskeySetupDialog({ isOpen, onClose }: PasskeySetupDialogProps)
 	const [step, setStep] = useState<Step>('intro');
 	const [passkeyName, setPasskeyName] = useState('');
 	const [error, setError] = useState<string | null>(null);
-	const [challenge, setChallenge] = useState<string | null>(null);
+	const [, setChallenge] = useState<string | null>(null);
 
 	const beginMutation = useRegisterPasskeyBegin();
 	const completeMutation = useRegisterPasskeyComplete();
@@ -127,12 +126,11 @@ export function PasskeySetupDialog({ isOpen, onClose }: PasskeySetupDialogProps)
 			});
 
 			setStep('success');
-		} catch (err) {
-			console.error('Passkey registration error:', err);
-			setError(
-				err instanceof Error
-					? err.message
-					: 'Failed to register passkey. Please try again.'
+			} catch (err) {
+				setError(
+					err instanceof Error
+						? err.message
+						: 'Failed to register passkey. Please try again.'
 			);
 			setStep('error');
 		}

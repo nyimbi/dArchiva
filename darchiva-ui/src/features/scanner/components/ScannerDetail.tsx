@@ -1,26 +1,31 @@
 // Scanner Detail View with Tabs
-import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { TechPanel, Readout, Gauge, TechButton, ActivityDisplay, GridOverlay } from './core/TechPanel';
-import { StatusLED, StatusBadge } from './core/StatusLED';
 import {
-	useScanner, useScannerStatus, useScannerCapabilities, useRefreshCapabilities,
-	useScanJobs, useScanProfiles, useUpdateScanner, useDeleteScanner,
-} from '../api/hooks';
-import type { Scanner, ScannerCapabilities, ScanProfile, ScanJob } from '../types';
-import { PROTOCOL_LABELS, STATUS_CONFIG } from '../types';
-import {
-	ArrowLeftIcon,
-	ArrowPathIcon,
-	CogIcon,
-	DocumentDuplicateIcon,
-	ClockIcon,
-	WrenchIcon,
-	TrashIcon,
-	StarIcon,
-	CheckIcon,
-	XMarkIcon,
+  ArrowLeftIcon,
+  ArrowPathIcon,
+  CheckIcon,
+  ClockIcon,
+  CogIcon,
+  DocumentDuplicateIcon,
+  StarIcon,
+  TrashIcon,
+  WrenchIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
+import { useState } from 'react';
+import {
+  useDeleteScanner,
+  useRefreshCapabilities,
+  useScanJobs,
+  useScanner,
+  useScannerCapabilities,
+  useScannerStatus,
+  useScanProfiles,useUpdateScanner,
+} from '../api/hooks';
+import type { ScanJob,Scanner,ScannerCapabilities,ScannerStatusInfo,ScanProfile } from '../types';
+import { PROTOCOL_LABELS,STATUS_CONFIG } from '../types';
+import { StatusBadge } from './core/StatusLED';
+import { ActivityDisplay,GridOverlay,Readout,TechButton,TechPanel } from './core/TechPanel';
 
 type TabId = 'status' | 'capabilities' | 'profiles' | 'jobs' | 'settings';
 
@@ -151,7 +156,7 @@ export function ScannerDetail({ scannerId, onBack, onStartScan, className }: Sca
 
 // === Tab Components ===
 
-function StatusTab({ scanner, status }: { scanner: Scanner; status?: any }) {
+function StatusTab({ scanner, status }: { scanner: Scanner; status?: ScannerStatusInfo }) {
 	return (
 		<div className="grid lg:grid-cols-2 gap-6">
 			<TechPanel title="Device Status">

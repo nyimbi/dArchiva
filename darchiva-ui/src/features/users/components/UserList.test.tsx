@@ -43,7 +43,7 @@ describe('UserList', () => {
 		render(<UserList onCreateUser={mockOnCreateUser} onEditUser={mockOnEditUser} />);
 
 		// Loading state shows skeletons
-		expect(document.querySelectorAll('[class*="skeleton"]').length).toBeGreaterThan(0);
+		expect(document.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
 	});
 
 	it('renders empty state when no users', async () => {
@@ -153,7 +153,7 @@ describe('UserList', () => {
 		await user.click(statusFilter);
 
 		// Select "Active" option
-		await user.click(screen.getByText('Active'));
+		await user.click(screen.getByRole('option', { name: 'Active' }));
 
 		await waitFor(() => {
 			expect(mockUseUsers).toHaveBeenCalled();

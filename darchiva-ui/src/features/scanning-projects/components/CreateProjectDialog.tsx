@@ -1,9 +1,9 @@
 // (c) Copyright Datacraft, 2026
-import { useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
-import { useCreateScanningProject } from '../hooks';
+import { useState } from 'react';
 import type { CreateScanningProjectInput } from '../api';
+import { useCreateScanningProject } from '../hooks';
 
 interface CreateProjectDialogProps {
 	open: boolean;

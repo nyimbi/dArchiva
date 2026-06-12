@@ -1,14 +1,14 @@
 // System Health Status Banner
 import { cn } from '@/lib/utils';
-import { useSystemHealth } from '../api/hooks';
 import {
-	CheckCircleIcon,
-	ExclamationTriangleIcon,
-	XCircleIcon,
-	ServerIcon,
-	CpuChipIcon,
-	CircleStackIcon,
+  CheckCircleIcon,
+  CircleStackIcon,
+  CpuChipIcon,
+  ExclamationTriangleIcon,
+  ServerIcon,
+  XCircleIcon,
 } from '@heroicons/react/24/outline';
+import { useSystemHealth } from '../api/hooks';
 
 export function SystemHealthBanner() {
 	const { data: health, isLoading } = useSystemHealth();

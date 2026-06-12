@@ -1,6 +1,6 @@
 // (c) Copyright Datacraft, 2026
-import type { TenantStatus } from '../types';
 import styles from '../tenants.module.css';
+import type { TenantStatus } from '../types';
 
 interface TenantStatusBadgeProps {
 	status: TenantStatus;

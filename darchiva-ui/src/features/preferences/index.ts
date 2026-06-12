@@ -3,6 +3,6 @@
  * Preferences feature exports.
  */
 
-export * from './components/PreferencesPanel';
 export * from './api';
+export * from './components/PreferencesPanel';
 export * from './types';

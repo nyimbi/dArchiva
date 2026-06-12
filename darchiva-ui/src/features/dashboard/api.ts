@@ -2,9 +2,9 @@
 /**
  * Dashboard API hooks.
  */
-import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
-import type { DashboardStats, ActivityListResponse, PendingTasksResponse } from './types';
+import { useQuery } from '@tanstack/react-query';
+import type { ActivityListResponse,DashboardStats,PendingTasksResponse } from './types';
 
 export const dashboardKeys = {
 	all: ['dashboard'] as const,

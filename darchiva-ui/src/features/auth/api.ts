@@ -2,14 +2,14 @@
 /**
  * Authentication and MFA API hooks using React Query.
  */
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import type {
-	MFAStatus,
-	TOTPSetup,
-	Passkey,
-	WebAuthnRegistrationOptions,
-	WebAuthnAuthenticationOptions,
+  MFAStatus,
+  Passkey,
+  TOTPSetup,
+  WebAuthnAuthenticationOptions,
+  WebAuthnRegistrationOptions,
 } from './types';
 
 const MFA_API = '/mfa';

@@ -1,24 +1,38 @@
 // Settings API Hooks
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api-client';
+import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import type {
-	TenantSettings, StorageSettings, OCRSettings, SearchSettings,
-	WorkflowSettings, EmailSettings, SecuritySettings, IntegrationSettings,
-	SystemHealth, ServiceInfo, WorkerInfo, QueueInfo, ScheduledTask,
-	ServiceConfig, WorkerConfig, OAuthProvider, WebhookConfig,
+  EmailSettings,
+  IntegrationSettings,
+  OAuthProvider,
+  OCRSettings,
+  QueueInfo,ScheduledTask,
+  SearchSettings,
+  SecuritySettings,
+  ServiceConfig,
+  ServiceInfo,
+  StorageSettings,
+  SystemHealth,
+  TenantSettings,
+  WebhookConfig,
+  WorkerConfig,
+  WorkerInfo,
+  WorkflowSettings,
 } from '../types';
 
-const API_BASE = '/api/settings';
+const API_BASE = '/settings';
 
 async function fetchApi<T>(url: string, options?: RequestInit): Promise<T> {
-	const res = await fetch(url, {
-		...options,
-		headers: { 'Content-Type': 'application/json', ...options?.headers },
-	});
-	if (!res.ok) {
-		const error = await res.json().catch(() => ({ detail: 'Request failed' }));
-		throw new Error(error.detail || 'Request failed');
-	}
-	return res.json();
+	const method = (options?.method ?? 'GET').toUpperCase();
+	const body = options?.body ? JSON.parse(options.body as string) : undefined;
+
+	let res;
+	if (method === 'POST') res = await apiClient.post<T>(url, body);
+	else if (method === 'PUT') res = await apiClient.put<T>(url, body);
+	else if (method === 'PATCH') res = await apiClient.patch<T>(url, body);
+	else if (method === 'DELETE') { await apiClient.delete(url); return undefined as T; }
+	else res = await apiClient.get<T>(url);
+	return res.data;
 }
 
 // === Tenant Settings ===
@@ -202,7 +216,7 @@ export function useUpdateWebhook() {
 export function useDeleteWebhook() {
 	const qc = useQueryClient();
 	return useMutation({
-		mutationFn: (id: string) => fetch(`${API_BASE}/webhooks/${id}`, { method: 'DELETE' }),
+		mutationFn: (id: string) => apiClient.delete(`${API_BASE}/webhooks/${id}`),
 		onSuccess: () => qc.invalidateQueries({ queryKey: ['settings', 'webhooks'] }),
 	});
 }
@@ -212,7 +226,7 @@ export function useDeleteWebhook() {
 export function useSystemHealth() {
 	return useQuery({
 		queryKey: ['system', 'health'],
-		queryFn: () => fetchApi<SystemHealth>('/api/system/health'),
+		queryFn: () => fetchApi<SystemHealth>('/system/health'),
 		refetchInterval: 10_000,
 	});
 }
@@ -220,7 +234,7 @@ export function useSystemHealth() {
 export function useServices() {
 	return useQuery({
 		queryKey: ['system', 'services'],
-		queryFn: () => fetchApi<ServiceInfo[]>('/api/system/services'),
+		queryFn: () => fetchApi<ServiceInfo[]>('/system/services'),
 		refetchInterval: 5_000,
 	});
 }
@@ -229,7 +243,7 @@ export function useServiceAction() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: ({ id, action }: { id: string; action: 'start' | 'stop' | 'restart' }) =>
-			fetchApi<ServiceInfo>(`/api/system/services/${id}/${action}`, { method: 'POST' }),
+			fetchApi<ServiceInfo>(`/system/services/${id}/${action}`, { method: 'POST' }),
 		onSuccess: () => qc.invalidateQueries({ queryKey: ['system', 'services'] }),
 	});
 }
@@ -238,7 +252,7 @@ export function useUpdateServiceConfig() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: ({ id, data }: { id: string; data: Partial<ServiceConfig> }) =>
-			fetchApi<ServiceConfig>(`/api/system/services/${id}/config`, { method: 'PATCH', body: JSON.stringify(data) }),
+			fetchApi<ServiceConfig>(`/system/services/${id}/config`, { method: 'PATCH', body: JSON.stringify(data) }),
 		onSuccess: () => qc.invalidateQueries({ queryKey: ['system', 'services'] }),
 	});
 }
@@ -248,7 +262,7 @@ export function useUpdateServiceConfig() {
 export function useWorkers() {
 	return useQuery({
 		queryKey: ['system', 'workers'],
-		queryFn: () => fetchApi<WorkerInfo[]>('/api/system/workers'),
+		queryFn: () => fetchApi<WorkerInfo[]>('/system/workers'),
 		refetchInterval: 5_000,
 	});
 }
@@ -257,7 +271,7 @@ export function useWorkerAction() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: ({ id, action }: { id: string; action: 'start' | 'stop' | 'restart' | 'pause' | 'resume' }) =>
-			fetchApi<WorkerInfo>(`/api/system/workers/${id}/${action}`, { method: 'POST' }),
+			fetchApi<WorkerInfo>(`/system/workers/${id}/${action}`, { method: 'POST' }),
 		onSuccess: () => qc.invalidateQueries({ queryKey: ['system', 'workers'] }),
 	});
 }
@@ -266,7 +280,7 @@ export function useUpdateWorkerConfig() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: ({ id, data }: { id: string; data: Partial<WorkerConfig> }) =>
-			fetchApi<WorkerConfig>(`/api/system/workers/${id}/config`, { method: 'PATCH', body: JSON.stringify(data) }),
+			fetchApi<WorkerConfig>(`/system/workers/${id}/config`, { method: 'PATCH', body: JSON.stringify(data) }),
 		onSuccess: () => qc.invalidateQueries({ queryKey: ['system', 'workers'] }),
 	});
 }
@@ -276,7 +290,7 @@ export function useUpdateWorkerConfig() {
 export function useQueues() {
 	return useQuery({
 		queryKey: ['system', 'queues'],
-		queryFn: () => fetchApi<QueueInfo[]>('/api/system/queues'),
+		queryFn: () => fetchApi<QueueInfo[]>('/system/queues'),
 		refetchInterval: 3_000,
 	});
 }
@@ -285,7 +299,7 @@ export function usePurgeQueue() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: ({ name, status }: { name: string; status?: 'pending' | 'failed' | 'delayed' }) =>
-			fetchApi<{ purged: number }>(`/api/system/queues/${name}/purge`, { method: 'POST', body: JSON.stringify({ status }) }),
+			fetchApi<{ purged: number }>(`/system/queues/${name}/purge`, { method: 'POST', body: JSON.stringify({ status }) }),
 		onSuccess: () => qc.invalidateQueries({ queryKey: ['system', 'queues'] }),
 	});
 }
@@ -294,7 +308,7 @@ export function useRetryFailedJobs() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: (queueName: string) =>
-			fetchApi<{ retried: number }>(`/api/system/queues/${queueName}/retry-failed`, { method: 'POST' }),
+			fetchApi<{ retried: number }>(`/system/queues/${queueName}/retry-failed`, { method: 'POST' }),
 		onSuccess: () => qc.invalidateQueries({ queryKey: ['system', 'queues'] }),
 	});
 }
@@ -304,7 +318,7 @@ export function useRetryFailedJobs() {
 export function useScheduledTasks() {
 	return useQuery({
 		queryKey: ['system', 'scheduler'],
-		queryFn: () => fetchApi<ScheduledTask[]>('/api/system/scheduler/tasks'),
+		queryFn: () => fetchApi<ScheduledTask[]>('/system/scheduler/tasks'),
 	});
 }
 
@@ -312,7 +326,7 @@ export function useUpdateScheduledTask() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: ({ id, data }: { id: string; data: Partial<ScheduledTask> }) =>
-			fetchApi<ScheduledTask>(`/api/system/scheduler/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+			fetchApi<ScheduledTask>(`/system/scheduler/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 		onSuccess: () => qc.invalidateQueries({ queryKey: ['system', 'scheduler'] }),
 	});
 }
@@ -321,7 +335,7 @@ export function useRunScheduledTask() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: (id: string) =>
-			fetchApi<{ success: boolean }>(`/api/system/scheduler/tasks/${id}/run`, { method: 'POST' }),
+			fetchApi<{ success: boolean }>(`/system/scheduler/tasks/${id}/run`, { method: 'POST' }),
 		onSuccess: () => qc.invalidateQueries({ queryKey: ['system', 'scheduler'] }),
 	});
 }

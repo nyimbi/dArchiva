@@ -2,10 +2,10 @@
 /**
  * Live scan preview component.
  */
-import { useState, useRef, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { ZoomIn, ZoomOut, RotateCw, Move, Maximize2, Loader2, RefreshCw, Crop } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
+import { Crop,Loader2,Maximize2,Move,RefreshCw,RotateCw,ZoomIn,ZoomOut } from 'lucide-react';
+import { useRef,useState } from 'react';
 import type { ScanPreviewData } from '../types';
 
 interface ScanPreviewProps {
@@ -28,7 +28,7 @@ export function ScanPreview({ preview, isLoading, onRefresh, onCropChange, class
 	const handleRotate = () => setRotation((r) => (r + 90) % 360);
 	const handleReset = () => { setZoom(100); setRotation(0); setPosition({ x: 0, y: 0 }); };
 
-	const handleMouseDown = (e: React.MouseEvent) => {
+	const handleMouseDown = () => {
 		if (cropMode) return;
 		setIsDragging(true);
 	};

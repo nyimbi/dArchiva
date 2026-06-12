@@ -2,41 +2,39 @@
 /**
  * Email management dashboard.
  */
-import { useState } from 'react';
-import {
-	Mail,
-	Upload,
-	Settings,
-	Filter,
-	Plus,
-	Server,
-	RefreshCw,
-	Loader2,
-} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
 } from '@/components/ui/dialog';
 import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Tabs,TabsContent,TabsList,TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { EmailList } from './EmailList';
-import { EmailDetail } from './EmailDetail';
-import { EmailAccountForm } from './EmailAccountForm';
-import { EmailRuleForm } from './EmailRuleForm';
-import { EmailAccountList } from './EmailAccountList';
-import { EmailRuleList } from './EmailRuleList';
+import {
+  Filter,
+  Loader2,
+  Mail,
+  Plus,
+  Server,
+  Settings,
+  Upload
+} from 'lucide-react';
+import { useState } from 'react';
 import { useImportEmail } from '../api';
 import type { EmailImport } from '../types';
+import { EmailAccountForm } from './EmailAccountForm';
+import { EmailAccountList } from './EmailAccountList';
+import { EmailDetail } from './EmailDetail';
+import { EmailList } from './EmailList';
+import { EmailRuleForm } from './EmailRuleForm';
+import { EmailRuleList } from './EmailRuleList';
 
 interface EmailDashboardProps {
 	folderId?: string;
@@ -57,7 +55,7 @@ export function EmailDashboard({ folderId }: EmailDashboardProps) {
 		try {
 			await importMutation.mutateAsync({ file, folderId });
 			toast({ title: 'Email imported successfully' });
-		} catch (error) {
+		} catch {
 			toast({
 				title: 'Import failed',
 				description: 'Could not import email file',

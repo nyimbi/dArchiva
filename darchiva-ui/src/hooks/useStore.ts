@@ -1,10 +1,8 @@
 // (c) Copyright Datacraft, 2026
+import type { NodeItem,PendingTask,Tenant,TreeNode,User,ViewerPage } from '@/types';
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import type { User, Tenant, TreeNode, PendingTask, NodeItem, ViewerPage } from '@/types';
+import { createJSONStorage,persist } from 'zustand/middleware';
 
-// Panel types for DualPanel layout
-type PanelMode = 'main' | 'secondary';
 type PanelContent = 'commander' | 'viewer' | 'search' | 'details' | null;
 
 interface DualPanelState {

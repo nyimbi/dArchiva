@@ -2,29 +2,29 @@
 /**
  * Role create/edit form with permission matrix.
  */
-import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Loader2, ChevronDown, ChevronRight, Check } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
 import {
-	Sheet,
-	SheetContent,
-	SheetDescription,
-	SheetFooter,
-	SheetHeader,
-	SheetTitle,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
 } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useCreateRole, useUpdateRole, usePermissionsByCategory } from '../api';
-import type { Role, PermissionCategory } from '../types';
+import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { ChevronDown,ChevronRight,Loader2 } from 'lucide-react';
+import { useEffect,useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { useCreateRole,usePermissionsByCategory,useUpdateRole } from '../api';
+import type { PermissionCategory,Role } from '../types';
 
 const roleSchema = z.object({
 	name: z.string().min(1, 'Name is required'),

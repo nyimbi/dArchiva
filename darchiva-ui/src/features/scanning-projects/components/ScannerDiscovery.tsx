@@ -4,37 +4,36 @@
  * Discovers network scanners (eSCL/AirScan, SANE, TWAIN, WIA) and allows
  * configuration and addition to project equipment list.
  */
-import { useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-	discoverScanners as apiDiscoverScanners,
-	registerScanner as apiRegisterScanner,
-	type DiscoveredScanner as APIDiscoveredScanner,
-} from '../api';
-import {
-	Search,
-	Wifi,
-	WifiOff,
-	Plus,
-	Loader2,
-	CheckCircle2,
-	AlertCircle,
-	XCircle,
-	Printer,
-	RefreshCw,
-	Settings,
-	Zap,
-	Monitor,
-	Server,
-	Check,
-	X,
-	ChevronRight,
-	Radio,
-	Palette,
-	Copy,
-	RotateCcw,
-} from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { AnimatePresence,motion } from 'framer-motion';
+import {
+  Check,
+  CheckCircle2,
+  Copy,
+  Loader2,
+  Monitor,
+  Palette,
+  Plus,
+  Printer,
+  Radio,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  Server,
+  Settings,
+  Wifi,
+  WifiOff,
+  X,
+  XCircle,
+  Zap,
+} from 'lucide-react';
+import { useCallback,useState } from 'react';
+import { toast } from 'sonner';
+import {
+  discoverScanners as apiDiscoverScanners,
+  registerScanner as apiRegisterScanner,
+  type DiscoveredScanner as APIDiscoveredScanner,
+} from '../api';
 
 // Scanner protocol types
 type ScannerProtocol = 'escl' | 'sane' | 'twain' | 'wia';
@@ -124,55 +123,25 @@ function transformDiscoveredScanner(apiScanner: APIDiscoveredScanner): Discovere
 	};
 }
 
-// Mock scanners fallback when backend is unavailable
-const MOCK_SCANNERS: DiscoveredScanner[] = [
-	{
-		id: 'mock-hp-laserjet',
-		name: 'HP LaserJet MFP',
-		manufacturer: 'HP',
-		model: 'LaserJet MFP M234sdw',
-		protocol: 'escl',
-		host: '192.168.1.100',
-		port: 443,
-		connectionUri: 'escl://192.168.1.100:443/eSCL',
-		capabilities: {
-			maxResolution: 1200,
-			supportedResolutions: [75, 100, 150, 200, 300, 600, 1200],
-			colorModes: ['color', 'grayscale', 'monochrome'],
-			hasDuplex: true,
-			hasADF: true,
-			adfCapacity: 40,
-			maxWidthMm: 215.9,
-			maxHeightMm: 355.6,
-			supportsAutoCrop: true,
-			supportsAutoDeskew: true,
-		},
-		discoveredAt: new Date().toISOString(),
-	},
-];
-
-// Real scanner discovery using backend API with mock fallback
+// Scanner discovery via backend API
 async function discoverScannersFromNetwork(forceRefresh: boolean = false): Promise<DiscoveredScanner[]> {
+	const apiScanners = await apiDiscoverScanners({ timeout: 10, forceRefresh });
+	return apiScanners.map(transformDiscoveredScanner);
+}
+
+async function testScannerConnection(scanner: DiscoveredScanner): Promise<boolean> {
 	try {
-		const apiScanners = await apiDiscoverScanners({ timeout: 10, forceRefresh });
-		return apiScanners.map(transformDiscoveredScanner);
-	} catch (error) {
-		console.error('Scanner discovery API unavailable, using mock fallback:', error);
-		// Return mock scanners when backend is unavailable
-		// In production, the backend eSCL/AirScan discovery will find real network scanners
-		await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate discovery time
-		return MOCK_SCANNERS;
+		const apiScanners = await apiDiscoverScanners({ timeout: 5, forceRefresh: true });
+		return apiScanners.some((apiScanner) => {
+			const apiId = apiScanner.uuid || `${apiScanner.host}:${apiScanner.port}`;
+			return apiId === scanner.id || (apiScanner.host === scanner.host && apiScanner.port === scanner.port);
+		});
+	} catch {
+		return false;
 	}
 }
 
-// Simulated connection test
-async function testScannerConnection(scanner: DiscoveredScanner): Promise<boolean> {
-	await new Promise((resolve) => setTimeout(resolve, 1500 + Math.random() * 500));
-	// 90% success rate simulation
-	return Math.random() > 0.1;
-}
-
-export function ScannerDiscovery({ projectId, onScannerAdded, className }: ScannerDiscoveryProps) {
+export function ScannerDiscovery({ onScannerAdded, className }: ScannerDiscoveryProps) {
 	const [isDiscovering, setIsDiscovering] = useState(false);
 	const [discoveredScanners, setDiscoveredScanners] = useState<DiscoveredScanner[]>([]);
 	const [selectedScanner, setSelectedScanner] = useState<DiscoveredScanner | null>(null);
@@ -196,7 +165,7 @@ export function ScannerDiscovery({ projectId, onScannerAdded, className }: Scann
 			const scanners = await discoverScannersFromNetwork(forceRefresh);
 			setDiscoveredScanners(scanners);
 		} catch (error) {
-			console.error('Discovery failed:', error);
+			toast.error(error instanceof Error ? error.message : 'Scanner discovery failed');
 		} finally {
 			setIsDiscovering(false);
 		}
@@ -247,7 +216,7 @@ export function ScannerDiscovery({ projectId, onScannerAdded, className }: Scann
 				setShowConfigDialog(false);
 				setSelectedScanner(null);
 			} catch (error) {
-				console.error('Failed to register scanner:', error);
+				toast.error(error instanceof Error ? error.message : 'Failed to register scanner');
 			}
 		}
 	}, [selectedScanner, scannerConfig, onScannerAdded]);

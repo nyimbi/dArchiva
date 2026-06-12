@@ -2,34 +2,32 @@
 /**
  * Physical inventory management interface.
  */
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence,motion } from 'framer-motion';
 import {
-	QrCode,
-	FileSearch,
-	ClipboardCheck,
-	Upload,
-	Download,
-	Printer,
-	AlertTriangle,
-	CheckCircle,
-	XCircle,
-	Info,
-	ChevronDown,
-	ChevronRight,
-	RefreshCw,
+  AlertTriangle,
+  CheckCircle,
+  ChevronDown,
+  ChevronRight,
+  ClipboardCheck,
+  Download,
+  FileSearch,
+  Info,
+  Printer,
+  QrCode,
+  RefreshCw,
+  Upload,
+  XCircle,
 } from 'lucide-react';
+import { useState } from 'react';
 import {
-	useGenerateQRCode,
-	useGenerateLabelSheet,
-	useReconcileInventory,
-	useResolveDiscrepancy,
+  useReconcileInventory,
+  useResolveDiscrepancy,
 } from '../api';
 import type {
-	Discrepancy,
-	DiscrepancySeverity,
-	ReconciliationResult,
-	PhysicalRecordInput,
+  Discrepancy,
+  DiscrepancySeverity,
+  PhysicalRecordInput,
+  ReconciliationResult,
 } from '../types';
 
 const severityConfig: Record<
@@ -170,26 +168,11 @@ function ReconciliationSummary({
 export function InventoryManager() {
 	const [activeTab, setActiveTab] = useState<'qr' | 'duplicates' | 'reconcile'>('qr');
 	const [reconcileResult, setReconcileResult] = useState<ReconciliationResult | null>(null);
-	const [physicalRecords, setPhysicalRecords] = useState<PhysicalRecordInput[]>([]);
+	const [physicalRecords] = useState<PhysicalRecordInput[]>([]);
 
-	const qrMutation = useGenerateQRCode();
-	const labelSheetMutation = useGenerateLabelSheet();
 	const reconcileMutation = useReconcileInventory();
 	const resolveMutation = useResolveDiscrepancy();
 
-	const handleGenerateQR = async (documentId: string) => {
-		const blob = await qrMutation.mutateAsync({
-			documentId,
-			includeLabel: true,
-		});
-		// Download the QR code
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = `qr-${documentId.slice(0, 8)}.png`;
-		a.click();
-		URL.revokeObjectURL(url);
-	};
 
 	const handleReconcile = async () => {
 		const result = await reconcileMutation.mutateAsync({

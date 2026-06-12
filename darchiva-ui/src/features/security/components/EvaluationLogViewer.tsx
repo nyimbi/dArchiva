@@ -2,11 +2,12 @@
 /**
  * Policy evaluation log viewer with filtering.
  */
-import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, ShieldOff, Search, Filter, Clock, User, File, Zap, RefreshCw } from 'lucide-react';
-import type { EvaluationLog } from '../types';
+import { Clock,File,RefreshCw,Search,Shield,ShieldOff,User,Zap } from 'lucide-react';
+import { useCallback,useEffect,useState } from 'react';
+import { toast } from 'sonner';
 import { fetchEvaluationLogs } from '../api';
+import type { EvaluationLog } from '../types';
 
 interface LogRowProps {
 	log: EvaluationLog;
@@ -97,7 +98,7 @@ export function EvaluationLogViewer() {
 	});
 	const [searchQuery, setSearchQuery] = useState('');
 
-	const loadLogs = async () => {
+	const loadLogs = useCallback(async () => {
 		setLoading(true);
 		try {
 			const data = await fetchEvaluationLogs({
@@ -107,15 +108,15 @@ export function EvaluationLogViewer() {
 			});
 			setLogs(data);
 		} catch (err) {
-			console.error('Failed to load logs:', err);
+			toast.error(err instanceof Error ? err.message : 'Failed to load evaluation logs');
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, [filters.action, filters.hours, filters.limit]);
 
 	useEffect(() => {
 		loadLogs();
-	}, [filters]);
+	}, [loadLogs]);
 
 	const filteredLogs = logs.filter(log => {
 		if (!searchQuery) return true;

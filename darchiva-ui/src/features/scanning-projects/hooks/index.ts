@@ -1,6 +1,10 @@
 // (c) Copyright Datacraft, 2026
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import * as api from '../api';
+
+// Re-export browser scanner hook
+export { useBrowserScanner } from './useBrowserScanner';
+export type { BrowserScannerConfig,BrowserScanResult,UseBrowserScannerReturn } from './useBrowserScanner';
 
 // =====================================================
 // Query Keys

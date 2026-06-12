@@ -2,8 +2,8 @@
 /**
  * User preferences API hooks.
  */
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import type { UserPreferences } from './types';
 import { DEFAULT_PREFERENCES } from './types';
 

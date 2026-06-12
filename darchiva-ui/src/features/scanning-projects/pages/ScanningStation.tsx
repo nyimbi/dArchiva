@@ -1,32 +1,40 @@
 // (c) Copyright Datacraft, 2026
-import { useState, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import {
-	ArrowLeft,
-	Play,
-	Pause,
-	Settings,
-	RotateCw,
-	RotateCcw,
-	Trash2,
-	RefreshCw,
-	CheckCircle,
-	AlertTriangle,
-	AlertCircle,
-	ChevronLeft,
-	ChevronRight,
-	ZoomIn,
-	ZoomOut,
-	Maximize2,
-	Package,
-	FileText,
-	ScanLine,
-	Eye,
-	XCircle,
-	Loader2,
-} from 'lucide-react';
+import { AuthenticatedImage } from '@/components/AuthenticatedImage';
+import type { ESCLCapabilities } from '@/lib/escl-scanner';
 import { cn } from '@/lib/utils';
 import * as Dialog from '@radix-ui/react-dialog';
+import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
+import {
+  AlertCircle,
+  AlertTriangle,
+  ArrowLeft,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  FileText,
+  Loader2,
+  Maximize2,
+  Package,
+  Pause,
+  Play,
+  RefreshCw,
+  RotateCcw,
+  RotateCw,
+  ScanLine,
+  Settings,
+  Sliders,
+  Trash2,
+  XCircle,
+  ZoomIn,
+  ZoomOut,
+} from 'lucide-react';
+import { useCallback,useEffect,useState } from 'react';
+import { Link,useParams } from 'react-router-dom';
+import { toast } from 'sonner';
+import { completeBatchScan,getBatch,getBatchDocuments,getScannerCapabilities,getScanners,quickScan,type BatchDocument,type ScanJobOptions,type ScannerCapabilities } from '../api';
+import { BrowserScannerConfig,ScanModeIndicator,type ScanMode } from '../components/BrowserScannerConfig';
+import { useBrowserScanner } from '../hooks/useBrowserScanner';
 
 // Types for the scanning station
 interface ScannedPage {
@@ -42,6 +50,7 @@ interface ScannedPage {
 	blurScore: number;
 	needsReview: boolean;
 	status: 'pending' | 'accepted' | 'rejected' | 'rescanning';
+	rotation: number;
 }
 
 interface ScanSettings {
@@ -64,31 +73,24 @@ interface BatchInfo {
 	status: 'pending' | 'scanning' | 'paused' | 'completed' | 'qc_pending';
 }
 
-// Mock data for demonstration
-const mockBatch: BatchInfo = {
-	id: 'batch-001',
-	batchNumber: 'BOX-2026-0142',
-	projectId: 'proj-001',
-	projectName: 'City Archives Digitization',
-	estimatedPages: 250,
-	scannedPages: 87,
-	status: 'scanning',
-};
-
-const mockPages: ScannedPage[] = Array.from({ length: 12 }, (_, i) => ({
-	id: `page-${i + 1}`,
-	pageNumber: i + 1,
-	thumbnailUrl: `https://picsum.photos/seed/${i + 100}/200/280`,
-	fullImageUrl: `https://picsum.photos/seed/${i + 100}/1200/1600`,
-	scannedAt: new Date(Date.now() - (12 - i) * 30000).toISOString(),
-	qualityScore: 75 + Math.floor(Math.random() * 25),
-	hasBlur: i === 3 || i === 7,
-	hasSkew: i === 5,
-	skewAngle: i === 5 ? 2.3 : 0,
-	blurScore: i === 3 ? 35 : i === 7 ? 42 : 85 + Math.floor(Math.random() * 15),
-	needsReview: i === 3 || i === 5 || i === 7,
-	status: i === 3 || i === 5 || i === 7 ? 'pending' : 'accepted',
-}));
+// Transform BatchDocument from API to ScannedPage for UI
+function transformBatchDocumentToScannedPage(doc: BatchDocument, index: number): ScannedPage {
+	return {
+		id: doc.id,
+		pageNumber: doc.pageNumber || index + 1,
+		thumbnailUrl: `/api/v1/thumbnails/${doc.documentId}`,
+		fullImageUrl: `/api/v1/thumbnails/${doc.documentId}/full`,
+		scannedAt: doc.scannedAt,
+		qualityScore: doc.qualityScore,
+		hasBlur: doc.hasIssues && doc.issueDetails?.blur === true,
+		hasSkew: doc.hasIssues && doc.issueDetails?.skew === true,
+		skewAngle: (doc.issueDetails?.skewAngle as number) || 0,
+		blurScore: (doc.issueDetails?.blurScore as number) || (doc.qualityScore > 70 ? 85 : 50),
+		needsReview: doc.needsReview,
+		status: doc.status,
+		rotation: 0,
+	};
+}
 
 const DPI_OPTIONS = [
 	{ value: 150, label: '150 DPI', description: 'Draft' },
@@ -144,7 +146,7 @@ function PageThumbnail({ page, isSelected, onSelect, onRescan }: {
 					: 'border-slate-700 hover:border-slate-600'
 			)}
 		>
-			<img
+			<AuthenticatedImage
 				src={page.thumbnailUrl}
 				alt={`Page ${page.pageNumber}`}
 				className="w-full aspect-[3/4] object-cover bg-slate-800"
@@ -201,18 +203,41 @@ function PageThumbnail({ page, isSelected, onSelect, onRescan }: {
 	);
 }
 
-function SettingsDialog({ open, onOpenChange, settings, onSave }: {
+function SettingsDialog({ open, onOpenChange, settings, onSave, capabilities }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	settings: ScanSettings;
 	onSave: (settings: ScanSettings) => void;
+	capabilities?: ScannerCapabilities;
 }) {
 	const [localSettings, setLocalSettings] = useState(settings);
+
+	// Filter options based on scanner capabilities
+	const availableDpiOptions = capabilities?.resolutions?.length
+		? DPI_OPTIONS.filter(opt => capabilities.resolutions.includes(opt.value))
+		: DPI_OPTIONS;
+
+	const availableColorModes = capabilities?.colorModes?.length
+		? COLOR_MODE_OPTIONS.filter(opt => capabilities.colorModes.includes(opt.value))
+		: COLOR_MODE_OPTIONS;
+
+	const availableFormats = capabilities?.formats?.length
+		? FORMAT_OPTIONS.filter(opt => capabilities.formats.includes(opt.value))
+		: FORMAT_OPTIONS;
+
+	const supportsDuplex = capabilities?.adfDuplex ?? false;
+	const supportsAutoCrop = capabilities?.autoCrop ?? true;
+	const supportsAutoDeskew = capabilities?.autoDeskew ?? true;
+	const supportsBlankPageRemoval = capabilities?.blankPageRemoval ?? true;
 
 	const handleSave = () => {
 		onSave(localSettings);
 		onOpenChange(false);
 	};
+
+	// Calculate grid columns based on available options
+	const dpiGridCols = availableDpiOptions.length <= 2 ? 2 : availableDpiOptions.length <= 4 ? availableDpiOptions.length : 4;
+	const formatGridCols = availableFormats.length <= 2 ? 2 : availableFormats.length <= 4 ? availableFormats.length : 4;
 
 	return (
 		<Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -227,8 +252,8 @@ function SettingsDialog({ open, onOpenChange, settings, onSave }: {
 						{/* DPI Selection */}
 						<div>
 							<label className="block text-sm font-medium text-slate-300 mb-2">Resolution (DPI)</label>
-							<div className="grid grid-cols-4 gap-2">
-								{DPI_OPTIONS.map((opt) => (
+							<div className={`grid gap-2`} style={{ gridTemplateColumns: `repeat(${dpiGridCols}, minmax(0, 1fr))` }}>
+								{availableDpiOptions.map((opt) => (
 									<button
 										key={opt.value}
 										onClick={() => setLocalSettings({ ...localSettings, dpi: opt.value })}
@@ -249,8 +274,8 @@ function SettingsDialog({ open, onOpenChange, settings, onSave }: {
 						{/* Color Mode */}
 						<div>
 							<label className="block text-sm font-medium text-slate-300 mb-2">Color Mode</label>
-							<div className="grid grid-cols-3 gap-2">
-								{COLOR_MODE_OPTIONS.map((opt) => (
+							<div className={`grid gap-2`} style={{ gridTemplateColumns: `repeat(${availableColorModes.length}, minmax(0, 1fr))` }}>
+								{availableColorModes.map((opt) => (
 									<button
 										key={opt.value}
 										onClick={() => setLocalSettings({ ...localSettings, colorMode: opt.value })}
@@ -270,8 +295,8 @@ function SettingsDialog({ open, onOpenChange, settings, onSave }: {
 						{/* Format */}
 						<div>
 							<label className="block text-sm font-medium text-slate-300 mb-2">Output Format</label>
-							<div className="grid grid-cols-4 gap-2">
-								{FORMAT_OPTIONS.map((opt) => (
+							<div className={`grid gap-2`} style={{ gridTemplateColumns: `repeat(${formatGridCols}, minmax(0, 1fr))` }}>
+								{availableFormats.map((opt) => (
 									<button
 										key={opt.value}
 										onClick={() => setLocalSettings({ ...localSettings, format: opt.value })}
@@ -290,22 +315,50 @@ function SettingsDialog({ open, onOpenChange, settings, onSave }: {
 
 						{/* Toggle options */}
 						<div className="space-y-3">
-							{[
-								{ key: 'duplex', label: 'Duplex Scanning (Double-sided)' },
-								{ key: 'autoCrop', label: 'Auto Crop' },
-								{ key: 'autoDeskew', label: 'Auto Deskew' },
-								{ key: 'blankPageRemoval', label: 'Blank Page Removal' },
-							].map(({ key, label }) => (
-								<label key={key} className="flex items-center gap-3 cursor-pointer">
+							{supportsDuplex && (
+								<label className="flex items-center gap-3 cursor-pointer">
 									<input
 										type="checkbox"
-										checked={localSettings[key as keyof ScanSettings] as boolean}
-										onChange={(e) => setLocalSettings({ ...localSettings, [key]: e.target.checked })}
+										checked={localSettings.duplex}
+										onChange={(e) => setLocalSettings({ ...localSettings, duplex: e.target.checked })}
 										className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-brass-500 focus:ring-brass-500 focus:ring-offset-slate-900"
 									/>
-									<span className="text-sm text-slate-300">{label}</span>
+									<span className="text-sm text-slate-300">Duplex Scanning (Double-sided)</span>
 								</label>
-							))}
+							)}
+							{supportsAutoCrop && (
+								<label className="flex items-center gap-3 cursor-pointer">
+									<input
+										type="checkbox"
+										checked={localSettings.autoCrop}
+										onChange={(e) => setLocalSettings({ ...localSettings, autoCrop: e.target.checked })}
+										className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-brass-500 focus:ring-brass-500 focus:ring-offset-slate-900"
+									/>
+									<span className="text-sm text-slate-300">Auto Crop</span>
+								</label>
+							)}
+							{supportsAutoDeskew && (
+								<label className="flex items-center gap-3 cursor-pointer">
+									<input
+										type="checkbox"
+										checked={localSettings.autoDeskew}
+										onChange={(e) => setLocalSettings({ ...localSettings, autoDeskew: e.target.checked })}
+										className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-brass-500 focus:ring-brass-500 focus:ring-offset-slate-900"
+									/>
+									<span className="text-sm text-slate-300">Auto Deskew</span>
+								</label>
+							)}
+							{supportsBlankPageRemoval && (
+								<label className="flex items-center gap-3 cursor-pointer">
+									<input
+										type="checkbox"
+										checked={localSettings.blankPageRemoval}
+										onChange={(e) => setLocalSettings({ ...localSettings, blankPageRemoval: e.target.checked })}
+										className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-brass-500 focus:ring-brass-500 focus:ring-offset-slate-900"
+									/>
+									<span className="text-sm text-slate-300">Blank Page Removal</span>
+								</label>
+							)}
 						</div>
 					</div>
 
@@ -331,22 +384,242 @@ function SettingsDialog({ open, onOpenChange, settings, onSave }: {
 
 export function ScanningStation() {
 	const { projectId, batchId } = useParams<{ projectId: string; batchId: string }>();
+	const queryClient = useQueryClient();
 
-	// State
-	const [batch] = useState<BatchInfo>(mockBatch);
-	const [pages, setPages] = useState<ScannedPage[]>(mockPages);
-	const [selectedPageId, setSelectedPageId] = useState<string | null>(mockPages[0]?.id || null);
+	// Scan mode state (backend vs browser)
+	const [scanMode, setScanMode] = useState<ScanMode>(() => {
+		// Load from localStorage, default to 'backend'
+		return (localStorage.getItem('scan-mode') as ScanMode) || 'backend';
+	});
+	const [showModeConfig, setShowModeConfig] = useState(false);
+
+	// Save scan mode to localStorage
+	useEffect(() => {
+		localStorage.setItem('scan-mode', scanMode);
+	}, [scanMode]);
+
+	// Browser scanner hook
+	const browserScanner = useBrowserScanner({
+		autoDiscover: scanMode === 'browser',
+	});
+
+	// Fetch batch info from API
+	const { data: batchData } = useQuery({
+		queryKey: ['scanning-batch', projectId, batchId],
+		queryFn: () => getBatch(projectId!, batchId!),
+		enabled: !!projectId && !!batchId,
+	});
+
+	// Fetch batch documents from API
+	const { data: batchDocuments = [] } = useQuery({
+		queryKey: ['batch-documents', projectId, batchId],
+		queryFn: () => getBatchDocuments(projectId!, batchId!),
+		enabled: !!projectId && !!batchId,
+	});
+
+	// Transform batch data to BatchInfo
+	const batch: BatchInfo = batchData ? {
+		id: batchData.id,
+		batchNumber: batchData.batchNumber,
+		projectId: batchData.projectId,
+		projectName: 'Scanning Project', // Project name will be fetched separately if needed
+		estimatedPages: batchData.estimatedPages,
+		scannedPages: batchData.scannedPages || 0,
+		status: batchData.status as BatchInfo['status'],
+	} : {
+		id: batchId || '',
+		batchNumber: 'Loading...',
+		projectId: projectId || '',
+		projectName: 'Loading...',
+		estimatedPages: 0,
+		scannedPages: 0,
+		status: 'pending',
+	};
+
+	// Transform batch documents to ScannedPage format
+	const fetchedPages: ScannedPage[] = batchDocuments.map((doc, index) =>
+		transformBatchDocumentToScannedPage(doc, index)
+	);
+
+	// Fetch registered scanners
+	const { data: scanners = [] } = useQuery({
+		queryKey: ['scanners'],
+		queryFn: () => getScanners(),
+	});
+
+	// Use first available scanner or allow selection
+	const baseScannerInfo = scanners.find(s => s.status === 'online') || scanners[0];
+
+	// Fetch capabilities for the active scanner
+	const { data: scannerCapabilities } = useQuery({
+		queryKey: ['scanner-capabilities', baseScannerInfo?.id],
+		queryFn: () => getScannerCapabilities(baseScannerInfo!.id),
+		enabled: !!baseScannerInfo?.id,
+		staleTime: 5 * 60 * 1000, // Cache capabilities for 5 minutes
+	});
+
+	// Combine scanner info with fetched capabilities
+	const activeScanner = baseScannerInfo ? {
+		...baseScannerInfo,
+		capabilities: scannerCapabilities || baseScannerInfo.capabilities,
+	} : undefined;
+
+	// State - initialize with fetched pages, update when they change
+	const [pages, setPages] = useState<ScannedPage[]>([]);
+	const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
+
+	// Sync pages state when fetchedPages changes
+	useEffect(() => {
+		if (fetchedPages.length > 0) {
+			setPages(fetchedPages);
+			if (!selectedPageId || !fetchedPages.find(p => p.id === selectedPageId)) {
+				setSelectedPageId(fetchedPages[0]?.id || null);
+			}
+		}
+	}, [fetchedPages, selectedPageId]);
 	const [isScanning, setIsScanning] = useState(false);
 	const [showSettings, setShowSettings] = useState(false);
 	const [zoom, setZoom] = useState(100);
+	const [scanError, setScanError] = useState<string | null>(null);
 	const [settings, setSettings] = useState<ScanSettings>({
-		dpi: 300,
+		dpi: 1200,
 		colorMode: 'color',
-		duplex: true,
-		format: 'tiff',
+		duplex: false,
+		format: 'jpeg',
 		autoCrop: true,
 		autoDeskew: true,
 		blankPageRemoval: true,
+	});
+
+	// Update settings when scanner capabilities change
+	useEffect(() => {
+		const caps = scannerCapabilities || baseScannerInfo?.capabilities;
+		if (caps) {
+			setSettings(prev => {
+				const newSettings = { ...prev };
+
+				// Set format to first available if current not supported
+				if (caps.formats?.length && !caps.formats.includes(prev.format)) {
+					newSettings.format = caps.formats[0] as ScanSettings['format'];
+				}
+
+				// Set color mode to first available if current not supported
+				if (caps.colorModes?.length && !caps.colorModes.includes(prev.colorMode)) {
+					newSettings.colorMode = caps.colorModes[0] as ScanSettings['colorMode'];
+				}
+
+				// Set DPI to closest available if current not supported
+				if (caps.resolutions?.length && !caps.resolutions.includes(prev.dpi)) {
+					// Find closest available resolution
+					const closest = caps.resolutions.reduce((a, b) =>
+						Math.abs(b - prev.dpi) < Math.abs(a - prev.dpi) ? b : a
+					);
+					newSettings.dpi = closest as ScanSettings['dpi'];
+				}
+
+				// Disable duplex if not supported
+				if (!caps.adfDuplex) {
+					newSettings.duplex = false;
+				}
+
+				return newSettings;
+			});
+		}
+	}, [baseScannerInfo?.id, scannerCapabilities, baseScannerInfo?.capabilities]);
+
+	// Scan mutation - calls the real scanner via eSCL/AirScan
+	// Supports both backend mode (via server) and browser mode (direct connection)
+	const scanMutation = useMutation({
+		mutationFn: async () => {
+			if (scanMode === 'browser') {
+				// Browser-based direct scanning
+				if (!browserScanner.activeScanner) {
+					throw new Error('No browser scanner selected. Click the mode indicator to configure.');
+				}
+
+				const result = await browserScanner.scan({
+					resolution: settings.dpi,
+					colorMode: settings.colorMode,
+					format: settings.format,
+					duplex: settings.duplex,
+					inputSource: 'platen',
+					projectId,
+					batchId,
+				});
+
+				if (!result.success) {
+					throw new Error(result.errors.join(', ') || 'Browser scan failed');
+				}
+
+				// Return in the same format as backend quickScan
+				return {
+					jobId: `browser-${Date.now()}`,
+					success: true,
+					pagesScanned: result.pages.length,
+					format: result.format,
+					scanTimeMs: 0,
+					documentIds: result.documentIds,
+					errors: result.errors,
+				};
+			} else {
+				// Backend mode - existing implementation
+				if (!activeScanner) {
+					throw new Error('No scanner available');
+				}
+
+				const options: ScanJobOptions = {
+					resolution: settings.dpi,
+					colorMode: settings.colorMode === 'monochrome' ? 'monochrome' : settings.colorMode,
+					format: settings.format,
+					duplex: settings.duplex,
+					inputSource: 'platen',
+				};
+
+				return quickScan({
+					scannerId: activeScanner.id,
+					options,
+					projectId,
+					batchId,
+				});
+			}
+		},
+		onSuccess: (result) => {
+			setScanError(null);
+
+			// Refresh batch documents from server to get the persisted pages
+			queryClient.invalidateQueries({ queryKey: ['batch-documents', projectId, batchId] });
+			queryClient.invalidateQueries({ queryKey: ['scanning-batch', projectId, batchId] });
+
+			// Also add to local state immediately for instant feedback
+			if (result.pagesScanned > 0) {
+				const newPages: ScannedPage[] = result.documentIds.map((docId, index) => ({
+					id: docId,
+					pageNumber: pages.length + index + 1,
+					thumbnailUrl: `/api/v1/thumbnails/${docId}`,
+					fullImageUrl: `/api/v1/thumbnails/${docId}/full`,
+					scannedAt: new Date().toISOString(),
+					qualityScore: 90,
+					hasBlur: false,
+					hasSkew: false,
+					skewAngle: 0,
+					blurScore: 95,
+					needsReview: false,
+					status: 'accepted' as const,
+					rotation: 0,
+				}));
+
+				setPages(prev => [...prev, ...newPages]);
+				if (newPages.length > 0) {
+					setSelectedPageId(newPages[0].id);
+				}
+			}
+
+			setIsScanning(false);
+		},
+		onError: (error) => {
+			setScanError(error instanceof Error ? error.message : 'Scan failed');
+			setIsScanning(false);
+		},
 	});
 
 	const selectedPage = pages.find(p => p.id === selectedPageId);
@@ -370,8 +643,15 @@ export function ScanningStation() {
 
 	// Page actions
 	const handleRotate = useCallback((direction: 'cw' | 'ccw') => {
-		// In real implementation, this would call an API to rotate the image
-		console.log(`Rotating ${selectedPageId} ${direction}`);
+		if (!selectedPageId) return;
+		const delta = direction === 'cw' ? 90 : -90;
+		setPages((prev) =>
+			prev.map((page) =>
+				page.id === selectedPageId
+					? { ...page, rotation: (page.rotation + delta + 360) % 360 }
+					: page,
+			),
+		);
 	}, [selectedPageId]);
 
 	const handleDelete = useCallback(() => {
@@ -384,18 +664,26 @@ export function ScanningStation() {
 	}, [selectedPageId, pages]);
 
 	const handleRescan = useCallback((pageId: string) => {
-		setPages(prev => prev.map(p =>
-			p.id === pageId ? { ...p, status: 'rescanning' as const } : p
-		));
-		// Simulate rescan completion
-		setTimeout(() => {
-			setPages(prev => prev.map(p =>
-				p.id === pageId
-					? { ...p, status: 'accepted' as const, needsReview: false, hasBlur: false, hasSkew: false, qualityScore: 95 }
-					: p
-			));
-		}, 2000);
-	}, []);
+		setPages((prev) =>
+			prev.map((page) =>
+				page.id === pageId ? { ...page, status: 'rescanning' as const } : page,
+			),
+		);
+		setIsScanning(true);
+		setScanError(null);
+		scanMutation.mutate(undefined, {
+			onSuccess: () => {
+				setPages((prev) => prev.filter((page) => page.id !== pageId));
+			},
+			onError: () => {
+				setPages((prev) =>
+					prev.map((page) =>
+						page.id === pageId ? { ...page, status: 'pending' as const } : page,
+					),
+				);
+			},
+		});
+	}, [scanMutation]);
 
 	const handleAcceptPage = useCallback(() => {
 		if (!selectedPageId) return;
@@ -413,13 +701,31 @@ export function ScanningStation() {
 
 	// Scanning controls
 	const toggleScanning = useCallback(() => {
-		setIsScanning(prev => !prev);
-	}, []);
+		if (isScanning) {
+			// Stop/pause scanning - just toggle state
+			setIsScanning(false);
+		} else {
+			// Start scanning - call the real scanner via API
+			setScanError(null);
+			setIsScanning(true);
+			scanMutation.mutate();
+		}
+	}, [isScanning, scanMutation]);
 
 	const handleCompleteBatch = useCallback(() => {
-		// In real implementation, this would finalize the batch
-		console.log('Completing batch', batchId);
-	}, [batchId]);
+		if (!projectId || !batchId) {
+			toast.error('Missing project or batch identifier');
+			return;
+		}
+
+		completeBatchScan(projectId, batchId, pages.length)
+			.then(() => {
+				toast.success('Batch marked as completed');
+			})
+			.catch((error: unknown) => {
+				toast.error(error instanceof Error ? error.message : 'Failed to complete batch');
+			});
+	}, [batchId, pages.length, projectId]);
 
 	return (
 		<div className="h-screen flex flex-col bg-slate-950">
@@ -489,14 +795,30 @@ export function ScanningStation() {
 						</button>
 						<button
 							onClick={toggleScanning}
+							disabled={
+								(scanMode === 'backend' ? !activeScanner : !browserScanner.activeScanner) ||
+								scanMutation.isPending ||
+								browserScanner.isScanning
+							}
 							className={cn(
 								'inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors',
-								isScanning
-									? 'bg-amber-500 text-slate-900 hover:bg-amber-400'
-									: 'bg-brass-500 text-slate-900 hover:bg-brass-400'
+								((scanMode === 'backend' ? !activeScanner : !browserScanner.activeScanner) ||
+									scanMutation.isPending ||
+									browserScanner.isScanning)
+									? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+									: isScanning
+										? 'bg-amber-500 text-slate-900 hover:bg-amber-400'
+										: 'bg-brass-500 text-slate-900 hover:bg-brass-400'
 							)}
 						>
-							{isScanning ? (
+							{scanMutation.isPending || browserScanner.isScanning ? (
+								<>
+									<Loader2 className="w-4 h-4 animate-spin" />
+									{browserScanner.scanProgress
+										? `Uploading ${browserScanner.scanProgress.current}/${browserScanner.scanProgress.total}...`
+										: 'Scanning...'}
+								</>
+							) : isScanning ? (
 								<>
 									<Pause className="w-4 h-4" />
 									Pause
@@ -512,15 +834,94 @@ export function ScanningStation() {
 				</div>
 
 				{/* Settings summary bar */}
-				<div className="flex items-center gap-4 mt-3 pt-3 border-t border-slate-800 text-sm text-slate-400">
-					<span className="font-medium text-slate-300">Settings:</span>
-					<span>{settings.dpi} DPI</span>
-					<span className="capitalize">{settings.colorMode}</span>
-					<span>{settings.duplex ? 'Duplex' : 'Simplex'}</span>
-					<span className="uppercase">{settings.format}</span>
-					{settings.autoDeskew && <span>Auto-Deskew</span>}
-					{settings.autoCrop && <span>Auto-Crop</span>}
+				<div className="flex items-center justify-between gap-4 mt-3 pt-3 border-t border-slate-800 text-sm text-slate-400">
+					<div className="flex items-center gap-4">
+						<span className="font-medium text-slate-300">Settings:</span>
+						<span>{settings.dpi} DPI</span>
+						<span className="capitalize">{settings.colorMode}</span>
+						<span>{settings.duplex ? 'Duplex' : 'Simplex'}</span>
+						<span className="uppercase">{settings.format}</span>
+						{settings.autoDeskew && <span>Auto-Deskew</span>}
+						{settings.autoCrop && <span>Auto-Crop</span>}
+					</div>
+					<div className="flex items-center gap-3">
+						{/* Scan Mode Indicator */}
+						<ScanModeIndicator mode={scanMode} onClick={() => setShowModeConfig(true)} />
+
+						{/* Scanner Status */}
+						{scanMode === 'backend' ? (
+							// Backend mode - show registered scanner status
+							activeScanner ? (
+								<div className="flex items-center gap-2">
+									<div className={cn(
+										'w-2 h-2 rounded-full',
+										activeScanner.status === 'online' ? 'bg-emerald-400' :
+										activeScanner.status === 'busy' ? 'bg-amber-400 animate-pulse' :
+										'bg-slate-500'
+									)} />
+									<span className="text-slate-300">{activeScanner.name}</span>
+									<span className={cn(
+										'text-xs capitalize',
+										activeScanner.status === 'online' ? 'text-emerald-400' :
+										activeScanner.status === 'busy' ? 'text-amber-400' :
+										'text-slate-500'
+									)}>
+										({activeScanner.status})
+									</span>
+								</div>
+							) : (
+								<span className="text-amber-400 flex items-center gap-2">
+									<AlertCircle className="w-4 h-4" />
+									No scanner connected
+								</span>
+							)
+						) : (
+							// Browser mode - show browser scanner status
+							browserScanner.activeScanner ? (
+								<div className="flex items-center gap-2">
+									<div className="w-2 h-2 rounded-full bg-emerald-400" />
+									<span className="text-slate-300">
+										{browserScanner.capabilities?.makeAndModel || browserScanner.activeScanner.name}
+									</span>
+									<span className="text-xs text-emerald-400">(Direct)</span>
+								</div>
+							) : (
+								<button
+									onClick={() => setShowModeConfig(true)}
+									className="text-amber-400 flex items-center gap-2 hover:text-amber-300"
+								>
+									<AlertCircle className="w-4 h-4" />
+									Configure scanner
+								</button>
+							)
+						)}
+
+						{/* Mode config button */}
+						<button
+							onClick={() => setShowModeConfig(true)}
+							className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded transition-colors"
+							title="Scanner configuration"
+						>
+							<Sliders className="w-4 h-4" />
+						</button>
+					</div>
 				</div>
+
+				{/* Scan error alert */}
+				{scanError && (
+					<div className="mt-3 px-4 py-2 bg-rose-500/10 border border-rose-500/30 rounded-lg flex items-center justify-between">
+						<div className="flex items-center gap-2 text-rose-400">
+							<AlertCircle className="w-4 h-4" />
+							<span className="text-sm">{scanError}</span>
+						</div>
+						<button
+							onClick={() => setScanError(null)}
+							className="text-rose-400 hover:text-rose-300"
+						>
+							<XCircle className="w-4 h-4" />
+						</button>
+					</div>
+				)}
 			</header>
 
 			{/* Main content */}
@@ -646,9 +1047,12 @@ export function ScanningStation() {
 						{selectedPage ? (
 							<div
 								className="relative bg-slate-900 rounded-lg shadow-xl overflow-hidden"
-								style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'center' }}
+								style={{
+									transform: `scale(${zoom / 100}) rotate(${selectedPage.rotation}deg)`,
+									transformOrigin: 'center',
+								}}
 							>
-								<img
+								<AuthenticatedImage
 									src={selectedPage.fullImageUrl}
 									alt={`Page ${selectedPage.pageNumber}`}
 									className="max-w-full max-h-[calc(100vh-300px)] object-contain"
@@ -806,7 +1210,51 @@ export function ScanningStation() {
 				onOpenChange={setShowSettings}
 				settings={settings}
 				onSave={setSettings}
+				capabilities={scanMode === 'backend' ? activeScanner?.capabilities : convertESCLCapabilities(browserScanner.capabilities)}
+			/>
+
+			{/* Scanner Mode Configuration dialog */}
+			<BrowserScannerConfig
+				open={showModeConfig}
+				onOpenChange={setShowModeConfig}
+				scanMode={scanMode}
+				onScanModeChange={setScanMode}
 			/>
 		</div>
 	);
+}
+
+/**
+ * Convert eSCL capabilities to the internal ScannerCapabilities format
+ */
+function convertESCLCapabilities(caps: ESCLCapabilities | null): ScannerCapabilities | undefined {
+	if (!caps) return undefined;
+
+	return {
+		platen: caps.platen.supported,
+		adfPresent: caps.adf?.supported ?? false,
+		adfDuplex: caps.adf?.duplex ?? false,
+		adfCapacity: caps.adf?.capacity ?? 0,
+		resolutions: caps.platen.resolutions,
+		colorModes: caps.platen.colorModes.map(mode => {
+			if (mode === 'RGB24' || mode === 'RGB48') return 'color';
+			if (mode === 'Grayscale8' || mode === 'Grayscale16') return 'grayscale';
+			if (mode === 'BlackAndWhite1') return 'monochrome';
+			return 'color';
+		}).filter((v, i, a) => a.indexOf(v) === i) as Array<'color' | 'grayscale' | 'monochrome'>,
+		formats: caps.platen.formats.map(fmt => {
+			if (fmt.includes('jpeg') || fmt.includes('jpg')) return 'jpeg';
+			if (fmt.includes('png')) return 'png';
+			if (fmt.includes('tiff') || fmt.includes('tif')) return 'tiff';
+			if (fmt.includes('pdf')) return 'pdf';
+			return 'jpeg';
+		}).filter((v, i, a) => a.indexOf(v) === i) as Array<'jpeg' | 'png' | 'tiff' | 'pdf'>,
+		maxWidthMm: Math.round(caps.platen.maxWidth / 300 * 25.4),
+		maxHeightMm: Math.round(caps.platen.maxHeight / 300 * 25.4),
+		autoCrop: true, // Assumed
+		autoDeskew: true, // Assumed
+		blankPageRemoval: true, // Assumed
+		brightnessControl: true, // Assumed
+		contrastControl: true, // Assumed
+	};
 }

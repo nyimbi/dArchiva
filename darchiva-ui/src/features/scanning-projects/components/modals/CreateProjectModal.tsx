@@ -1,9 +1,9 @@
 // (c) Copyright Datacraft, 2026
-import { useState } from 'react';
-import { X, FolderPlus, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useCreateProject } from '../../api/hooks';
+import { FolderPlus,Loader2,X } from 'lucide-react';
+import { useState } from 'react';
 import { toast } from 'sonner';
+import { useCreateProject } from '../../api/hooks';
 
 interface CreateProjectModalProps {
     onClose: () => void;
@@ -27,7 +27,7 @@ export function CreateProjectModal({ onClose }: CreateProjectModalProps) {
             });
             toast.success('Project created successfully');
             onClose();
-        } catch (error) {
+        } catch {
             toast.error('Failed to create project');
         }
     };

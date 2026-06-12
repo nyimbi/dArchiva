@@ -1,6 +1,6 @@
 // (c) Copyright Datacraft, 2026
 import { useState } from 'react';
-import { useIngestionJobs, useIngestionBatches, JobStatus, IngestionJob, IngestionBatch } from '../api';
+import { IngestionBatch,IngestionJob,JobStatus,useIngestionBatches,useIngestionJobs } from '../api';
 import styles from './JobQueueDashboard.module.css';
 
 const STATUS_COLORS: Record<string, string> = {

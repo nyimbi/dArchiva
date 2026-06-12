@@ -1,8 +1,8 @@
 // (c) Copyright Datacraft, 2026
+import { Plus,Search } from 'lucide-react';
 import { useState } from 'react';
-import { Plus, Search, Filter } from 'lucide-react';
+import { CreateProjectDialog,ProjectCard } from '../components';
 import { useScanningProjects } from '../hooks';
-import { ProjectCard, CreateProjectDialog } from '../components';
 
 export function ScanningProjects() {
 	const { data: projects, isLoading, error } = useScanningProjects();

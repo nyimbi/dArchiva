@@ -2,42 +2,42 @@
 /**
  * Group list component with hierarchy.
  */
-import { useState } from 'react';
 import {
-	Users,
-	UserPlus,
-	Search,
-	MoreHorizontal,
-	Trash2,
-	Edit,
-	ChevronRight,
-	ChevronDown,
-	FolderTree,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useGroupTree, useDeleteGroup } from '../api';
-import type { Group, GroupTree } from '../types';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
+import {
+  ChevronDown,
+  ChevronRight,
+  Edit,
+  FolderTree,
+  MoreHorizontal,
+  Search,
+  Trash2,
+  UserPlus,
+  Users,
+} from 'lucide-react';
+import { useState } from 'react';
+import { useDeleteGroup,useGroupTree } from '../api';
+import type { Group,GroupTree } from '../types';
 
 interface GroupListProps {
 	onCreateGroup: () => void;

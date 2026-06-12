@@ -2,67 +2,63 @@
 /**
  * Share dialog for documents and folders.
  */
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { format } from 'date-fns';
-import {
-	Share2,
-	User,
-	Users,
-	Link,
-	Copy,
-	Check,
-	Loader2,
-	Calendar,
-	Lock,
-	Eye,
-	Pencil,
-	Download,
-	Trash2,
-	X,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from '@/components/ui/dialog';
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from '@/components/ui/select';
-import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
 } from '@/components/ui/popover';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
-	useNodeShares,
-	useNodeShareLinks,
-	useCreateShare,
-	useCreateShareLink,
-	useDeleteShare,
-	useDeleteShareLink,
-} from '../api';
-import { useUsers } from '@/features/users/api';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs,TabsContent,TabsList,TabsTrigger } from '@/components/ui/tabs';
 import { useGroups } from '@/features/groups/api';
-import type { SharePermission, SharedNode, ShareLink } from '../types';
+import { useUsers } from '@/features/users/api';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import {
+  Calendar,
+  Check,
+  Copy,
+  Download,
+  Eye,
+  Link,
+  Loader2,
+  Lock,
+  Pencil,
+  Share2,
+  Trash2,
+  User,
+  Users,
+  X,
+} from 'lucide-react';
+import { useState } from 'react';
+import {
+  useCreateShare,
+  useCreateShareLink,
+  useDeleteShare,
+  useDeleteShareLink,
+  useNodeShareLinks,
+  useNodeShares,
+} from '../api';
+import type { ShareLink,SharePermission } from '../types';
 
 const PERMISSIONS: { value: SharePermission; label: string; icon: typeof Eye }[] = [
 	{ value: 'view', label: 'View', icon: Eye },

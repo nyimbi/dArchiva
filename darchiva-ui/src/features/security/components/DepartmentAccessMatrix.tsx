@@ -2,34 +2,32 @@
 /**
  * Department access matrix showing user cross-department permissions.
  */
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Building2, User, Plus, X, Clock, CheckCircle, Search } from 'lucide-react';
-import type { DepartmentAccess, Department, User as UserType } from '../types';
-import { grantDepartmentAccess, revokeDepartmentAccess, fetchUserDepartmentAccess } from '../api';
+import { AnimatePresence,motion } from 'framer-motion';
+import { Building2,CheckCircle,Plus,Search,User,X } from 'lucide-react';
+import { useEffect,useMemo,useState } from 'react';
+import {
+	fetchUserDepartmentAccess,
+	grantDepartmentAccess,
+	revokeDepartmentAccess,
+	useDepartments,
+	useSecurityUsers,
+} from '../api';
+import type { Department,DepartmentAccess } from '../types';
 
-// Mock data for demonstration - in real app these would come from API
-const MOCK_DEPARTMENTS: Department[] = [
-	{ id: 'dept-1', name: 'Engineering', parentId: null, headUserId: null, userCount: 25 },
-	{ id: 'dept-2', name: 'Legal', parentId: null, headUserId: null, userCount: 12 },
-	{ id: 'dept-3', name: 'Finance', parentId: null, headUserId: null, userCount: 18 },
-	{ id: 'dept-4', name: 'HR', parentId: null, headUserId: null, userCount: 8 },
-	{ id: 'dept-5', name: 'Operations', parentId: null, headUserId: null, userCount: 30 },
-];
-
-const MOCK_USERS = [
-	{ id: 'user-1', name: 'Alice Johnson', department: 'Engineering' },
-	{ id: 'user-2', name: 'Bob Smith', department: 'Legal' },
-	{ id: 'user-3', name: 'Carol White', department: 'Finance' },
-	{ id: 'user-4', name: 'David Brown', department: 'HR' },
-];
+interface GrantUserOption {
+	id: string;
+	name: string;
+	department?: string;
+}
 
 interface GrantModalProps {
+	users: GrantUserOption[];
+	departments: Department[];
 	onGrant: (userId: string, departmentId: string, reason?: string, expiresAt?: string) => Promise<void>;
 	onClose: () => void;
 }
 
-function GrantModal({ onGrant, onClose }: GrantModalProps) {
+function GrantModal({ users, departments, onGrant, onClose }: GrantModalProps) {
 	const [userId, setUserId] = useState('');
 	const [departmentId, setDepartmentId] = useState('');
 	const [reason, setReason] = useState('');
@@ -86,7 +84,7 @@ function GrantModal({ onGrant, onClose }: GrantModalProps) {
 							className="mt-1 w-full rounded-lg border-2 border-charcoal/10 bg-parchment px-4 py-2.5 font-['DM_Sans'] text-charcoal focus:border-charcoal/30 focus:outline-none"
 						>
 							<option value="">Select user...</option>
-							{MOCK_USERS.map(user => (
+							{users.map((user) => (
 								<option key={user.id} value={user.id}>
 									{user.name} ({user.department})
 								</option>
@@ -105,7 +103,7 @@ function GrantModal({ onGrant, onClose }: GrantModalProps) {
 							className="mt-1 w-full rounded-lg border-2 border-charcoal/10 bg-parchment px-4 py-2.5 font-['DM_Sans'] text-charcoal focus:border-charcoal/30 focus:outline-none"
 						>
 							<option value="">Select department...</option>
-							{MOCK_DEPARTMENTS.map(dept => (
+							{departments.map((dept) => (
 								<option key={dept.id} value={dept.id}>{dept.name}</option>
 							))}
 						</select>
@@ -244,38 +242,46 @@ export function DepartmentAccessMatrix() {
 	const [loading, setLoading] = useState(true);
 	const [searchQuery, setSearchQuery] = useState('');
 	const [showGrantModal, setShowGrantModal] = useState(false);
+	const { data: usersResponse } = useSecurityUsers({ page: 1, limit: 200 });
+	const { data: departments = [] } = useDepartments();
 
-	// In real app, this would fetch all grants for the tenant
+	const users = useMemo<GrantUserOption[]>(() => {
+		const list = usersResponse?.users ?? [];
+		return list.map((user) => ({
+			id: user.id,
+			name: user.displayName || user.email,
+			department: user.departments[0]?.name || 'Unassigned',
+		}));
+	}, [usersResponse?.users]);
+
 	useEffect(() => {
-		// Simulating API call
-		setTimeout(() => {
-			setGrants([
-				{
-					id: 'grant-1',
-					user_id: 'user-1',
-					user_name: 'Alice Johnson',
-					department_id: 'dept-2',
-					department_name: 'Legal',
-					granted_by: 'admin',
-					granted_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-					expires_at: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString(),
-					reason: 'Project collaboration',
-				},
-				{
-					id: 'grant-2',
-					user_id: 'user-2',
-					user_name: 'Bob Smith',
-					department_id: 'dept-3',
-					department_name: 'Finance',
-					granted_by: 'admin',
-					granted_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-					expires_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-					reason: 'Audit review',
-				},
-			]);
-			setLoading(false);
-		}, 500);
-	}, []);
+		let cancelled = false;
+		const loadGrants = async () => {
+			setLoading(true);
+			try {
+				if (users.length === 0) {
+					if (!cancelled) {
+						setGrants([]);
+					}
+					return;
+				}
+				const grantLists = await Promise.all(
+					users.map((user) => fetchUserDepartmentAccess(user.id).catch(() => [])),
+				);
+				if (!cancelled) {
+					setGrants(grantLists.flat());
+				}
+			} finally {
+				if (!cancelled) {
+					setLoading(false);
+				}
+			}
+		};
+		void loadGrants();
+		return () => {
+			cancelled = true;
+		};
+	}, [users]);
 
 	const handleGrant = async (userId: string, departmentId: string, reason?: string, expiresAt?: string) => {
 		const newGrant = await grantDepartmentAccess({
@@ -389,6 +395,8 @@ export function DepartmentAccessMatrix() {
 			<AnimatePresence>
 				{showGrantModal && (
 					<GrantModal
+						users={users}
+						departments={departments}
 						onGrant={handleGrant}
 						onClose={() => setShowGrantModal(false)}
 					/>

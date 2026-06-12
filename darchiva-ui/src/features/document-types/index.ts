@@ -3,7 +3,7 @@
  * Document types feature exports.
  */
 
-export * from './components/DocumentTypeList';
-export * from './components/DocumentTypeForm';
 export * from './api';
+export * from './components/DocumentTypeForm';
+export * from './components/DocumentTypeList';
 export * from './types';

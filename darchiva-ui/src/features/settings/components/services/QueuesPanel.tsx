@@ -1,9 +1,8 @@
 // Queues Management Panel
 import { cn } from '@/lib/utils';
-import { SettingsBadge, SettingsButton } from '../ui/SettingsControls';
-import { useQueues, usePurgeQueue, useRetryFailedJobs } from '../../api/hooks';
+import { ArrowPathIcon,QueueListIcon,TrashIcon } from '@heroicons/react/24/outline';
+import { usePurgeQueue,useQueues,useRetryFailedJobs } from '../../api/hooks';
 import type { QueueInfo } from '../../types';
-import { QueueListIcon, TrashIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
 export function QueuesPanel() {
 	const { data: queues, isLoading } = useQueues();

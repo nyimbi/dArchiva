@@ -1,30 +1,30 @@
 // (c) Copyright Datacraft, 2026
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { useStore } from '@/hooks/useStore';
 import {
-	Briefcase,
-	Plus,
-	Search,
-	Filter,
-	MoreVertical,
-	FolderOpen,
-	FileText,
-	Calendar,
-	User,
-	Tag,
-	Archive,
-	ChevronRight,
-	Loader2,
-} from 'lucide-react';
-import { cn, formatDate } from '@/lib/utils';
-import {
-	useCases,
-	useBundles,
-	type Case,
-	type Bundle,
-	type CaseStatus,
+  useBundles,
+  useCases,
+  type Bundle,
+  type Case,
+  type CaseStatus,
 } from '@/features/cases';
+import { useStore } from '@/hooks/useStore';
+import { cn,formatDate } from '@/lib/utils';
+import { motion } from 'framer-motion';
+import {
+  Archive,
+  Briefcase,
+  Calendar,
+  ChevronRight,
+  FileText,
+  Filter,
+  FolderOpen,
+  Loader2,
+  MoreVertical,
+  Plus,
+  Search,
+  Tag,
+  User,
+} from 'lucide-react';
+import { useState } from 'react';
 
 function CaseCard({ caseData, onViewCase, onMoreOptions }: { caseData: Case; onViewCase: (c: Case) => void; onMoreOptions: (c: Case) => void }) {
 	const statusConfig: Record<CaseStatus, { label: string; color: string }> = {

@@ -3,37 +3,37 @@
  * Interactive access graph visualization using React Flow.
  * Shows relationships between users, roles, groups, departments, and resources.
  */
-import { useCallback, useMemo, useState } from 'react';
+import { cn } from '@/lib/utils';
 import {
-	ReactFlow,
-	Background,
-	Controls,
-	MiniMap,
-	useNodesState,
-	useEdgesState,
-	Handle,
-	Position,
-	type Node,
-	type Edge,
-	type NodeProps,
-	MarkerType,
+  Background,
+  Controls,
+  Handle,
+  MarkerType,
+  MiniMap,
+  Position,
+  ReactFlow,
+  useEdgesState,
+  useNodesState,
+  type Edge,
+  type Node,
+  type NodeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence,motion } from 'framer-motion';
 import {
-	User,
-	Users,
-	Shield,
-	Building2,
-	FileText,
-	GitBranch,
-	X,
-	Maximize2,
-	Filter,
-	Search,
+  Building2,
+  FileText,
+  Filter,
+  GitBranch,
+  Maximize2,
+  Search,
+  Shield,
+  User,
+  Users,
+  X,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import type { AccessGraphNode, AccessGraphEdge } from '../types';
+import { useCallback,useMemo,useState } from 'react';
+import type { AccessGraphEdge,AccessGraphNode } from '../types';
 
 interface AccessGraphProps {
 	nodes: AccessGraphNode[];

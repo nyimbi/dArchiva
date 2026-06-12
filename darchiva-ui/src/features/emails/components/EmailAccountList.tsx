@@ -2,57 +2,57 @@
 /**
  * Email account list component.
  */
-import { useState } from 'react';
-import { formatDistanceToNow } from 'date-fns';
 import {
-	Server,
-	Mail,
-	RefreshCw,
-	Settings,
-	Trash2,
-	CheckCircle,
-	XCircle,
-	Clock,
-	Loader2,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
 import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from '@/components/ui/card';
 import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-	AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { EmailAccountForm } from './EmailAccountForm';
+import { cn } from '@/lib/utils';
+import { formatDistanceToNow } from 'date-fns';
 import {
-	useEmailAccounts,
-	useUpdateEmailAccount,
-	useDeleteEmailAccount,
-	useSyncEmailAccount,
+  CheckCircle,
+  Clock,
+  Loader2,
+  Mail,
+  RefreshCw,
+  Server,
+  Settings,
+  Trash2,
+  XCircle,
+} from 'lucide-react';
+import { useState } from 'react';
+import {
+  useDeleteEmailAccount,
+  useEmailAccounts,
+  useSyncEmailAccount,
+  useUpdateEmailAccount,
 } from '../api';
-import type { EmailAccount, ConnectionStatus } from '../types';
+import type { ConnectionStatus,EmailAccount } from '../types';
+import { EmailAccountForm } from './EmailAccountForm';
 
 const statusConfig: Record<ConnectionStatus, { icon: typeof CheckCircle; color: string; label: string }> = {
 	connected: { icon: CheckCircle, color: 'text-green-500', label: 'Connected' },
@@ -153,7 +153,7 @@ function AccountCard({ account, onEdit }: AccountCardProps) {
 				accountId: account.id,
 				data: { is_active: !account.is_active },
 			});
-		} catch (error) {
+		} catch {
 			toast({
 				title: 'Error',
 				description: 'Failed to update account',
@@ -167,7 +167,7 @@ function AccountCard({ account, onEdit }: AccountCardProps) {
 		try {
 			await syncMutation.mutateAsync(account.id);
 			toast({ title: 'Sync started' });
-		} catch (error) {
+		} catch {
 			toast({
 				title: 'Sync failed',
 				description: 'Could not start sync',
@@ -182,7 +182,7 @@ function AccountCard({ account, onEdit }: AccountCardProps) {
 		try {
 			await deleteMutation.mutateAsync(account.id);
 			toast({ title: 'Account deleted' });
-		} catch (error) {
+		} catch {
 			toast({
 				title: 'Error',
 				description: 'Failed to delete account',

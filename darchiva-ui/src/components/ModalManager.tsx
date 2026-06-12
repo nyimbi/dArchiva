@@ -1,17 +1,17 @@
 // (c) Copyright Datacraft, 2026
-import { useStore } from '@/hooks/useStore';
-import { AnimatePresence } from 'framer-motion';
-import { UploadModal } from '@/features/documents/components/modals/UploadModal';
-import { CreateFolderModal } from '@/features/documents/components/modals/CreateFolderModal';
 import { CreateCaseModal } from '@/features/cases/components/CreateCaseModal';
-import { NotificationsModal } from '@/features/notifications/components/NotificationsModal';
-import { UserProfileModal } from '@/features/users/components/UserProfileModal';
-import { CreateUserModal } from '@/features/users/components/CreateUserModal';
+import { CreateFolderModal } from '@/features/documents/components/modals/CreateFolderModal';
 import { FilterDocumentsModal } from '@/features/documents/components/modals/FilterDocumentsModal';
 import { SortDocumentsModal } from '@/features/documents/components/modals/SortDocumentsModal';
-import { CreateProjectModal } from '@/features/scanning-projects/components/modals/CreateProjectModal';
+import { UploadModal } from '@/features/documents/components/modals/UploadModal';
 import { CreateGroupModal } from '@/features/groups/components/CreateGroupModal';
+import { NotificationsModal } from '@/features/notifications/components/NotificationsModal';
 import { CreateRoleModal } from '@/features/roles/components/CreateRoleModal';
+import { CreateRoutingRuleModal } from '@/features/routing/components/CreateRoutingRuleModal';
+import { CreateProjectModal } from '@/features/scanning-projects/components/modals/CreateProjectModal';
+import { CreateUserModal } from '@/features/users/components/CreateUserModal';
+import { UserProfileModal } from '@/features/users/components/UserProfileModal';
+import { useStore } from '@/hooks/useStore';
 
 export function ModalManager() {
     const { activeModal, modalData, closeModal } = useStore();
@@ -52,7 +52,9 @@ export function ModalManager() {
     if (activeModal === 'create-role') {
         return <CreateRoleModal onClose={closeModal} />;
     }
+    if (activeModal === 'add-routing-rule') {
+        return <CreateRoutingRuleModal onClose={closeModal} />;
+    }
 
-    console.warn(`No modal component found for: ${activeModal}`);
     return null;
 }

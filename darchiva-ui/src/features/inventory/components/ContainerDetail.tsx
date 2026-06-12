@@ -1,15 +1,12 @@
 // (c) Copyright Datacraft, 2026
-import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useState } from 'react';
 import {
-	PhysicalContainer,
-	useContainerCustodyHistory,
-	useContainerDocuments,
-	useVerifyContainer,
-	useMoveContainer,
-	useCheckoutContainer,
-	useCheckinContainer,
-	useGenerateQRCode,
+  PhysicalContainer,
+  useContainerCustodyHistory,
+  useContainerDocuments,
+  useGenerateQRCode,
+  useVerifyContainer,
 } from '../api';
 import styles from './ContainerDetail.module.css';
 
@@ -26,9 +23,6 @@ export function ContainerDetail({ container, onClose }: Props) {
 	const { data: custodyHistory = [] } = useContainerCustodyHistory(container.id);
 	const { data: documents = [] } = useContainerDocuments(container.id);
 	const verifyContainer = useVerifyContainer();
-	const moveContainer = useMoveContainer();
-	const checkoutContainer = useCheckoutContainer();
-	const checkinContainer = useCheckinContainer();
 	const generateQRCode = useGenerateQRCode();
 
 	const statusConfig: Record<string, { color: string; label: string }> = {

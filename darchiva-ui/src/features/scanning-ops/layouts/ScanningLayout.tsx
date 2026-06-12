@@ -1,10 +1,18 @@
-import { Outlet } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Shield, Box, User, LogOut } from 'lucide-react';
+import { useAuth } from '@/features/auth';
 import { useStore } from '@/hooks/useStore';
+import { Box,LogOut,Shield } from 'lucide-react';
+import { Outlet,useNavigate } from 'react-router-dom';
 
 export function ScanningLayout() {
     const { user, setUser } = useStore();
+    const { logout } = useAuth();
+    const navigate = useNavigate();
+
+    const handleSignOut = () => {
+        logout();
+        setUser(null);
+        navigate('/login');
+    };
 
     return (
         <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-brass-500/30">
@@ -27,7 +35,7 @@ export function ScanningLayout() {
                     </div>
 
                     <button
-                        onClick={() => setUser(null)}
+                        onClick={handleSignOut}
                         className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-red-400 transition-colors"
                     >
                         <LogOut className="w-6 h-6" />

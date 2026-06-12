@@ -1,16 +1,22 @@
 // IAM Dashboard - Unified admin view
-import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import {
-	Users, Shield, Building2, Key, Activity, UserPlus, ShieldPlus,
-	Mail, Clock, TrendingUp, AlertTriangle, CheckCircle, XCircle,
-	ChevronRight, MoreHorizontal, Eye,
+  Activity,
+  Building2,
+  CheckCircle,
+  Clock,
+  Mail,
+  MoreHorizontal,
+  Shield,
+  ShieldPlus,
+  UserPlus,
+  Users,
+  XCircle
 } from 'lucide-react';
-import { MetricCard } from './core/MetricCard';
-import { PermissionBadge } from './core/PermissionBadge';
-import { useIAMStats, useAccessEvents, useInvitations } from '../api/hooks';
-import type { AccessEvent, UserInvitation } from '../types';
+import { useAccessEvents,useIAMStats,useInvitations } from '../api/hooks';
 import '../styles/theme.css';
+import type { AccessEvent,UserInvitation } from '../types';
+import { MetricCard } from './core/MetricCard';
 
 interface IAMDashboardProps {
 	onNavigate: (section: string, id?: string) => void;

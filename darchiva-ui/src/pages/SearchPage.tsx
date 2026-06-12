@@ -1,12 +1,12 @@
 // (c) Copyright Datacraft, 2026
-import { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { SearchResults } from '@/features/search/components/SearchResults';
 import { useSearch } from '@/features/search/api';
+import { SearchResults } from '@/features/search/components/SearchResults';
 import { SearchQuery } from '@/features/search/types';
+import { useEffect,useState } from 'react';
+import { useNavigate,useSearchParams } from 'react-router-dom';
 
 export function SearchPage() {
-    const [searchParams, setSearchParams] = useSearchParams();
+    const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const query = searchParams.get('q') || '';
 

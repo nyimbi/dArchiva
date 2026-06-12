@@ -2,25 +2,23 @@
 /**
  * Advanced search panel with filters and facets.
  */
-import { useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-	Search,
-	Filter,
-	X,
-	Calendar,
-	Tag,
-	FileText,
-	User,
-	Folder,
-	ChevronDown,
-	ChevronUp,
-	Save,
-	Clock,
-	Sparkles,
-} from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { SearchFilters, SearchMode, SearchQuery } from '../types';
+import { AnimatePresence,motion } from 'framer-motion';
+import {
+  Calendar,
+  ChevronDown,
+  ChevronUp,
+  FileText,
+  Filter,
+  Folder,
+  Save,
+  Search,
+  Sparkles,
+  Tag,
+  User
+} from 'lucide-react';
+import { useCallback,useState } from 'react';
+import type { SearchFilters,SearchMode,SearchQuery } from '../types';
 import { SEARCH_MODES } from '../types';
 
 interface AdvancedSearchProps {

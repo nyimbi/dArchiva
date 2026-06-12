@@ -1,17 +1,17 @@
 import { cn } from '@/lib/utils';
-import { useProjectCheckpoints, useUpdateCheckpoint } from '../../api/hooks';
-import { StatusBadge } from '../core/StatusBadge';
-import type { ProjectCheckpoint, CheckpointStatus } from '../../types';
 import {
-  FlagIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  ClockIcon,
-  SkipForwardIcon,
-  PlusIcon,
   CalendarIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  FlagIcon,
+  PlusIcon,
+  SkipForwardIcon,
   UserIcon,
+  XCircleIcon,
 } from 'lucide-react';
+import { useProjectCheckpoints,useUpdateCheckpoint } from '../../api/hooks';
+import type { CheckpointStatus,ProjectCheckpoint } from '../../types';
+import { StatusBadge } from '../core/StatusBadge';
 
 interface CheckpointsTabProps {
   projectId: string;
@@ -113,7 +113,7 @@ export function CheckpointsTab({ projectId }: CheckpointsTabProps) {
           <div className="absolute left-6 top-4 bottom-4 w-0.5 bg-white/10" />
 
           <div className="space-y-4">
-            {sortedCheckpoints.map((checkpoint: ProjectCheckpoint, idx: number) => {
+            {sortedCheckpoints.map((checkpoint: ProjectCheckpoint) => {
               const Icon = statusIcons[checkpoint.status];
               const colors = statusColors[checkpoint.status];
               const isOverdue = checkpoint.status === 'pending' &&

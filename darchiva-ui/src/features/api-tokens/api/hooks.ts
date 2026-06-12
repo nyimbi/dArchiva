@@ -1,46 +1,27 @@
 // API Token Hooks
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { APIToken, APITokenCreated, CreateTokenRequest } from '../types';
+import { apiClient } from '@/lib/api-client';
+import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
+import type { APIToken,APITokenCreated,CreateTokenRequest } from '../types';
 
-const API_BASE = '/api/v1';
-
-async function fetchTokens(): Promise<{ items: APIToken[]; total: number }> {
-	const res = await fetch(`${API_BASE}/tokens`);
-	if (!res.ok) throw new Error('Failed to fetch tokens');
-	return res.json();
-}
-
-async function createToken(data: CreateTokenRequest): Promise<APITokenCreated> {
-	const res = await fetch(`${API_BASE}/tokens`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify(data),
-	});
-	if (!res.ok) throw new Error('Failed to create token');
-	return res.json();
-}
-
-async function deleteToken(id: string): Promise<void> {
-	const res = await fetch(`${API_BASE}/tokens/${id}`, { method: 'DELETE' });
-	if (!res.ok) throw new Error('Failed to delete token');
-}
-
-async function revokeToken(id: string): Promise<void> {
-	const res = await fetch(`${API_BASE}/tokens/${id}/revoke`, { method: 'POST' });
-	if (!res.ok) throw new Error('Failed to revoke token');
-}
+const API_BASE = '/tokens';
 
 export function useTokens() {
 	return useQuery({
 		queryKey: ['api-tokens'],
-		queryFn: fetchTokens,
+		queryFn: async () => {
+			const { data } = await apiClient.get<{ items: APIToken[]; total: number }>(API_BASE);
+			return data;
+		},
 	});
 }
 
 export function useCreateToken() {
 	const queryClient = useQueryClient();
 	return useMutation({
-		mutationFn: createToken,
+		mutationFn: async (data: CreateTokenRequest) => {
+			const res = await apiClient.post<APITokenCreated>(API_BASE, data);
+			return res.data;
+		},
 		onSuccess: () => queryClient.invalidateQueries({ queryKey: ['api-tokens'] }),
 	});
 }
@@ -48,7 +29,9 @@ export function useCreateToken() {
 export function useDeleteToken() {
 	const queryClient = useQueryClient();
 	return useMutation({
-		mutationFn: deleteToken,
+		mutationFn: async (id: string) => {
+			await apiClient.delete(`${API_BASE}/${id}`);
+		},
 		onSuccess: () => queryClient.invalidateQueries({ queryKey: ['api-tokens'] }),
 	});
 }
@@ -56,7 +39,9 @@ export function useDeleteToken() {
 export function useRevokeToken() {
 	const queryClient = useQueryClient();
 	return useMutation({
-		mutationFn: revokeToken,
+		mutationFn: async (id: string) => {
+			await apiClient.post(`${API_BASE}/${id}/revoke`);
+		},
 		onSuccess: () => queryClient.invalidateQueries({ queryKey: ['api-tokens'] }),
 	});
 }

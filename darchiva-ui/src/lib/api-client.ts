@@ -1,8 +1,8 @@
 // (c) Copyright Datacraft, 2026
 // API client with axios-like interface
 
-import { snakeToCamel, camelToSnake } from './utils';
 import { handleApiError } from './error-handler';
+import { camelToSnake,snakeToCamel } from './utils';
 
 
 const API_BASE = '/api/v1';
@@ -15,12 +15,14 @@ interface ApiResponse<T> {
 
 interface RequestOptions {
 	params?: Record<string, unknown>;
+	responseType?: 'json' | 'blob' | 'text';
 }
 
-function getAuthHeaders(): Record<string, string> {
-	const headers: Record<string, string> = {
-		'Content-Type': 'application/json',
-	};
+function getAuthHeaders(isFormData = false): Record<string, string> {
+	const headers: Record<string, string> = {};
+	if (!isFormData) {
+		headers['Content-Type'] = 'application/json';
+	}
 	const token = localStorage.getItem(TOKEN_KEY);
 	if (token) {
 		headers['Authorization'] = `Bearer ${token}`;
@@ -39,6 +41,15 @@ function buildUrl(endpoint: string, params?: Record<string, unknown>): string {
 	return `${endpoint}?${searchParams.toString()}`;
 }
 
+async function parseResponse<T>(response: Response, responseType?: RequestOptions['responseType']): Promise<T> {
+	if (responseType === 'blob') return response.blob() as Promise<T>;
+	if (responseType === 'text') return response.text() as Promise<T>;
+	const text = await response.text();
+	if (!text) return undefined as T;
+	const rawData = JSON.parse(text);
+	return snakeToCamel<T>(rawData);
+}
+
 export const apiClient = {
 	async get<T>(endpoint: string, options?: RequestOptions): Promise<ApiResponse<T>> {
 		const url = buildUrl(endpoint, options?.params);
@@ -46,69 +57,58 @@ export const apiClient = {
 			headers: getAuthHeaders(),
 		});
 		if (!response.ok) return await handleApiError(response);
-
-		const rawData = await response.json();
-		// Transform snake_case response to camelCase
-		const data = snakeToCamel<T>(rawData);
+		const data = await parseResponse<T>(response, options?.responseType);
 		return { data, status: response.status };
 	},
 
 	async post<T>(endpoint: string, body?: unknown, options?: RequestOptions): Promise<ApiResponse<T>> {
 		const url = buildUrl(endpoint, options?.params);
-		// Transform camelCase request body to snake_case
-		const transformedBody = body ? camelToSnake(body) : undefined;
+		const isFormData = body instanceof FormData;
+		const requestBody = isFormData ? body : body ? JSON.stringify(camelToSnake(body)) : undefined;
 		const response = await fetch(`${API_BASE}${url}`, {
 			method: 'POST',
-			headers: getAuthHeaders(),
-			body: transformedBody ? JSON.stringify(transformedBody) : undefined,
+			headers: getAuthHeaders(isFormData),
+			body: requestBody,
 		});
 		if (!response.ok) return await handleApiError(response);
-
-		const rawData = await response.json();
-		const data = snakeToCamel<T>(rawData);
+		const data = await parseResponse<T>(response, options?.responseType);
 		return { data, status: response.status };
 	},
 
 	async patch<T>(endpoint: string, body?: unknown): Promise<ApiResponse<T>> {
-		// Transform camelCase request body to snake_case
-		const transformedBody = body ? camelToSnake(body) : undefined;
+		const isFormData = body instanceof FormData;
+		const requestBody = isFormData ? body : body ? JSON.stringify(camelToSnake(body)) : undefined;
 		const response = await fetch(`${API_BASE}${endpoint}`, {
 			method: 'PATCH',
-			headers: getAuthHeaders(),
-			body: transformedBody ? JSON.stringify(transformedBody) : undefined,
+			headers: getAuthHeaders(isFormData),
+			body: requestBody,
 		});
 		if (!response.ok) return await handleApiError(response);
-
-		const rawData = await response.json();
-		const data = snakeToCamel<T>(rawData);
+		const data = await parseResponse<T>(response);
 		return { data, status: response.status };
 	},
 
-	async delete<T = void>(endpoint: string): Promise<ApiResponse<T>> {
+	async delete<T = void>(endpoint: string, options?: { data?: unknown }): Promise<ApiResponse<T>> {
 		const response = await fetch(`${API_BASE}${endpoint}`, {
 			method: 'DELETE',
 			headers: getAuthHeaders(),
+			body: options?.data ? JSON.stringify(options.data) : undefined,
 		});
 		if (!response.ok) return await handleApiError(response);
-
-		// Try to parse JSON response, return undefined if empty
-		const text = await response.text();
-		const data = text ? snakeToCamel<T>(JSON.parse(text)) : (undefined as T);
+		const data = await parseResponse<T>(response);
 		return { data, status: response.status };
 	},
 
 	async put<T>(endpoint: string, body?: unknown): Promise<ApiResponse<T>> {
-		// Transform camelCase request body to snake_case
-		const transformedBody = body ? camelToSnake(body) : undefined;
+		const isFormData = body instanceof FormData;
+		const requestBody = isFormData ? body : body ? JSON.stringify(camelToSnake(body)) : undefined;
 		const response = await fetch(`${API_BASE}${endpoint}`, {
 			method: 'PUT',
-			headers: getAuthHeaders(),
-			body: transformedBody ? JSON.stringify(transformedBody) : undefined,
+			headers: getAuthHeaders(isFormData),
+			body: requestBody,
 		});
 		if (!response.ok) return await handleApiError(response);
-
-		const rawData = await response.json();
-		const data = snakeToCamel<T>(rawData);
+		const data = await parseResponse<T>(response);
 		return { data, status: response.status };
 	},
 };

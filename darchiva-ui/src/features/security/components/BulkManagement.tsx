@@ -2,25 +2,25 @@
 /**
  * Bulk user and role management interface.
  */
-import { useState, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-	Users,
-	Shield,
-	Plus,
-	Minus,
-	Check,
-	Search,
-	Download,
-	Lock,
-	UserX,
-	UserCheck,
-	AlertTriangle,
-	Settings,
-	Building2,
-} from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { User, Role, Department } from '../types';
+import { AnimatePresence,motion } from 'framer-motion';
+import {
+  AlertTriangle,
+  Building2,
+  Check,
+  Download,
+  Lock,
+  Minus,
+  Plus,
+  Search,
+  Settings,
+  Shield,
+  UserCheck,
+  Users,
+  UserX,
+} from 'lucide-react';
+import { useCallback,useMemo,useState } from 'react';
+import type { Department,Role,User } from '../types';
 
 interface BulkManagementProps {
 	users: User[];

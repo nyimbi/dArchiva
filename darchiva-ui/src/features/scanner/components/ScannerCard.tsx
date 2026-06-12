@@ -1,17 +1,17 @@
 // Scanner Card Component
 import { cn } from '@/lib/utils';
+import {
+  ClockIcon,
+  ComputerDesktopIcon,
+  DocumentDuplicateIcon,
+  PrinterIcon,
+  StarIcon,
+  WifiIcon,
+} from '@heroicons/react/24/outline';
+import type { Scanner } from '../types';
+import { PROTOCOL_LABELS } from '../types';
 import { StatusLED } from './core/StatusLED';
 import { SchematicCard } from './core/TechPanel';
-import type { Scanner, ScannerStatus } from '../types';
-import { PROTOCOL_LABELS } from '../types';
-import {
-	PrinterIcon,
-	WifiIcon,
-	ComputerDesktopIcon,
-	ClockIcon,
-	DocumentDuplicateIcon,
-	StarIcon,
-} from '@heroicons/react/24/outline';
 
 interface ScannerCardProps {
 	scanner: Scanner;

@@ -2,22 +2,22 @@
 /**
  * Dialog for generating and printing QR code labels.
  */
-import { useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence,motion } from 'framer-motion';
 import {
-	X,
-	QrCode,
-	Printer,
-	Download,
-	Copy,
-	Check,
-	ChevronDown,
-	FileSpreadsheet,
-	Grid,
-	LayoutGrid,
+  Check,
+  ChevronDown,
+  Copy,
+  Download,
+  FileSpreadsheet,
+  Grid,
+  LayoutGrid,
+  Printer,
+  QrCode,
+  X,
 } from 'lucide-react';
-import { useGenerateQRCode, useGenerateLabelSheet } from '../api';
-import type { QRCodeRequest, LabelSheetRequest } from '../types';
+import { useCallback,useState } from 'react';
+import { useGenerateLabelSheet,useGenerateQRCode } from '../api';
+import type { LabelSheetRequest } from '../types';
 
 type SheetType = 'letter' | 'a4' | 'avery5160';
 type LabelFormat = 'qr' | 'datamatrix';

@@ -1,20 +1,19 @@
 // Scanner Dashboard - Control Room Overview
 import { cn } from '@/lib/utils';
-import { TechPanel, Readout, Gauge, ActivityDisplay, TechButton, GridOverlay } from './core/TechPanel';
-import { StatusLED, StatusBadge } from './core/StatusLED';
-import { ScannerCard, ScannerMiniCard } from './ScannerCard';
-import { useScannerDashboard, useScanJobs } from '../api/hooks';
-import type { Scanner, ScanJob, ScannerStatus } from '../types';
 import {
-	PrinterIcon,
-	DocumentDuplicateIcon,
-	ClockIcon,
-	ExclamationTriangleIcon,
-	ArrowTrendingUpIcon,
-	CheckCircleIcon,
-	XCircleIcon,
+  ArrowTrendingUpIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  DocumentDuplicateIcon,
+  ExclamationTriangleIcon,
+  PrinterIcon,
+  XCircleIcon,
 } from '@heroicons/react/24/outline';
+import { useScanJobs,useScannerDashboard } from '../api/hooks';
 import '../styles/theme.css';
+import type { ScanJob,Scanner } from '../types';
+import { ActivityDisplay,Gauge,GridOverlay,TechPanel } from './core/TechPanel';
+import { ScannerCard,ScannerMiniCard } from './ScannerCard';
 
 interface ScannerDashboardProps {
 	onScannerSelect?: (scanner: Scanner) => void;

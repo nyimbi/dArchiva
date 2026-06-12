@@ -1,6 +1,6 @@
 // (c) Copyright Datacraft, 2026
+import { AnimatePresence,motion } from 'framer-motion';
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import type { WarehouseLocation } from '../api';
 import styles from './LocationTree.module.css';
 
@@ -14,7 +14,6 @@ export function LocationTree({ locations, selectedId, onSelect }: Props) {
 	const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
 	// Build tree structure from flat list
-	const locationMap = new Map(locations.map((l) => [l.id, l]));
 	const rootLocations = locations.filter((l) => !l.parentId);
 
 	const toggleExpand = (id: string, e: React.MouseEvent) => {

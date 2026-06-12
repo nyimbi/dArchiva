@@ -1,11 +1,11 @@
 // (c) Copyright Datacraft, 2026
-import { Outlet } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Sidebar } from './Sidebar';
-import { Header } from './Header';
-import { ModalManager } from './ModalManager';
 import { useStore } from '@/hooks/useStore';
 import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
+import { Outlet } from 'react-router-dom';
+import { Header } from './Header';
+import { ModalManager } from './ModalManager';
+import { Sidebar } from './Sidebar';
 
 export function Layout() {
 	const { sidebarCollapsed } = useStore();

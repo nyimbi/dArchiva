@@ -1,6 +1,6 @@
 // Notification Store
 import { create } from 'zustand';
-import type { Toast, Notification, NotificationType } from '../types';
+import type { Notification,Toast } from '../types';
 
 interface NotificationStore {
 	toasts: Toast[];

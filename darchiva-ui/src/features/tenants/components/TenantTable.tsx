@@ -1,9 +1,8 @@
 // (c) Copyright Datacraft, 2026
-import { useState, useEffect } from 'react';
-import type { Tenant, TenantStatus, TenantUsage } from '../types';
-import { TenantStatusBadge } from './TenantStatusBadge';
-import { formatBytes, formatUserLimit, formatStorageQuota } from '../api';
+import { formatBytes,formatStorageQuota } from '../api';
 import styles from '../tenants.module.css';
+import type { Tenant,TenantUsage } from '../types';
+import { TenantStatusBadge } from './TenantStatusBadge';
 
 interface TenantTableProps {
 	tenants: Tenant[];

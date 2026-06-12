@@ -1,6 +1,6 @@
 // Identity & Access Management Feature
-export { IAMDashboard } from './components/IAMDashboard';
-export { RoleBuilder } from './components/RoleBuilder';
-export { PermissionMatrix } from './components/PermissionMatrix';
-export * from './types';
 export * from './api/hooks';
+export { IAMDashboard } from './components/IAMDashboard';
+export { PermissionMatrix } from './components/PermissionMatrix';
+export { RoleBuilder } from './components/RoleBuilder';
+export * from './types';

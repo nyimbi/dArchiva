@@ -1,9 +1,10 @@
 // (c) Copyright Datacraft, 2026
 import { useState } from 'react';
-import type { TenantCreate, Plan, PlanFeatures } from '../types';
-import { AVAILABLE_PLANS } from '../types';
+import { toast } from 'sonner';
 import { createTenant } from '../api';
 import styles from '../tenants.module.css';
+import type { Plan,TenantCreate } from '../types';
+import { AVAILABLE_PLANS } from '../types';
 
 interface TenantCreationWizardProps {
 	onComplete: () => void;
@@ -90,11 +91,11 @@ export function TenantCreationWizard({ onComplete, onCancel }: TenantCreationWiz
 	const handleCreate = async () => {
 		setCreating(true);
 		try {
-			const { primary_color, secondary_color, ...tenantData } = formData;
+			const { primary_color: _primaryColor, secondary_color: _secondaryColor, ...tenantData } = formData;
 			await createTenant(tenantData);
 			onComplete();
 		} catch (err) {
-			console.error('Failed to create tenant:', err);
+			toast.error(err instanceof Error ? err.message : 'Failed to create tenant');
 		} finally {
 			setCreating(false);
 		}

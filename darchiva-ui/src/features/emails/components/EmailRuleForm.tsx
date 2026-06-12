@@ -2,30 +2,30 @@
 /**
  * Email rule configuration form.
  */
-import { useState } from 'react';
-import { Plus, Trash2, GripVertical, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from '@/components/ui/select';
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { useCreateEmailRule, useUpdateEmailRule } from '../api';
-import type { EmailRule, RuleCondition, RuleAction, EmailRuleCreate } from '../types';
+import { GripVertical,Loader2,Plus,Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { useCreateEmailRule,useUpdateEmailRule } from '../api';
+import type { EmailRule,EmailRuleCreate,RuleAction,RuleCondition } from '../types';
 
 const CONDITION_FIELDS = [
 	{ value: 'from', label: 'From Address' },
@@ -140,7 +140,7 @@ export function EmailRuleForm({ rule, accountId, onSuccess, onCancel }: EmailRul
 				toast({ title: 'Rule created successfully' });
 			}
 			onSuccess?.();
-		} catch (error) {
+		} catch {
 			toast({
 				title: 'Error',
 				description: 'Failed to save rule',

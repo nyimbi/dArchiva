@@ -2,8 +2,8 @@
 /**
  * WebSocket hook for real-time workflow notifications.
  */
-import { useEffect, useRef, useCallback, useState } from 'react';
 import { useAuth } from '@/features/auth/context/AuthContext';
+import { useCallback,useEffect,useRef,useState } from 'react';
 
 export interface WorkflowNotification {
 	event_type: 'approval_created' | 'deadline_reminder' | 'escalation' | 'sla_breach' | 'delegation';
@@ -104,8 +104,8 @@ export function useWorkflowNotifications(
 
 					// Call notification callback
 					onNotification?.(notification);
-				} catch (e) {
-					console.error('Failed to parse WebSocket message:', e);
+				} catch {
+					// Ignore malformed websocket payloads from intermediary proxies.
 				}
 			};
 
@@ -130,7 +130,7 @@ export function useWorkflowNotifications(
 					}, reconnectInterval);
 				}
 			};
-		} catch (e) {
+		} catch {
 			setError('Failed to create WebSocket connection');
 		}
 	}, [isAuthenticated, user, onNotification, autoReconnect, reconnectInterval, maxReconnectAttempts]);

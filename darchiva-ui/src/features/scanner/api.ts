@@ -2,14 +2,14 @@
 /**
  * Scanner feature API hooks.
  */
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import type {
-	Scanner,
-	ScanJob,
-	ScanOptions,
-	ScanPreviewData,
-	DiscoveredScanner,
+  DiscoveredScanner,
+  ScanJob,
+  Scanner,
+  ScanOptions,
+  ScanPreviewData,
 } from './types';
 
 const SCANNER_KEY = ['scanner'];

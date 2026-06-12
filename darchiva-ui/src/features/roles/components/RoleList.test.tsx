@@ -42,7 +42,7 @@ describe('RoleList', () => {
 
 		render(<RoleList onCreateRole={mockOnCreateRole} onEditRole={mockOnEditRole} />);
 
-		expect(document.querySelectorAll('[class*="skeleton"]').length).toBeGreaterThan(0);
+		expect(document.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
 	});
 
 	it('renders empty state when no roles', async () => {
@@ -165,14 +165,14 @@ describe('RoleList', () => {
 		});
 
 		// Click the dropdown menu
-		const menuButton = screen.getByRole('button', { name: '' });
+		const menuButton = screen.getByRole('button', { name: /Actions for role Editor/i });
 		await user.click(menuButton);
 
 		// Click Clone
 		await user.click(screen.getByText('Clone'));
 
 		await waitFor(() => {
-			expect(screen.getByText('Clone Role')).toBeInTheDocument();
+			expect(screen.getByRole('heading', { name: 'Clone Role' })).toBeInTheDocument();
 			expect(screen.getByDisplayValue('Editor (Copy)')).toBeInTheDocument();
 		});
 	});

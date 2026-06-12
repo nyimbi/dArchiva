@@ -1,12 +1,12 @@
 // DateTimeField Component
 // GitHub Issue #631: Datetime custom fields support
 // GitHub Issue #700: Allow manual entry in date custom field
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { cn } from '@/lib/utils';
-import { Calendar, Clock, X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Popover,PopoverContent,PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { Calendar,ChevronLeft,ChevronRight,Clock,X } from 'lucide-react';
+import { useCallback,useEffect,useRef,useState } from 'react';
 
 interface DateTimeFieldProps {
 	value?: string | null;
@@ -30,7 +30,6 @@ export function DateTimeField({
 	allowManualEntry = true, // Default to allow manual entry per #700
 	minDate,
 	maxDate,
-	dateFormat = 'yyyy-MM-dd',
 	timeFormat = '24h',
 	disabled,
 	placeholder,
@@ -408,7 +407,7 @@ function TimePicker({
 }
 
 // Flexible date parsing (#700)
-function parseFlexibleDate(input: string, includeTime: boolean): Date | null {
+function parseFlexibleDate(input: string, _includeTime: boolean): Date | null {
 	const trimmed = input.trim();
 	if (!trimmed) return null;
 

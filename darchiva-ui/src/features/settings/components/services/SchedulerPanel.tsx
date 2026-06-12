@@ -1,18 +1,17 @@
 // Scheduler Management Panel
-import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { SettingsBadge, SettingsButton, SettingsToggle } from '../ui/SettingsControls';
-import { useScheduledTasks, useToggleTask, useRunTask } from '../../api/hooks';
-import type { ScheduledTask } from '../../types';
 import {
-	ClockIcon,
-	PlayIcon,
-	PauseIcon,
-	ArrowPathIcon,
-	CalendarDaysIcon,
-	CheckCircleIcon,
-	ExclamationCircleIcon,
+  ArrowPathIcon,
+  CalendarDaysIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  ExclamationCircleIcon,
+  PlayIcon
 } from '@heroicons/react/24/outline';
+import { useState } from 'react';
+import { useRunTask,useScheduledTasks,useToggleTask } from '../../api/hooks';
+import type { ScheduledTask } from '../../types';
+import { SettingsBadge,SettingsToggle } from '../ui/SettingsControls';
 
 export function SchedulerPanel() {
 	const { data: tasks, isLoading } = useScheduledTasks();

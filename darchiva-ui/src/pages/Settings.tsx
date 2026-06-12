@@ -1,25 +1,27 @@
 // (c) Copyright Datacraft, 2026
-import React, { useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-	Settings as SettingsIcon,
-	Building2,
-	Palette,
-	Users,
-	Shield,
-	Bell,
-	Globe,
-	Database,
-	Save,
-	Upload,
-	Check,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { UsersAccessSettings } from '@/features/settings/components/sections/UsersAccessSettings';
-import { TagsSettings } from '@/features/settings/components/sections/TagsSettings';
 import { CustomFieldsSettings } from '@/features/settings/components/sections/CustomFieldsSettings';
 import { DocumentTypesSettings } from '@/features/settings/components/sections/DocumentTypesSettings';
-import { Tag as TagIcon, List as ListIcon, FileType } from 'lucide-react';
+import { TagsSettings } from '@/features/settings/components/sections/TagsSettings';
+import { UsersAccessSettings } from '@/features/settings/components/sections/UsersAccessSettings';
+import { cn } from '@/lib/utils';
+import { AnimatePresence,motion } from 'framer-motion';
+import {
+  Bell,
+  Building2,
+  Check,
+  Database,
+  FileType,
+  Globe,
+  List as ListIcon,
+  Palette,
+  Save,
+  Settings as SettingsIcon,
+  Shield,
+  Tag as TagIcon,
+  Upload,
+  Users,
+} from 'lucide-react';
+import React,{ useRef,useState } from 'react';
 
 const tabs = [
 	{ id: 'general', label: 'General', icon: Building2 },
@@ -390,9 +392,9 @@ export function Settings() {
 				return (
 					<div className="text-center py-12">
 						<SettingsIcon className="w-12 h-12 mx-auto text-slate-700 mb-4" />
-						<p className="text-slate-500">
-							{tabs.find(t => t.id === activeTab)?.label} settings coming soon
-						</p>
+							<p className="text-slate-500">
+								No configurable options are available for this section yet.
+							</p>
 					</div>
 				);
 		}

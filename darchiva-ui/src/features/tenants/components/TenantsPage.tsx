@@ -1,21 +1,22 @@
 // (c) Copyright Datacraft, 2026
-import { useState, useEffect, useCallback } from 'react';
-import type { Tenant, TenantStatus, TenantDetail, TenantUsage, TenantUpdate, BrandingUpdate, SettingsUpdate } from '../types';
+import { useCallback,useEffect,useState } from 'react';
+import { toast } from 'sonner';
 import {
-	listTenants,
-	getTenant,
-	updateTenant,
-	suspendTenant,
-	activateTenant,
-	deleteTenant,
-	updateCurrentTenantBranding,
-	updateCurrentTenantSettings,
+  activateTenant,
+  deleteTenant,
+  getTenant,
+  listTenants,
+  suspendTenant,
+  updateCurrentTenantBranding,
+  updateCurrentTenantSettings,
+  updateTenant,
 } from '../api';
-import { TenantTable } from './TenantTable';
-import { TenantFilters } from './TenantFilters';
-import { TenantDetailPanel } from './TenantDetailPanel';
-import { TenantCreationWizard } from './TenantCreationWizard';
 import styles from '../tenants.module.css';
+import type { BrandingUpdate,SettingsUpdate,Tenant,TenantDetail,TenantStatus,TenantUpdate } from '../types';
+import { TenantCreationWizard } from './TenantCreationWizard';
+import { TenantDetailPanel } from './TenantDetailPanel';
+import { TenantFilters } from './TenantFilters';
+import { TenantTable } from './TenantTable';
 
 type ViewMode = 'list' | 'detail' | 'create';
 
@@ -42,7 +43,7 @@ export function TenantsPage() {
 			setTenants(response.items);
 			setTotal(response.total);
 		} catch (err) {
-			console.error('Failed to load tenants:', err);
+			toast.error(err instanceof Error ? err.message : 'Failed to load tenants');
 		} finally {
 			setLoading(false);
 		}
@@ -58,7 +59,7 @@ export function TenantsPage() {
 			setSelectedTenant(detail);
 			setViewMode('detail');
 		} catch (err) {
-			console.error('Failed to load tenant details:', err);
+			toast.error(err instanceof Error ? err.message : 'Failed to load tenant details');
 		}
 	};
 
@@ -70,7 +71,7 @@ export function TenantsPage() {
 			await suspendTenant(tenant.id);
 			await loadTenants();
 		} catch (err) {
-			console.error('Failed to suspend tenant:', err);
+			toast.error(err instanceof Error ? err.message : 'Failed to suspend tenant');
 		}
 	};
 
@@ -79,7 +80,7 @@ export function TenantsPage() {
 			await activateTenant(tenant.id);
 			await loadTenants();
 		} catch (err) {
-			console.error('Failed to activate tenant:', err);
+			toast.error(err instanceof Error ? err.message : 'Failed to activate tenant');
 		}
 	};
 
@@ -91,7 +92,7 @@ export function TenantsPage() {
 			await deleteTenant(tenant.id);
 			await loadTenants();
 		} catch (err) {
-			console.error('Failed to delete tenant:', err);
+			toast.error(err instanceof Error ? err.message : 'Failed to delete tenant');
 		}
 	};
 
@@ -102,7 +103,7 @@ export function TenantsPage() {
 			setSelectedTenant(updated);
 			await loadTenants();
 		} catch (err) {
-			console.error('Failed to update tenant:', err);
+			toast.error(err instanceof Error ? err.message : 'Failed to update tenant');
 		}
 	};
 
@@ -113,7 +114,7 @@ export function TenantsPage() {
 			const updated = await getTenant(selectedTenant.id);
 			setSelectedTenant(updated);
 		} catch (err) {
-			console.error('Failed to update branding:', err);
+			toast.error(err instanceof Error ? err.message : 'Failed to update branding');
 		}
 	};
 
@@ -124,7 +125,7 @@ export function TenantsPage() {
 			const updated = await getTenant(selectedTenant.id);
 			setSelectedTenant(updated);
 		} catch (err) {
-			console.error('Failed to update settings:', err);
+			toast.error(err instanceof Error ? err.message : 'Failed to update settings');
 		}
 	};
 

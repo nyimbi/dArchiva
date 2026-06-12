@@ -1,10 +1,10 @@
 // (c) Copyright Datacraft, 2026
-import { useState, useCallback } from 'react';
+import { cn,formatBytes } from '@/lib/utils';
+import { motion } from 'framer-motion';
+import { AlertCircle,CheckCircle2,File,Loader2,Upload,X } from 'lucide-react';
+import { useCallback,useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, X, File, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useUploadDocument } from '../../api';
-import { formatBytes, cn } from '@/lib/utils';
 
 interface UploadModalProps {
     onClose: () => void;

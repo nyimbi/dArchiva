@@ -1,30 +1,29 @@
 // (c) Copyright Datacraft, 2026
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useTaskAction,useWorkflowTasks } from '@/features/home/api/hooks';
+import type { TaskPriority,WorkflowTask } from '@/features/home/types';
+import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import {
-    Inbox,
-    CheckCircle2,
-    Clock,
-    AlertCircle,
-    ChevronRight,
-    MoreHorizontal,
-    MessageSquare,
-    FileText,
-    Eye,
+  AlertCircle,
+  ChevronRight,
+  Clock,
+  Eye,
+  FileText,
+  Inbox,
+  MessageSquare,
+  MoreHorizontal
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { useWorkflowTasks, useTaskAction } from '@/features/home/api/hooks';
-import type { WorkflowTask, TaskPriority } from '@/features/home/types';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export function InboxList() {
     const { data: tasks, isLoading } = useWorkflowTasks();

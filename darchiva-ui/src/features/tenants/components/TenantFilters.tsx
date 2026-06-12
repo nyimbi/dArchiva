@@ -1,7 +1,6 @@
 // (c) Copyright Datacraft, 2026
-import { useState } from 'react';
-import type { TenantStatus } from '../types';
 import styles from '../tenants.module.css';
+import type { TenantStatus } from '../types';
 
 interface TenantFiltersProps {
 	onStatusChange: (status: TenantStatus | '') => void;

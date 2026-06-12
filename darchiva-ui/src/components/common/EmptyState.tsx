@@ -1,7 +1,7 @@
 // Empty State - Placeholder for empty lists/content
-import { cn } from '@/lib/utils';
-import { LucideIcon, Inbox, FileText, Search, FolderOpen, Users, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { FileText,FolderOpen,Inbox,LucideIcon,Search,Settings,Users } from 'lucide-react';
 
 type Preset = 'default' | 'documents' | 'search' | 'folders' | 'users' | 'settings';
 

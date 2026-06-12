@@ -1,7 +1,7 @@
 // (c) Copyright Datacraft, 2026
-import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useCreateContainer, WarehouseLocation, PhysicalContainer } from '../api';
+import { useState } from 'react';
+import { PhysicalContainer,useCreateContainer,WarehouseLocation } from '../api';
 import styles from './CreateModal.module.css';
 
 interface Props {
@@ -31,10 +31,10 @@ export function CreateContainerModal({ locations, onClose, onCreated }: Props) {
 		const dimensions =
 			formData.width && formData.height && formData.depth
 				? {
-						width: parseFloat(formData.width),
-						height: parseFloat(formData.height),
-						depth: parseFloat(formData.depth),
-				  }
+					width: parseFloat(formData.width),
+					height: parseFloat(formData.height),
+					depth: parseFloat(formData.depth),
+				}
 				: undefined;
 
 		const result = await createContainer.mutateAsync({

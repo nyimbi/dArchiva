@@ -1,11 +1,13 @@
 // (c) Copyright Datacraft, 2026
-import { X, Bell, Trash2, Check, Clock, ExternalLink, CheckCircle2, AlertCircle, AlertTriangle, Info } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { useNotificationStore } from '../store';
 import { cn } from '@/lib/utils';
-import type { Notification, NotificationType } from '../types';
+import { motion } from 'framer-motion';
+import { AlertCircle,AlertTriangle,Bell,Check,CheckCircle2,Clock,ExternalLink,Info,Trash2,X } from 'lucide-react';
+import { useNotificationStore } from '../store';
+import type { Notification,NotificationType } from '../types';
 
-const ICONS: Record<NotificationType, any> = {
+type NotificationIcon = React.ComponentType<{ className?: string }>;
+
+const ICONS: Record<NotificationType, NotificationIcon> = {
     success: CheckCircle2,
     error: AlertCircle,
     warning: AlertTriangle,
@@ -114,7 +116,14 @@ export function NotificationsModal({ onClose }: NotificationsModalProps) {
     );
 }
 
-function NotificationItem({ notification, onRead, onRemove, formatTime }: any) {
+interface NotificationItemProps {
+	notification: Notification;
+	onRead: () => void;
+	onRemove: () => void;
+	formatTime: (timestamp: string) => string;
+}
+
+function NotificationItem({ notification, onRead, onRemove, formatTime }: NotificationItemProps) {
     const Icon = ICONS[notification.type as NotificationType] || Info;
 
     return (

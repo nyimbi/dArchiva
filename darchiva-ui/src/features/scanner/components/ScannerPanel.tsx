@@ -2,14 +2,14 @@
 /**
  * Main scanner control panel.
  */
-import { useState, useCallback, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Printer, Play, Square, Eye, Settings, Folder, FileText, Loader2, CheckCircle2, AlertCircle, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useScanner, useScanPreview, useStartScan, useCancelScan, useScanJob } from '../api';
+import { motion } from 'framer-motion';
+import { ChevronDown,Eye,Folder,Loader2,Play,Printer,Settings,Square } from 'lucide-react';
+import { useCallback,useEffect,useState } from 'react';
+import { useCancelScan,useScanJob,useScanner,useScanPreview,useStartScan } from '../api';
+import type { InputSource,ScanJob,Scanner,ScanOptions } from '../types';
+import { COLOR_MODE_OPTIONS,DEFAULT_SCAN_OPTIONS,PAPER_SOURCE_OPTIONS,RESOLUTION_PRESETS } from '../types';
 import { ScanPreview } from './ScanPreview';
-import type { Scanner, ScanOptions, ScanJob, ColorMode, InputSource } from '../types';
-import { DEFAULT_SCAN_OPTIONS, RESOLUTION_PRESETS, COLOR_MODE_OPTIONS, PAPER_SOURCE_OPTIONS } from '../types';
 
 interface ScannerPanelProps {
 	scanner: Scanner;

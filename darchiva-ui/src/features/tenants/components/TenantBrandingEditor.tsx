@@ -1,7 +1,7 @@
 // (c) Copyright Datacraft, 2026
-import { useState, useRef } from 'react';
-import type { TenantBranding, BrandingUpdate } from '../types';
+import { useRef,useState } from 'react';
 import styles from '../tenants.module.css';
+import type { BrandingUpdate,TenantBranding } from '../types';
 
 interface TenantBrandingEditorProps {
 	branding?: TenantBranding;
@@ -29,7 +29,7 @@ export function TenantBrandingEditor({ branding, onSave }: TenantBrandingEditorP
 		}
 	};
 
-	const handleFileUpload = (field: 'logo_url' | 'logo_dark_url' | 'login_background_url') => {
+	const handleFileUpload = (_fieldName: 'logo_url' | 'login_background_url') => {
 		// In a real implementation, this would upload to storage and return a URL
 		// For now, we'll just show how the UI would work
 		fileInputRef.current?.click();

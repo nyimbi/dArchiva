@@ -1,7 +1,7 @@
 // (c) Copyright Datacraft, 2026
-import { CheckCircle, Clock, AlertCircle, Circle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ScanningMilestone } from '@/types';
+import { AlertCircle,CheckCircle,Circle,Clock } from 'lucide-react';
 
 function formatDate(date: string): string {
 	const d = new Date(date);
@@ -30,7 +30,7 @@ export function MilestoneTimeline({ milestones }: MilestoneTimelineProps) {
 		<div className="relative">
 			<div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-800" />
 			<div className="space-y-6">
-				{sorted.map((milestone, index) => {
+				{sorted.map((milestone) => {
 					const config = statusConfig[milestone.status];
 					const Icon = config.icon;
 					const progress = milestone.targetPages > 0

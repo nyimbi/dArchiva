@@ -2,23 +2,23 @@
 /**
  * Email list component with thread grouping.
  */
-import { useState } from 'react';
-import { Mail, Paperclip, Clock, Search, Upload, RefreshCw } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
+import { formatDistanceToNow } from 'date-fns';
+import { Clock,Mail,Paperclip,RefreshCw,Search } from 'lucide-react';
+import { useState } from 'react';
 import { useEmailImports } from '../api';
-import type { EmailImport, EmailSource } from '../types';
+import type { EmailImport,EmailSource } from '../types';
 
 interface EmailListProps {
 	onSelect?: (email: EmailImport) => void;

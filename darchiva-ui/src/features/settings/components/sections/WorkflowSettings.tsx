@@ -1,6 +1,6 @@
 // Workflow Settings Section
-import { SettingsCard, SettingsToggle, SettingsSlider } from '../ui/SettingsControls';
-import { useWorkflowSettings, useUpdateWorkflowSettings } from '../../api/hooks';
+import { useUpdateWorkflowSettings,useWorkflowSettings } from '../../api/hooks';
+import { SettingsCard,SettingsSlider,SettingsToggle } from '../ui/SettingsControls';
 
 export function WorkflowSettings() {
 	const { data: settings } = useWorkflowSettings();

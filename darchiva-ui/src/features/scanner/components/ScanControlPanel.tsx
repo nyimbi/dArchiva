@@ -1,24 +1,28 @@
 // Scan Control Panel - Live Scanning Interface
-import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
-import { TechPanel, TechButton, Gauge, Readout, ActivityDisplay } from './core/TechPanel';
-import { StatusLED } from './core/StatusLED';
-import { ScannerMiniCard } from './ScannerCard';
 import {
-	useScanners, useScannerCapabilities, useScanProfiles,
-	useCreateScanJob, useCancelScanJob, useScanJob,
-} from '../api/hooks';
-import type { Scanner, ScanOptions, ScanProfile, ScanJob } from '../types';
-import { DEFAULT_SCAN_OPTIONS } from '../types';
-import {
-	PlayIcon,
-	StopIcon,
-	EyeIcon,
-	Cog6ToothIcon,
-	ChevronDownIcon,
-	DocumentIcon,
-	FolderIcon,
+  ChevronDownIcon,
+  Cog6ToothIcon,
+  DocumentIcon,
+  EyeIcon,
+  FolderIcon,
+  PlayIcon,
+  StopIcon,
 } from '@heroicons/react/24/outline';
+import { useCallback,useState } from 'react';
+import { toast } from 'sonner';
+import {
+  useCancelScanJob,
+  useCreateScanJob,
+  useScanJob,
+  useScannerCapabilities,
+  useScanners,
+  useScanProfiles,
+} from '../api/hooks';
+import type { InputSource,ScanJob,ScanOptions,ScanProfile } from '../types';
+import { DEFAULT_SCAN_OPTIONS } from '../types';
+import { ActivityDisplay,Gauge,TechButton,TechPanel } from './core/TechPanel';
+import { ScannerMiniCard } from './ScannerCard';
 
 interface ScanControlPanelProps {
 	selectedScannerId?: string;
@@ -77,7 +81,7 @@ export function ScanControlPanel({
 			});
 			setActiveJobId(job.id);
 		} catch (error) {
-			console.error('Failed to start scan:', error);
+			toast.error(error instanceof Error ? error.message : 'Failed to start scan');
 		}
 	};
 
@@ -203,9 +207,9 @@ export function ScanControlPanel({
 							<label className="block text-[10px] font-mono text-[var(--scan-text-muted)] uppercase mb-2">
 								Source
 							</label>
-							<select
-								value={options.input_source}
-								onChange={(e) => updateOption('input_source', e.target.value as any)}
+								<select
+									value={options.input_source}
+									onChange={(e) => updateOption('input_source', e.target.value as InputSource)}
 								className={cn(
 									'w-full px-3 py-2 rounded',
 									'bg-[var(--scan-bg-tertiary)] border border-[var(--scan-border)]',

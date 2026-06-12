@@ -1,11 +1,11 @@
-import { useState } from 'react';
-import { cn } from '@/lib/utils';
-import { ProjectList } from './components/ProjectList';
-import { ProjectDetail } from './components/ProjectDetail';
-import { QuickActionsPanel } from './components/QuickActionsPanel';
-import type { ScanningProject } from './types';
 import { useStore } from '@/hooks/useStore';
+import { cn } from '@/lib/utils';
+import { useState } from 'react';
+import { ProjectDetail } from './components/ProjectDetail';
+import { ProjectList } from './components/ProjectList';
+import { QuickActionsPanel } from './components/QuickActionsPanel';
 import './styles/theme.css';
+import type { ScanningProject } from './types';
 
 type ViewMode = 'list' | 'detail';
 

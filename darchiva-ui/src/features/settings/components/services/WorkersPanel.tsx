@@ -1,15 +1,16 @@
 // Workers Management Panel
 import { cn } from '@/lib/utils';
-import { SettingsBadge } from '../ui/SettingsControls';
-import { useWorkers, useWorkerAction } from '../../api/hooks';
-import type { WorkerInfo, ServiceStatus } from '../../types';
 import {
-	CogIcon,
-	PlayIcon,
-	PauseIcon,
-	StopIcon,
-	ArrowPathIcon,
+  ArrowPathIcon,
+  CogIcon,
+  PauseIcon,
+  PlayIcon
 } from '@heroicons/react/24/outline';
+import { useWorkerAction,useWorkers } from '../../api/hooks';
+import type { ServiceStatus,WorkerInfo } from '../../types';
+import { SettingsBadge } from '../ui/SettingsControls';
+
+type BadgeVariant = 'default' | 'success' | 'warning' | 'error' | 'info';
 
 export function WorkersPanel() {
 	const { data: workers, isLoading } = useWorkers();
@@ -92,7 +93,7 @@ function WorkerRow({ worker, onAction }: {
 	worker: WorkerInfo;
 	onAction: (action: 'start' | 'stop' | 'restart' | 'pause' | 'resume') => void;
 }) {
-	const statusColors: Record<ServiceStatus, string> = {
+	const statusColors: Record<ServiceStatus, BadgeVariant> = {
 		running: 'success',
 		stopped: 'default',
 		error: 'error',
@@ -113,9 +114,9 @@ function WorkerRow({ worker, onAction }: {
 				<div className="min-w-0 flex-1">
 					<div className="flex items-center gap-2">
 						<span className="font-mono text-sm text-slate-200">{worker.name}</span>
-						<SettingsBadge variant={statusColors[worker.status] as any}>
-							{worker.status}
-						</SettingsBadge>
+							<SettingsBadge variant={statusColors[worker.status]}>
+								{worker.status}
+							</SettingsBadge>
 					</div>
 					{worker.current_task && (
 						<div className="text-xs text-cyan-400 font-mono truncate mt-1">

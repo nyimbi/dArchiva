@@ -1,5 +1,5 @@
 // Appearance Settings Section
-import { SettingsCard, SettingsToggle, SettingsSelect } from '../ui/SettingsControls';
+import { SettingsCard,SettingsSelect,SettingsToggle } from '../ui/SettingsControls';
 
 export function AppearanceSettings() {
 	return (

@@ -2,14 +2,14 @@
 // Physical Inventory Components
 
 export { InventoryManager } from './InventoryManager';
-export { ScanningStation } from './ScanningStation';
 export { QRPrintDialog } from './QRPrintDialog';
+export { ScanningStation } from './ScanningStation';
 
 // Physical Inventory Dashboard
-export { InventoryDashboard, default as InventoryDashboardDefault } from './InventoryDashboard';
-export { ContainerList } from './ContainerList';
-export { ContainerDetail } from './ContainerDetail';
 export { BarcodeScanner } from './BarcodeScanner';
-export { LocationTree } from './LocationTree';
+export { ContainerDetail } from './ContainerDetail';
+export { ContainerList } from './ContainerList';
 export { CreateContainerModal } from './CreateContainerModal';
 export { CreateLocationModal } from './CreateLocationModal';
+export { InventoryDashboard,default as InventoryDashboardDefault } from './InventoryDashboard';
+export { LocationTree } from './LocationTree';

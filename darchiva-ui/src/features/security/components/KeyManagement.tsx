@@ -2,11 +2,12 @@
 /**
  * Encryption key management with rotation controls.
  */
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Key, RefreshCw, Shield, Clock, CheckCircle, AlertTriangle, Lock } from 'lucide-react';
+import { AnimatePresence,motion } from 'framer-motion';
+import { AlertTriangle,Key,Lock,RefreshCw } from 'lucide-react';
+import { useEffect,useState } from 'react';
+import { toast } from 'sonner';
+import { fetchEncryptionKeys,rotateEncryptionKey } from '../api';
 import type { EncryptionKey } from '../types';
-import { fetchEncryptionKeys, rotateEncryptionKey } from '../api';
 
 interface KeyCardProps {
 	keyData: EncryptionKey;
@@ -108,7 +109,7 @@ export function KeyManagement() {
 			setKeys(data.items);
 			setActiveVersion(data.active_version);
 		} catch (err) {
-			console.error('Failed to load keys:', err);
+			toast.error(err instanceof Error ? err.message : 'Failed to load encryption keys');
 		} finally {
 			setLoading(false);
 		}
@@ -127,7 +128,7 @@ export function KeyManagement() {
 				setShowRotateModal(false);
 			}
 		} catch (err) {
-			console.error('Failed to rotate key:', err);
+			toast.error(err instanceof Error ? err.message : 'Failed to rotate encryption key');
 		} finally {
 			setRotating(false);
 		}

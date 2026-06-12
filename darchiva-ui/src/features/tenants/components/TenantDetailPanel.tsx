@@ -1,20 +1,18 @@
 // (c) Copyright Datacraft, 2026
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import styles from '../tenants.module.css';
 import type {
-	TenantDetail,
-	TenantUsage,
-	TenantBranding,
-	TenantSettings,
-	BrandingUpdate,
-	SettingsUpdate,
-	TenantUpdate,
+  BrandingUpdate,
+  SettingsUpdate,
+  TenantDetail,
+  TenantUpdate,
+  TenantUsage
 } from '../types';
-import { TenantStatusBadge } from './TenantStatusBadge';
-import { TenantUsageStats } from './TenantUsageStats';
 import { TenantBrandingEditor } from './TenantBrandingEditor';
 import { TenantSettingsEditor } from './TenantSettingsEditor';
+import { TenantStatusBadge } from './TenantStatusBadge';
+import { TenantUsageStats } from './TenantUsageStats';
 import { TenantUsersList } from './TenantUsersList';
-import styles from '../tenants.module.css';
 
 type TabId = 'overview' | 'usage' | 'branding' | 'settings' | 'users';
 

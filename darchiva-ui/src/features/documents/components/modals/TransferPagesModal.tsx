@@ -1,8 +1,8 @@
 // Transfer Pages Modal - Move pages between documents
-import { useState } from 'react';
-import { cn } from '@/lib/utils';
-import { X, ArrowRight, Layers, Replace, Shuffle, FileText, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { ArrowRight,FileText,Layers,Loader2,Replace,Shuffle,X } from 'lucide-react';
+import { useState } from 'react';
 
 export type TransferStrategy = 'mix' | 'replace';
 

@@ -2,23 +2,23 @@
 /**
  * Document type create/edit form.
  */
-import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
-import { useCreateDocumentType, useUpdateDocumentType } from '../api';
+import { Textarea } from '@/components/ui/textarea';
 import { useCustomFields } from '@/features/custom-fields/api';
-import type { DocumentType, DocumentTypeCreate, OCRSettings } from '../types';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { useCreateDocumentType,useUpdateDocumentType } from '../api';
+import type { DocumentType,DocumentTypeCreate,OCRSettings } from '../types';
 
 interface DocumentTypeFormProps {
 	documentType?: DocumentType;
@@ -85,7 +85,7 @@ export function DocumentTypeForm({ documentType, onSuccess, onCancel }: Document
 				toast({ title: 'Document type created' });
 			}
 			onSuccess?.();
-		} catch (error) {
+		} catch {
 			toast({
 				title: 'Error',
 				description: 'Failed to save document type',

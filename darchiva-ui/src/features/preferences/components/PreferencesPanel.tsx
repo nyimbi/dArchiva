@@ -2,49 +2,49 @@
 /**
  * User preferences panel with sections.
  */
-import { useState } from 'react';
 import {
-	Settings,
-	Palette,
-	Folder,
-	Globe,
-	Bell,
-	Keyboard,
-	Shield,
-	ScanLine,
-	FileText,
-	ScanText,
-	RotateCcw,
-	Loader2,
-	Moon,
-	Sun,
-	Monitor,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
+import { cn } from '@/lib/utils';
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from '@/components/ui/select';
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { usePreferences, useUpdatePreferences, useResetPreferences } from '../api';
-import type { UserPreferences, ThemeMode, ViewMode, SortOrder, DateFormat, Language } from '../types';
+  Bell,
+  FileText,
+  Folder,
+  Globe,
+  Keyboard,
+  Loader2,
+  Monitor,
+  Moon,
+  Palette,
+  RotateCcw,
+  ScanLine,
+  ScanText,
+  Settings,
+  Shield,
+  Sun,
+} from 'lucide-react';
+import { useState } from 'react';
+import { usePreferences,useResetPreferences,useUpdatePreferences } from '../api';
+import type { DateFormat,Language,SortOrder,ThemeMode,UserPreferences,ViewMode } from '../types';
 import { PREFERENCE_SECTIONS } from '../types';
 
 const sectionIcons: Record<string, typeof Settings> = {

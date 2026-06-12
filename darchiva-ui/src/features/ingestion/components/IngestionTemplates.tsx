@@ -1,6 +1,6 @@
 // (c) Copyright Datacraft, 2026
 import { useState } from 'react';
-import { useIngestionTemplates, useCreateTemplate, useDeleteTemplate, IngestionTemplate } from '../api';
+import { useCreateTemplate,useDeleteTemplate,useIngestionTemplates } from '../api';
 import styles from './IngestionTemplates.module.css';
 
 export function IngestionTemplates() {

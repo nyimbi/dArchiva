@@ -1,18 +1,18 @@
 // Users & Access Settings - Manage users, groups, and roles
-import { useState } from 'react';
-import { cn } from '@/lib/utils';
-import { useStore } from '@/hooks/useStore';
-import { UserList } from '@/features/users';
 import { GroupList } from '@/features/groups';
-import { RoleList } from '@/features/roles';
-import {
-	UsersIcon,
-	UserGroupIcon,
-	ShieldCheckIcon,
-} from '@heroicons/react/24/outline';
-import type { User } from '@/features/users/types';
 import type { Group } from '@/features/groups/types';
+import { RoleList } from '@/features/roles';
 import type { Role } from '@/features/roles/types';
+import { UserList } from '@/features/users';
+import type { User } from '@/features/users/types';
+import { useStore } from '@/hooks/useStore';
+import { cn } from '@/lib/utils';
+import {
+  ShieldCheckIcon,
+  UserGroupIcon,
+  UsersIcon,
+} from '@heroicons/react/24/outline';
+import { useState } from 'react';
 
 type Tab = 'users' | 'groups' | 'roles';
 

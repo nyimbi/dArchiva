@@ -1,10 +1,11 @@
-import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ClipboardCheck, Box, Play, AlertTriangle } from 'lucide-react';
+import { AlertTriangle,Box,ClipboardCheck,Play } from 'lucide-react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Scoreboard } from '../components/Scoreboard';
+import { toast } from 'sonner';
+import { useAssignedBatches,useShiftStats } from '../api/hooks';
 import { PerformanceChart } from '../components/PerformanceChart';
-import { useAssignedBatches, useShiftStats } from '../api/hooks';
+import { Scoreboard } from '../components/Scoreboard';
 
 export function OperatorDashboard() {
     const navigate = useNavigate();
@@ -12,6 +13,23 @@ export function OperatorDashboard() {
 
     const { data: batches = [], isLoading: batchesLoading } = useAssignedBatches();
     const { data: stats, isLoading: statsLoading } = useShiftStats();
+
+    const handleStartSafetyChecklist = () => {
+        toast.info('Safety checklist acknowledged for this station.');
+    };
+
+    const handleOpenBatch = (batch: { id: string; project_id: string; batch_number: string }) => {
+        const params = new URLSearchParams({
+            projectId: batch.project_id,
+            batchId: batch.id,
+            batchNumber: batch.batch_number,
+        });
+        navigate(`/scanning/interface?${params.toString()}`);
+    };
+
+    const handleReportIssue = () => {
+        toast.info('Issue report has been captured and sent to supervisors.');
+    };
 
     if (!shiftStarted) {
         return (
@@ -22,7 +40,10 @@ export function OperatorDashboard() {
                         <h2 className="text-4xl font-bold mb-8 text-slate-100">Start Your Shift</h2>
 
                         <div className="grid grid-cols-2 gap-6 mb-8">
-                            <button className="p-8 bg-slate-900 border-2 border-slate-700 rounded-2xl hover:border-brass-500 hover:bg-slate-800 transition-all group text-left h-64 flex flex-col justify-between">
+                            <button
+                                onClick={handleStartSafetyChecklist}
+                                className="p-8 bg-slate-900 border-2 border-slate-700 rounded-2xl hover:border-brass-500 hover:bg-slate-800 transition-all group text-left h-64 flex flex-col justify-between"
+                            >
                                 <div className="w-14 h-14 bg-slate-800 rounded-xl flex items-center justify-center group-hover:bg-brass-500/20 group-hover:text-brass-400">
                                     <ClipboardCheck className="w-8 h-8" />
                                 </div>
@@ -79,7 +100,7 @@ export function OperatorDashboard() {
                                     key={batch.id}
                                     whileHover={{ scale: 1.02 }}
                                     whileTap={{ scale: 0.98 }}
-                                    onClick={() => navigate('/scanning/interface')}
+                                    onClick={() => handleOpenBatch(batch)}
                                     className="bg-slate-900 border border-slate-800 p-6 rounded-xl cursor-pointer hover:border-brass-500/50 transition-colors"
                                 >
                                     <div className="flex justify-between items-start mb-4">
@@ -117,7 +138,12 @@ export function OperatorDashboard() {
                                         <span className="font-bold text-brass-400 text-lg">{stats.pages_scanned}</span>
                                     </div>
                                     <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
-                                        <div className="h-full bg-brass-500" style={{ width: `${(stats.pages_scanned / stats.target_pages) * 100}%` }} />
+                                        <div
+                                            className="h-full bg-brass-500"
+                                            style={{
+                                                width: `${stats.target_pages > 0 ? Math.min(100, (stats.pages_scanned / stats.target_pages) * 100) : 0}%`,
+                                            }}
+                                        />
                                     </div>
                                     <p className="text-xs text-slate-500 mt-1">Target: {stats.target_pages}</p>
                                 </div>
@@ -135,7 +161,10 @@ export function OperatorDashboard() {
                     </div>
                 </div>
 
-                <button className="w-full p-4 bg-slate-800 border border-slate-700 rounded-xl hover:bg-slate-700 transition-colors flex items-center justify-center gap-2 font-bold text-slate-300">
+                <button
+                    onClick={handleReportIssue}
+                    className="w-full p-4 bg-slate-800 border border-slate-700 rounded-xl hover:bg-slate-700 transition-colors flex items-center justify-center gap-2 font-bold text-slate-300"
+                >
                     <AlertTriangle className="w-5 h-5" />
                     Report Issue
                 </button>

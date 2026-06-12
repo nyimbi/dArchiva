@@ -2,35 +2,30 @@
 /**
  * Multi-factor authentication settings panel.
  */
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence,motion } from 'framer-motion';
 import {
-	Shield,
-	Smartphone,
-	Key,
-	Copy,
-	Check,
-	AlertTriangle,
-	Plus,
-	Trash2,
-	Edit2,
-	RefreshCw,
-	ChevronRight,
-	X,
-	CheckCircle,
+  AlertTriangle,
+  Check,
+  CheckCircle,
+  Key,
+  Plus,
+  RefreshCw,
+  Shield,
+  Smartphone,
+  Trash2,
+  X
 } from 'lucide-react';
+import { useState } from 'react';
 import {
-	useMFAStatus,
-	useTOTPSetup,
-	useEnableTOTP,
-	useDisableTOTP,
-	usePasskeys,
-	useDeletePasskey,
-	useRegenerateBackupCodes,
+  useDeletePasskey,
+  useDisableTOTP,
+  useMFAStatus,
+  usePasskeys,
+  useRegenerateBackupCodes
 } from '../api';
 import type { Passkey } from '../types';
-import { TOTPSetupDialog } from './TOTPSetupDialog';
 import { PasskeySetupDialog } from './PasskeySetupDialog';
+import { TOTPSetupDialog } from './TOTPSetupDialog';
 
 function StatusBadge({ enabled }: { enabled: boolean }) {
 	return (
@@ -188,7 +183,7 @@ export function MFASettings() {
 			await disableTOTPMutation.mutateAsync({ code: disableCode });
 			setShowDisableTOTP(false);
 			setDisableCode('');
-		} catch (e) {
+		} catch {
 			// Error handled by mutation
 		}
 	};
@@ -198,7 +193,7 @@ export function MFASettings() {
 			const result = await regenerateCodesMutation.mutateAsync({ code: regenerateCode });
 			setNewBackupCodes(result.codes);
 			setRegenerateCode('');
-		} catch (e) {
+		} catch {
 			// Error handled by mutation
 		}
 	};

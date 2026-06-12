@@ -1,18 +1,17 @@
 // (c) Copyright Datacraft, 2026
-import { useState } from 'react';
-import { Plus, User, Printer, Monitor } from 'lucide-react';
-import { useResources, useCreateResource, useUpdateResource } from '../hooks';
-import { ResourceCard } from '../components';
 import type { ScanningResource } from '@/types';
 import * as Dialog from '@radix-ui/react-dialog';
+import { Monitor,Plus,Printer,User } from 'lucide-react';
+import { useState } from 'react';
 import type { CreateResourceInput } from '../api';
+import { ResourceCard } from '../components';
+import { useCreateResource,useResources } from '../hooks';
 
 export function Resources() {
 	const { data: resources, isLoading } = useResources();
 	const createResource = useCreateResource();
-	const updateResource = useUpdateResource();
 	const [showCreate, setShowCreate] = useState(false);
-	const [selectedResource, setSelectedResource] = useState<ScanningResource | null>(null);
+	const [, setSelectedResource] = useState<ScanningResource | null>(null);
 	const [form, setForm] = useState<CreateResourceInput>({
 		type: 'operator',
 		name: '',
@@ -28,9 +27,6 @@ export function Resources() {
 		setForm({ type: 'operator', name: '', description: '' });
 	};
 
-	const handleStatusChange = async (resource: ScanningResource, status: ScanningResource['status']) => {
-		await updateResource.mutateAsync({ id: resource.id, input: { status } });
-	};
 
 	if (isLoading) {
 		return <div className="p-8"><div className="animate-pulse h-48 bg-slate-800 rounded-lg" /></div>;

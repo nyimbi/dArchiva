@@ -1,33 +1,33 @@
 // (c) Copyright Datacraft, 2026
-import { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { cn } from '@/lib/utils';
 import { apiClient } from '@/lib/api-client';
+import { cn } from '@/lib/utils';
+import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import {
-	BrainCircuit,
-	AlertTriangle,
-	CheckCircle,
-	Clock,
-	TrendingUp,
-	TrendingDown,
-	Users,
-	Printer,
-	Zap,
-	ChevronDown,
-	ChevronRight,
-	RefreshCw,
-	Target,
-	Shield,
-	Gauge,
-	Calendar,
-	ArrowRight,
-	Sparkles,
-	Activity,
-	BarChart3,
-	History,
-	Play,
-	XCircle,
+  Activity,
+  AlertTriangle,
+  ArrowRight,
+  BarChart3,
+  BrainCircuit,
+  Calendar,
+  CheckCircle,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  Gauge,
+  History,
+  Play,
+  Printer,
+  RefreshCw,
+  Shield,
+  Sparkles,
+  Target,
+  TrendingDown,
+  TrendingUp,
+  Users,
+  XCircle,
+  Zap,
 } from 'lucide-react';
+import { useMemo,useState } from 'react';
 
 // Types matching backend views.py
 type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
@@ -282,7 +282,6 @@ function TimelineForecastCard({ forecast }: { forecast: ScheduleForecast }) {
 	const predictedDate = new Date(forecast.predictedCompletionDate);
 	const daysAhead = forecast.daysAheadOrBehind;
 	const isAhead = daysAhead < 0;
-	const isBehind = daysAhead > 0;
 
 	const formatDate = (date: Date) =>
 		date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });

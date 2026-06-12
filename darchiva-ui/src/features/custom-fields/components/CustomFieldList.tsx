@@ -2,62 +2,67 @@
 /**
  * Custom field management list.
  */
-import { useState } from 'react';
-import { Settings, Plus, Edit, Trash2, Hash, Calendar, ToggleLeft, List } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from '@/components/ui/card';
 import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-	AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { useCustomFields, useDeleteCustomField } from '../api';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Calendar,Edit,Hash,List,Plus,Settings,ToggleLeft,Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { useCustomFields,useDeleteCustomField } from '../api';
+import type { CustomField } from '../types';
 import { CustomFieldForm } from './CustomFieldForm';
-import type { CustomField, CustomFieldType, FIELD_TYPE_LABELS } from '../types';
 
-const typeIcons: Record<CustomFieldType, typeof Hash> = {
+const typeIcons: Record<string, typeof Hash> = {
 	text: Settings,
 	number: Hash,
+	integer: Hash,
 	date: Calendar,
 	datetime: Calendar,
 	boolean: ToggleLeft,
 	select: List,
+	multiselect: List,
 	url: Settings,
 	email: Settings,
 	monetary: Hash,
+	yearmonth: Calendar,
 };
 
-const typeLabels: Record<CustomFieldType, string> = {
+const typeLabels: Record<string, string> = {
 	text: 'Text',
 	number: 'Number',
+	integer: 'Integer',
 	date: 'Date',
 	datetime: 'Date & Time',
 	boolean: 'Yes/No',
 	select: 'Dropdown',
+	multiselect: 'Multi-select',
 	url: 'URL',
 	email: 'Email',
 	monetary: 'Currency',
+	yearmonth: 'Year/Month',
 };
 
 interface CustomFieldListProps {
@@ -119,14 +124,14 @@ export function CustomFieldList({ onEdit, hideHeader = false }: CustomFieldListP
 				) : (
 					<div className="grid gap-4 md:grid-cols-2">
 						{fields.map((field) => {
-							const Icon = typeIcons[field.type];
+							const Icon = typeIcons[field.type] || Settings;
 							return (
 								<Card key={field.id}>
 									<CardHeader>
 										<div className="flex items-start justify-between">
 											<div className="flex items-center gap-3">
 												<div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-													<Icon className="h-5 w-5 text-primary" />
+													{Icon && <Icon className="h-5 w-5 text-primary" />}
 												</div>
 												<div>
 													<CardTitle className="text-base">{field.name}</CardTitle>
@@ -140,7 +145,7 @@ export function CustomFieldList({ onEdit, hideHeader = false }: CustomFieldListP
 									<CardContent>
 										<div className="flex items-center justify-between">
 											<div className="flex items-center gap-2">
-												<Badge variant="secondary">{typeLabels[field.type]}</Badge>
+												<Badge variant="secondary">{typeLabels[field.type] || field.type}</Badge>
 												{field.required && <Badge variant="outline">Required</Badge>}
 											</div>
 

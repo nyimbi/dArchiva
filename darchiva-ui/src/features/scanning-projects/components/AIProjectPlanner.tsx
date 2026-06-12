@@ -1,4 +1,5 @@
 // (c) Copyright Datacraft, 2026
+import { apiClient } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useMutation,useQueryClient } from '@tanstack/react-query';
@@ -729,11 +730,9 @@ export function AIProjectPlanner({
 			const { data: analysis } = await Promise.race([
 				// 8 second timeout so we don't block the UX on slow LLM calls
 				new Promise<{ data: null }>((resolve) => setTimeout(() => resolve({ data: null }), 8000)),
-				fetch(`/api/v1/scanning-projects/${projectId}/ai-analysis`, {
-					headers: { Authorization: `Bearer ${localStorage.getItem('darchiva_token') ?? ''}` },
-				})
-					.then((r) => r.json() as Promise<AIAdvisorResponse>)
-					.then((d) => ({ data: d })),
+				apiClient
+					.get<AIAdvisorResponse>(`/scanning-projects/${projectId}/ai-analysis`)
+					.then((r) => ({ data: r.data })),
 			]);
 			if (analysis) {
 				setAiAnalysis(analysis);

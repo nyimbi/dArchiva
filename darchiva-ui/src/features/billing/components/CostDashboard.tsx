@@ -2,25 +2,23 @@
 /**
  * Billing cost dashboard with usage charts and alerts.
  */
-import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-	DollarSign,
-	TrendingUp,
-	TrendingDown,
-	HardDrive,
-	ArrowUpDown,
-	Bell,
-	AlertTriangle,
-	FileText,
-	Clock,
-	RefreshCw,
-	Plus,
-	ChevronRight,
-	BarChart3,
+  AlertTriangle,
+  ArrowUpDown,
+  BarChart3,
+  Bell,
+  ChevronRight,
+  DollarSign,
+  FileText,
+  HardDrive,
+  Plus,
+  RefreshCw,
+  TrendingDown,
+  TrendingUp,
 } from 'lucide-react';
-import { useBillingDashboard, useAlerts, useInvoices } from '../api';
-import type { UsageAlert, InvoiceSummary, AlertStatus, InvoiceStatus } from '../types';
+import { useAlerts,useBillingDashboard,useInvoices } from '../api';
+import type { AlertStatus,InvoiceStatus,InvoiceSummary,UsageAlert } from '../types';
 
 function formatBytes(bytes: number): string {
 	if (bytes === 0) return '0 B';
@@ -111,7 +109,6 @@ function UsageBar({
 	label,
 	current,
 	limit,
-	unit,
 }: {
 	label: string;
 	current: number;

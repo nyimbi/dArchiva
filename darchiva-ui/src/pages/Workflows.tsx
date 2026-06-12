@@ -1,40 +1,38 @@
 // (c) Copyright Datacraft, 2026
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'sonner';
 import {
-	GitBranch,
-	Clock,
-	CheckCircle2,
-	XCircle,
-	AlertCircle,
-	ChevronRight,
-	Play,
-	Pause,
-	MoreVertical,
-	FileText,
-	MessageSquare,
-	RotateCcw,
-	PenTool,
-	Plus,
-	Loader2,
-	RefreshCw,
-} from 'lucide-react';
-import { cn, formatRelativeTime } from '@/lib/utils';
-import {
-	Designer,
-	useWorkflows,
-	useExecutions,
-	usePendingTasks,
-	useCreateWorkflow,
-	useActivateWorkflow,
-	useDeactivateWorkflow,
-	useProcessWorkflowAction,
-	useTestRun,
-	useCancelExecution,
+  Designer,
+  useActivateWorkflow,
+  useCancelExecution,
+  useCreateWorkflow,
+  useDeactivateWorkflow,
+  useExecutions,
+  usePendingTasks,
+  useProcessWorkflowAction,
+  useWorkflows,
 } from '@/features/workflows';
 import type { PendingTask } from '@/features/workflows/api';
-import type { Workflow, WorkflowNode, WorkflowEdge } from '@/features/workflows/types';
+import type { Workflow,WorkflowEdge,WorkflowNode } from '@/features/workflows/types';
+import { cn,formatRelativeTime } from '@/lib/utils';
+import { AnimatePresence,motion } from 'framer-motion';
+import {
+  AlertCircle,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  FileText,
+  GitBranch,
+  Loader2,
+  MoreVertical,
+  Pause,
+  PenTool,
+  Play,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  XCircle
+} from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 interface TaskCardProps {
 	task: PendingTask;
@@ -168,7 +166,7 @@ function TaskCard({ task, onApprove, onReject, onReturn, isProcessing }: TaskCar
 											Return for Changes
 										</button>
 										<a
-											href={`/documents/${task.document_id}`}
+											href={`/document/${task.document_id}`}
 											className="w-full btn-ghost justify-start text-slate-400"
 											onClick={(e) => e.stopPropagation()}
 										>
@@ -281,7 +279,6 @@ export function Workflows() {
 	const activateWorkflowMutation = useActivateWorkflow();
 	const deactivateWorkflowMutation = useDeactivateWorkflow();
 	const processActionMutation = useProcessWorkflowAction();
-	const testRunMutation = useTestRun();
 	const cancelExecutionMutation = useCancelExecution();
 
 	const workflows = workflowsData?.items ?? [];
@@ -299,17 +296,8 @@ export function Workflows() {
 			toast.success('Workflow saved successfully');
 			setShowDesigner(false);
 			refetchWorkflows();
-		} catch (error) {
+		} catch {
 			toast.error('Failed to save workflow');
-		}
-	};
-
-	const handleTestRun = async (nodes: WorkflowNode[], edges: WorkflowEdge[]) => {
-		try {
-			await testRunMutation.mutateAsync({ nodes, edges });
-			toast.success('Test run started');
-		} catch (error) {
-			toast.error('Failed to start test run');
 		}
 	};
 
@@ -318,7 +306,7 @@ export function Workflows() {
 		try {
 			await activateWorkflowMutation.mutateAsync(id);
 			toast.success('Workflow activated');
-		} catch (error) {
+		} catch {
 			toast.error('Failed to activate workflow');
 		} finally {
 			setTogglingWorkflowId(null);
@@ -330,7 +318,7 @@ export function Workflows() {
 		try {
 			await deactivateWorkflowMutation.mutateAsync(id);
 			toast.success('Workflow paused');
-		} catch (error) {
+		} catch {
 			toast.error('Failed to pause workflow');
 		} finally {
 			setTogglingWorkflowId(null);
@@ -348,7 +336,7 @@ export function Workflows() {
 				},
 			});
 			toast.success('Task approved');
-		} catch (error) {
+		} catch {
 			toast.error('Failed to approve task');
 		}
 	};
@@ -364,7 +352,7 @@ export function Workflows() {
 				},
 			});
 			toast.success('Task rejected');
-		} catch (error) {
+		} catch {
 			toast.error('Failed to reject task');
 		}
 	};
@@ -380,7 +368,7 @@ export function Workflows() {
 				},
 			});
 			toast.success('Task returned for changes');
-		} catch (error) {
+		} catch {
 			toast.error('Failed to return task');
 		}
 	};
@@ -389,7 +377,7 @@ export function Workflows() {
 		try {
 			await cancelExecutionMutation.mutateAsync(executionId);
 			toast.success('Execution cancelled');
-		} catch (error) {
+		} catch {
 			toast.error('Failed to cancel execution');
 		}
 	};
@@ -408,10 +396,7 @@ export function Workflows() {
 						</button>
 					</div>
 					<div className="flex-1">
-						<Designer
-							onSave={handleSaveWorkflow}
-							onRun={(nodes, edges) => handleTestRun(nodes, edges)}
-						/>
+						<Designer onSave={handleSaveWorkflow} />
 					</div>
 				</div>
 			</div>

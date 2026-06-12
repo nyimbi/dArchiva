@@ -1,7 +1,6 @@
+import { ArrowLeft,ArrowRight,History,Package } from 'lucide-react';
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Search, Package, ArrowRight, ArrowLeft, History } from 'lucide-react';
-import { useWarehouseActivity, useWarehouseScan } from '../api/hooks';
+import { useWarehouseActivity,useWarehouseScan } from '../api/hooks';
 
 export function WarehouseDashboard() {
     const [activeTab, setActiveTab] = useState<'check-out' | 'check-in'>('check-out');
@@ -76,7 +75,7 @@ export function WarehouseDashboard() {
                         ) : recentActivity.length === 0 ? (
                             <div className="text-center text-slate-500 py-4">No recent activity</div>
                         ) : (
-                            recentActivity.map((log, i) => (
+                            recentActivity.map((log) => (
                                 <div key={log.id} className="flex items-center justify-between p-4 bg-slate-950 rounded-xl border border-slate-800">
                                     <div>
                                         <div className="font-bold text-slate-200">{log.box_id}</div>

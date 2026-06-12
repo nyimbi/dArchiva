@@ -2,8 +2,8 @@
 /**
  * Documents API hooks.
  */
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 
 export interface TreeNode {
 	id: string;
@@ -83,8 +83,17 @@ export function useDocument(id: string) {
 export function useCreateFolder() {
 	const queryClient = useQueryClient();
 	return useMutation({
-		mutationFn: async (data: { title: string; parent_id?: string }) => {
-			const { data: result } = await apiClient.post<Document>('/nodes/folders', data);
+		mutationFn: async (data: {
+			title: string;
+			parent_id?: string;
+			portfolio_id?: string;
+			case_id?: string;
+			bundle_id?: string;
+		}) => {
+			const { data: result } = await apiClient.post<Document>('/nodes/', {
+				...data,
+				ctype: 'folder',
+			});
 			return result;
 		},
 		onSuccess: () => {
@@ -93,10 +102,6 @@ export function useCreateFolder() {
 	});
 }
 
-// Upload needs special handling for FormData
-const API_BASE = '/api/v1';
-const TOKEN_KEY = 'darchiva_token';
-
 export function useUploadDocument() {
 	const queryClient = useQueryClient();
 	return useMutation({
@@ -104,18 +109,8 @@ export function useUploadDocument() {
 			const formData = new FormData();
 			formData.append('file', data.file);
 			if (data.parent_id) formData.append('parent_id', data.parent_id);
-
-			const headers: Record<string, string> = {};
-			const token = localStorage.getItem(TOKEN_KEY);
-			if (token) headers['Authorization'] = `Bearer ${token}`;
-
-			const response = await fetch(`${API_BASE}/documents/upload`, {
-				method: 'POST',
-				headers,
-				body: formData,
-			});
-			if (!response.ok) throw new Error('Upload failed');
-			return response.json();
+			const { data: result } = await apiClient.post<Document>('/documents/upload', formData);
+			return result;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: documentKeys.all });
@@ -148,4 +143,65 @@ export function useMoveDocument() {
 			queryClient.invalidateQueries({ queryKey: documentKeys.all });
 		},
 	});
+}
+
+export function useUpdateFolder() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: async (data: { id: string; title: string }) => {
+			const { data: result } = await apiClient.patch<Document>(`/nodes/${data.id}`, {
+				title: data.title,
+			});
+			return result;
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: documentKeys.all });
+		},
+	});
+}
+
+export function useDeleteFolder() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: async (id: string) => {
+			// Backend expects list of UUIDs in request body
+			await apiClient.delete('/nodes/', { data: [id] });
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: documentKeys.all });
+		},
+	});
+}
+
+/**
+ * Update page OCR text
+ */
+export interface UpdatePageTextResponse {
+	pageId: string;
+	text: string;
+	success: boolean;
+}
+
+export function useUpdatePageText() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: async (data: { pageId: string; text: string }) => {
+			const { data: result } = await apiClient.patch<UpdatePageTextResponse>(
+				`/pages/${data.pageId}/text`,
+				{ text: data.text }
+			);
+			return result;
+		},
+		onSuccess: () => {
+			// Invalidate document queries to refresh OCR text
+			queryClient.invalidateQueries({ queryKey: documentKeys.all });
+		},
+	});
+}
+
+/**
+ * Standalone function to save page OCR text (for non-hook contexts)
+ */
+export async function savePageOcrText(pageId: string, text: string): Promise<void> {
+	await apiClient.patch(`/pages/${pageId}/text`, { text });
 }

@@ -1,6 +1,5 @@
-import { motion } from 'framer-motion';
+import { Package,Scan,Trophy,User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Scan, Package, User, Trophy } from 'lucide-react';
 import { Scoreboard } from '../components/Scoreboard';
 
 export function StationHome() {
@@ -39,6 +38,7 @@ export function StationHome() {
                     </button>
 
                     <button
+                        onClick={() => navigate('/scanning/operator')}
                         className="bg-slate-900 border border-slate-800 rounded-3xl p-8 hover:border-brass-500/50 transition-all group text-left"
                     >
                         <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-purple-500/20 group-hover:text-purple-400 transition-colors">

@@ -2,20 +2,19 @@
 /**
  * Quality dashboard with statistics and charts.
  */
-import { useState } from 'react';
+import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import {
-	CheckCircle2,
-	XCircle,
-	AlertTriangle,
-	TrendingUp,
-	TrendingDown,
-	Activity,
-	FileWarning,
-	RefreshCw,
+  Activity,
+  AlertTriangle,
+  CheckCircle2,
+  FileWarning,
+  RefreshCw,
+  TrendingDown,
+  TrendingUp,
+  XCircle,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import type { QualityStats, RuleSeverity } from '../types';
+import type { QualityStats,RuleSeverity } from '../types';
 import { SEVERITY_CONFIG } from '../types';
 
 interface QualityDashboardProps {
@@ -31,11 +30,13 @@ export function QualityDashboard({
 }: QualityDashboardProps) {
 	const passRate = stats.passRate;
 	const trend = stats.trend7d;
-	const lastDayTrend =
-		trend.length >= 2
-			? trend[trend.length - 1].passed / Math.max(trend[trend.length - 1].total, 1) -
-			  trend[trend.length - 2].passed / Math.max(trend[trend.length - 2].total, 1)
-			: 0;
+	const lastDayTrend = trend.length >= 2
+		? (
+			trend[trend.length - 1].passed / Math.max(trend[trend.length - 1].total, 1)
+		) - (
+			trend[trend.length - 2].passed / Math.max(trend[trend.length - 2].total, 1)
+		)
+		: 0;
 
 	return (
 		<div className="space-y-6">

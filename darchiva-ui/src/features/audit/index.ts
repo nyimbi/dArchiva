@@ -3,6 +3,6 @@
  * Audit feature exports.
  */
 
-export * from './components/AuditLog';
 export * from './api';
+export * from './components/AuditLog';
 export * from './types';

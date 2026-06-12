@@ -1,10 +1,10 @@
 // Integration Settings Section
-import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { SettingsCard, SettingsField, SettingsToggle, SettingsButton, SettingsBadge } from '../ui/SettingsControls';
-import { useIntegrationSettings, useWebhooks, useCreateWebhook, useDeleteWebhook, useUpdateOAuthProvider } from '../../api/hooks';
-import type { WebhookConfig, OAuthProvider } from '../../types';
-import { PlusIcon, TrashIcon, KeyIcon, LinkIcon } from '@heroicons/react/24/outline';
+import { KeyIcon,LinkIcon,PlusIcon,TrashIcon } from '@heroicons/react/24/outline';
+import { useState } from 'react';
+import { useCreateWebhook,useDeleteWebhook,useIntegrationSettings,useUpdateOAuthProvider,useWebhooks } from '../../api/hooks';
+import type { OAuthProvider,WebhookConfig } from '../../types';
+import { SettingsBadge,SettingsButton,SettingsCard,SettingsField,SettingsToggle } from '../ui/SettingsControls';
 
 export function IntegrationSettings() {
 	const { data: settings } = useIntegrationSettings();

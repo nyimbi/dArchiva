@@ -1,9 +1,9 @@
 // (c) Copyright Datacraft, 2026
-import { useState } from 'react';
-import { X, Briefcase, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useCreateCase } from '../api';
+import { Briefcase,Loader2,X } from 'lucide-react';
+import { useState } from 'react';
 import { toast } from 'sonner';
+import { useCreateCase } from '../api';
 
 interface CreateCaseModalProps {
     onClose: () => void;
@@ -25,7 +25,7 @@ export function CreateCaseModal({ onClose }: CreateCaseModalProps) {
             });
             toast.success('Case created successfully');
             onClose();
-        } catch (error) {
+        } catch {
             toast.error('Failed to create case');
         }
     };

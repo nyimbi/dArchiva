@@ -1,10 +1,10 @@
 // (c) Copyright Datacraft, 2026
-import { useState } from 'react';
-import { Plus, Tag as TagIcon } from 'lucide-react';
-import { TagList } from '@/features/tags/components/TagList';
+import { Dialog,DialogContent,DialogHeader,DialogTitle } from '@/components/ui/dialog';
 import { TagForm } from '@/features/tags/components/TagForm';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { TagList } from '@/features/tags/components/TagList';
 import type { Tag } from '@/features/tags/types';
+import { Plus } from 'lucide-react';
+import { useState } from 'react';
 
 export function TagsSettings() {
     const [isFormOpen, setIsFormOpen] = useState(false);

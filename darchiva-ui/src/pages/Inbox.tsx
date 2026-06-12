@@ -1,5 +1,4 @@
 // (c) Copyright Datacraft, 2026
-import { Inbox as InboxIcon } from 'lucide-react';
 import { InboxList } from '@/features/inbox/components/InboxList';
 
 export function Inbox() {

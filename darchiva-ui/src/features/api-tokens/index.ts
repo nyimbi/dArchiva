@@ -1,6 +1,6 @@
 // API Tokens Feature
-export { TokenList, ScopeBadges } from './components/TokenList';
+export * from './api/hooks';
 export { CreateTokenModal } from './components/CreateTokenModal';
 export { DeleteTokenDialog } from './components/DeleteTokenDialog';
-export * from './api/hooks';
+export { ScopeBadges,TokenList } from './components/TokenList';
 export * from './types';

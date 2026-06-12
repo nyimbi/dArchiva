@@ -1,9 +1,35 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback,useEffect,useState } from 'react';
+
+interface SpeechRecognitionResultLike {
+    transcript: string;
+}
+
+interface SpeechRecognitionEventLike {
+    results: ArrayLike<ArrayLike<SpeechRecognitionResultLike>>;
+}
+
+interface SpeechRecognitionErrorEventLike {
+    error: string;
+}
+
+interface SpeechRecognitionLike {
+    continuous: boolean;
+    interimResults: boolean;
+    lang: string;
+    start: () => void;
+    stop: () => void;
+    onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+    onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
+}
+
+interface SpeechRecognitionConstructor {
+    new (): SpeechRecognitionLike;
+}
 
 declare global {
     interface Window {
-        SpeechRecognition: any;
-        webkitSpeechRecognition: any;
+        SpeechRecognition?: SpeechRecognitionConstructor;
+        webkitSpeechRecognition?: SpeechRecognitionConstructor;
     }
 }
 
@@ -23,23 +49,22 @@ interface ScanningHandlers {
 export function useScanningControls({ onScan, onNext, onStop, onRetake }: ScanningHandlers): ScanningControls {
     const [isListening, setIsListening] = useState(false);
     const [lastCommand, setLastCommand] = useState<string | null>(null);
-    const [recognition, setRecognition] = useState<any>(null);
+    const [recognition, setRecognition] = useState<SpeechRecognitionLike | null>(null);
 
     // Initialize Speech Recognition
     useEffect(() => {
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) return;
             const rec = new SpeechRecognition();
             rec.continuous = true;
             rec.interimResults = false;
             rec.lang = 'en-US';
 
-            rec.onresult = (event: any) => {
+            rec.onresult = (event: SpeechRecognitionEventLike) => {
                 const lastResult = event.results[event.results.length - 1];
                 const command = lastResult[0].transcript.trim().toLowerCase();
                 setLastCommand(command);
-
-                console.log('Voice Command:', command);
 
                 if (command.includes('scan') || command.includes('capture')) {
                     onScan();
@@ -52,8 +77,7 @@ export function useScanningControls({ onScan, onNext, onStop, onRetake }: Scanni
                 }
             };
 
-            rec.onerror = (event: any) => {
-                console.error('Speech recognition error', event.error);
+            rec.onerror = (_event: SpeechRecognitionErrorEventLike) => {
                 setIsListening(false);
             };
 

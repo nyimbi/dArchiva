@@ -1,10 +1,10 @@
 // (c) Copyright Datacraft, 2026
-import { useState } from 'react';
-import { Plus, List as ListIcon } from 'lucide-react';
-import { CustomFieldList } from '@/features/custom-fields/components/CustomFieldList';
+import { Dialog,DialogContent,DialogHeader,DialogTitle } from '@/components/ui/dialog';
 import { CustomFieldForm } from '@/features/custom-fields/components/CustomFieldForm';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { CustomFieldList } from '@/features/custom-fields/components/CustomFieldList';
 import type { CustomField } from '@/features/custom-fields/types';
+import { Plus } from 'lucide-react';
+import { useState } from 'react';
 
 export function CustomFieldsSettings() {
     const [isFormOpen, setIsFormOpen] = useState(false);

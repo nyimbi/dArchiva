@@ -1,39 +1,32 @@
 // (c) Copyright Datacraft, 2026
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useStore } from '@/hooks/useStore';
 import {
-	Upload,
-	FolderOpen,
-	Mail,
-	Webhook,
-	Plus,
-	Play,
-	Pause,
-	Settings,
-	MoreVertical,
-	CheckCircle2,
-	XCircle,
-	Clock,
-	RefreshCw,
-	ChevronRight,
-	Loader2,
-	ScanLine,
-	Cloud,
-} from 'lucide-react';
-import { cn, formatRelativeTime } from '@/lib/utils';
-import {
-	useIngestionSources,
-	useIngestionJobs,
-	useIngestionStatsData,
-	useToggleSource,
-	BatchUploader,
-	IngestionTemplates,
-	JobQueueDashboard,
-	type IngestionSource,
-	type IngestionJob,
-	type SourceType,
+  BatchUploader,
+  IngestionTemplates,
+  JobQueueDashboard,
+  useIngestionJobs,
+  useIngestionSources,
+  useIngestionStatsData,
+  useToggleSource,
+  type IngestionSource,
+  type SourceType,
 } from '@/features/ingestion';
+import { useStore } from '@/hooks/useStore';
+import { cn,formatRelativeTime } from '@/lib/utils';
+import { AnimatePresence,motion } from 'framer-motion';
+import {
+  Cloud,
+  FolderOpen,
+  Loader2,
+  Mail,
+  MoreVertical,
+  Pause,
+  Play,
+  Plus,
+  ScanLine,
+  Settings,
+  Webhook,
+} from 'lucide-react';
+import { useState } from 'react';
 
 const sourceIcons: Record<SourceType, React.ComponentType<{ className?: string }>> = {
 	folder_watch: FolderOpen,
@@ -139,9 +132,7 @@ export function Ingestion() {
 	const handleAddSource = () => openModal('add-ingestion-source');
 	const handleSourceSettings = (s: IngestionSource) => openModal('ingestion-source-settings', s);
 	const handleSourceOptions = (s: IngestionSource) => openModal('ingestion-source-options', s);
-	const handleViewJob = (j: IngestionJob) => openModal('view-ingestion-job', j);
-	const handleRetryJob = (j: IngestionJob) => openModal('retry-ingestion-job', j);
-	const { data: jobsData, isLoading: jobsLoading } = useIngestionJobs({ limit: 20 });
+	const { data: jobsData } = useIngestionJobs({ limit: 20 });
 	const { data: stats, isLoading: statsLoading } = useIngestionStatsData();
 
 	const sources = sourcesData?.items || [];

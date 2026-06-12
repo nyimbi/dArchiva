@@ -3,7 +3,7 @@
  * Custom fields feature exports.
  */
 
-export * from './components/CustomFieldList';
-export * from './components/CustomFieldForm';
 export * from './api';
+export * from './components/CustomFieldForm';
+export * from './components/CustomFieldList';
 export * from './types';

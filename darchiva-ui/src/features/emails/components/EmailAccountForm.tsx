@@ -2,42 +2,41 @@
 /**
  * Email account configuration form.
  */
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Tabs,TabsContent,TabsList,TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/hooks/use-toast';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { FolderSync,Loader2,Mail,Server,TestTube } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Mail, Server, Lock, FolderSync, Settings, TestTube, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import {
-	Form,
-	FormControl,
-	FormDescription,
-	FormField,
-	FormItem,
-	FormLabel,
-	FormMessage,
-} from '@/components/ui/form';
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from '@/components/ui/select';
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
-import { useCreateEmailAccount, useUpdateEmailAccount, useTestEmailAccount } from '../api';
-import type { EmailAccount, EmailAccountCreate, EmailAccountType } from '../types';
+import { useCreateEmailAccount,useTestEmailAccount,useUpdateEmailAccount } from '../api';
+import type { EmailAccount,EmailAccountCreate,EmailAccountType } from '../types';
 
 const accountSchema = z.object({
 	name: z.string().min(1, 'Name is required'),
@@ -113,7 +112,7 @@ export function EmailAccountForm({ account, onSuccess, onCancel }: EmailAccountF
 				toast({ title: 'Account created successfully' });
 			}
 			onSuccess?.();
-		} catch (error) {
+		} catch {
 			toast({
 				title: 'Error',
 				description: 'Failed to save account',
@@ -133,7 +132,7 @@ export function EmailAccountForm({ account, onSuccess, onCancel }: EmailAccountF
 				description: result.message,
 				variant: result.success ? 'default' : 'destructive',
 			});
-		} catch (error) {
+		} catch {
 			toast({
 				title: 'Test failed',
 				description: 'Could not test connection',

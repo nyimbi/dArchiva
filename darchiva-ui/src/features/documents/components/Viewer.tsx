@@ -1,19 +1,19 @@
 // (c) Copyright Datacraft, 2026
-import { useEffect, useRef, useState, useCallback } from 'react';
-import {
-	ZoomIn,
-	ZoomOut,
-	RotateCw,
-	RotateCcw,
-	Download,
-	ChevronLeft,
-	ChevronRight,
-	Maximize,
-	FileText,
-} from 'lucide-react';
 import { useStore } from '@/hooks/useStore';
 import { cn } from '@/lib/utils';
 import type { ViewerPage } from '@/types';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  FileText,
+  Maximize,
+  RotateCcw,
+  RotateCw,
+  ZoomIn,
+  ZoomOut,
+} from 'lucide-react';
+import { useCallback,useEffect,useRef } from 'react';
 
 interface ViewerProps {
 	documentId?: string;
@@ -27,7 +27,6 @@ export function Viewer({ documentId, pages = [], isLoading }: ViewerProps) {
 		currentPageIndex,
 		setCurrentPageIndex,
 		zoom,
-		setZoom,
 		zoomIn,
 		zoomOut,
 		rotation,
@@ -37,8 +36,6 @@ export function Viewer({ documentId, pages = [], isLoading }: ViewerProps) {
 		setFitToWidth,
 		viewerMode,
 		setViewerMode,
-		selectedPages,
-		togglePageSelection,
 	} = useStore();
 
 	const currentPage = pages[currentPageIndex];

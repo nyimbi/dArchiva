@@ -1,8 +1,8 @@
 // (c) Copyright Datacraft, 2026
-import { useCallback, useRef, useState } from 'react';
-import { PanelLeft, X, ArrowLeftRight } from 'lucide-react';
 import { useStore } from '@/hooks/useStore';
 import { cn } from '@/lib/utils';
+import { ArrowLeftRight,PanelLeft,X } from 'lucide-react';
+import { useCallback,useRef,useState } from 'react';
 
 interface DualPanelProps {
 	mainPanel: React.ReactNode;
