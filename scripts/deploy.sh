@@ -33,7 +33,7 @@ RUN_DIR="/var/run/${APP_NAME}"
 CONFIG_DIR="/etc/${APP_NAME}"
 
 # Default values
-REMOTE_HOST=""
+REMOTE_HOST="ubuntu@20.63.27.56"
 BRANCH="main"
 ENV_NAME="production"
 RUN_MIGRATIONS=false
@@ -124,9 +124,10 @@ parse_args() {
 		esac
 	done
 
+	# Use default if no host provided
 	if [[ -z "$REMOTE_HOST" ]]; then
-		log_error "Remote host is required"
-		usage
+		REMOTE_HOST="ubuntu@20.63.27.56"
+		log_info "Using default remote host: $REMOTE_HOST"
 	fi
 }
 

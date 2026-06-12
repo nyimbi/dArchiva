@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd /Users/nyimbiodero/src/pjs/dArchiva/papermerge-core && python -c \\\"from papermerge.core.features.notifications.router import router; print('OK')\\\" 2>&1\",\"description\":\"Verify router imp...",
+  "error": "Exit code 1\n/Users/nyimbiodero/.hermes/hermes-agent/venv/lib/python3.11/site-packages/pydantic_settings/main.py:447: UserWarning: Config key `pyproject_toml_table_header` is set in model_config but will be ignored because no PyprojectTomlConfigSettingsSource source is configured. To use this config key, add a PyprojectTomlConfigSettingsSource source to the settings sources via the settings_customise_sources hook.\n  cls._settings_warn_unused_config_keys(sources, cls.model_config)\n/Users/nyimbiode...",
+  "timestamp": "2026-06-12T03:25:48.932Z",
+  "retry_count": 1
+}

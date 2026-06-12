@@ -1,0 +1,196 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1781240228271,
+  "projectRoot": "/Users/nyimbiodero/src/pjs/dArchiva",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      },
+      {
+        "name": "Python",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "requirements.txt"
+        ]
+      }
+    ],
+    "frameworks": [],
+    "packageManager": "npm",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "scripts",
+      "spec"
+    ],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "darchiva-ui": {
+      "path": "darchiva-ui",
+      "purpose": null,
+      "fileCount": 13,
+      "lastAccessed": 1781240228256,
+      "keyFiles": [
+        "index.html",
+        "package-lock.json",
+        "package.json",
+        "playwright.config.ts",
+        "postcss.config.js"
+      ]
+    },
+    "demo_documents": {
+      "path": "demo_documents",
+      "purpose": null,
+      "fileCount": 5,
+      "lastAccessed": 1781240228261,
+      "keyFiles": [
+        "Data_Protection_Policy.pdf",
+        "Employment_Offer_Onyango.pdf",
+        "Invoice_2026_001.pdf",
+        "Memo_System_Maintenance.pdf",
+        "Service_Agreement_2026.pdf"
+      ]
+    },
+    "papermerge-auth-server": {
+      "path": "papermerge-auth-server",
+      "purpose": null,
+      "fileCount": 11,
+      "lastAccessed": 1781240228261,
+      "keyFiles": [
+        "CHANGELOG.md",
+        "LICENSE",
+        "README.md",
+        "docker-compose.yml",
+        "nginx.conf"
+      ]
+    },
+    "papermerge-core": {
+      "path": "papermerge-core",
+      "purpose": null,
+      "fileCount": 11,
+      "lastAccessed": 1781240228262,
+      "keyFiles": [
+        "LICENSE",
+        "README.md",
+        "alembic.ini",
+        "changelog.md",
+        "pyproject.toml"
+      ]
+    },
+    "papermerge-ocr-worker": {
+      "path": "papermerge-ocr-worker",
+      "purpose": null,
+      "fileCount": 7,
+      "lastAccessed": 1781240228262,
+      "keyFiles": [
+        "LICENSE",
+        "README.md",
+        "poetry.lock",
+        "pyproject.toml",
+        "uv.lock"
+      ]
+    },
+    "papermerge-s3-worker": {
+      "path": "papermerge-s3-worker",
+      "purpose": null,
+      "fileCount": 6,
+      "lastAccessed": 1781240228263,
+      "keyFiles": [
+        "LICENSE",
+        "README.md",
+        "changelog.md",
+        "pyproject.toml",
+        "uv.lock"
+      ]
+    },
+    "sample_documents": {
+      "path": "sample_documents",
+      "purpose": null,
+      "fileCount": 3,
+      "lastAccessed": 1781240228264,
+      "keyFiles": [
+        "download_samples.py",
+        "upload_to_darchiva.py"
+      ]
+    },
+    "scripts": {
+      "path": "scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 9,
+      "lastAccessed": 1781240228266,
+      "keyFiles": [
+        "deploy.sh",
+        "generate_sample_docs.py",
+        "how-to-deploy.md",
+        "load_test_scanners.py",
+        "prefect-local.sh"
+      ]
+    },
+    "spec": {
+      "path": "spec",
+      "purpose": "Test specifications",
+      "fileCount": 4,
+      "lastAccessed": 1781240228268,
+      "keyFiles": [
+        "implementation-plan.md",
+        "spec.md",
+        "spec2.md",
+        "workflow.md"
+      ]
+    },
+    "darchiva-ui/dist": {
+      "path": "darchiva-ui/dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 2,
+      "lastAccessed": 1781240228269,
+      "keyFiles": [
+        "favicon.svg",
+        "index.html"
+      ]
+    },
+    "darchiva-ui/node_modules": {
+      "path": "darchiva-ui/node_modules",
+      "purpose": "Dependencies",
+      "fileCount": 1,
+      "lastAccessed": 1781240228270,
+      "keyFiles": []
+    },
+    "papermerge-s3-worker/tests": {
+      "path": "papermerge-s3-worker/tests",
+      "purpose": "Test files",
+      "fileCount": 4,
+      "lastAccessed": 1781240228271,
+      "keyFiles": [
+        "__init__.py",
+        "conftest.py",
+        "test_dbapi.py"
+      ]
+    }
+  },
+  "hotPaths": [],
+  "userDirectives": []
+}

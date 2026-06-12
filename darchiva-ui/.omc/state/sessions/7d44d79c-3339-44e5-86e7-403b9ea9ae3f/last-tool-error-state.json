@@ -1,0 +1,7 @@
+{
+  "tool_name": "Read",
+  "tool_input_preview": "{\"file_path\":\"/Users/nyimbiodero/src/pjs/dArchiva/darchiva-ui/src/features/billing/components\"}",
+  "error": "EISDIR: illegal operation on a directory, read '/Users/nyimbiodero/src/pjs/dArchiva/darchiva-ui/src/features/billing/components'",
+  "timestamp": "2026-06-11T18:17:12.670Z",
+  "retry_count": 1
+}

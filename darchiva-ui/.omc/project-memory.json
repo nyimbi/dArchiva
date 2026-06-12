@@ -1,0 +1,292 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1781202341490,
+  "projectRoot": "/Users/nyimbiodero/src/pjs/dArchiva/darchiva-ui",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      },
+      {
+        "name": "TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "tsconfig.json"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "react",
+        "version": "18.3.1",
+        "category": "frontend"
+      },
+      {
+        "name": "react-dom",
+        "version": "18.3.1",
+        "category": "frontend"
+      },
+      {
+        "name": "@playwright/test",
+        "version": "1.45.0",
+        "category": "testing"
+      },
+      {
+        "name": "vite",
+        "version": "5.3.4",
+        "category": "build"
+      },
+      {
+        "name": "vitest",
+        "version": "2.0.3",
+        "category": "testing"
+      }
+    ],
+    "packageManager": "npm",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": "npx tsc --noEmit 2>&1 | grep \"error TS\" | wc -l",
+    "testCommand": "npm test",
+    "lintCommand": "npm run lint",
+    "devCommand": "npm run dev",
+    "scripts": {
+      "dev": "vite",
+      "build": "tsc && vite build",
+      "preview": "vite preview",
+      "lint": "eslint src --ext ts,tsx",
+      "test": "vitest",
+      "test:run": "vitest run",
+      "test:coverage": "vitest run --coverage",
+      "e2e": "playwright test",
+      "e2e:ui": "playwright test --ui",
+      "e2e:report": "playwright show-report"
+    }
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": "feature-based"
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "public",
+      "src"
+    ],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "dist": {
+      "path": "dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 2,
+      "lastAccessed": 1781202341481,
+      "keyFiles": [
+        "favicon.svg",
+        "index.html"
+      ]
+    },
+    "e2e": {
+      "path": "e2e",
+      "purpose": null,
+      "fileCount": 3,
+      "lastAccessed": 1781202341484,
+      "keyFiles": [
+        "auth.spec.ts",
+        "documents.spec.ts",
+        "settings.spec.ts"
+      ]
+    },
+    "public": {
+      "path": "public",
+      "purpose": "Public files",
+      "fileCount": 1,
+      "lastAccessed": 1781202341484,
+      "keyFiles": [
+        "favicon.svg"
+      ]
+    },
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 4,
+      "lastAccessed": 1781202341484,
+      "keyFiles": [
+        "App.tsx",
+        "index.css",
+        "main.tsx",
+        "vite-env.d.ts"
+      ]
+    },
+    "dist/assets": {
+      "path": "dist/assets",
+      "purpose": "Static assets",
+      "fileCount": 5,
+      "lastAccessed": 1781202341484,
+      "keyFiles": [
+        "index-CvFwgsje.css",
+        "index-DqcxWziH.js",
+        "pdf-vendor-l0sNRNKZ.js"
+      ]
+    },
+    "src/assets": {
+      "path": "src/assets",
+      "purpose": "Static assets",
+      "fileCount": 0,
+      "lastAccessed": 1781202341485,
+      "keyFiles": []
+    },
+    "src/components": {
+      "path": "src/components",
+      "purpose": "UI components",
+      "fileCount": 6,
+      "lastAccessed": 1781202341485,
+      "keyFiles": [
+        "AuthenticatedImage.tsx",
+        "Header.tsx",
+        "Layout.tsx"
+      ]
+    },
+    "src/lib": {
+      "path": "src/lib",
+      "purpose": "Library code",
+      "fileCount": 6,
+      "lastAccessed": 1781202341485,
+      "keyFiles": [
+        "api-client.ts",
+        "api.ts",
+        "error-handler.ts"
+      ]
+    },
+    "src/pages": {
+      "path": "src/pages",
+      "purpose": "Page components",
+      "fileCount": 20,
+      "lastAccessed": 1781202341485,
+      "keyFiles": [
+        "AuditLogs.tsx",
+        "Cases.tsx",
+        "Dashboard.tsx"
+      ]
+    },
+    "src/test": {
+      "path": "src/test",
+      "purpose": "Test files",
+      "fileCount": 2,
+      "lastAccessed": 1781202341486,
+      "keyFiles": [
+        "setup.ts",
+        "utils.tsx"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "src/features/inventory/api.ts",
+      "accessCount": 6,
+      "lastAccessed": 1781233367355,
+      "type": "file"
+    },
+    {
+      "path": "src/features/scanning-ops/api/hooks.ts",
+      "accessCount": 4,
+      "lastAccessed": 1781202506663,
+      "type": "file"
+    },
+    {
+      "path": "src/features/scanner/api/hooks.ts",
+      "accessCount": 4,
+      "lastAccessed": 1781233424663,
+      "type": "file"
+    },
+    {
+      "path": "src/features/workflows/api.ts",
+      "accessCount": 3,
+      "lastAccessed": 1781231218622,
+      "type": "file"
+    },
+    {
+      "path": "src/features/settings/api/hooks.ts",
+      "accessCount": 3,
+      "lastAccessed": 1781233418824,
+      "type": "file"
+    },
+    {
+      "path": "src/features/scanning-projects/components/tabs/ShiftPlannerTab.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1781203008341,
+      "type": "file"
+    },
+    {
+      "path": "src/features/api-tokens/api/hooks.ts",
+      "accessCount": 2,
+      "lastAccessed": 1781232850800,
+      "type": "file"
+    },
+    {
+      "path": "src/features/scanning-projects/components/AIProjectPlanner.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1781232889534,
+      "type": "file"
+    },
+    {
+      "path": "src/lib/api-client.ts",
+      "accessCount": 2,
+      "lastAccessed": 1781233261754,
+      "type": "file"
+    },
+    {
+      "path": "src/features/documents/api.ts",
+      "accessCount": 2,
+      "lastAccessed": 1781233412874,
+      "type": "file"
+    },
+    {
+      "path": "src/features/security/api.ts",
+      "accessCount": 2,
+      "lastAccessed": 1781235630589,
+      "type": "file"
+    },
+    {
+      "path": "src/features/scanning-projects/api/index.ts",
+      "accessCount": 2,
+      "lastAccessed": 1781239065147,
+      "type": "file"
+    },
+    {
+      "path": "src/features/settings/components/SettingsPage.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1781240888063,
+      "type": "file"
+    },
+    {
+      "path": "src/features/scanning-projects/components/tabs/OperatorsTab.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1781203274186,
+      "type": "file"
+    },
+    {
+      "path": "src/features/settings/types/index.ts",
+      "accessCount": 1,
+      "lastAccessed": 1781233793138,
+      "type": "file"
+    },
+    {
+      "path": "src/features/emails/api/index.ts",
+      "accessCount": 1,
+      "lastAccessed": 1781238961522,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}
