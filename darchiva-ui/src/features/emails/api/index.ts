@@ -2,7 +2,7 @@
 /**
  * Email feature API hooks.
  */
-import { api } from '@/lib/api';
+import { apiClient } from '@/lib/api-client';
 import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import type {
   EmailAccount,
@@ -19,6 +19,7 @@ import type {
   EmailThreadListResponse,
 } from '../types';
 
+const BASE = '/emails';
 const EMAILS_KEY = ['emails'];
 const THREADS_KEY = ['email-threads'];
 const ACCOUNTS_KEY = ['email-accounts'];
@@ -39,16 +40,17 @@ export function useEmailImports(params: ListImportsParams = {}) {
 	return useQuery({
 		queryKey: [...EMAILS_KEY, 'list', params],
 		queryFn: async () => {
-			const searchParams = new URLSearchParams();
-			if (params.page) searchParams.set('page', String(params.page));
-			if (params.pageSize) searchParams.set('page_size', String(params.pageSize));
-			if (params.folderId) searchParams.set('folder_id', params.folderId);
-			if (params.threadId) searchParams.set('thread_id', params.threadId);
-			if (params.search) searchParams.set('search', params.search);
-			if (params.source) searchParams.set('source', params.source);
-
-			const response = await api.get<EmailImportListResponse>(`/emails/imports?${searchParams}`);
-			return response;
+			const { data } = await apiClient.get<EmailImportListResponse>(`${BASE}/imports`, {
+				params: {
+					...(params.page && { page: params.page }),
+					...(params.pageSize && { page_size: params.pageSize }),
+					...(params.folderId && { folder_id: params.folderId }),
+					...(params.threadId && { thread_id: params.threadId }),
+					...(params.search && { search: params.search }),
+					...(params.source && { source: params.source }),
+				},
+			});
+			return data;
 		},
 	});
 }
@@ -57,8 +59,8 @@ export function useEmailImport(importId: string) {
 	return useQuery({
 		queryKey: [...EMAILS_KEY, importId],
 		queryFn: async () => {
-			const response = await api.get<EmailImport>(`/emails/imports/${importId}`);
-			return response;
+			const { data } = await apiClient.get<EmailImport>(`${BASE}/imports/${importId}`);
+			return data;
 		},
 		enabled: !!importId,
 	});
@@ -71,12 +73,13 @@ export function useImportEmail() {
 		mutationFn: async ({ file, folderId, importAttachments }: { file: File; folderId?: string; importAttachments?: boolean }) => {
 			const formData = new FormData();
 			formData.append('file', file);
-
-			const params = new URLSearchParams();
-			if (folderId) params.set('folder_id', folderId);
-			if (importAttachments !== undefined) params.set('import_attachments', String(importAttachments));
-
-			return api.upload<EmailImport>(`/emails/import?${params}`, formData);
+			const { data } = await apiClient.post<EmailImport>(`${BASE}/import`, formData, {
+				params: {
+					...(folderId && { folder_id: folderId }),
+					...(importAttachments !== undefined && { import_attachments: String(importAttachments) }),
+				},
+			});
+			return data;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: EMAILS_KEY });
@@ -90,7 +93,7 @@ export function useDeleteEmailImport() {
 
 	return useMutation({
 		mutationFn: async (importId: string) => {
-			await api.delete(`/emails/imports/${importId}`);
+			await apiClient.delete(`${BASE}/imports/${importId}`);
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: EMAILS_KEY });
@@ -111,14 +114,15 @@ export function useEmailThreads(params: ListThreadsParams = {}) {
 	return useQuery({
 		queryKey: [...THREADS_KEY, 'list', params],
 		queryFn: async () => {
-			const searchParams = new URLSearchParams();
-			if (params.page) searchParams.set('page', String(params.page));
-			if (params.pageSize) searchParams.set('page_size', String(params.pageSize));
-			if (params.folderId) searchParams.set('folder_id', params.folderId);
-			if (params.search) searchParams.set('search', params.search);
-
-			const response = await api.get<EmailThreadListResponse>(`/emails/threads?${searchParams}`);
-			return response;
+			const { data } = await apiClient.get<EmailThreadListResponse>(`${BASE}/threads`, {
+				params: {
+					...(params.page && { page: params.page }),
+					...(params.pageSize && { page_size: params.pageSize }),
+					...(params.folderId && { folder_id: params.folderId }),
+					...(params.search && { search: params.search }),
+				},
+			});
+			return data;
 		},
 	});
 }
@@ -127,8 +131,8 @@ export function useEmailThread(threadId: string) {
 	return useQuery({
 		queryKey: [...THREADS_KEY, threadId],
 		queryFn: async () => {
-			const response = await api.get<EmailThreadDetail>(`/emails/threads/${threadId}`);
-			return response;
+			const { data } = await apiClient.get<EmailThreadDetail>(`${BASE}/threads/${threadId}`);
+			return data;
 		},
 		enabled: !!threadId,
 	});
@@ -140,8 +144,8 @@ export function useEmailAccounts() {
 	return useQuery({
 		queryKey: ACCOUNTS_KEY,
 		queryFn: async () => {
-			const response = await api.get<EmailAccountListResponse>('/emails/accounts');
-			return response;
+			const { data } = await apiClient.get<EmailAccountListResponse>(`${BASE}/accounts`);
+			return data;
 		},
 	});
 }
@@ -150,8 +154,8 @@ export function useEmailAccount(accountId: string) {
 	return useQuery({
 		queryKey: [...ACCOUNTS_KEY, accountId],
 		queryFn: async () => {
-			const response = await api.get<EmailAccount>(`/emails/accounts/${accountId}`);
-			return response;
+			const { data } = await apiClient.get<EmailAccount>(`${BASE}/accounts/${accountId}`);
+			return data;
 		},
 		enabled: !!accountId,
 	});
@@ -162,8 +166,8 @@ export function useCreateEmailAccount() {
 
 	return useMutation({
 		mutationFn: async (data: EmailAccountCreate) => {
-			const response = await api.post<EmailAccount>('/emails/accounts', data);
-			return response;
+			const { data: account } = await apiClient.post<EmailAccount>(`${BASE}/accounts`, data);
+			return account;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ACCOUNTS_KEY });
@@ -176,8 +180,8 @@ export function useUpdateEmailAccount() {
 
 	return useMutation({
 		mutationFn: async ({ accountId, data }: { accountId: string; data: EmailAccountUpdate }) => {
-			const response = await api.patch<EmailAccount>(`/emails/accounts/${accountId}`, data);
-			return response;
+			const { data: account } = await apiClient.patch<EmailAccount>(`${BASE}/accounts/${accountId}`, data);
+			return account;
 		},
 		onSuccess: (_, { accountId }) => {
 			queryClient.invalidateQueries({ queryKey: ACCOUNTS_KEY });
@@ -191,7 +195,7 @@ export function useDeleteEmailAccount() {
 
 	return useMutation({
 		mutationFn: async (accountId: string) => {
-			await api.delete(`/emails/accounts/${accountId}`);
+			await apiClient.delete(`${BASE}/accounts/${accountId}`);
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ACCOUNTS_KEY });
@@ -202,8 +206,10 @@ export function useDeleteEmailAccount() {
 export function useTestEmailAccount() {
 	return useMutation({
 		mutationFn: async (accountId: string) => {
-			const response = await api.post<{ success: boolean; message: string }>(`/emails/accounts/${accountId}/test`);
-			return response;
+			const { data } = await apiClient.post<{ success: boolean; message: string }>(
+				`${BASE}/accounts/${accountId}/test`,
+			);
+			return data;
 		},
 	});
 }
@@ -213,8 +219,10 @@ export function useSyncEmailAccount() {
 
 	return useMutation({
 		mutationFn: async (accountId: string) => {
-			const response = await api.post<{ status: string; account_id: string }>(`/emails/accounts/${accountId}/sync`);
-			return response;
+			const { data } = await apiClient.post<{ status: string; account_id: string }>(
+				`${BASE}/accounts/${accountId}/sync`,
+			);
+			return data;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: EMAILS_KEY });
@@ -228,9 +236,10 @@ export function useEmailRules(accountId?: string) {
 	return useQuery({
 		queryKey: [...RULES_KEY, { accountId }],
 		queryFn: async () => {
-			const params = accountId ? `?account_id=${accountId}` : '';
-			const response = await api.get<EmailRuleListResponse>(`/emails/rules${params}`);
-			return response;
+			const { data } = await apiClient.get<EmailRuleListResponse>(`${BASE}/rules`, {
+				params: accountId ? { account_id: accountId } : undefined,
+			});
+			return data;
 		},
 	});
 }
@@ -239,8 +248,8 @@ export function useEmailRule(ruleId: string) {
 	return useQuery({
 		queryKey: [...RULES_KEY, ruleId],
 		queryFn: async () => {
-			const response = await api.get<EmailRule>(`/emails/rules/${ruleId}`);
-			return response;
+			const { data } = await apiClient.get<EmailRule>(`${BASE}/rules/${ruleId}`);
+			return data;
 		},
 		enabled: !!ruleId,
 	});
@@ -251,8 +260,8 @@ export function useCreateEmailRule() {
 
 	return useMutation({
 		mutationFn: async (data: EmailRuleCreate) => {
-			const response = await api.post<EmailRule>('/emails/rules', data);
-			return response;
+			const { data: rule } = await apiClient.post<EmailRule>(`${BASE}/rules`, data);
+			return rule;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: RULES_KEY });
@@ -265,8 +274,8 @@ export function useUpdateEmailRule() {
 
 	return useMutation({
 		mutationFn: async ({ ruleId, data }: { ruleId: string; data: EmailRuleUpdate }) => {
-			const response = await api.patch<EmailRule>(`/emails/rules/${ruleId}`, data);
-			return response;
+			const { data: rule } = await apiClient.patch<EmailRule>(`${BASE}/rules/${ruleId}`, data);
+			return rule;
 		},
 		onSuccess: (_, { ruleId }) => {
 			queryClient.invalidateQueries({ queryKey: RULES_KEY });
@@ -280,7 +289,7 @@ export function useDeleteEmailRule() {
 
 	return useMutation({
 		mutationFn: async (ruleId: string) => {
-			await api.delete(`/emails/rules/${ruleId}`);
+			await apiClient.delete(`${BASE}/rules/${ruleId}`);
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: RULES_KEY });

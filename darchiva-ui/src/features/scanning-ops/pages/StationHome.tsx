@@ -1,9 +1,25 @@
 import { Package,Scan,Trophy,User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/features/auth/context/AuthContext';
 import { Scoreboard } from '../components/Scoreboard';
+import { useShiftStats } from '../api/hooks';
 
 export function StationHome() {
     const navigate = useNavigate();
+    const { user } = useAuth();
+    const { data: shiftStats } = useShiftStats();
+
+    const displayName = user?.username ?? 'Operator';
+    const targetPages = shiftStats?.target_pages ?? 0;
+    const pagesScanned = shiftStats?.pages_scanned ?? 0;
+    const qualityScore = shiftStats?.quality_score ?? 0;
+
+    // Derive challenge progress from real shift stats
+    const speedDemonProgress = targetPages > 0
+        ? Math.min(Math.round((pagesScanned / Math.max(targetPages, 500)) * 100), 100)
+        : 0;
+    // Quality challenge: progress toward 100% quality score
+    const perfectionistProgress = Math.min(Math.round(qualityScore), 100);
 
     return (
         <div className="h-full grid grid-cols-12 gap-8">
@@ -13,7 +29,10 @@ export function StationHome() {
                     <div className="relative z-10">
                         <h1 className="text-5xl font-bold mb-4">Station 01 Ready</h1>
                         <p className="text-xl font-medium opacity-80 mb-8">
-                            Welcome back, Sarah. Your shift target is 2,000 pages today.
+                            Welcome back, {displayName}.
+                            {targetPages > 0
+                                ? ` Your shift target is ${targetPages.toLocaleString()} pages today.`
+                                : ' No shift assigned yet.'}
                         </p>
                         <button
                             onClick={() => navigate('/scanning/operator')}
@@ -67,10 +86,16 @@ export function StationHome() {
                                 <span className="font-bold text-yellow-500">Speed Demon</span>
                                 <span className="text-xs bg-yellow-500/10 text-yellow-500 px-2 py-1 rounded">500 XP</span>
                             </div>
-                            <p className="text-sm text-slate-400 mb-3">Scan 500 pages in one hour.</p>
+                            <p className="text-sm text-slate-400 mb-3">
+                                Reach your shift target of {Math.max(targetPages, 500).toLocaleString()} pages.
+                            </p>
                             <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                                <div className="h-full bg-yellow-500 w-[80%]" />
+                                <div
+                                    className="h-full bg-yellow-500 transition-all duration-500"
+                                    style={{ width: `${speedDemonProgress}%` }}
+                                />
                             </div>
+                            <p className="text-xs text-slate-500 mt-1">{pagesScanned.toLocaleString()} / {Math.max(targetPages, 500).toLocaleString()} pages</p>
                         </div>
 
                         <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
@@ -78,10 +103,14 @@ export function StationHome() {
                                 <span className="font-bold text-green-500">Perfectionist</span>
                                 <span className="text-xs bg-green-500/10 text-green-500 px-2 py-1 rounded">300 XP</span>
                             </div>
-                            <p className="text-sm text-slate-400 mb-3">Complete 5 batches with 100% quality.</p>
+                            <p className="text-sm text-slate-400 mb-3">Achieve 100% quality score.</p>
                             <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                                <div className="h-full bg-green-500 w-[40%]" />
+                                <div
+                                    className="h-full bg-green-500 transition-all duration-500"
+                                    style={{ width: `${perfectionistProgress}%` }}
+                                />
                             </div>
+                            <p className="text-xs text-slate-500 mt-1">{qualityScore.toFixed(1)}% quality</p>
                         </div>
                     </div>
                 </div>

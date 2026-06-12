@@ -1,5 +1,5 @@
 // (c) Copyright Datacraft, 2026
-import { api } from '@/lib/api';
+import { apiClient } from '@/lib/api-client';
 import type {
   QualityControlSample,
   ScanningBatch,
@@ -38,19 +38,19 @@ export interface UpdateScanningProjectInput {
 }
 
 export async function getScanningProjects(): Promise<ScanningProject[]> {
-	const response = await api.get<ScanningProject[]>('/scanning-projects');
+	const { data: response } = await apiClient.get<ScanningProject[]>('/scanning-projects');
 	return response;
 }
 
 export async function getScanningProject(id: string): Promise<ScanningProject> {
-	const response = await api.get<ScanningProject>(`/scanning-projects/${id}`);
+	const { data: response } = await apiClient.get<ScanningProject>(`/scanning-projects/${id}`);
 	return response;
 }
 
 export async function createScanningProject(
 	input: CreateScanningProjectInput
 ): Promise<ScanningProject> {
-	const response = await api.post<ScanningProject>('/scanning-projects', input);
+	const { data: response } = await apiClient.post<ScanningProject>('/scanning-projects', input);
 	return response;
 }
 
@@ -58,16 +58,16 @@ export async function updateScanningProject(
 	id: string,
 	input: UpdateScanningProjectInput
 ): Promise<ScanningProject> {
-	const response = await api.patch<ScanningProject>(`/scanning-projects/${id}`, input);
+	const { data: response } = await apiClient.patch<ScanningProject>(`/scanning-projects/${id}`, input);
 	return response;
 }
 
 export async function deleteScanningProject(id: string): Promise<void> {
-	await api.delete(`/scanning-projects/${id}`);
+	await apiClient.delete(`/scanning-projects/${id}`);
 }
 
 export async function getScanningProjectMetrics(id: string): Promise<ScanningProjectMetrics> {
-	const response = await api.get<ScanningProjectMetrics>(`/scanning-projects/${id}/metrics`);
+	const { data: response } = await apiClient.get<ScanningProjectMetrics>(`/scanning-projects/${id}/metrics`);
 	return response;
 }
 
@@ -98,12 +98,12 @@ export interface UpdateBatchInput {
 }
 
 export async function getProjectBatches(projectId: string): Promise<ScanningBatch[]> {
-	const response = await api.get<ScanningBatch[]>(`/scanning-projects/${projectId}/batches`);
+	const { data: response } = await apiClient.get<ScanningBatch[]>(`/scanning-projects/${projectId}/batches`);
 	return response;
 }
 
 export async function getBatch(projectId: string, batchId: string): Promise<ScanningBatch> {
-	const response = await api.get<ScanningBatch>(
+	const { data: response } = await apiClient.get<ScanningBatch>(
 		`/scanning-projects/${projectId}/batches/${batchId}`
 	);
 	return response;
@@ -113,7 +113,7 @@ export async function createBatch(
 	projectId: string,
 	input: CreateBatchInput
 ): Promise<ScanningBatch> {
-	const response = await api.post<ScanningBatch>(
+	const { data: response } = await apiClient.post<ScanningBatch>(
 		`/scanning-projects/${projectId}/batches`,
 		input
 	);
@@ -125,7 +125,7 @@ export async function updateBatch(
 	batchId: string,
 	input: UpdateBatchInput
 ): Promise<ScanningBatch> {
-	const response = await api.patch<ScanningBatch>(
+	const { data: response } = await apiClient.patch<ScanningBatch>(
 		`/scanning-projects/${projectId}/batches/${batchId}`,
 		input
 	);
@@ -133,7 +133,7 @@ export async function updateBatch(
 }
 
 export async function startBatchScan(projectId: string, batchId: string): Promise<ScanningBatch> {
-	const response = await api.post<ScanningBatch>(
+	const { data: response } = await apiClient.post<ScanningBatch>(
 		`/scanning-projects/${projectId}/batches/${batchId}/start-scan`
 	);
 	return response;
@@ -144,7 +144,7 @@ export async function completeBatchScan(
 	batchId: string,
 	actualPages: number
 ): Promise<ScanningBatch> {
-	const response = await api.post<ScanningBatch>(
+	const { data: response } = await apiClient.post<ScanningBatch>(
 		`/scanning-projects/${projectId}/batches/${batchId}/complete-scan`,
 		{ actualPages }
 	);
@@ -174,7 +174,7 @@ export async function getBatchDocuments(
 	projectId: string,
 	batchId: string
 ): Promise<BatchDocument[]> {
-	const response = await api.get<BatchDocument[]>(
+	const { data: response } = await apiClient.get<BatchDocument[]>(
 		`/scanning-projects/${projectId}/batches/${batchId}/documents`
 	);
 	return response;
@@ -196,7 +196,7 @@ export async function addBatchDocument(
 	batchId: string,
 	input: AddBatchDocumentInput
 ): Promise<BatchDocument> {
-	const response = await api.post<BatchDocument>(
+	const { data: response } = await apiClient.post<BatchDocument>(
 		`/scanning-projects/${projectId}/batches/${batchId}/documents`,
 		input
 	);
@@ -246,7 +246,7 @@ export interface Shift {
 }
 
 export async function getProjectMilestones(projectId: string): Promise<ScanningMilestone[]> {
-	const response = await api.get<ScanningMilestone[]>(
+	const { data: response } = await apiClient.get<ScanningMilestone[]>(
 		`/scanning-projects/${projectId}/milestones`
 	);
 	return response;
@@ -256,7 +256,7 @@ export async function createMilestone(
 	projectId: string,
 	input: CreateMilestoneInput
 ): Promise<ScanningMilestone> {
-	const response = await api.post<ScanningMilestone>(
+	const { data: response } = await apiClient.post<ScanningMilestone>(
 		`/scanning-projects/${projectId}/milestones`,
 		input
 	);
@@ -268,7 +268,7 @@ export async function updateMilestone(
 	milestoneId: string,
 	input: UpdateMilestoneInput
 ): Promise<ScanningMilestone> {
-	const response = await api.patch<ScanningMilestone>(
+	const { data: response } = await apiClient.patch<ScanningMilestone>(
 		`/scanning-projects/${projectId}/milestones/${milestoneId}`,
 		input
 	);
@@ -276,7 +276,7 @@ export async function updateMilestone(
 }
 
 export async function createShift(input: CreateShiftInput): Promise<Shift> {
-	const response = await api.post<Shift>('/scanning-projects/shifts', input);
+	const { data: response } = await apiClient.post<Shift>('/scanning-projects/shifts', input);
 	return response;
 }
 
@@ -299,7 +299,7 @@ export interface UpdateQCSampleInput {
 }
 
 export async function getPendingQCSamples(projectId: string): Promise<QualityControlSample[]> {
-	const response = await api.get<QualityControlSample[]>(
+	const { data: response } = await apiClient.get<QualityControlSample[]>(
 		`/scanning-projects/${projectId}/qc/pending`
 	);
 	return response;
@@ -309,7 +309,7 @@ export async function createQCSample(
 	projectId: string,
 	input: CreateQCSampleInput
 ): Promise<QualityControlSample> {
-	const response = await api.post<QualityControlSample>(
+	const { data: response } = await apiClient.post<QualityControlSample>(
 		`/scanning-projects/${projectId}/qc/samples`,
 		input
 	);
@@ -321,7 +321,7 @@ export async function updateQCSample(
 	sampleId: string,
 	input: UpdateQCSampleInput
 ): Promise<QualityControlSample> {
-	const response = await api.patch<QualityControlSample>(
+	const { data: response } = await apiClient.patch<QualityControlSample>(
 		`/scanning-projects/${projectId}/qc/samples/${sampleId}`,
 		input
 	);
@@ -362,17 +362,17 @@ export interface UpdateResourceInput {
 }
 
 export async function getResources(): Promise<ScanningResource[]> {
-	const response = await api.get<ScanningResource[]>('/scanning-projects/resources');
+	const { data: response } = await apiClient.get<ScanningResource[]>('/scanning-projects/resources');
 	return response;
 }
 
 export async function getResource(resourceId: string): Promise<ScanningResource> {
-	const response = await api.get<ScanningResource>(`/scanning-projects/resources/${resourceId}`);
+	const { data: response } = await apiClient.get<ScanningResource>(`/scanning-projects/resources/${resourceId}`);
 	return response;
 }
 
 export async function createResource(input: CreateResourceInput): Promise<ScanningResource> {
-	const response = await api.post<ScanningResource>('/scanning-projects/resources', input);
+	const { data: response } = await apiClient.post<ScanningResource>('/scanning-projects/resources', input);
 	return response;
 }
 
@@ -380,7 +380,7 @@ export async function updateResource(
 	resourceId: string,
 	input: UpdateResourceInput
 ): Promise<ScanningResource> {
-	const response = await api.patch<ScanningResource>(
+	const { data: response } = await apiClient.patch<ScanningResource>(
 		`/scanning-projects/resources/${resourceId}`,
 		input
 	);
@@ -388,7 +388,7 @@ export async function updateResource(
 }
 
 export async function deleteResource(resourceId: string): Promise<void> {
-	await api.delete(`/scanning-projects/resources/${resourceId}`);
+	await apiClient.delete(`/scanning-projects/resources/${resourceId}`);
 }
 
 // =====================================================
@@ -462,7 +462,7 @@ export interface RegisterScannerInput {
 export async function discoverScanners(
 	options?: { timeout?: number; forceRefresh?: boolean }
 ): Promise<DiscoveredScanner[]> {
-	const response = await api.get<DiscoveredScanner[]>('/scanners/discover', {
+	const { data: response } = await apiClient.get<DiscoveredScanner[]>('/scanners/discover', {
 		params: {
 			timeout: options?.timeout ?? 8,
 			force_refresh: options?.forceRefresh ?? false,
@@ -472,14 +472,14 @@ export async function discoverScanners(
 }
 
 export async function getScanners(includeInactive?: boolean): Promise<RegisteredScanner[]> {
-	const response = await api.get<RegisteredScanner[]>('/scanners', {
+	const { data: response } = await apiClient.get<RegisteredScanner[]>('/scanners', {
 		params: { include_inactive: includeInactive ?? false },
 	});
 	return response;
 }
 
 export async function registerScanner(input: RegisterScannerInput): Promise<RegisteredScanner> {
-	const response = await api.post<RegisteredScanner>('/scanners', input);
+	const { data: response } = await apiClient.post<RegisteredScanner>('/scanners', input);
 	return response;
 }
 
@@ -493,7 +493,7 @@ export async function getScannerStatus(scannerId: string): Promise<{
 	error?: string;
 	lastChecked: string;
 }> {
-	const response = await api.get(`/scanners/${scannerId}/status`);
+	const { data: response } = await apiClient.get(`/scanners/${scannerId}/status`);
 	return response as {
 		scannerId: string;
 		status: 'online' | 'offline' | 'busy' | 'error';
@@ -507,7 +507,7 @@ export async function getScannerStatus(scannerId: string): Promise<{
 }
 
 export async function getScannerCapabilities(scannerId: string): Promise<ScannerCapabilities> {
-	const response = await api.get<ScannerCapabilities>(`/scanners/${scannerId}/capabilities`);
+	const { data: response } = await apiClient.get<ScannerCapabilities>(`/scanners/${scannerId}/capabilities`);
 	return response;
 }
 
@@ -562,17 +562,17 @@ export interface ScanJobResult {
 }
 
 export async function createScanJob(input: CreateScanJobInput): Promise<ScanJob> {
-	const response = await api.post<ScanJob>('/scanners/jobs', input);
+	const { data: response } = await apiClient.post<ScanJob>('/scanners/jobs', input);
 	return response;
 }
 
 export async function getScanJob(jobId: string): Promise<ScanJob> {
-	const response = await api.get<ScanJob>(`/scanners/jobs/${jobId}`);
+	const { data: response } = await apiClient.get<ScanJob>(`/scanners/jobs/${jobId}`);
 	return response;
 }
 
 export async function getScanJobResult(jobId: string): Promise<ScanJobResult> {
-	const response = await api.get<ScanJobResult>(`/scanners/jobs/${jobId}/result`);
+	const { data: response } = await apiClient.get<ScanJobResult>(`/scanners/jobs/${jobId}/result`);
 	return response;
 }
 
@@ -581,12 +581,12 @@ export async function getScanJobs(options?: {
 	status?: string;
 	limit?: number;
 }): Promise<ScanJob[]> {
-	const response = await api.get<ScanJob[]>('/scanners/jobs', { params: options });
+	const { data: response } = await apiClient.get<ScanJob[]>('/scanners/jobs', { params: options });
 	return response;
 }
 
 export async function cancelScanJob(jobId: string): Promise<ScanJob> {
-	const response = await api.post<ScanJob>(`/scanners/jobs/${jobId}/cancel`);
+	const { data: response } = await apiClient.post<ScanJob>(`/scanners/jobs/${jobId}/cancel`);
 	return response;
 }
 
