@@ -11,7 +11,13 @@ import {
   Trash2
 } from 'lucide-react';
 import { useEffect,useRef,useState } from 'react';
-import { useNotificationStore } from '../store';
+import {
+  useClearAllNotifications,
+  useDismissNotification,
+  useMarkAllAsRead,
+  useMarkAsRead,
+  useNotifications,
+} from '../api/hooks';
 import type { Notification,NotificationType } from '../types';
 
 const ICONS: Record<NotificationType, typeof CheckCircle2> = {
@@ -28,10 +34,12 @@ interface Props {
 export function NotificationCenter({ className }: Props) {
 	const [open, setOpen] = useState(false);
 	const ref = useRef<HTMLDivElement>(null);
-	const notifications = useNotificationStore(s => s.notifications);
-	const markAsRead = useNotificationStore(s => s.markAsRead);
-	const markAllAsRead = useNotificationStore(s => s.markAllAsRead);
-	const removeNotification = useNotificationStore(s => s.removeNotification);
+
+	const { data: notifications = [] } = useNotifications();
+	const markAsReadMutation = useMarkAsRead();
+	const markAllAsReadMutation = useMarkAllAsRead();
+	const dismissMutation = useDismissNotification();
+	const clearAllMutation = useClearAllNotifications();
 
 	const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -77,12 +85,28 @@ export function NotificationCenter({ className }: Props) {
 					{/* Header */}
 					<div className="notif-header">
 						<h3 className="notif-title">Notifications</h3>
-						{unreadCount > 0 && (
-							<button onClick={markAllAsRead} className="notif-mark-all">
-								<Check className="w-3.5 h-3.5" />
-								Mark all read
-							</button>
-						)}
+						<div className="flex gap-2">
+							{unreadCount > 0 && (
+								<button
+									onClick={() => markAllAsReadMutation.mutate()}
+									className="notif-mark-all"
+									disabled={markAllAsReadMutation.isPending}
+								>
+									<Check className="w-3.5 h-3.5" />
+									Mark all read
+								</button>
+							)}
+							{notifications.length > 0 && (
+								<button
+									onClick={() => clearAllMutation.mutate()}
+									className="notif-mark-all"
+									disabled={clearAllMutation.isPending}
+								>
+									<Trash2 className="w-3.5 h-3.5" />
+									Clear all
+								</button>
+							)}
+						</div>
 					</div>
 
 					{/* List */}
@@ -97,8 +121,8 @@ export function NotificationCenter({ className }: Props) {
 								<NotificationItem
 									key={notif.id}
 									notification={notif}
-									onRead={() => markAsRead(notif.id)}
-									onRemove={() => removeNotification(notif.id)}
+									onRead={() => markAsReadMutation.mutate(notif.id)}
+									onRemove={() => dismissMutation.mutate(notif.id)}
 									formatTime={formatTime}
 								/>
 							))
