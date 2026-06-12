@@ -13,7 +13,7 @@ export function usePreferences() {
 	return useQuery({
 		queryKey: PREFERENCES_KEY,
 		queryFn: async () => {
-			const { data } = await apiClient.get<UserPreferences>('/users/me/preferences');
+			const { data } = await apiClient.get<UserPreferences>('/preferences/me');
 			return { ...DEFAULT_PREFERENCES, ...data };
 		},
 	});
@@ -24,7 +24,7 @@ export function useUpdatePreferences() {
 
 	return useMutation({
 		mutationFn: async (data: Partial<UserPreferences>) => {
-			const { data: response } = await apiClient.patch<UserPreferences>('/users/me/preferences', data);
+			const { data: response } = await apiClient.patch<UserPreferences>('/preferences/me', data);
 			return response;
 		},
 		onMutate: async (newPrefs) => {
@@ -53,7 +53,7 @@ export function useResetPreferences() {
 
 	return useMutation({
 		mutationFn: async () => {
-			await apiClient.delete('/users/me/preferences');
+			await apiClient.delete('/preferences/me');
 			return DEFAULT_PREFERENCES;
 		},
 		onSuccess: () => {
