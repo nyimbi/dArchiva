@@ -7,6 +7,7 @@ import type { RoutingRule } from '@/types';
 import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 
 const API_BASE = '/routing/rules';
+const ROUTING_BASE = '/routing';
 
 export interface RoutingRuleListResponse {
 	items: RoutingRule[];
@@ -73,7 +74,7 @@ export function useRoutingStats() {
 	return useQuery({
 		queryKey: routingKeys.stats(),
 		queryFn: async () => {
-			const { data } = await apiClient.get<RoutingStats>(`${API_BASE}/stats`);
+			const { data } = await apiClient.get<RoutingStats>(`${ROUTING_BASE}/stats`);
 			return data;
 		},
 	});
@@ -134,7 +135,7 @@ export function useToggleRoutingRule() {
 export function useTestRoutingRules() {
 	return useMutation({
 		mutationFn: async (input: TestRulesRequest) => {
-			const { data } = await apiClient.post<TestRulesResponse>(`${API_BASE}/test`, input);
+			const { data } = await apiClient.post<TestRulesResponse>(`${ROUTING_BASE}/test`, input);
 			return data;
 		},
 	});
