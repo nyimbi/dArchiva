@@ -118,10 +118,10 @@ export function useNotifications(options?: { unread_only?: boolean; limit?: numb
 	return useQuery<Notification[]>({
 		queryKey: ['notifications', options],
 		queryFn: async () => {
-			const { data } = await apiClient.get<Notification[]>('/notifications', {
+			const { data } = await apiClient.get<{ items: Notification[]; unread_count: number }>('/notifications', {
 				params: { unread_only: options?.unread_only, limit: options?.limit },
 			});
-			return data;
+			return data.items ?? [];
 		},
 		staleTime: 15_000,
 		refetchInterval: 30_000,

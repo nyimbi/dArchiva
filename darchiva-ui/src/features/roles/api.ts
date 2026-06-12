@@ -116,7 +116,7 @@ export function useCloneRole() {
 
 	return useMutation({
 		mutationFn: async ({ roleId, newName }: { roleId: string; newName: string }) => {
-			const { data } = await apiClient.post<Role>(`/roles/${roleId}/clone`, { name: newName });
+			const { data } = await apiClient.post<Role>(`/iam/roles/${roleId}/clone`, { name: newName });
 			return data;
 		},
 		onSuccess: () => {
