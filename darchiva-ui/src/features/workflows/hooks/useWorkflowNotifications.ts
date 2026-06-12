@@ -72,7 +72,8 @@ export function useWorkflowNotifications(
 		}
 
 		try {
-			const wsUrl = `${WS_BASE_URL}/ws/workflows/notifications`;
+			const authToken = localStorage.getItem('darchiva_token');
+			const wsUrl = `${WS_BASE_URL}/ws/workflows/notifications${authToken ? `?token=${encodeURIComponent(authToken)}` : ''}`;
 			wsRef.current = new WebSocket(wsUrl);
 
 			wsRef.current.onopen = () => {
