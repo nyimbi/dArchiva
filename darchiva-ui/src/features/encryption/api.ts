@@ -82,7 +82,7 @@ export function useAccessRequests(status?: RequestStatus) {
 	return useQuery({
 		queryKey: encryptionKeys.requests(status),
 		queryFn: async () => {
-			const { data } = await apiClient.get<AccessRequest[]>(`${API_BASE}/access-requests`, {
+			const { data } = await apiClient.get<AccessRequest[]>(`${API_BASE}/hidden-access/pending`, {
 				params: status ? { status } : undefined,
 			});
 			return data;
@@ -120,7 +120,7 @@ export function useResolveAccessRequest() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async ({ id, action }: { id: string; action: 'approve' | 'deny' }) => {
-			const { data } = await apiClient.post<AccessRequest>(`${API_BASE}/access-requests/${id}/${action}`);
+			const { data } = await apiClient.post<AccessRequest>(`${API_BASE}/hidden-access/${id}/${action}`);
 			return data;
 		},
 		onSuccess: () => {
