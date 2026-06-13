@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>dArchiva Scan Agent</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3e;
+    --accent: #6366f1; --accent-hover: #818cf8;
+    --text: #e2e8f0; --muted: #64748b; --danger: #ef4444;
+    --success: #22c55e; --warn: #f59e0b;
+    --radius: 8px; --font: 'Inter', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; min-height: 100vh; }
+
+  /* Layout */
+  .shell { display: grid; grid-template-rows: 56px 1fr; height: 100vh; }
+  header { display: flex; align-items: center; padding: 0 24px; gap: 16px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  header .logo { font-weight: 700; font-size: 16px; color: var(--text); letter-spacing: -0.3px; }
+  header .logo span { color: var(--accent); }
+  .status-pill { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 10px; border-radius: 99px; border: 1px solid var(--border); margin-left: auto; }
+  .status-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+  .status-pill.online .dot { background: var(--success); box-shadow: 0 0 6px var(--success); }
+  .status-pill.offline .dot { background: var(--danger); }
+  .status-pill.checking .dot { background: var(--warn); animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  main { display: grid; grid-template-columns: 200px 1fr; overflow: hidden; }
+  nav { border-right: 1px solid var(--border); padding: 16px 8px; display: flex; flex-direction: column; gap: 2px; }
+  nav button { width: 100%; text-align: left; background: none; border: none; color: var(--muted); padding: 9px 12px; border-radius: var(--radius); cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 10px; transition: all .15s; }
+  nav button:hover { background: var(--border); color: var(--text); }
+  nav button.active { background: rgba(99,102,241,.15); color: var(--accent); font-weight: 500; }
+  nav button .icon { width: 16px; text-align: center; }
+
+  .panel { padding: 28px 32px; overflow-y: auto; }
+  .panel h2 { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+  .panel .sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+
+  /* Form elements */
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .5px; }
+  .field input, .field select { width: 100%; background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 9px 12px; border-radius: var(--radius); font-size: 14px; outline: none; transition: border .15s; }
+  .field input:focus, .field select:focus { border-color: var(--accent); }
+  .field input[type=password] { font-family: monospace; letter-spacing: 2px; }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: var(--radius); border: none; cursor: pointer; font-size: 13px; font-weight: 500; transition: all .15s; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-ghost { background: none; border: 1px solid var(--border); color: var(--text); }
+  .btn-ghost:hover { border-color: var(--muted); }
+  .btn-danger { background: none; border: 1px solid var(--danger); color: var(--danger); }
+  .btn-danger:hover { background: var(--danger); color: #fff; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-row { display: flex; gap: 10px; margin-top: 8px; align-items: center; }
+
+  /* Cards & Tables */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 12px; }
+  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .card-title { font-weight: 600; font-size: 14px; }
+  .card-sub { color: var(--muted); font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 11px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  td { padding: 10px 12px; border-bottom: 1px solid rgba(42,45,62,.5); font-size: 13px; }
+  tr:last-child td { border-bottom: none; }
+
+  /* Stat tiles */
+  .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+  .stat .val { font-size: 26px; font-weight: 700; line-height: 1; }
+  .stat .lbl { font-size: 11px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .5px; }
+  .stat.pending .val { color: var(--warn); }
+  .stat.failed .val { color: var(--danger); }
+  .stat.done .val { color: var(--success); }
+
+  /* Badge */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 500; }
+  .badge-ok { background: rgba(34,197,94,.15); color: var(--success); }
+  .badge-warn { background: rgba(245,158,11,.15); color: var(--warn); }
+  .badge-err { background: rgba(239,68,68,.15); color: var(--danger); }
+  .badge-muted { background: rgba(100,116,139,.15); color: var(--muted); }
+
+  /* Toast */
+  #toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 18px; border-radius: var(--radius); font-size: 13px; font-weight: 500; opacity: 0; transform: translateY(8px); transition: all .25s; pointer-events: none; z-index: 999; }
+  #toast.show { opacity: 1; transform: translateY(0); }
+  #toast.ok { background: #14532d; color: var(--success); border: 1px solid var(--success); }
+  #toast.err { background: #450a0a; color: var(--danger); border: 1px solid var(--danger); }
+
+  /* Modal */
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 100; align-items: center; justify-content: center; }
+  .overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 28px; width: 480px; max-width: 95vw; }
+  .modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 20px; }
+
+  .sep { height: 1px; background: var(--border); margin: 20px 0; }
+  .empty { text-align: center; padding: 40px 0; color: var(--muted); }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.2); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <div class="logo">d<span>Archiva</span> Scan Agent</div>
+    <div id="status-pill" class="status-pill checking">
+      <span class="dot"></span>
+      <span id="status-text">Checking…</span>
+    </div>
+  </header>
+  <main>
+    <nav>
+      <button class="active" onclick="show('setup')" id="tab-setup"><span class="icon">⚙</span> Setup</button>
+      <button onclick="show('status')" id="tab-status"><span class="icon">◉</span> Status</button>
+      <button onclick="show('scanners')" id="tab-scanners"><span class="icon">▤</span> Scanners</button>
+      <button onclick="show('hotfolders')" id="tab-hotfolders"><span class="icon">📁</span> Hot Folders</button>
+      <button onclick="show('hotkeys')" id="tab-hotkeys"><span class="icon">⌨</span> Hotkeys</button>
+    </nav>
+
+    <!-- SETUP -->
+    <div class="panel" id="panel-setup">
+      <h2>Agent Setup</h2>
+      <p class="sub">Configure the connection to your dArchiva server. Changes take effect immediately.</p>
+      <div class="field"><label>dArchiva Server URL</label><input id="cfg-url" type="url" placeholder="http://192.168.1.50:8000"></div>
+      <div class="field"><label>API Token</label><input id="cfg-token" type="password" placeholder="paste token from dArchiva admin panel"></div>
+      <div class="field"><label>Agent Name</label><input id="cfg-name" placeholder="scan-station-01"></div>
+      <div class="field"><label>Default Project ID</label><input id="cfg-project" placeholder="(optional)"></div>
+      <div class="field"><label>Local Port</label><input id="cfg-port" type="number" value="7780"></div>
+      <div class="sep"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="saveConfig()"><span id="cfg-saving"></span> Save Configuration</button>
+        <button class="btn btn-ghost" onclick="testConnection()">Test Connection</button>
+      </div>
+    </div>
+
+    <!-- STATUS -->
+    <div class="panel" id="panel-status" style="display:none">
+      <h2>Agent Status</h2>
+      <p class="sub">Live queue statistics and recent upload activity.</p>
+      <div class="stats" id="queue-stats">
+        <div class="stat pending"><div class="val" id="stat-pending">—</div><div class="lbl">Pending</div></div>
+        <div class="stat"><div class="val" id="stat-uploading">—</div><div class="lbl">Uploading</div></div>
+        <div class="stat done"><div class="val" id="stat-done">—</div><div class="lbl">Done</div></div>
+        <div class="stat failed"><div class="val" id="stat-failed">—</div><div class="lbl">Failed</div></div>
+      </div>
+      <div class="btn-row" style="margin-bottom:24px">
+        <button class="btn btn-primary" onclick="drainQueue()">Upload Now</button>
+        <button class="btn btn-ghost" onclick="loadStatus()">Refresh</button>
+      </div>
+      <h3 style="font-size:14px;margin-bottom:12px">Recent Jobs</h3>
+      <div id="jobs-table"><div class="empty">Loading…</div></div>
+    </div>
+
+    <!-- SCANNERS -->
+    <div class="panel" id="panel-scanners" style="display:none">
+      <h2>Scanners</h2>
+      <p class="sub">Detected scanners on this workstation. Drivers: SANE (Linux/macOS) · TWAIN · ISIS (Windows).</p>
+      <div class="btn-row" style="margin-bottom:20px">
+        <button class="btn btn-ghost" onclick="loadDevices()">↺ Refresh Devices</button>
+      </div>
+      <div id="devices-list"><div class="empty">Loading…</div></div>
+    </div>
+
+    <!-- HOT FOLDERS -->
+    <div class="panel" id="panel-hotfolders" style="display:none">
+      <h2>Hot Folders</h2>
+      <p class="sub">Files dropped into these directories are automatically uploaded to dArchiva.</p>
+      <div class="btn-row" style="margin-bottom:20px">
+        <button class="btn btn-primary" onclick="openAddFolder()">+ Add Hot Folder</button>
+      </div>
+      <div id="hf-list"><div class="empty">Loading…</div></div>
+    </div>
+
+    <!-- HOTKEYS -->
+    <div class="panel" id="panel-hotkeys" style="display:none">
+      <h2>Hotkeys &amp; Foot Pedals</h2>
+      <p class="sub">Global shortcuts active even when the agent window is not focused. USB foot pedals register as keyboards — assign the key code the pedal emits.</p>
+      <div id="hk-fields"></div>
+      <div class="sep"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="saveHotkeys()">Save Hotkeys</button>
+        <button class="btn btn-ghost" onclick="loadHotkeys()">Reset</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Add Hot Folder Modal -->
+<div class="overlay" id="hf-modal">
+  <div class="modal">
+    <h3>Add Hot Folder</h3>
+    <div class="field"><label>Directory Path</label><input id="hf-path" placeholder="/mnt/scan-inbox"></div>
+    <div class="field"><label>Project ID</label><input id="hf-project" placeholder="proj-abc123"></div>
+    <div class="field"><label>Batch ID <span style="color:var(--muted)">(optional)</span></label><input id="hf-batch"></div>
+    <div class="field"><label>Operator ID <span style="color:var(--muted)">(optional)</span></label><input id="hf-operator" placeholder="user-xyz"></div>
+    <div class="field">
+      <label>Enabled</label>
+      <select id="hf-enabled"><option value="true">Yes</option><option value="false">No</option></select>
+    </div>
+    <div class="btn-row" style="margin-top:8px">
+      <button class="btn btn-primary" onclick="addHotFolder()">Add</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API = '';  // same origin
+
+// ── Tab routing ──────────────────────────────────────────────────────────────
+function show(tab) {
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.getElementById('panel-' + tab).style.display = '';
+  if (tab === 'setup') loadConfig();
+  if (tab === 'status') loadStatus();
+  if (tab === 'scanners') loadDevices();
+  if (tab === 'hotfolders') loadHotFolders();
+  if (tab === 'hotkeys') loadHotkeys();
+}
+
+// ── Server status pill ───────────────────────────────────────────────────────
+async function checkHealth() {
+  const pill = document.getElementById('status-pill');
+  const txt  = document.getElementById('status-text');
+  try {
+    const r = await fetch(API + '/health');
+    if (r.ok) {
+      pill.className = 'status-pill online';
+      txt.textContent = 'Agent online';
+    } else { throw new Error(); }
+  } catch {
+    pill.className = 'status-pill offline';
+    txt.textContent = 'Agent offline';
+  }
+}
+checkHealth();
+setInterval(checkHealth, 15000);
+
+// ── Setup ─────────────────────────────────────────────────────────────────────
+async function loadConfig() {
+  const r = await fetch(API + '/config');
+  if (!r.ok) return;
+  const c = await r.json();
+  document.getElementById('cfg-url').value     = c.server_url || '';
+  document.getElementById('cfg-token').value   = '';   // never pre-fill token
+  document.getElementById('cfg-name').value    = c.agent_name || '';
+  document.getElementById('cfg-project').value = c.default_project_id || '';
+  document.getElementById('cfg-port').value    = c.port || 7780;
+}
+
+async function saveConfig() {
+  const body = {
+    server_url:         document.getElementById('cfg-url').value.trim(),
+    agent_name:         document.getElementById('cfg-name').value.trim(),
+    default_project_id: document.getElementById('cfg-project').value.trim(),
+    port:               parseInt(document.getElementById('cfg-port').value) || 7780,
+  };
+  const token = document.getElementById('cfg-token').value.trim();
+  if (token) body.api_token = token;
+
+  const r = await fetch(API + '/config', {
+    method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  r.ok ? toast('Configuration saved', 'ok') : toast('Save failed', 'err');
+}
+
+async function testConnection() {
+  const url   = document.getElementById('cfg-url').value.trim();
+  const token = document.getElementById('cfg-token').value.trim();
+  if (!url) { toast('Enter server URL first', 'err'); return; }
+  try {
+    const r = await fetch(API + '/config', {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ server_url: url, ...(token ? {api_token: token} : {}) })
+    });
+    if (!r.ok) throw new Error();
+    // Try the actual server health
+    const r2 = await fetch(`${url}/api/v1/health`);
+    r2.ok ? toast('Connected to dArchiva ✓', 'ok') : toast(`Server returned ${r2.status}`, 'err');
+  } catch { toast('Could not reach server', 'err'); }
+}
+
+// ── Status ────────────────────────────────────────────────────────────────────
+async function loadStatus() {
+  const [statsR, jobsR] = await Promise.all([
+    fetch(API + '/queue/stats'),
+    fetch(API + '/jobs'),
+  ]);
+  if (statsR.ok) {
+    const s = await statsR.json();
+    document.getElementById('stat-pending').textContent   = s.pending   ?? 0;
+    document.getElementById('stat-uploading').textContent = s.uploading ?? 0;
+    document.getElementById('stat-done').textContent      = s.done      ?? 0;
+    document.getElementById('stat-failed').textContent    = s.failed    ?? 0;
+  }
+  if (jobsR.ok) {
+    const jobs = await jobsR.json();
+    renderJobs(jobs || []);
+  }
+}
+
+function renderJobs(jobs) {
+  const el = document.getElementById('jobs-table');
+  if (!jobs.length) { el.innerHTML = '<div class="empty">No jobs yet</div>'; return; }
+  const recent = jobs.sort((a,b) => b.created_at > a.created_at ? 1 : -1).slice(0, 20);
+  el.innerHTML = `<table>
+    <thead><tr><th>Job ID</th><th>Status</th><th>Pages</th><th>Created</th></tr></thead>
+    <tbody>${recent.map(j => `<tr>
+      <td style="font-family:monospace;font-size:11px">${j.id.substring(0,8)}…</td>
+      <td>${statusBadge(j.status)}</td>
+      <td>${(j.pages||[]).length}</td>
+      <td style="color:var(--muted)">${fmtDate(j.created_at)}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function statusBadge(s) {
+  const m = {complete:'ok', scanning:'warn', queued:'muted', failed:'err', uploading:'warn', uploaded:'ok'};
+  return `<span class="badge badge-${m[s]||'muted'}">${s}</span>`;
+}
+
+async function drainQueue() {
+  const r = await fetch(API + '/queue/drain', {method:'POST'});
+  r.ok ? toast('Upload triggered', 'ok') : toast('Failed', 'err');
+  setTimeout(loadStatus, 2000);
+}
+
+// ── Scanners ──────────────────────────────────────────────────────────────────
+async function loadDevices() {
+  const el = document.getElementById('devices-list');
+  el.innerHTML = '<div class="empty"><span class="spinner"></span> Scanning for devices…</div>';
+  try {
+    const r = await fetch(API + '/devices');
+    const devs = await r.json();
+    if (!devs.length) { el.innerHTML = '<div class="empty">No scanners detected</div>'; return; }
+    el.innerHTML = devs.map(d => `
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">${esc(d.name)}</div>
+            <div class="card-sub">${esc(d.id)} · ${d.driver}</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            ${d.has_adf ? '<span class="badge badge-ok">ADF</span>' : ''}
+            ${d.has_duplex ? '<span class="badge badge-ok">Duplex</span>' : ''}
+            <span class="badge ${d.online ? 'badge-ok' : 'badge-err'}">${d.online ? 'Online' : 'Offline'}</span>
+          </div>
+        </div>
+        <div style="color:var(--muted);font-size:12px;margin-top:6px">${esc(d.vendor)} · Max ${d.max_dpi||300} DPI</div>
+      </div>
+    `).join('');
+  } catch { el.innerHTML = '<div class="empty">Failed to list devices</div>'; }
+}
+
+// ── Hot Folders ───────────────────────────────────────────────────────────────
+async function loadHotFolders() {
+  const el = document.getElementById('hf-list');
+  const r  = await fetch(API + '/hot-folders');
+  const hfs = await r.json();
+  if (!hfs.length) { el.innerHTML = '<div class="empty">No hot folders configured</div>'; return; }
+  el.innerHTML = `<table>
+    <thead><tr><th>Path</th><th>Project</th><th>Operator</th><th>Status</th><th></th></tr></thead>
+    <tbody>${hfs.map(h => `<tr>
+      <td style="font-family:monospace;font-size:12px">${esc(h.path)}</td>
+      <td>${esc(h.project_id)}</td>
+      <td>${esc(h.operator_id||'—')}</td>
+      <td>${h.enabled ? '<span class="badge badge-ok">Active</span>' : '<span class="badge badge-muted">Paused</span>'}</td>
+      <td><button class="btn btn-danger" style="padding:4px 10px;font-size:12px" onclick="removeHotFolder('${h.id}')">Remove</button></td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function openAddFolder() { document.getElementById('hf-modal').classList.add('open'); }
+function closeModal()    { document.getElementById('hf-modal').classList.remove('open'); }
+
+async function addHotFolder() {
+  const body = {
+    path:        document.getElementById('hf-path').value.trim(),
+    project_id:  document.getElementById('hf-project').value.trim(),
+    batch_id:    document.getElementById('hf-batch').value.trim(),
+    operator_id: document.getElementById('hf-operator').value.trim(),
+    enabled:     document.getElementById('hf-enabled').value === 'true',
+  };
+  if (!body.path || !body.project_id) { toast('Path and Project ID required', 'err'); return; }
+  const r = await fetch(API + '/hot-folders', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  if (r.ok) { toast('Hot folder added', 'ok'); closeModal(); loadHotFolders(); }
+  else { const e = await r.json(); toast(e.error||'Failed', 'err'); }
+}
+
+async function removeHotFolder(id) {
+  const r = await fetch(API + '/hot-folders/' + id, {method:'DELETE'});
+  r.ok ? (toast('Removed', 'ok'), loadHotFolders()) : toast('Failed to remove', 'err');
+}
+
+// ── Hotkeys ───────────────────────────────────────────────────────────────────
+const HK_LABELS = {
+  scan_next_page:  'Scan Next Page',
+  accept_page:     'Accept Page',
+  reject_page:     'Reject Page',
+  end_batch:       'End Batch',
+  capture_camera:  'Capture Camera',
+};
+
+async function loadHotkeys() {
+  const r   = await fetch(API + '/hotkeys');
+  const hks = await r.json();
+  const el  = document.getElementById('hk-fields');
+  el.innerHTML = Object.entries(HK_LABELS).map(([k, label]) => `
+    <div class="field">
+      <label>${label}</label>
+      <input id="hk-${k}" value="${esc(hks[k]||'')}">
+    </div>
+  `).join('');
+}
+
+async function saveHotkeys() {
+  const body = {};
+  for (const k of Object.keys(HK_LABELS)) {
+    body[k] = document.getElementById('hk-' + k).value.trim();
+  }
+  const r = await fetch(API + '/hotkeys', {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  r.ok ? toast('Hotkeys saved', 'ok') : toast('Failed', 'err');
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtDate(s) { try { return new Date(s).toLocaleString(); } catch { return s; } }
+
+let _toastTimer;
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `show ${type}`;
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.className = '', 3000);
+}
+
+// Boot
+loadConfig();
+setInterval(loadStatus, 30000);
+</script>
+</body>
+</html>

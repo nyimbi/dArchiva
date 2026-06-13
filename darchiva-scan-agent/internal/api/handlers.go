@@ -44,6 +44,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) routes() {
+	s.mountUI()
 	s.mux.HandleFunc("GET /health", s.handleHealth)
 	s.mux.HandleFunc("GET /devices", s.handleListDevices)
 	s.mux.HandleFunc("POST /scan", s.handleStartScan)
@@ -324,9 +325,11 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleUpdateConfig(w http.ResponseWriter, r *http.Request) {
 	var partial struct {
-		ServerURL string `json:"server_url"`
-		APIToken  string `json:"api_token"`
-		Port      int    `json:"port"`
+		ServerURL        string `json:"server_url"`
+		APIToken         string `json:"api_token"`
+		AgentName        string `json:"agent_name"`
+		DefaultProjectID string `json:"default_project_id"`
+		Port             int    `json:"port"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&partial); err != nil {
 		jsonError(w, err.Error(), http.StatusBadRequest)
@@ -338,6 +341,12 @@ func (s *Server) handleUpdateConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	if partial.APIToken != "" {
 		cfg.APIToken = partial.APIToken
+	}
+	if partial.AgentName != "" {
+		cfg.AgentName = partial.AgentName
+	}
+	if partial.DefaultProjectID != "" {
+		cfg.DefaultProjectID = partial.DefaultProjectID
 	}
 	if partial.Port > 0 {
 		cfg.Port = partial.Port

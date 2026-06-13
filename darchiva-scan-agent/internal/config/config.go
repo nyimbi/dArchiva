@@ -38,6 +38,8 @@ type UploadConfig struct {
 type Config struct {
 	ServerURL        string       `json:"server_url"`
 	APIToken         string       `json:"api_token"`
+	AgentID          string       `json:"agent_id,omitempty"`          // assigned by dArchiva on registration
+	AgentName        string       `json:"agent_name,omitempty"`        // human-readable workstation label
 	DefaultProjectID string       `json:"default_project_id,omitempty"`
 	Port             int          `json:"port"`
 	Hotkeys          HotkeyConfig `json:"hotkeys"`

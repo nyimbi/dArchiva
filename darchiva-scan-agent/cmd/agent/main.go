@@ -25,9 +25,13 @@ import (
 	"github.com/darchiva/scan-agent/internal/hotfolder"
 	"github.com/darchiva/scan-agent/internal/hotkey"
 	"github.com/darchiva/scan-agent/internal/queue"
+	"github.com/darchiva/scan-agent/internal/registration"
 	"github.com/darchiva/scan-agent/internal/scanner"
 	"github.com/darchiva/scan-agent/internal/uploader"
 )
+
+// Version is set at build time via -ldflags "-X main.Version=x.y.z".
+var Version = "dev"
 
 func main() {
 	var (
@@ -154,6 +158,11 @@ func main() {
 
 	// --- Uploader background loop ---
 	up.Start(ctx)
+
+	// --- Registration / heartbeat ---
+	regMgr := registration.New(cfgMgr, Version)
+	regMgr.Start(ctx)
+	defer regMgr.Stop()
 
 	// --- System tray ---
 	if !*noTray {
