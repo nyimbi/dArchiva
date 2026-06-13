@@ -6,3 +6,4 @@ export { JobQueueDashboard } from './JobQueueDashboard';
 export { SourceConfigWizard } from './SourceConfigWizard';
 export { IngestionSourceDashboard } from './IngestionSourceDashboard';
 export { DedupAlert, useDedupCheck } from './DedupAlert';
+export { HotFolderManager } from './HotFolderManager';
