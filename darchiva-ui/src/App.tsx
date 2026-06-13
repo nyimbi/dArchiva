@@ -32,6 +32,8 @@ import {
   ScanningStation,
 } from './features/scanning-projects/pages';
 
+import { FleetManagement } from './features/agents';
+
 import { ScanningLayout } from './features/scanning-ops/layouts/ScanningLayout';
 import { OperatorDashboard } from './features/scanning-ops/pages/OperatorDashboard';
 import { ScanningInterface } from './features/scanning-ops/pages/ScanningInterface';
@@ -85,6 +87,7 @@ export default function App() {
 								<Route path="scanning-projects/:projectId/qc" element={<QCReview />} />
 								<Route path="scanning-projects/:projectId/batches/:batchId/scan" element={<ScanningStation />} />
 								<Route path="scanning-projects/resources" element={<Resources />} />
+								<Route path="agents" element={<FleetManagement />} />
 							</Route>
 						</Route>
 

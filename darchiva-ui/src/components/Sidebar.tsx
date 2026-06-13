@@ -15,6 +15,7 @@ import {
   Home,
   Inbox,
   LayoutDashboard,
+  MonitorPlay,
   Route,
   ScanLine,
   Settings,
@@ -40,6 +41,7 @@ const navItems = [
 ];
 
 const adminItems = [
+	{ id: 'agents', label: 'Scan Agents', icon: MonitorPlay, path: '/agents' },
 	{ id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
 	{ id: 'audit', label: 'Audit Logs', icon: History, path: '/audit' },
 	{ id: 'encryption', label: 'Encryption', icon: Shield, path: '/encryption' },
