@@ -28,6 +28,7 @@ export { VirtualRebundler } from './components/VirtualRebundler';
 export { ImageStitcher } from './components/ImageStitcher';
 export { CameraCapture } from './components/CameraCapture';
 export { QualitySettingsPanel } from './components/QualitySettingsPanel';
+export { BatchKanban } from './components/BatchKanban';
 
 // Tab Components
 export { AnalyticsTab } from './components/tabs/AnalyticsTab';
