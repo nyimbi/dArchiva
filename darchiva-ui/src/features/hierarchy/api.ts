@@ -92,8 +92,11 @@ export async function getDocument(id: string): Promise<Document> {
 }
 
 export async function searchHierarchy(query: string): Promise<AnyHierarchyNode[]> {
-	const res = await apiClient.get<AnyHierarchyNode[]>(`/search?q=${encodeURIComponent(query)}`);
-	return res.data;
+	const res = await apiClient.post<{ items: AnyHierarchyNode[] }>('/search', {
+		filters: { fts: { search_term: query } },
+		page_size: 50,
+	});
+	return res.data.items ?? [];
 }
 
 export async function moveNode(nodeId: string, targetId: string, nodeType: string): Promise<void> {

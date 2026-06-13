@@ -14,10 +14,10 @@ export function useNotifications(unreadOnly = false) {
 	return useQuery({
 		queryKey: notifKeys.list(unreadOnly),
 		queryFn: async (): Promise<Notification[]> => {
-			const { data } = await apiClient.get<Notification[]>(API_BASE, {
+			const { data } = await apiClient.get<{ items: Notification[]; unread_count: number }>(API_BASE, {
 				params: { unread_only: unreadOnly, limit: 50 },
 			});
-			return data ?? [];
+			return data.items ?? [];
 		},
 		refetchInterval: 30_000,
 		staleTime: 15_000,

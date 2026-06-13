@@ -47,8 +47,8 @@ export function useRoles() {
 	return useQuery({
 		queryKey: SECURITY_KEYS.roles,
 		queryFn: async (): Promise<Role[]> => {
-			const { data } = await apiClient.get<{ results?: Role[] } | Role[]>('/roles/');
-			return Array.isArray(data) ? data : (data as { results?: Role[] }).results ?? [];
+			const { data } = await apiClient.get<{ items?: Role[] } | Role[]>('/roles/');
+			return Array.isArray(data) ? data : (data as { items?: Role[] }).items ?? [];
 		},
 	});
 }

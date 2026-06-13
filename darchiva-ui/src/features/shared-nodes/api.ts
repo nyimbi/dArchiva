@@ -51,8 +51,8 @@ export function useNodeShares(nodeId: string) {
 	return useQuery({
 		queryKey: [...SHARED_KEY, 'node', nodeId],
 		queryFn: async () => {
-			const { data } = await apiClient.get<SharedNode[]>(`/nodes/${nodeId}/shares`);
-			return data;
+			const { data } = await apiClient.get<SharedNode[]>(`/shared-nodes/access/${nodeId}`);
+			return Array.isArray(data) ? data : [];
 		},
 		enabled: !!nodeId,
 	});
