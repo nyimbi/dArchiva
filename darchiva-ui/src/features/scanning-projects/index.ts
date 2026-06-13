@@ -29,6 +29,7 @@ export { ImageStitcher } from './components/ImageStitcher';
 export { CameraCapture } from './components/CameraCapture';
 export { QualitySettingsPanel } from './components/QualitySettingsPanel';
 export { BatchKanban } from './components/BatchKanban';
+export { ProjectExportButton } from './components/ProjectExportButton';
 
 // Tab Components
 export { AnalyticsTab } from './components/tabs/AnalyticsTab';
