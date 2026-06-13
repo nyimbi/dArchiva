@@ -72,19 +72,23 @@ func main() {
 	}, q)
 
 	// --- Hot folder watcher ---
-	ingestFn := func(ctx context.Context, path, projectID, batchID string) {
+	ingestFn := func(ctx context.Context, path, projectID, batchID, operatorID string) {
+		meta := map[string]any{"source": "hot_folder"}
+		if operatorID != "" {
+			meta["operator_id"] = operatorID
+		}
 		qID, err := q.Enqueue(ctx, queue.Job{
 			ScanJobID: filepath.Base(path),
 			FilePath:  path,
 			ProjectID: projectID,
 			BatchID:   batchID,
-			Meta:      map[string]any{"source": "hot_folder"},
+			Meta:      meta,
 		})
 		if err != nil {
 			slog.Error("hot folder enqueue failed", "file", path, "err", err)
 			return
 		}
-		slog.Info("hot folder file queued", "queue_id", qID, "file", path)
+		slog.Info("hot folder file queued", "queue_id", qID, "file", path, "operator", operatorID)
 		up.Drain(ctx)
 	}
 
@@ -97,11 +101,12 @@ func main() {
 
 	for _, hf := range cfg.HotFolders {
 		if err := hfWatcher.Add(hotfolder.Watch{
-			ID:        hf.ID,
-			Path:      hf.Path,
-			ProjectID: hf.ProjectID,
-			BatchID:   hf.BatchID,
-			Enabled:   hf.Enabled,
+			ID:         hf.ID,
+			Path:       hf.Path,
+			ProjectID:  hf.ProjectID,
+			BatchID:    hf.BatchID,
+			OperatorID: hf.OperatorID,
+			Enabled:    hf.Enabled,
 		}); err != nil {
 			slog.Warn("hot folder restore failed", "path", hf.Path, "err", err)
 		}

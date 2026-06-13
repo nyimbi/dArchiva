@@ -83,9 +83,10 @@ func (s *Server) handleListDevices(w http.ResponseWriter, r *http.Request) {
 // ---------- scan ----------
 
 type startScanRequest struct {
-	Params    scanner.ScanParams `json:"params"`
-	ProjectID string             `json:"project_id"`
-	BatchID   string             `json:"batch_id"`
+	Params     scanner.ScanParams `json:"params"`
+	ProjectID  string             `json:"project_id"`
+	BatchID    string             `json:"batch_id"`
+	OperatorID string             `json:"operator_id"` // dArchiva user ID of the person at the scanner
 }
 
 func (s *Server) handleStartScan(w http.ResponseWriter, r *http.Request) {
@@ -109,14 +110,16 @@ func (s *Server) handleStartScan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Background: watch job.Pages (slice appended by runScan) and enqueue for upload
-	go s.watchAndEnqueue(job.ID, req.ProjectID, req.BatchID)
+	go s.watchAndEnqueue(job.ID, req.ProjectID, req.BatchID, req.OperatorID)
 
 	w.WriteHeader(http.StatusAccepted)
 	jsonOK(w, map[string]any{"job_id": job.ID, "status": job.Status})
 }
 
-// watchAndEnqueue polls the job until complete and enqueues each page.
-func (s *Server) watchAndEnqueue(jobID, projectID, batchID string) {
+// watchAndEnqueue polls the job until complete, enqueues each page as it
+// appears, and drains the uploader immediately after each enqueue so uploads
+// pipeline with ADF scanning instead of waiting for the full job to finish.
+func (s *Server) watchAndEnqueue(jobID, projectID, batchID, operatorID string) {
 	ctx := context.Background()
 	seen := make(map[int]bool)
 	ticker := time.NewTicker(500 * time.Millisecond)
@@ -132,31 +135,41 @@ func (s *Server) watchAndEnqueue(jobID, projectID, batchID string) {
 			if !ok {
 				return
 			}
+			newPages := 0
 			for _, page := range job.Pages {
 				if seen[page.Number] || page.Status != scanner.PageOK {
 					continue
 				}
 				seen[page.Number] = true
+				meta := map[string]any{
+					"page_number": page.Number,
+					"dpi":         page.DPI,
+					"width":       page.Width,
+					"height":      page.Height,
+				}
+				if operatorID != "" {
+					meta["operator_id"] = operatorID
+				}
 				qID, err := s.services.Queue.Enqueue(ctx, queue.Job{
 					ScanJobID: jobID,
 					FilePath:  page.Path,
 					ProjectID: projectID,
 					BatchID:   batchID,
-					Meta: map[string]any{
-						"page_number": page.Number,
-						"dpi":         page.DPI,
-						"width":       page.Width,
-						"height":      page.Height,
-					},
+					Meta:      meta,
 				})
 				if err != nil {
 					slog.Error("enqueue page failed", "err", err)
 					continue
 				}
-				slog.Info("page queued", "queue_id", qID, "page", page.Number)
+				slog.Info("page queued", "queue_id", qID, "page", page.Number, "operator", operatorID)
+				newPages++
+			}
+			// Drain immediately whenever new pages were enqueued so uploads
+			// run in parallel with scanning rather than after the job finishes.
+			if newPages > 0 {
+				go s.services.Uploader.Drain(ctx)
 			}
 			if job.Status == scanner.JobComplete || job.Status == scanner.JobFailed {
-				s.services.Uploader.Drain(ctx)
 				return
 			}
 		}
@@ -193,10 +206,11 @@ func (s *Server) handleDeleteJob(w http.ResponseWriter, r *http.Request) {
 // ---------- hot folders ----------
 
 type addHotFolderRequest struct {
-	Path      string `json:"path"`
-	ProjectID string `json:"project_id"`
-	BatchID   string `json:"batch_id"`
-	Enabled   bool   `json:"enabled"`
+	Path       string `json:"path"`
+	ProjectID  string `json:"project_id"`
+	BatchID    string `json:"batch_id"`
+	OperatorID string `json:"operator_id"` // attribute uploads from this folder to this user
+	Enabled    bool   `json:"enabled"`
 }
 
 func (s *Server) handleListHotFolders(w http.ResponseWriter, r *http.Request) {
@@ -214,22 +228,24 @@ func (s *Server) handleAddHotFolder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	watch := hotfolder.Watch{
-		ID:        uuid.New().String(),
-		Path:      req.Path,
-		ProjectID: req.ProjectID,
-		BatchID:   req.BatchID,
-		Enabled:   req.Enabled,
+		ID:         uuid.New().String(),
+		Path:       req.Path,
+		ProjectID:  req.ProjectID,
+		BatchID:    req.BatchID,
+		OperatorID: req.OperatorID,
+		Enabled:    req.Enabled,
 	}
 	if err := s.services.HotFolders.Add(watch); err != nil {
 		jsonError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	_ = s.services.Config.AddHotFolder(config.HotFolder{
-		ID:        watch.ID,
-		Path:      watch.Path,
-		ProjectID: watch.ProjectID,
-		BatchID:   watch.BatchID,
-		Enabled:   watch.Enabled,
+		ID:         watch.ID,
+		Path:       watch.Path,
+		ProjectID:  watch.ProjectID,
+		BatchID:    watch.BatchID,
+		OperatorID: watch.OperatorID,
+		Enabled:    watch.Enabled,
 	})
 	w.WriteHeader(http.StatusCreated)
 	jsonOK(w, watch)

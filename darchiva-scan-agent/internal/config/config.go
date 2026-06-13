@@ -19,11 +19,12 @@ type HotkeyConfig struct {
 
 // HotFolder watches a directory and auto-ingests dropped files.
 type HotFolder struct {
-	ID        string `json:"id"`
-	Path      string `json:"path"`
-	ProjectID string `json:"project_id"`
-	BatchID   string `json:"batch_id,omitempty"`
-	Enabled   bool   `json:"enabled"`
+	ID         string `json:"id"`
+	Path       string `json:"path"`
+	ProjectID  string `json:"project_id"`
+	BatchID    string `json:"batch_id,omitempty"`
+	OperatorID string `json:"operator_id,omitempty"` // attribute uploads to this operator
+	Enabled    bool   `json:"enabled"`
 }
 
 // UploadConfig controls retry and auto-upload behaviour.

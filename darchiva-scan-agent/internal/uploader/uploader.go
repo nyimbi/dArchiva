@@ -126,6 +126,11 @@ func (u *Uploader) upload(ctx context.Context, job queue.Job) error {
 	if job.BatchID != "" {
 		_ = mw.WriteField("batch_id", job.BatchID)
 	}
+	// operator_id identifies the human who scanned this document.
+	// The api_token authenticates the machine; operator_id attributes the work.
+	if opID, _ := job.Meta["operator_id"].(string); opID != "" {
+		_ = mw.WriteField("operator_id", opID)
+	}
 	if extra, err := json.Marshal(job.Meta); err == nil {
 		_ = mw.WriteField("meta", string(extra))
 	}

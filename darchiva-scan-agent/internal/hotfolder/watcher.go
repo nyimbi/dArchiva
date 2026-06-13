@@ -14,15 +14,18 @@ import (
 )
 
 // IngestFunc is called with each new file path that should be ingested.
-type IngestFunc func(ctx context.Context, path string, projectID string, batchID string)
+// operatorID identifies the human operator responsible for this hot folder;
+// it is included in the upload payload so dArchiva can attribute the document.
+type IngestFunc func(ctx context.Context, path string, projectID string, batchID string, operatorID string)
 
 // Watch describes one registered hot folder.
 type Watch struct {
-	ID        string
-	Path      string
-	ProjectID string
-	BatchID   string
-	Enabled   bool
+	ID         string
+	Path       string
+	ProjectID  string
+	BatchID    string
+	OperatorID string // who owns scans dropped here; sent to dArchiva on upload
+	Enabled    bool
 }
 
 // Watcher manages multiple hot-folder watches.
@@ -158,7 +161,7 @@ func (w *Watcher) loop() {
 				_ = os.MkdirAll(processed, 0755)
 
 				go func(p string, ww *Watch) {
-					w.ingest(context.Background(), p, ww.ProjectID, ww.BatchID)
+					w.ingest(context.Background(), p, ww.ProjectID, ww.BatchID, ww.OperatorID)
 					dest := filepath.Join(processed, filepath.Base(p))
 					if err := os.Rename(p, dest); err != nil {
 						slog.Warn("could not move processed file", "path", p, "err", err)
