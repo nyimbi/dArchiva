@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build ./... 2>&1 && echo \\\"windows/amd64: OK\\\"\",\"timeout\":120000,\"description\":\"Cross-compile for windows/amd64\"}",
+  "error": "Exit code 1\n# github.com/darchiva/scan-agent/internal/scanner\ninternal/scanner/isis_windows.go:126:9: undefined: dpiOrDefault\ninternal/scanner/twain_windows.go:240:9: undefined: dpiOrDefault",
+  "timestamp": "2026-06-13T12:20:21.889Z",
+  "retry_count": 1
+}
