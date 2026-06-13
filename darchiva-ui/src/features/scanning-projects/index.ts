@@ -23,6 +23,11 @@ export { ProjectDetail } from './components/ProjectDetail';
 export { ProjectList } from './components/ProjectList';
 export { QuickActionsPanel } from './components/QuickActionsPanel';
 
+// P2 Advanced Capture Components
+export { VirtualRebundler } from './components/VirtualRebundler';
+export { ImageStitcher } from './components/ImageStitcher';
+export { CameraCapture } from './components/CameraCapture';
+
 // Tab Components
 export { AnalyticsTab } from './components/tabs/AnalyticsTab';
 export { BatchesTab } from './components/tabs/BatchesTab';
