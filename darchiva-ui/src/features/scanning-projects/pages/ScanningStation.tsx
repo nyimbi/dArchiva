@@ -34,7 +34,11 @@ import { Link,useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { completeBatchScan,getBatch,getBatchDocuments,getScannerCapabilities,getScanners,quickScan,type BatchDocument,type ScanJobOptions,type ScannerCapabilities } from '../api';
 import { BrowserScannerConfig,ScanModeIndicator,type ScanMode } from '../components/BrowserScannerConfig';
+import { CameraCapture } from '../components/CameraCapture';
+import { ImageStitcher } from '../components/ImageStitcher';
 import { useBrowserScanner } from '../hooks/useBrowserScanner';
+
+type CaptureMode = 'scanner' | 'camera' | 'stitch';
 
 // Types for the scanning station
 interface ScannedPage {
@@ -385,6 +389,9 @@ function SettingsDialog({ open, onOpenChange, settings, onSave, capabilities }: 
 export function ScanningStation() {
 	const { projectId, batchId } = useParams<{ projectId: string; batchId: string }>();
 	const queryClient = useQueryClient();
+
+	// Capture mode: which input UI is active (scanner / camera / stitch)
+	const [captureMode, setCaptureMode] = useState<CaptureMode>('scanner');
 
 	// Scan mode state (backend vs browser)
 	const [scanMode, setScanMode] = useState<ScanMode>(() => {
@@ -784,52 +791,74 @@ export function ScanningStation() {
 						)}
 					</div>
 
-					{/* Scanner controls */}
+					{/* Capture mode toggle + scanner controls */}
 					<div className="flex items-center gap-2">
-						<button
-							onClick={() => setShowSettings(true)}
-							className="p-2 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-lg transition-colors"
-							title="Scan settings"
-						>
-							<Settings className="w-5 h-5" />
-						</button>
-						<button
-							onClick={toggleScanning}
-							disabled={
-								(scanMode === 'backend' ? !activeScanner : !browserScanner.activeScanner) ||
-								scanMutation.isPending ||
-								browserScanner.isScanning
-							}
-							className={cn(
-								'inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors',
-								((scanMode === 'backend' ? !activeScanner : !browserScanner.activeScanner) ||
-									scanMutation.isPending ||
-									browserScanner.isScanning)
-									? 'bg-slate-700 text-slate-500 cursor-not-allowed'
-									: isScanning
-										? 'bg-amber-500 text-slate-900 hover:bg-amber-400'
-										: 'bg-brass-500 text-slate-900 hover:bg-brass-400'
-							)}
-						>
-							{scanMutation.isPending || browserScanner.isScanning ? (
-								<>
-									<Loader2 className="w-4 h-4 animate-spin" />
-									{browserScanner.scanProgress
-										? `Uploading ${browserScanner.scanProgress.current}/${browserScanner.scanProgress.total}...`
-										: 'Scanning...'}
-								</>
-							) : isScanning ? (
-								<>
-									<Pause className="w-4 h-4" />
-									Pause
-								</>
-							) : (
-								<>
-									<Play className="w-4 h-4" />
-									Scan
-								</>
-							)}
-						</button>
+						{/* Capture mode toggle: Scanner | Camera | Stitch */}
+						<div className="flex items-center rounded-lg border border-slate-700 overflow-hidden text-xs font-medium">
+							{(['scanner', 'camera', 'stitch'] as CaptureMode[]).map((mode) => (
+								<button
+									key={mode}
+									onClick={() => setCaptureMode(mode)}
+									className={cn(
+										'px-3 py-1.5 capitalize transition-colors',
+										captureMode === mode
+											? 'bg-brass-500 text-slate-900'
+											: 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
+									)}
+								>
+									{mode}
+								</button>
+							))}
+						</div>
+
+						{captureMode === 'scanner' && (
+							<>
+								<button
+									onClick={() => setShowSettings(true)}
+									className="p-2 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-lg transition-colors"
+									title="Scan settings"
+								>
+									<Settings className="w-5 h-5" />
+								</button>
+								<button
+									onClick={toggleScanning}
+									disabled={
+										(scanMode === 'backend' ? !activeScanner : !browserScanner.activeScanner) ||
+										scanMutation.isPending ||
+										browserScanner.isScanning
+									}
+									className={cn(
+										'inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors',
+										((scanMode === 'backend' ? !activeScanner : !browserScanner.activeScanner) ||
+											scanMutation.isPending ||
+											browserScanner.isScanning)
+											? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+											: isScanning
+												? 'bg-amber-500 text-slate-900 hover:bg-amber-400'
+												: 'bg-brass-500 text-slate-900 hover:bg-brass-400'
+									)}
+								>
+									{scanMutation.isPending || browserScanner.isScanning ? (
+										<>
+											<Loader2 className="w-4 h-4 animate-spin" />
+											{browserScanner.scanProgress
+												? `Uploading ${browserScanner.scanProgress.current}/${browserScanner.scanProgress.total}...`
+												: 'Scanning...'}
+										</>
+									) : isScanning ? (
+										<>
+											<Pause className="w-4 h-4" />
+											Pause
+										</>
+									) : (
+										<>
+											<Play className="w-4 h-4" />
+											Scan
+										</>
+									)}
+								</button>
+							</>
+						)}
 					</div>
 				</div>
 
@@ -924,8 +953,38 @@ export function ScanningStation() {
 				)}
 			</header>
 
+			{/* Camera capture panel */}
+			{captureMode === 'camera' && (
+				<div className="flex-1 overflow-auto bg-slate-950 p-6">
+					<CameraCapture
+						onAccept={(_imageBase64, _dpi) => {
+							// Accepted image: refresh batch documents to pick up server-side persist
+							queryClient.invalidateQueries({ queryKey: ['batch-documents', projectId, batchId] });
+							queryClient.invalidateQueries({ queryKey: ['scanning-batch', projectId, batchId] });
+							setCaptureMode('scanner');
+						}}
+						onClose={() => setCaptureMode('scanner')}
+					/>
+				</div>
+			)}
+
+			{/* Image stitcher panel */}
+			{captureMode === 'stitch' && (
+				<div className="flex-1 overflow-auto bg-slate-950 p-6">
+					<ImageStitcher
+						batchId={batchId}
+						onAccept={(_imageBase64) => {
+							queryClient.invalidateQueries({ queryKey: ['batch-documents', projectId, batchId] });
+							queryClient.invalidateQueries({ queryKey: ['scanning-batch', projectId, batchId] });
+							setCaptureMode('scanner');
+						}}
+						onClose={() => setCaptureMode('scanner')}
+					/>
+				</div>
+			)}
+
 			{/* Main content */}
-			<div className="flex-1 flex overflow-hidden">
+			{captureMode === 'scanner' && <div className="flex-1 flex overflow-hidden">
 				{/* Thumbnail panel */}
 				<aside className="w-64 flex-shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col">
 					<div className="p-3 border-b border-slate-800">
@@ -1153,7 +1212,7 @@ export function ScanningStation() {
 						</div>
 					)}
 				</main>
-			</div>
+			</div>}
 
 			{/* Footer - batch completion */}
 			<footer className="flex-shrink-0 bg-slate-900 border-t border-slate-800 px-6 py-4">

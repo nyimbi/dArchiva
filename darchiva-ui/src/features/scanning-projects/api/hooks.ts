@@ -1,7 +1,15 @@
+// (c) Copyright Datacraft, 2026
 // dArchiva Scanning Projects - API Hooks
 
 import { apiClient } from '@/lib/api-client';
 import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
+import type {
+	BatchPipelineResponse,
+	LiveOpsResponse,
+	OperatorKPI,
+	PageEventInput,
+	TeamSummaryResponse,
+} from './index';
 import type {
   AIAdvisorResponse,
   BatchFilters,
@@ -491,6 +499,76 @@ export function useUpdateCheckpoint() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: scanningProjectKeys.all });
+    },
+  });
+}
+
+// =====================================================
+// Supervisor Hooks
+// =====================================================
+
+export function useLiveOps() {
+  return useQuery<LiveOpsResponse>({
+    queryKey: ['supervisor', 'live-ops'],
+    queryFn: async () => {
+      const res = await apiClient.get<LiveOpsResponse>(`${BASE_URL}/supervisor/live-ops`);
+      return res.data;
+    },
+    refetchInterval: 10_000,
+  });
+}
+
+export function useOperatorKpis(days?: number) {
+  return useQuery<OperatorKPI[]>({
+    queryKey: ['supervisor', 'operator-kpis', days],
+    queryFn: async () => {
+      const res = await apiClient.get<OperatorKPI[]>(`${BASE_URL}/supervisor/operator-kpis`, {
+        params: days ? { days } : undefined,
+      });
+      return res.data;
+    },
+    refetchInterval: 30_000,
+  });
+}
+
+export function useTeamSummary(projectId?: string, locationId?: string) {
+  return useQuery<TeamSummaryResponse>({
+    queryKey: ['supervisor', 'team-summary', projectId, locationId],
+    queryFn: async () => {
+      const res = await apiClient.get<TeamSummaryResponse>(`${BASE_URL}/supervisor/team-summary`, {
+        params: {
+          ...(projectId ? { project_id: projectId } : {}),
+          ...(locationId ? { location_id: locationId } : {}),
+        },
+      });
+      return res.data;
+    },
+    refetchInterval: 30_000,
+  });
+}
+
+export function useBatchPipeline(projectId: string) {
+  return useQuery<BatchPipelineResponse>({
+    queryKey: ['supervisor', 'batch-pipeline', projectId],
+    queryFn: async () => {
+      const res = await apiClient.get<BatchPipelineResponse>(
+        `${BASE_URL}/${projectId}/batch-pipeline`
+      );
+      return res.data;
+    },
+    enabled: !!projectId,
+    refetchInterval: 15_000,
+  });
+}
+
+export function useRecordPageEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: PageEventInput) => {
+      await apiClient.post(`${BASE_URL}/supervisor/page-event`, input);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['supervisor'] });
     },
   });
 }

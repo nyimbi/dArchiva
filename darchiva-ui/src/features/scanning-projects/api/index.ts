@@ -1,4 +1,6 @@
 // (c) Copyright Datacraft, 2026
+export * from './exceptions';
+
 import { apiClient } from '@/lib/api-client';
 import type {
   QualityControlSample,
@@ -588,6 +590,112 @@ export async function getScanJobs(options?: {
 export async function cancelScanJob(jobId: string): Promise<ScanJob> {
 	const { data: response } = await apiClient.post<ScanJob>(`/scanners/jobs/${jobId}/cancel`);
 	return response;
+}
+
+// =====================================================
+// Supervisor API - Types & Hooks
+// =====================================================
+
+export interface OperatorLiveStatus {
+	operator_id: string;
+	operator_name: string;
+	status: 'scanning' | 'idle' | 'offline';
+	current_batch: string | null;
+	pages_this_session: number;
+	last_activity_at: string | null;
+}
+
+export interface LiveOpsResponse {
+	operators: OperatorLiveStatus[];
+	pages_scanned_today: number;
+	active_batches: number;
+	queue_depth: number;
+}
+
+export interface OperatorKPI {
+	operator_id: string;
+	operator_name: string;
+	project_name: string;
+	shift_hours: number;
+	pages_scanned: number;
+	pages_accepted: number;
+	pages_rescanned: number;
+	pages_per_hour: number;
+	rescan_rate: number;
+	first_pass_yield: number;
+	idle_time_min: number;
+	sla_compliance_rate: number;
+}
+
+export interface TeamSummaryResponse {
+	project_id: string | null;
+	location_id: string | null;
+	total_pages: number;
+	total_operators: number;
+	avg_pages_per_hour: number;
+	team_rescan_rate: number;
+	team_first_pass_yield: number;
+	operator_kpis: OperatorKPI[];
+}
+
+export interface BatchPipelineItem {
+	batch_id: string;
+	batch_number: string;
+	status: string;
+	scanned_pages: number;
+	estimated_pages: number;
+	assigned_operator_id: string | null;
+	assigned_operator_name: string | null;
+}
+
+export interface BatchPipelineResponse {
+	project_id: string;
+	unassigned: BatchPipelineItem[];
+	in_progress: BatchPipelineItem[];
+	qc_review: BatchPipelineItem[];
+	complete: BatchPipelineItem[];
+}
+
+export interface PageEventInput {
+	project_id: string;
+	batch_id: string;
+	operator_id: string;
+	page_count?: number;
+	event_type?: 'scan' | 'rescan' | 'accept' | 'reject';
+}
+
+export async function getLiveOps(): Promise<LiveOpsResponse> {
+	const { data } = await apiClient.get<LiveOpsResponse>('/scanning-projects/supervisor/live-ops');
+	return data;
+}
+
+export async function getOperatorKpis(days?: number): Promise<OperatorKPI[]> {
+	const { data } = await apiClient.get<OperatorKPI[]>('/scanning-projects/supervisor/operator-kpis', {
+		params: days ? { days } : undefined,
+	});
+	return data;
+}
+
+export async function getTeamSummary(
+	projectId?: string,
+	locationId?: string
+): Promise<TeamSummaryResponse> {
+	const { data } = await apiClient.get<TeamSummaryResponse>(
+		'/scanning-projects/supervisor/team-summary',
+		{ params: { project_id: projectId, location_id: locationId } }
+	);
+	return data;
+}
+
+export async function getBatchPipeline(projectId: string): Promise<BatchPipelineResponse> {
+	const { data } = await apiClient.get<BatchPipelineResponse>(
+		`/scanning-projects/${projectId}/batch-pipeline`
+	);
+	return data;
+}
+
+export async function recordPageEvent(input: PageEventInput): Promise<void> {
+	await apiClient.post('/scanning-projects/supervisor/page-event', input);
 }
 
 // Helper to wait for a condition with timeout

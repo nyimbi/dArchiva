@@ -1,10 +1,12 @@
 // (c) Copyright Datacraft, 2026
 import { cn } from '@/lib/utils';
-import { AlertTriangle,ArrowLeft,Calendar,CheckCircle,FileText,Gauge,Plus,Wand2,Wrench } from 'lucide-react';
+import { AlertTriangle,ArrowLeft,Barcode,Calendar,CheckCircle,FileText,Gauge,Layers,Plus,Wand2,Wrench } from 'lucide-react';
 import { useState } from 'react';
 import { Link,useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { AIProjectPlanner,BatchCard,CreateBatchDialog,MilestoneTimeline,ScannerDiscovery } from '../components';
+import { BarcodeGenerator } from '../components/BarcodeGenerator';
+import { VirtualRebundler } from '../components/VirtualRebundler';
 import { useProjectBatches,useProjectMilestones,useScanningProject,useScanningProjectMetrics } from '../hooks';
 
 function formatDate(date: string): string {
@@ -20,7 +22,8 @@ export function ProjectDetails() {
 	const { data: milestones } = useProjectMilestones(projectId!);
 	const [showAddBatch, setShowAddBatch] = useState(false);
 	const [showAIPlanner, setShowAIPlanner] = useState(false);
-	const [activeTab, setActiveTab] = useState<'batches' | 'milestones' | 'metrics' | 'equipment'>('batches');
+	const [activeTab, setActiveTab] = useState<'batches' | 'milestones' | 'metrics' | 'equipment' | 'rebundle' | 'barcodes'>('batches');
+	const [rebundleBatchId, setRebundleBatchId] = useState<string | null>(null);
 
 	if (projectLoading || !project) {
 		return (
@@ -128,19 +131,21 @@ export function ProjectDetails() {
 				</div>
 			</div>
 
-			<div className="flex items-center gap-4 border-b border-slate-800 mb-6">
-				{(['batches', 'milestones', 'metrics', 'equipment'] as const).map((tab) => (
+			<div className="flex items-center gap-4 border-b border-slate-800 mb-6 flex-wrap">
+				{(['batches', 'milestones', 'metrics', 'equipment', 'rebundle', 'barcodes'] as const).map((tab) => (
 					<button
 						key={tab}
 						onClick={() => setActiveTab(tab)}
 						className={cn(
-							'px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors capitalize',
+							'px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors capitalize flex items-center gap-1.5',
 							activeTab === tab
 								? 'border-brass-500 text-brass-400'
 								: 'border-transparent text-slate-400 hover:text-slate-100'
 						)}
 					>
-						{tab}
+						{tab === 'rebundle' && <Layers className="w-3.5 h-3.5" />}
+						{tab === 'barcodes' && <Barcode className="w-3.5 h-3.5" />}
+						{tab === 'rebundle' ? 'Restack & Rebundle' : tab === 'barcodes' ? 'Barcode Labels' : tab}
 					</button>
 				))}
 				{activeTab === 'batches' && (
@@ -227,6 +232,62 @@ export function ProjectDetails() {
 							toast.success(`Scanner ${scanner.name} registered successfully.`);
 						}}
 					/>
+				</div>
+			)}
+
+			{activeTab === 'rebundle' && (
+				<div className="space-y-4">
+					<div className="flex items-center gap-3 mb-2">
+						<Layers className="w-5 h-5 text-cyan-400" />
+						<h2 className="text-lg font-semibold text-slate-100">Restack & Rebundle</h2>
+					</div>
+					{!rebundleBatchId ? (
+						<div>
+							<p className="text-sm text-slate-400 mb-4">
+								Select a batch to reorder, split, merge, or reassign its documents.
+							</p>
+							{batches && batches.length > 0 ? (
+								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+									{batches.map((batch) => (
+										<button
+											key={batch.id}
+											onClick={() => setRebundleBatchId(batch.id)}
+											className="text-left bg-slate-900 border border-slate-700 hover:border-brass-500 rounded-lg p-4 transition-colors"
+										>
+											<div className="font-medium text-slate-100 text-sm">{batch.batchNumber ?? batch.id.slice(0, 8)}</div>
+											<div className="text-xs text-slate-400 mt-1 capitalize">{batch.status} · {batch.estimatedPages ?? 0} pages</div>
+										</button>
+									))}
+								</div>
+							) : (
+								<p className="text-slate-500 py-8 text-center">No batches available.</p>
+							)}
+						</div>
+					) : (
+						<div>
+							<button
+								onClick={() => setRebundleBatchId(null)}
+								className="mb-4 text-sm text-slate-400 hover:text-slate-100 flex items-center gap-1"
+							>
+								← Back to batch list
+							</button>
+							<VirtualRebundler
+								projectId={project.id}
+								batchId={rebundleBatchId}
+								onClose={() => setRebundleBatchId(null)}
+							/>
+						</div>
+					)}
+				</div>
+			)}
+
+			{activeTab === 'barcodes' && (
+				<div className="space-y-4">
+					<div className="flex items-center gap-3 mb-2">
+						<Barcode className="w-5 h-5 text-amber-400" />
+						<h2 className="text-lg font-semibold text-slate-100">Barcode Labels</h2>
+					</div>
+					<BarcodeGenerator />
 				</div>
 			)}
 

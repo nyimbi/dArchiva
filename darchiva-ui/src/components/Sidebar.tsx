@@ -3,6 +3,7 @@ import { useStore } from '@/hooks/useStore';
 import { cn } from '@/lib/utils';
 import { AnimatePresence,motion } from 'framer-motion';
 import {
+  AlertTriangle,
   Briefcase,
   ChevronLeft,
   ChevronRight,
@@ -15,6 +16,7 @@ import {
   Home,
   Inbox,
   LayoutDashboard,
+  MonitorDot,
   MonitorPlay,
   Route,
   ScanLine,
@@ -32,12 +34,14 @@ const navItems = [
 	{ id: 'documents', label: 'Documents', icon: FolderTree, path: '/documents' },
 	{ id: 'shared', label: 'Shared Documents', icon: Share2, path: '/shared' },
 	{ id: 'scanning', label: 'Scanning Projects', icon: ScanLine, path: '/scanning-projects' },
+	{ id: 'supervisor', label: 'Supervisor', icon: MonitorDot, path: '/supervisor' },
 	{ id: 'workflows', label: 'Workflows', icon: GitBranch, path: '/workflows' },
 	{ id: 'forms', label: 'Form Recognition', icon: FileSearch, path: '/forms' },
 	{ id: 'cases', label: 'Cases', icon: Briefcase, path: '/cases' },
 	{ id: 'portfolios', label: 'Portfolios', icon: FolderKanban, path: '/portfolios' },
 	{ id: 'ingestion', label: 'Ingestion', icon: Upload, path: '/ingestion' },
 	{ id: 'routing', label: 'Auto-Routing', icon: Route, path: '/routing' },
+	{ id: 'exception-queue', label: 'Exception Queue', icon: AlertTriangle, path: '/exception-queue' },
 ];
 
 const adminItems = [

@@ -1,4 +1,5 @@
 export * from './AuditLogs';
+export * from './ExceptionQueue';
 export * from './Cases';
 export * from './Dashboard';
 export * from './DocumentDetail';

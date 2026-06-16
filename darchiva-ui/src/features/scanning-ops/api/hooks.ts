@@ -1,7 +1,7 @@
 import { apiClient } from '@/lib/api-client';
 import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 
-const BASE_URL = '/scanning-projects/gamification';
+const OPERATOR_KPIS_URL = '/scanning-projects/supervisor/operator-kpis';
 
 export interface OperatorScore {
     id: string;
@@ -22,14 +22,28 @@ export const gamificationKeys = {
     performance: () => [...gamificationKeys.all, 'performance'] as const,
 };
 
+interface OperatorKpi {
+    operator_id: string;
+    operator_name: string;
+    pages_scanned: number;
+    first_pass_yield: number;
+    [key: string]: unknown;
+}
+
 export function useLeaderboard(limit = 10) {
     return useQuery({
         queryKey: [...gamificationKeys.leaderboard(), limit],
         queryFn: async () => {
-            const res = await apiClient.get<OperatorScore[]>(`${BASE_URL}/leaderboard`, {
-                params: { limit },
+            const res = await apiClient.get<OperatorKpi[]>(OPERATOR_KPIS_URL, {
+                params: { days: 7, limit },
             });
-            return res.data;
+            return res.data.map((kpi, index): OperatorScore => ({
+                id: kpi.operator_id,
+                operator_name: kpi.operator_name,
+                pages_scanned: kpi.pages_scanned,
+                quality_score: kpi.first_pass_yield,
+                rank: index + 1,
+            }));
         },
         refetchInterval: 30000,
     });
@@ -39,8 +53,13 @@ export function useOperatorPerformance() {
     return useQuery({
         queryKey: gamificationKeys.performance(),
         queryFn: async () => {
-            const res = await apiClient.get<PerformanceData[]>(`${BASE_URL}/performance`);
-            return res.data;
+            const res = await apiClient.get<OperatorKpi[]>(OPERATOR_KPIS_URL, {
+                params: { days: 7, limit: 50 },
+            });
+            return res.data.map((kpi): PerformanceData => ({
+                name: kpi.operator_name,
+                pages: kpi.pages_scanned,
+            }));
         },
         refetchInterval: 60000,
     });
@@ -277,8 +296,8 @@ export function useShiftStats() {
                 }),
                 apiClient.get<Shift[]>('/scanning-projects/shifts'),
                 apiClient.get<Array<{ operator_id?: string; quality_score?: number }>>(
-                    '/scanning-projects/gamification/leaderboard',
-                    { params: { limit: 100 } },
+                    OPERATOR_KPIS_URL,
+                    { params: { days: 7, limit: 100 } },
                 ),
             ]);
 
