@@ -323,6 +323,66 @@ export function useUpdateQCSample() {
 }
 
 // =====================================================
+// Batch Templates Hooks
+// =====================================================
+
+export const batchTemplateKeys = {
+	all: ['batch-templates'] as const,
+	lists: () => [...batchTemplateKeys.all, 'list'] as const,
+	detail: (id: string) => [...batchTemplateKeys.all, 'detail', id] as const,
+};
+
+export function useBatchTemplates() {
+	return useQuery({
+		queryKey: batchTemplateKeys.lists(),
+		queryFn: api.getBatchTemplates,
+	});
+}
+
+export function useCreateBatchTemplate() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: api.createBatchTemplate,
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: batchTemplateKeys.lists() });
+		},
+	});
+}
+
+export function useUpdateBatchTemplate() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: ({ id, input }: { id: string; input: api.UpdateBatchTemplateInput }) =>
+			api.updateBatchTemplate(id, input),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: batchTemplateKeys.lists() });
+		},
+	});
+}
+
+export function useDeleteBatchTemplate() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: api.deleteBatchTemplate,
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: batchTemplateKeys.lists() });
+		},
+	});
+}
+
+export function useApplyTemplate() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: ({ templateId, batchId }: { templateId: string; batchId: string }) =>
+			api.applyBatchTemplate(templateId, batchId),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: batchTemplateKeys.lists() });
+			queryClient.invalidateQueries({ queryKey: scanningProjectKeys.all });
+		},
+	});
+}
+
+// =====================================================
 // Resources Hooks
 // =====================================================
 

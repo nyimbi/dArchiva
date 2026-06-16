@@ -1,11 +1,12 @@
 // (c) Copyright Datacraft, 2026
 import { cn } from '@/lib/utils';
-import { AlertTriangle,ArrowLeft,Barcode,Calendar,CheckCircle,FileText,Gauge,Layers,Plus,Wand2,Wrench } from 'lucide-react';
+import { AlertTriangle,ArrowLeft,Barcode,Calendar,CheckCircle,FileText,Gauge,Layers,LayoutTemplate,Plus,Wand2,Wrench } from 'lucide-react';
 import { useState } from 'react';
 import { Link,useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { AIProjectPlanner,BatchCard,CreateBatchDialog,MilestoneTimeline,ScannerDiscovery } from '../components';
 import { BarcodeGenerator } from '../components/BarcodeGenerator';
+import { BatchTemplateManager } from '../components/BatchTemplateManager';
 import { VirtualRebundler } from '../components/VirtualRebundler';
 import { useProjectBatches,useProjectMilestones,useScanningProject,useScanningProjectMetrics } from '../hooks';
 
@@ -22,7 +23,7 @@ export function ProjectDetails() {
 	const { data: milestones } = useProjectMilestones(projectId!);
 	const [showAddBatch, setShowAddBatch] = useState(false);
 	const [showAIPlanner, setShowAIPlanner] = useState(false);
-	const [activeTab, setActiveTab] = useState<'batches' | 'milestones' | 'metrics' | 'equipment' | 'rebundle' | 'barcodes'>('batches');
+	const [activeTab, setActiveTab] = useState<'batches' | 'milestones' | 'metrics' | 'equipment' | 'rebundle' | 'barcodes' | 'templates'>('batches');
 	const [rebundleBatchId, setRebundleBatchId] = useState<string | null>(null);
 
 	if (projectLoading || !project) {
@@ -132,7 +133,7 @@ export function ProjectDetails() {
 			</div>
 
 			<div className="flex items-center gap-4 border-b border-slate-800 mb-6 flex-wrap">
-				{(['batches', 'milestones', 'metrics', 'equipment', 'rebundle', 'barcodes'] as const).map((tab) => (
+				{(['batches', 'milestones', 'metrics', 'equipment', 'rebundle', 'barcodes', 'templates'] as const).map((tab) => (
 					<button
 						key={tab}
 						onClick={() => setActiveTab(tab)}
@@ -145,7 +146,14 @@ export function ProjectDetails() {
 					>
 						{tab === 'rebundle' && <Layers className="w-3.5 h-3.5" />}
 						{tab === 'barcodes' && <Barcode className="w-3.5 h-3.5" />}
-						{tab === 'rebundle' ? 'Restack & Rebundle' : tab === 'barcodes' ? 'Barcode Labels' : tab}
+						{tab === 'templates' && <LayoutTemplate className="w-3.5 h-3.5" />}
+						{tab === 'rebundle'
+							? 'Restack & Rebundle'
+							: tab === 'barcodes'
+							? 'Barcode Labels'
+							: tab === 'templates'
+							? 'Templates'
+							: tab}
 					</button>
 				))}
 				{activeTab === 'batches' && (
@@ -288,6 +296,12 @@ export function ProjectDetails() {
 						<h2 className="text-lg font-semibold text-slate-100">Barcode Labels</h2>
 					</div>
 					<BarcodeGenerator />
+				</div>
+			)}
+
+			{activeTab === 'templates' && (
+				<div>
+					<BatchTemplateManager />
 				</div>
 			)}
 

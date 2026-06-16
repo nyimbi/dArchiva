@@ -1,9 +1,10 @@
 // (c) Copyright Datacraft, 2026
 /**
- * Audit log viewer component.
+ * Audit log viewer component with export controls.
  */
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -13,7 +14,7 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { format,formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import {
   Activity,
   Download,
@@ -22,6 +23,7 @@ import {
   FileText,
   Filter,
   Folder,
+  Printer,
   RefreshCw,
   Share2,
   Shield,
@@ -31,8 +33,8 @@ import {
   User,
 } from 'lucide-react';
 import { useState } from 'react';
-import { useAuditLogs } from '../api';
-import type { AuditAction,AuditEntry,AuditResourceType } from '../types';
+import { useAuditLogs, useExportAuditLog } from '../api';
+import type { AuditAction, AuditEntry, AuditResourceType } from '../types';
 
 const actionIcons: Partial<Record<AuditAction, typeof Eye>> = {
 	view: Eye,
@@ -104,6 +106,12 @@ export function AuditLog({ resourceType, resourceId, userId }: AuditLogProps) {
 	const [page, setPage] = useState(1);
 	const [actionFilter, setActionFilter] = useState<string>('all');
 	const [typeFilter, setTypeFilter] = useState<string>(resourceType || 'all');
+	const [dateFrom, setDateFrom] = useState<string>('');
+	const [dateTo, setDateTo] = useState<string>('');
+	const [userFilter, setUserFilter] = useState<string>(userId || '');
+	const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null);
+
+	const { exportLogs } = useExportAuditLog();
 
 	const { data, isLoading, refetch } = useAuditLogs({
 		page,
@@ -111,12 +119,35 @@ export function AuditLog({ resourceType, resourceId, userId }: AuditLogProps) {
 		action: actionFilter !== 'all' ? (actionFilter as AuditAction) : undefined,
 		resource_type: typeFilter !== 'all' ? (typeFilter as AuditResourceType) : resourceType,
 		resource_id: resourceId,
-		user_id: userId,
+		user_id: userFilter || userId,
+		date_from: dateFrom || undefined,
+		date_to: dateTo || undefined,
 	});
 
 	const entries = data?.items ?? [];
 	const total = data?.total ?? 0;
 	const totalPages = Math.ceil(total / 50);
+
+	// Build export params from current filters
+	function buildExportParams(fmt: 'csv' | 'pdf') {
+		return {
+			format: fmt,
+			filter_operation: actionFilter !== 'all' ? actionFilter.toUpperCase() : undefined,
+			filter_table_name: typeFilter !== 'all' ? typeFilter : undefined,
+			filter_user_id: userFilter || userId || undefined,
+			filter_timestamp_from: dateFrom || undefined,
+			filter_timestamp_to: dateTo || undefined,
+		};
+	}
+
+	async function handleExport(fmt: 'csv' | 'pdf') {
+		setExporting(fmt);
+		try {
+			await exportLogs(buildExportParams(fmt));
+		} finally {
+			setExporting(null);
+		}
+	}
 
 	if (isLoading) {
 		return (
@@ -130,9 +161,9 @@ export function AuditLog({ resourceType, resourceId, userId }: AuditLogProps) {
 
 	return (
 		<div className="space-y-4">
-			{/* Filters */}
-			<div className="flex items-center gap-2">
-				<Filter className="h-4 w-4 text-muted-foreground" />
+			{/* Filters row 1: action, type, refresh, export */}
+			<div className="flex flex-wrap items-center gap-2">
+				<Filter className="h-4 w-4 text-muted-foreground shrink-0" />
 
 				<Select value={actionFilter} onValueChange={setActionFilter}>
 					<SelectTrigger className="w-40">
@@ -164,9 +195,77 @@ export function AuditLog({ resourceType, resourceId, userId }: AuditLogProps) {
 					</Select>
 				)}
 
-				<Button variant="outline" size="icon" onClick={() => refetch()} className="ml-auto">
+				<Button variant="outline" size="icon" onClick={() => refetch()} title="Refresh">
 					<RefreshCw className="h-4 w-4" />
 				</Button>
+
+				{/* Export buttons pushed to the right */}
+				<div className="ml-auto flex items-center gap-2">
+					<Button
+						variant="outline"
+						size="sm"
+						disabled={exporting === 'csv'}
+						onClick={() => handleExport('csv')}
+						className="gap-1.5"
+					>
+						<Download className="h-4 w-4" />
+						{exporting === 'csv' ? 'Exporting…' : 'Export CSV'}
+					</Button>
+					<Button
+						variant="outline"
+						size="sm"
+						disabled={exporting === 'pdf'}
+						onClick={() => handleExport('pdf')}
+						className="gap-1.5"
+					>
+						<Printer className="h-4 w-4" />
+						{exporting === 'pdf' ? 'Opening…' : 'Export PDF'}
+					</Button>
+				</div>
+			</div>
+
+			{/* Filters row 2: date range + user */}
+			<div className="flex flex-wrap items-center gap-2 text-sm">
+				<span className="text-muted-foreground text-xs shrink-0">Date range:</span>
+				<Input
+					type="date"
+					className="w-36 h-8 text-xs"
+					value={dateFrom}
+					onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+					title="From date"
+				/>
+				<span className="text-muted-foreground text-xs">to</span>
+				<Input
+					type="date"
+					className="w-36 h-8 text-xs"
+					value={dateTo}
+					onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+					title="To date"
+				/>
+
+				{!userId && (
+					<>
+						<span className="text-muted-foreground text-xs ml-2 shrink-0">User:</span>
+						<Input
+							type="text"
+							className="w-40 h-8 text-xs"
+							placeholder="username or ID"
+							value={userFilter}
+							onChange={(e) => { setUserFilter(e.target.value); setPage(1); }}
+						/>
+					</>
+				)}
+
+				{(dateFrom || dateTo || userFilter) && (
+					<Button
+						variant="ghost"
+						size="sm"
+						className="h-8 text-xs text-muted-foreground"
+						onClick={() => { setDateFrom(''); setDateTo(''); setUserFilter(''); setPage(1); }}
+					>
+						Clear filters
+					</Button>
+				)}
 			</div>
 
 			{/* Log entries */}

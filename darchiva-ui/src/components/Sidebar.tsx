@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { AnimatePresence,motion } from 'framer-motion';
 import {
   AlertTriangle,
+  ArrowDownToLine,
   Briefcase,
   ChevronLeft,
   ChevronRight,
@@ -20,9 +21,11 @@ import {
   MonitorPlay,
   Route,
   ScanLine,
+  Search,
   Settings,
   Share2,
   Shield,
+  Timer,
   Upload,
   Webhook,
 } from 'lucide-react';
@@ -33,6 +36,7 @@ const navItems = [
 	{ id: 'inbox', label: 'Inbox', icon: Inbox, path: '/inbox' },
 	{ id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
 	{ id: 'documents', label: 'Documents', icon: FolderTree, path: '/documents' },
+	{ id: 'search', label: 'Search', icon: Search, path: '/search' },
 	{ id: 'shared', label: 'Shared Documents', icon: Share2, path: '/shared' },
 	{ id: 'scanning', label: 'Scanning Projects', icon: ScanLine, path: '/scanning-projects' },
 	{ id: 'supervisor', label: 'Supervisor', icon: MonitorDot, path: '/supervisor' },
@@ -41,12 +45,14 @@ const navItems = [
 	{ id: 'cases', label: 'Cases', icon: Briefcase, path: '/cases' },
 	{ id: 'portfolios', label: 'Portfolios', icon: FolderKanban, path: '/portfolios' },
 	{ id: 'ingestion', label: 'Ingestion', icon: Upload, path: '/ingestion' },
+	{ id: 'ingestion-dashboard', label: 'Ingestion Sources', icon: ArrowDownToLine, path: '/ingestion/dashboard' },
 	{ id: 'routing', label: 'Auto-Routing', icon: Route, path: '/routing' },
 	{ id: 'exception-queue', label: 'Exception Queue', icon: AlertTriangle, path: '/exception-queue' },
 ];
 
 const adminItems = [
 	{ id: 'agents', label: 'Scan Agents', icon: MonitorPlay, path: '/agents' },
+	{ id: 'retention', label: 'Retention', icon: Timer, path: '/retention' },
 	{ id: 'webhooks', label: 'Webhooks', icon: Webhook, path: '/webhooks' },
 	{ id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
 	{ id: 'audit', label: 'Audit Logs', icon: History, path: '/audit' },

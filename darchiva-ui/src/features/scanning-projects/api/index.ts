@@ -84,6 +84,8 @@ export interface CreateBatchInput {
 	barcode?: string;
 	estimatedPages: number;
 	notes?: string;
+	/** Optional — when supplied the backend pre-fills notes from the template and increments usage_count */
+	template_id?: string;
 }
 
 export interface UpdateBatchInput {
@@ -704,6 +706,80 @@ export async function getBatchPipeline(projectId: string): Promise<BatchPipeline
 
 export async function recordPageEvent(input: PageEventInput): Promise<void> {
 	await apiClient.post('/scanning-projects/supervisor/page-event', input);
+}
+
+// =====================================================
+// Batch Templates API
+// =====================================================
+
+export interface BatchTemplate {
+	id: string;
+	name: string;
+	description?: string | null;
+	dpi: number;
+	color_mode: 'color' | 'grayscale' | 'black_white';
+	paper_size: 'A4' | 'A3' | 'Letter' | 'Legal' | 'auto';
+	quality_threshold: number;
+	barcode_enabled: boolean;
+	auto_deskew: boolean;
+	auto_enhance: boolean;
+	expected_pages_per_document?: number | null;
+	notes_template?: string | null;
+	tenant_id: string;
+	created_by_id: string;
+	created_at: string;
+	updated_at: string;
+	usage_count: number;
+}
+
+export interface CreateBatchTemplateInput {
+	name: string;
+	description?: string;
+	dpi?: number;
+	color_mode?: 'color' | 'grayscale' | 'black_white';
+	paper_size?: 'A4' | 'A3' | 'Letter' | 'Legal' | 'auto';
+	quality_threshold?: number;
+	barcode_enabled?: boolean;
+	auto_deskew?: boolean;
+	auto_enhance?: boolean;
+	expected_pages_per_document?: number;
+	notes_template?: string;
+}
+
+export type UpdateBatchTemplateInput = Partial<Omit<CreateBatchTemplateInput, 'name'> & { name: string }>;
+
+export async function getBatchTemplates(): Promise<BatchTemplate[]> {
+	const { data } = await apiClient.get<BatchTemplate[]>('/scanning-projects/batch-templates');
+	return data;
+}
+
+export async function createBatchTemplate(input: CreateBatchTemplateInput): Promise<BatchTemplate> {
+	const { data } = await apiClient.post<BatchTemplate>('/scanning-projects/batch-templates', input);
+	return data;
+}
+
+export async function updateBatchTemplate(
+	id: string,
+	input: UpdateBatchTemplateInput
+): Promise<BatchTemplate> {
+	const { data } = await apiClient.patch<BatchTemplate>(`/scanning-projects/batch-templates/${id}`, input);
+	return data;
+}
+
+export async function deleteBatchTemplate(id: string): Promise<void> {
+	await apiClient.delete(`/scanning-projects/batch-templates/${id}`);
+}
+
+export async function applyBatchTemplate(
+	templateId: string,
+	batchId: string
+): Promise<{ template_id: string; batch_id: string; applied: Record<string, unknown>; usage_count: number }> {
+	const { data } = await apiClient.post(
+		`/scanning-projects/batch-templates/${templateId}/apply`,
+		null,
+		{ params: { batch_id: batchId } }
+	);
+	return data as { template_id: string; batch_id: string; applied: Record<string, unknown>; usage_count: number };
 }
 
 // Helper to wait for a condition with timeout

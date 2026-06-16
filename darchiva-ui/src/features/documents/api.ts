@@ -207,6 +207,56 @@ export async function savePageOcrText(pageId: string, text: string): Promise<voi
 }
 
 // ---------------------------------------------------------------------------
+// OCR confidence overlay types and hook
+// ---------------------------------------------------------------------------
+
+export interface OcrWord {
+	text: string;
+	/** 0.0–1.0 */
+	confidence: number;
+	/** Fractional coordinates (0.0–1.0) relative to page image */
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+}
+
+export interface OcrWordsResponse {
+	words: OcrWord[];
+	/** "hocr" when real data; "placeholder" when no hOCR file found */
+	source: 'hocr' | 'placeholder';
+	page_number: number;
+}
+
+export const ocrWordsKeys = {
+	all: ['ocr-words'] as const,
+	page: (documentId: string, pageNumber: number) =>
+		[...ocrWordsKeys.all, documentId, pageNumber] as const,
+};
+
+/**
+ * Fetch per-word OCR confidence data for a page.
+ * Only fires when `enabled` is true to avoid unnecessary requests.
+ */
+export function useOcrWords(
+	documentId: string,
+	pageNumber: number,
+	enabled: boolean,
+) {
+	return useQuery({
+		queryKey: ocrWordsKeys.page(documentId, pageNumber),
+		queryFn: async () => {
+			const { data } = await apiClient.get<OcrWordsResponse>(
+				`/documents/${documentId}/pages/${pageNumber}/ocr-words`,
+			);
+			return data;
+		},
+		enabled: enabled && !!documentId && pageNumber > 0,
+		staleTime: 5 * 60 * 1000, // hOCR rarely changes — cache 5 min
+	});
+}
+
+// ---------------------------------------------------------------------------
 // Bulk operation types
 // ---------------------------------------------------------------------------
 

@@ -1,88 +1,897 @@
 // (c) Copyright Datacraft, 2026
-import { useSearch } from '@/features/search/api';
-import { SearchResults } from '@/features/search/components/SearchResults';
-import { SearchQuery } from '@/features/search/types';
-import { useEffect,useState } from 'react';
-import { useNavigate,useSearchParams } from 'react-router-dom';
+import { useSearchDocuments, useSearchFacets } from '@/features/search/api';
+import type { ActiveFilter, SearchFilters, SearchSortBy } from '@/features/search/types';
+import { cn, formatRelativeTime } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+	AlertTriangle,
+	BarChart2,
+	Calendar,
+	CheckCircle2,
+	ChevronDown,
+	ChevronUp,
+	FileText,
+	Filter,
+	FolderOpen,
+	MessageSquare,
+	Search,
+	SlidersHorizontal,
+	Star,
+	User,
+	X,
+} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+const SORT_OPTIONS: Array<{ value: SearchSortBy; label: string }> = [
+	{ value: 'relevance', label: 'Relevance' },
+	{ value: 'date_desc', label: 'Newest first' },
+	{ value: 'date_asc', label: 'Oldest first' },
+	{ value: 'quality_asc', label: 'Quality (low→high)' },
+];
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function qualityColor(score?: number): string {
+	if (score == null) return 'text-slate-500';
+	if (score >= 75) return 'text-emerald-400';
+	if (score >= 50) return 'text-amber-400';
+	return 'text-red-400';
+}
+
+function qualityBg(score?: number): string {
+	if (score == null) return 'bg-slate-700/50 text-slate-400';
+	if (score >= 75) return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+	if (score >= 50) return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+	return 'bg-red-500/10 text-red-400 border-red-500/30';
+}
+
+function useDebounce<T>(value: T, ms: number): T {
+	const [debouncedValue, setDebouncedValue] = useState<T>(value);
+	useEffect(() => {
+		const id = setTimeout(() => setDebouncedValue(value), ms);
+		return () => clearTimeout(id);
+	}, [value, ms]);
+	return debouncedValue;
+}
+
+function buildActiveFilters(filters: SearchFilters): ActiveFilter[] {
+	const chips: ActiveFilter[] = [];
+	filters.documentTypes?.forEach(v =>
+		chips.push({ key: 'documentTypes', label: `Type: ${v}`, value: v })
+	);
+	if (filters.dateFrom) chips.push({ key: 'dateFrom', label: `From: ${filters.dateFrom}`, value: filters.dateFrom });
+	if (filters.dateTo) chips.push({ key: 'dateTo', label: `To: ${filters.dateTo}`, value: filters.dateTo });
+	if (filters.qualityScoreMin != null && filters.qualityScoreMin > 0)
+		chips.push({ key: 'qualityScoreMin', label: `Quality ≥ ${filters.qualityScoreMin}`, value: String(filters.qualityScoreMin) });
+	if (filters.scannedById) chips.push({ key: 'scannedById', label: `Operator: ${filters.scannedById}`, value: filters.scannedById });
+	if (filters.projectId) chips.push({ key: 'projectId', label: `Project: ${filters.projectId}`, value: filters.projectId });
+	if (filters.hasAnnotations === true) chips.push({ key: 'hasAnnotations', label: 'Has annotations', value: 'true' });
+	if (filters.hasExceptions === true) chips.push({ key: 'hasExceptions', label: 'Has exceptions', value: 'true' });
+	return chips;
+}
+
+// ---------------------------------------------------------------------------
+// SearchPage
+// ---------------------------------------------------------------------------
 
 export function SearchPage() {
-    const [searchParams] = useSearchParams();
-    const navigate = useNavigate();
-    const query = searchParams.get('q') || '';
+	const [searchParams, setSearchParams] = useSearchParams();
+	const navigate = useNavigate();
 
-    const [searchState, setSearchState] = useState<SearchQuery>({
-        query,
-        mode: 'hybrid',
-        page: 1,
-        limit: 20,
-        filters: {}
-    });
+	const urlQuery = searchParams.get('q') ?? '';
+	const [inputValue, setInputValue] = useState(urlQuery);
+	const debouncedQuery = useDebounce(inputValue, 300);
 
-    // Update local state when URL param changes
-    useEffect(() => {
-        setSearchState(prev => ({ ...prev, query }));
-    }, [query]);
+	const [filters, setFilters] = useState<SearchFilters>({});
+	const [sortBy, setSortBy] = useState<SearchSortBy>('date_desc');
+	const [page, setPage] = useState(1);
+	const pageSize = 20;
 
-    const { data: results, isLoading } = useSearch(searchState);
+	// Sync URL → input on external navigation
+	useEffect(() => {
+		setInputValue(urlQuery);
+		setPage(1);
+	}, [urlQuery]);
 
-    const handlePageChange = (page: number) => {
-        setSearchState(prev => ({ ...prev, page }));
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
+	// Update URL when debounced query changes
+	useEffect(() => {
+		if (debouncedQuery !== urlQuery) {
+			setSearchParams(debouncedQuery ? { q: debouncedQuery } : {}, { replace: true });
+			setPage(1);
+		}
+	}, [debouncedQuery]);
 
-    const handleSortChange = (sortBy: string, sortOrder: 'asc' | 'desc') => {
-        setSearchState(prev => ({
-            ...prev,
-            sortBy: sortBy as 'relevance' | 'date' | 'title' | 'size',
-            sortOrder
-        }));
-    };
+	const { data: results, isLoading, isFetching } = useSearchDocuments(
+		debouncedQuery,
+		filters,
+		page,
+		pageSize,
+		sortBy,
+	);
 
-    const handleFacetClick = (facetType: string, value: string) => {
-        setSearchState(prev => {
-            const currentFilters = { ...prev.filters };
-            // We need to cast to any to access dynamic property, or use a switch
-            // For now, simple toggle logic for array types
-            if (facetType === 'documentTypes' || facetType === 'tags' || facetType === 'status') {
-                const list = (currentFilters[facetType] as string[]) || [];
-                if (list.includes(value)) {
-                    currentFilters[facetType] = list.filter(v => v !== value);
-                } else {
-                    currentFilters[facetType] = [...list, value];
-                }
-            } else if (facetType === 'owner' || facetType === 'folder') {
-                if (currentFilters[facetType] === value) {
-                    currentFilters[facetType] = null;
-                } else {
-                    currentFilters[facetType] = value;
-                }
-            }
+	const { data: facets } = useSearchFacets(debouncedQuery || undefined);
 
-            return { ...prev, filters: currentFilters, page: 1 };
-        });
-    };
+	const activeFilters = useMemo(() => buildActiveFilters(filters), [filters]);
 
-    return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-display font-semibold text-slate-100">
-                        Search Results
-                    </h1>
-                    <p className="mt-1 text-sm text-slate-500">
-                        {query ? `Showing results for "${query}"` : 'Enter a search term to begin'}
-                    </p>
-                </div>
-            </div>
+	const totalItems = results?.total ?? results?.total_items ?? 0;
+	const numPages = results?.num_pages ?? Math.ceil(totalItems / pageSize);
+	const currentPage = results?.page ?? results?.page_number ?? page;
 
-            <SearchResults
-                results={results || null}
-                isLoading={isLoading}
-                onResultClick={(result) => navigate(`/documents?nodeId=${result.id}`)}
-                onPageChange={handlePageChange}
-                onSortChange={handleSortChange}
-                onFacetClick={handleFacetClick}
-            />
-        </div>
-    );
+	// ---------------------------------------------------------------------------
+	// Filter mutations
+	// ---------------------------------------------------------------------------
+
+	const toggleDocType = useCallback((name: string) => {
+		setFilters(prev => {
+			const list = prev.documentTypes ?? [];
+			return {
+				...prev,
+				documentTypes: list.includes(name) ? list.filter(v => v !== name) : [...list, name],
+			};
+		});
+		setPage(1);
+	}, []);
+
+	const setOperator = useCallback((name: string) => {
+		setFilters(prev => ({ ...prev, scannedById: prev.scannedById === name ? null : name }));
+		setPage(1);
+	}, []);
+
+	const setProject = useCallback((name: string) => {
+		setFilters(prev => ({ ...prev, projectId: prev.projectId === name ? null : name }));
+		setPage(1);
+	}, []);
+
+	const removeFilter = useCallback((key: string, value: string) => {
+		setFilters(prev => {
+			const next = { ...prev };
+			if (key === 'documentTypes') {
+				next.documentTypes = (next.documentTypes ?? []).filter(v => v !== value);
+			} else if (key === 'dateFrom') {
+				next.dateFrom = null;
+			} else if (key === 'dateTo') {
+				next.dateTo = null;
+			} else if (key === 'qualityScoreMin') {
+				next.qualityScoreMin = null;
+			} else if (key === 'scannedById') {
+				next.scannedById = null;
+			} else if (key === 'projectId') {
+				next.projectId = null;
+			} else if (key === 'hasAnnotations') {
+				next.hasAnnotations = null;
+			} else if (key === 'hasExceptions') {
+				next.hasExceptions = null;
+			}
+			return next;
+		});
+		setPage(1);
+	}, []);
+
+	const clearAllFilters = useCallback(() => {
+		setFilters({});
+		setPage(1);
+	}, []);
+
+	return (
+		<div className="flex flex-col h-full gap-0">
+			{/* ------------------------------------------------------------------ Header */}
+			<div className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-slate-800">
+				<div className="flex items-center justify-between gap-4">
+					<div className="flex-1 max-w-2xl">
+						<div className="relative">
+							<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+							<input
+								type="text"
+								value={inputValue}
+								onChange={e => setInputValue(e.target.value)}
+								placeholder="Search documents…"
+								className="w-full bg-slate-800/60 border border-slate-700/60 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brass-500/60 focus:ring-1 focus:ring-brass-500/30 transition-colors"
+								autoFocus
+							/>
+							{isFetching && (
+								<div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-brass-500/60 border-t-transparent rounded-full animate-spin" />
+							)}
+						</div>
+					</div>
+
+					{/* Sort */}
+					<div className="flex items-center gap-2">
+						<SlidersHorizontal className="w-4 h-4 text-slate-500" />
+						<select
+							value={sortBy}
+							onChange={e => { setSortBy(e.target.value as SearchSortBy); setPage(1); }}
+							className="bg-slate-800 border border-slate-700/60 rounded-lg px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-brass-500/40"
+						>
+							{SORT_OPTIONS.map(opt => (
+								<option key={opt.value} value={opt.value}>{opt.label}</option>
+							))}
+						</select>
+					</div>
+				</div>
+
+				{/* Result count + active filter chips */}
+				<div className="flex items-center gap-3 mt-3 flex-wrap">
+					<span className="text-sm text-slate-500 flex-shrink-0">
+						{isLoading
+							? 'Searching…'
+							: totalItems > 0
+								? `Showing ${((currentPage - 1) * pageSize) + 1}–${Math.min(currentPage * pageSize, totalItems)} of ${totalItems} results`
+								: debouncedQuery || activeFilters.length > 0
+									? 'No results'
+									: 'Enter a query or apply filters'}
+					</span>
+
+					<AnimatePresence initial={false}>
+						{activeFilters.map(f => (
+							<motion.button
+								key={`${f.key}-${f.value}`}
+								initial={{ opacity: 0, scale: 0.85 }}
+								animate={{ opacity: 1, scale: 1 }}
+								exit={{ opacity: 0, scale: 0.85 }}
+								onClick={() => removeFilter(f.key, f.value)}
+								className="flex items-center gap-1.5 px-2.5 py-1 bg-brass-500/10 border border-brass-500/30 text-brass-400 text-xs rounded-full hover:bg-brass-500/20 transition-colors"
+							>
+								{f.label}
+								<X className="w-3 h-3" />
+							</motion.button>
+						))}
+					</AnimatePresence>
+
+					{activeFilters.length > 1 && (
+						<button
+							onClick={clearAllFilters}
+							className="text-xs text-slate-500 hover:text-slate-300 underline transition-colors"
+						>
+							Clear all
+						</button>
+					)}
+				</div>
+			</div>
+
+			{/* ------------------------------------------------------------------ Body */}
+			<div className="flex flex-1 overflow-hidden">
+				{/* Left sidebar — filter panels */}
+				<aside className="w-72 flex-shrink-0 border-r border-slate-800 overflow-y-auto p-4 space-y-3">
+					<FilterPanelDocTypes
+						items={facets?.document_types ?? []}
+						selected={filters.documentTypes ?? []}
+						onToggle={toggleDocType}
+					/>
+
+					<FilterPanelDateRange
+						dateFrom={filters.dateFrom ?? ''}
+						dateTo={filters.dateTo ?? ''}
+						onChange={(from, to) => {
+							setFilters(prev => ({ ...prev, dateFrom: from || null, dateTo: to || null }));
+							setPage(1);
+						}}
+					/>
+
+					<FilterPanelQuality
+						value={filters.qualityScoreMin ?? 0}
+						onChange={v => {
+							setFilters(prev => ({ ...prev, qualityScoreMin: v > 0 ? v : null }));
+							setPage(1);
+						}}
+					/>
+
+					<FilterPanelOperators
+						items={facets?.operators ?? []}
+						selected={filters.scannedById ?? null}
+						onSelect={setOperator}
+					/>
+
+					<FilterPanelProjects
+						items={facets?.projects ?? []}
+						selected={filters.projectId ?? null}
+						onSelect={setProject}
+					/>
+
+					<FilterPanelToggles
+						hasAnnotations={filters.hasAnnotations ?? null}
+						hasExceptions={filters.hasExceptions ?? null}
+						onChange={(key, val) => {
+							setFilters(prev => ({ ...prev, [key]: val }));
+							setPage(1);
+						}}
+					/>
+				</aside>
+
+				{/* Main results area */}
+				<main className="flex-1 overflow-y-auto px-6 py-4">
+					{isLoading ? (
+						<SearchSkeleton />
+					) : !results || results.items.length === 0 ? (
+						<SearchEmpty hasQuery={!!debouncedQuery || activeFilters.length > 0} />
+					) : (
+						<div className="space-y-2">
+							{results.items.map((item, idx) => (
+								<SearchResultCard
+									key={item.id}
+									item={item}
+									index={idx}
+									query={debouncedQuery}
+									onClick={() => navigate(`/documents?nodeId=${item.id}`)}
+								/>
+							))}
+						</div>
+					)}
+
+					{/* Pagination */}
+					{numPages > 1 && (
+						<div className="flex items-center justify-center gap-2 pt-6">
+							<button
+								onClick={() => setPage(p => Math.max(1, p - 1))}
+								disabled={currentPage <= 1}
+								className="px-3 py-1.5 text-sm text-slate-400 hover:text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+							>
+								Previous
+							</button>
+							<div className="flex gap-1">
+								{buildPageNumbers(currentPage, numPages).map((p, i) =>
+									p === '…' ? (
+										<span key={`ellipsis-${i}`} className="w-8 h-8 flex items-center justify-center text-slate-600 text-sm">…</span>
+									) : (
+										<button
+											key={p}
+											onClick={() => setPage(Number(p))}
+											className={cn(
+												'w-8 h-8 rounded-lg text-sm transition-colors',
+												Number(p) === currentPage
+													? 'bg-brass-500 text-slate-900 font-semibold'
+													: 'text-slate-400 hover:bg-slate-700'
+											)}
+										>
+											{p}
+										</button>
+									)
+								)}
+							</div>
+							<button
+								onClick={() => setPage(p => Math.min(numPages, p + 1))}
+								disabled={currentPage >= numPages}
+								className="px-3 py-1.5 text-sm text-slate-400 hover:text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+							>
+								Next
+							</button>
+						</div>
+					)}
+				</main>
+			</div>
+		</div>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Filter Panels
+// ---------------------------------------------------------------------------
+
+interface CollapsiblePanelProps {
+	title: string;
+	icon: React.ReactNode;
+	children: React.ReactNode;
+	defaultOpen?: boolean;
+	badge?: number;
+}
+
+function CollapsiblePanel({ title, icon, children, defaultOpen = true, badge }: CollapsiblePanelProps) {
+	const [open, setOpen] = useState(defaultOpen);
+	return (
+		<div className="glass-card overflow-hidden">
+			<button
+				onClick={() => setOpen(o => !o)}
+				className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-slate-300 hover:text-slate-100 transition-colors"
+			>
+				<span className="flex items-center gap-2">
+					<span className="text-slate-500">{icon}</span>
+					{title}
+					{badge != null && badge > 0 && (
+						<span className="px-1.5 py-0.5 text-2xs rounded-full bg-brass-500/20 text-brass-400 font-medium">{badge}</span>
+					)}
+				</span>
+				{open ? <ChevronUp className="w-3.5 h-3.5 text-slate-600" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-600" />}
+			</button>
+			<AnimatePresence initial={false}>
+				{open && (
+					<motion.div
+						initial={{ height: 0, opacity: 0 }}
+						animate={{ height: 'auto', opacity: 1 }}
+						exit={{ height: 0, opacity: 0 }}
+						transition={{ duration: 0.18 }}
+						className="overflow-hidden"
+					>
+						<div className="px-3 pb-3">{children}</div>
+					</motion.div>
+				)}
+			</AnimatePresence>
+		</div>
+	);
+}
+
+// Document Type checkboxes
+function FilterPanelDocTypes({
+	items,
+	selected,
+	onToggle,
+}: {
+	items: Array<{ name: string; count: number }>;
+	selected: string[];
+	onToggle: (name: string) => void;
+}) {
+	const [showAll, setShowAll] = useState(false);
+	const displayed = showAll ? items : items.slice(0, 6);
+
+	return (
+		<CollapsiblePanel
+			title="Document Type"
+			icon={<FileText className="w-4 h-4" />}
+			badge={selected.length}
+		>
+			{items.length === 0 ? (
+				<p className="text-xs text-slate-600 py-1">No types available</p>
+			) : (
+				<div className="space-y-1">
+					{displayed.map(item => (
+						<label
+							key={item.name}
+							className="flex items-center justify-between gap-2 px-1 py-1 rounded hover:bg-slate-700/40 cursor-pointer group"
+						>
+							<div className="flex items-center gap-2">
+								<input
+									type="checkbox"
+									checked={selected.includes(item.name)}
+									onChange={() => onToggle(item.name)}
+									className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 accent-brass-500"
+								/>
+								<span className="text-sm text-slate-300 truncate">{item.name}</span>
+							</div>
+							<span className="text-xs text-slate-500 flex-shrink-0">{item.count}</span>
+						</label>
+					))}
+					{items.length > 6 && (
+						<button
+							onClick={() => setShowAll(s => !s)}
+							className="text-xs text-brass-500/70 hover:text-brass-400 mt-1 transition-colors"
+						>
+							{showAll ? 'Show less' : `+${items.length - 6} more`}
+						</button>
+					)}
+				</div>
+			)}
+		</CollapsiblePanel>
+	);
+}
+
+// Date Range
+function FilterPanelDateRange({
+	dateFrom,
+	dateTo,
+	onChange,
+}: {
+	dateFrom: string;
+	dateTo: string;
+	onChange: (from: string, to: string) => void;
+}) {
+	return (
+		<CollapsiblePanel title="Date Range" icon={<Calendar className="w-4 h-4" />}>
+			<div className="space-y-2">
+				<div>
+					<label className="text-xs text-slate-500 mb-1 block">From</label>
+					<input
+						type="date"
+						value={dateFrom}
+						onChange={e => onChange(e.target.value, dateTo)}
+						className="w-full bg-slate-800/70 border border-slate-700/50 rounded-lg px-2.5 py-1.5 text-sm text-slate-300 focus:outline-none focus:border-brass-500/40 [color-scheme:dark]"
+					/>
+				</div>
+				<div>
+					<label className="text-xs text-slate-500 mb-1 block">To</label>
+					<input
+						type="date"
+						value={dateTo}
+						onChange={e => onChange(dateFrom, e.target.value)}
+						className="w-full bg-slate-800/70 border border-slate-700/50 rounded-lg px-2.5 py-1.5 text-sm text-slate-300 focus:outline-none focus:border-brass-500/40 [color-scheme:dark]"
+					/>
+				</div>
+				{(dateFrom || dateTo) && (
+					<button
+						onClick={() => onChange('', '')}
+						className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+					>
+						Clear dates
+					</button>
+				)}
+			</div>
+		</CollapsiblePanel>
+	);
+}
+
+// Quality score slider
+function FilterPanelQuality({
+	value,
+	onChange,
+}: {
+	value: number;
+	onChange: (v: number) => void;
+}) {
+	return (
+		<CollapsiblePanel title="Quality Score" icon={<Star className="w-4 h-4" />}>
+			<div className="space-y-2">
+				<div className="flex items-center justify-between">
+					<span className="text-xs text-slate-500">Minimum quality</span>
+					<span className={cn('text-sm font-medium tabular-nums', value > 0 ? qualityColor(value) : 'text-slate-500')}>
+						{value > 0 ? `≥ ${value}` : 'Any'}
+					</span>
+				</div>
+				<input
+					type="range"
+					min={0}
+					max={100}
+					step={5}
+					value={value}
+					onChange={e => onChange(Number(e.target.value))}
+					className="w-full accent-brass-500"
+				/>
+				<div className="flex justify-between text-2xs text-slate-600">
+					<span>0</span>
+					<span>25</span>
+					<span>50</span>
+					<span>75</span>
+					<span>100</span>
+				</div>
+			</div>
+		</CollapsiblePanel>
+	);
+}
+
+// Operator radio list
+function FilterPanelOperators({
+	items,
+	selected,
+	onSelect,
+}: {
+	items: Array<{ name: string; count: number }>;
+	selected: string | null;
+	onSelect: (name: string) => void;
+}) {
+	return (
+		<CollapsiblePanel
+			title="Operator"
+			icon={<User className="w-4 h-4" />}
+			badge={selected ? 1 : 0}
+		>
+			{items.length === 0 ? (
+				<p className="text-xs text-slate-600 py-1">No operators available</p>
+			) : (
+				<div className="space-y-1">
+					{items.map(item => (
+						<button
+							key={item.name}
+							onClick={() => onSelect(item.name)}
+							className={cn(
+								'w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-left text-sm transition-colors',
+								selected === item.name
+									? 'bg-brass-500/10 text-brass-400 border border-brass-500/20'
+									: 'text-slate-400 hover:bg-slate-700/50'
+							)}
+						>
+							<span className="truncate">{item.name}</span>
+							<span className="text-xs text-slate-500 flex-shrink-0 ml-2">{item.count}</span>
+						</button>
+					))}
+				</div>
+			)}
+		</CollapsiblePanel>
+	);
+}
+
+// Project dropdown / list
+function FilterPanelProjects({
+	items,
+	selected,
+	onSelect,
+}: {
+	items: Array<{ name: string; count: number }>;
+	selected: string | null;
+	onSelect: (name: string) => void;
+}) {
+	return (
+		<CollapsiblePanel
+			title="Project"
+			icon={<FolderOpen className="w-4 h-4" />}
+			badge={selected ? 1 : 0}
+		>
+			{items.length === 0 ? (
+				<p className="text-xs text-slate-600 py-1">No projects available</p>
+			) : (
+				<div className="space-y-1">
+					{items.map(item => (
+						<button
+							key={item.name}
+							onClick={() => onSelect(item.name)}
+							className={cn(
+								'w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-left text-sm transition-colors',
+								selected === item.name
+									? 'bg-brass-500/10 text-brass-400 border border-brass-500/20'
+									: 'text-slate-400 hover:bg-slate-700/50'
+							)}
+						>
+							<span className="truncate">{item.name}</span>
+							<span className="text-xs text-slate-500 flex-shrink-0 ml-2">{item.count}</span>
+						</button>
+					))}
+				</div>
+			)}
+		</CollapsiblePanel>
+	);
+}
+
+// Boolean toggles
+function FilterPanelToggles({
+	hasAnnotations,
+	hasExceptions,
+	onChange,
+}: {
+	hasAnnotations: boolean | null;
+	hasExceptions: boolean | null;
+	onChange: (key: 'hasAnnotations' | 'hasExceptions', val: boolean | null) => void;
+}) {
+	return (
+		<CollapsiblePanel title="Flags" icon={<Filter className="w-4 h-4" />}>
+			<div className="space-y-2">
+				<ToggleRow
+					label="Has annotations"
+					icon={<MessageSquare className="w-3.5 h-3.5" />}
+					value={hasAnnotations}
+					onChange={v => onChange('hasAnnotations', v)}
+				/>
+				<ToggleRow
+					label="Has exceptions"
+					icon={<AlertTriangle className="w-3.5 h-3.5" />}
+					value={hasExceptions}
+					onChange={v => onChange('hasExceptions', v)}
+				/>
+			</div>
+		</CollapsiblePanel>
+	);
+}
+
+function ToggleRow({
+	label,
+	icon,
+	value,
+	onChange,
+}: {
+	label: string;
+	icon: React.ReactNode;
+	value: boolean | null;
+	onChange: (v: boolean | null) => void;
+}) {
+	const cycle = () => {
+		if (value === null) onChange(true);
+		else if (value === true) onChange(false);
+		else onChange(null);
+	};
+
+	return (
+		<button
+			onClick={cycle}
+			className={cn(
+				'w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm text-left transition-colors',
+				value === true
+					? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+					: value === false
+						? 'bg-red-500/10 text-red-400 border border-red-500/20'
+						: 'text-slate-400 hover:bg-slate-700/50'
+			)}
+		>
+			<span className={value === null ? 'text-slate-600' : ''}>{icon}</span>
+			<span className="flex-1">{label}</span>
+			{value === true && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
+			{value === false && <X className="w-3.5 h-3.5 text-red-400" />}
+		</button>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Result Card
+// ---------------------------------------------------------------------------
+
+interface SearchResultCardProps {
+	item: {
+		id: string;
+		title: string;
+		excerpt?: string;
+		highlights?: string[];
+		score?: number;
+		documentType?: string;
+		documentTypeBadge?: string;
+		qualityScore?: number;
+		tags?: Array<{ id: string; name: string; color?: string }>;
+		createdAt?: string;
+		updatedAt?: string;
+		owner?: { id: string; name: string };
+		operator?: { id?: string; name?: string; username?: string } | null;
+	};
+	index: number;
+	query: string;
+	onClick: () => void;
+}
+
+function SearchResultCard({ item, index, query, onClick }: SearchResultCardProps) {
+	const typeLabel = item.documentType ?? item.documentTypeBadge;
+	const operatorName = item.operator
+		? (item.operator.name ?? item.operator.username ?? null)
+		: null;
+	const excerpt = item.highlights?.[0] ?? item.excerpt ?? '';
+
+	return (
+		<motion.div
+			initial={{ opacity: 0, y: 8 }}
+			animate={{ opacity: 1, y: 0 }}
+			transition={{ delay: Math.min(index * 0.04, 0.3) }}
+			onClick={onClick}
+			className="glass-card p-4 cursor-pointer hover:border-slate-600/70 transition-all group"
+		>
+			<div className="flex gap-4">
+				{/* Icon */}
+				<div className="flex-shrink-0 w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center">
+					<FileText className="w-5 h-5 text-slate-500 group-hover:text-brass-500 transition-colors" />
+				</div>
+
+				{/* Content */}
+				<div className="flex-1 min-w-0">
+					{/* Title row */}
+					<div className="flex items-start gap-2 flex-wrap">
+						<h3 className="font-medium text-slate-200 group-hover:text-brass-400 transition-colors leading-snug">
+							{item.title}
+						</h3>
+						{typeLabel && (
+							<span className="flex-shrink-0 px-2 py-0.5 text-2xs rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20 font-medium">
+								{typeLabel}
+							</span>
+						)}
+						{item.qualityScore != null && (
+							<span className={cn(
+								'flex-shrink-0 px-2 py-0.5 text-2xs rounded-full border font-medium',
+								qualityBg(item.qualityScore)
+							)}>
+								Q {Math.round(item.qualityScore)}
+							</span>
+						)}
+					</div>
+
+					{/* Meta row */}
+					<div className="flex items-center gap-3 mt-1 text-xs text-slate-500 flex-wrap">
+						{item.owner?.name && (
+							<span className="flex items-center gap-1">
+								<User className="w-3 h-3" />
+								{item.owner.name}
+							</span>
+						)}
+						{operatorName && operatorName !== item.owner?.name && (
+							<span className="flex items-center gap-1 text-slate-600">
+								<BarChart2 className="w-3 h-3" />
+								{operatorName}
+							</span>
+						)}
+						{(item.updatedAt || item.createdAt) && (
+							<span className="flex items-center gap-1">
+								<Calendar className="w-3 h-3" />
+								{formatRelativeTime(item.updatedAt ?? item.createdAt ?? '')}
+							</span>
+						)}
+					</div>
+
+					{/* OCR excerpt */}
+					{excerpt && (
+						<p
+							className="mt-1.5 text-sm text-slate-400 line-clamp-2 leading-relaxed"
+							dangerouslySetInnerHTML={{ __html: excerpt }}
+						/>
+					)}
+
+					{/* Tags */}
+					{item.tags && item.tags.length > 0 && (
+						<div className="flex flex-wrap gap-1 mt-2">
+							{item.tags.slice(0, 5).map(tag => (
+								<span
+									key={tag.id}
+									className="px-2 py-0.5 text-2xs rounded-full border border-slate-700 text-slate-500"
+									style={tag.color ? { borderColor: tag.color + '60', color: tag.color } : undefined}
+								>
+									{tag.name}
+								</span>
+							))}
+							{item.tags.length > 5 && (
+								<span className="text-2xs text-slate-600">+{item.tags.length - 5}</span>
+							)}
+						</div>
+					)}
+				</div>
+
+				{/* Relevance score donut */}
+				{item.score != null && item.score > 0 && (
+					<div className="flex-shrink-0 w-9 h-9 self-center">
+						<div
+							className="w-9 h-9 rounded-full flex items-center justify-center text-2xs font-semibold text-brass-400"
+							style={{
+								background: `conic-gradient(#d4a753 ${Math.round(item.score * 100)}%, #1e293b 0)`,
+							}}
+						>
+							<div className="w-7 h-7 bg-slate-900 rounded-full flex items-center justify-center">
+								{Math.round(item.score * 100)}
+							</div>
+						</div>
+					</div>
+				)}
+			</div>
+		</motion.div>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Loading skeleton
+// ---------------------------------------------------------------------------
+
+function SearchSkeleton() {
+	return (
+		<div className="space-y-2">
+			{Array.from({ length: 6 }).map((_, i) => (
+				<div key={i} className="glass-card p-4 animate-pulse">
+					<div className="flex gap-4">
+						<div className="w-10 h-10 rounded-lg bg-slate-800" />
+						<div className="flex-1 space-y-2">
+							<div className="h-4 bg-slate-800 rounded w-1/2" />
+							<div className="h-3 bg-slate-800/60 rounded w-1/4" />
+							<div className="h-3 bg-slate-800/40 rounded w-3/4" />
+						</div>
+					</div>
+				</div>
+			))}
+		</div>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Empty state
+// ---------------------------------------------------------------------------
+
+function SearchEmpty({ hasQuery }: { hasQuery: boolean }) {
+	return (
+		<div className="flex flex-col items-center justify-center py-20 text-center">
+			<div className="w-16 h-16 rounded-2xl bg-slate-800/60 flex items-center justify-center mb-4">
+				<Search className="w-8 h-8 text-slate-600" />
+			</div>
+			<h3 className="text-base font-medium text-slate-300 mb-2">
+				{hasQuery ? 'No matching documents' : 'Start your search'}
+			</h3>
+			<p className="text-sm text-slate-500 max-w-sm">
+				{hasQuery
+					? 'Try adjusting your filters or search terms.'
+					: 'Type a keyword above, or use the filters on the left to browse documents.'}
+			</p>
+		</div>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Pagination helper
+// ---------------------------------------------------------------------------
+
+function buildPageNumbers(current: number, total: number): Array<number | '…'> {
+	if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+	const pages: Array<number | '…'> = [1];
+	if (current > 3) pages.push('…');
+	for (let p = Math.max(2, current - 1); p <= Math.min(total - 1, current + 1); p++) pages.push(p);
+	if (current < total - 2) pages.push('…');
+	pages.push(total);
+	return pages;
 }

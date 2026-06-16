@@ -3,6 +3,7 @@
  * Audit log API hooks.
  */
 import { apiClient } from '@/lib/api-client';
+import { useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { AuditFilters,AuditListResponse } from './types';
 
@@ -53,4 +54,56 @@ export function useUserAudit(userId: string) {
 		},
 		enabled: !!userId,
 	});
+}
+
+export interface ExportAuditParams {
+	format: 'csv' | 'pdf';
+	filter_operation?: string;
+	filter_table_name?: string;
+	filter_username?: string;
+	filter_user_id?: string;
+	filter_timestamp_from?: string;
+	filter_timestamp_to?: string;
+	filter_free_text?: string;
+}
+
+/**
+ * Hook that returns an imperative export function.
+ * CSV → blob download. PDF → open in new tab (browser print dialog).
+ */
+export function useExportAuditLog() {
+	const exportLogs = useCallback(async (params: ExportAuditParams) => {
+		const searchParams = new URLSearchParams();
+		searchParams.set('format', params.format);
+		if (params.filter_operation) searchParams.set('filter_operation', params.filter_operation);
+		if (params.filter_table_name) searchParams.set('filter_table_name', params.filter_table_name);
+		if (params.filter_username) searchParams.set('filter_username', params.filter_username);
+		if (params.filter_user_id) searchParams.set('filter_user_id', params.filter_user_id);
+		if (params.filter_timestamp_from) searchParams.set('filter_timestamp_from', params.filter_timestamp_from);
+		if (params.filter_timestamp_to) searchParams.set('filter_timestamp_to', params.filter_timestamp_to);
+		if (params.filter_free_text) searchParams.set('filter_free_text', params.filter_free_text);
+
+		const url = `/audit-logs/export?${searchParams.toString()}`;
+
+		if (params.format === 'pdf') {
+			// Let browser handle print dialog in a new tab
+			// API_BASE is /api/v1 — prepend to construct a full browser-navigable URL
+			window.open(`/api/v1${url}`, '_blank');
+			return;
+		}
+
+		// CSV: fetch as blob, trigger download
+		const response = await apiClient.get(url, { responseType: 'blob' });
+		const blobUrl = URL.createObjectURL(response.data as Blob);
+		const date = new Date().toISOString().slice(0, 10);
+		const a = document.createElement('a');
+		a.href = blobUrl;
+		a.download = `audit-${date}.csv`;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(blobUrl);
+	}, []);
+
+	return { exportLogs };
 }

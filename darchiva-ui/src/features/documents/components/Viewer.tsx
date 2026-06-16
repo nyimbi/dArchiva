@@ -6,6 +6,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  Eye,
+  EyeOff,
   FileText,
   Maximize,
   RotateCcw,
@@ -19,6 +21,7 @@ import { ShareLinkDialog } from './modals/ShareLinkDialog';
 import { AnnotationLayer } from '@/features/annotations/AnnotationLayer';
 import { AnnotationToolbar } from '@/features/annotations/AnnotationToolbar';
 import type { AnnotationMode } from '@/features/annotations/AnnotationToolbar';
+import { OcrConfidenceOverlay } from '@/features/documents/OcrConfidenceOverlay';
 
 interface ViewerProps {
 	documentId?: string;
@@ -45,6 +48,8 @@ export function Viewer({ documentId, pages = [], isLoading }: ViewerProps) {
 
 	const [annotationMode, setAnnotationMode] = useState<AnnotationMode>('view');
 	const [shareOpen, setShareOpen] = useState(false);
+	const [showOcrOverlay, setShowOcrOverlay] = useState(false);
+	const [ocrThreshold, setOcrThreshold] = useState(90); // hide words >= 90% confidence
 
 	const currentPage = pages[currentPageIndex];
 	const totalPages = pages.length;
@@ -170,6 +175,37 @@ export function Viewer({ documentId, pages = [], isLoading }: ViewerProps) {
 					>
 						<Share2 className="w-5 h-5" />
 					</button>
+					<div className="w-px h-5 bg-slate-700 mx-1" />
+					{/* OCR Quality overlay toggle */}
+					<button
+						onClick={() => setShowOcrOverlay(!showOcrOverlay)}
+						className={cn(
+							'p-1.5 rounded transition-colors',
+							showOcrOverlay
+								? 'bg-amber-600/30 text-amber-400 hover:bg-amber-600/40'
+								: 'text-slate-400 hover:text-slate-100 hover:bg-slate-800',
+						)}
+						title={showOcrOverlay ? 'Hide OCR quality overlay' : 'Show OCR quality overlay'}
+					>
+						{showOcrOverlay ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+					</button>
+					{/* Threshold slider — only visible when overlay is on */}
+					{showOcrOverlay && (
+						<div className="flex items-center gap-1.5 ml-1">
+							<span className="text-xs text-slate-400 whitespace-nowrap">
+								{ocrThreshold}%
+							</span>
+							<input
+								type="range"
+								min={0}
+								max={100}
+								value={ocrThreshold}
+								onChange={(e) => setOcrThreshold(Number(e.target.value))}
+								className="w-20 accent-amber-500 cursor-pointer"
+								title="Confidence threshold — words below this value are highlighted"
+							/>
+						</div>
+					)}
 				</div>
 
 				{/* Annotation toolbar — only shown when a document is open */}
@@ -232,6 +268,14 @@ export function Viewer({ documentId, pages = [], isLoading }: ViewerProps) {
 								documentId={documentId}
 								pageNumber={currentPageIndex + 1}
 								mode={annotationMode}
+							/>
+						)}
+						{documentId && (
+							<OcrConfidenceOverlay
+								documentId={documentId}
+								pageNumber={currentPageIndex + 1}
+								show={showOcrOverlay}
+								threshold={ocrThreshold}
 							/>
 						)}
 					</div>

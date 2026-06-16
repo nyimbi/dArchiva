@@ -14,7 +14,9 @@ import {
   Forms,
   Inbox,
   Ingestion,
+  IngestionDashboard,
   Portfolios,
+  RetentionPolicies,
   Routing,
   SearchPage,
   Security,
@@ -78,6 +80,7 @@ export default function App() {
 								<Route path="cases" element={<Cases />} />
 								<Route path="portfolios" element={<Portfolios />} />
 								<Route path="ingestion" element={<Ingestion />} />
+								<Route path="ingestion/dashboard" element={<IngestionDashboard />} />
 								<Route path="routing" element={<Routing />} />
 								<Route path="audit" element={<AuditLogs />} />
 								<Route path="search" element={<SearchPage />} />
@@ -90,6 +93,7 @@ export default function App() {
 								<Route path="scanning-projects/:projectId/qc" element={<QCReview />} />
 								<Route path="scanning-projects/:projectId/batches/:batchId/scan" element={<ScanningStation />} />
 								<Route path="scanning-projects/resources" element={<Resources />} />
+								<Route path="retention" element={<RetentionPolicies />} />
 								<Route path="webhooks" element={<Webhooks />} />
 								<Route path="agents" element={<FleetManagement />} />
 								<Route path="supervisor" element={<SupervisorDashboard />} />

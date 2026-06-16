@@ -332,3 +332,64 @@ export function useValidateFiles() {
 		},
 	});
 }
+
+
+// ==================== Source Dashboard Types & Hooks ====================
+
+export type DashboardSourceType =
+	| 'watched_folder'
+	| 'email'
+	| 'api'
+	| 'scanner'
+	| 'email_account'
+	| 'scan_agent';
+
+export type DashboardSourceStatus = 'active' | 'inactive' | 'error' | 'degraded';
+
+export interface SourceDashboardItem {
+	id: string;
+	type: DashboardSourceType;
+	name: string;
+	status: DashboardSourceStatus;
+	last_activity_at: string | null;
+	docs_ingested_24h: number;
+	docs_ingested_7d: number;
+	error_count: number;
+	last_error: string | null;
+}
+
+export interface SourceDashboardResponse {
+	sources: SourceDashboardItem[];
+}
+
+export const dashboardKeys = {
+	all: ['ingestion', 'dashboard'] as const,
+	dashboard: () => [...dashboardKeys.all] as const,
+};
+
+export function useIngestionDashboard() {
+	return useQuery({
+		queryKey: dashboardKeys.dashboard(),
+		queryFn: async () => {
+			const { data } = await apiClient.get<SourceDashboardResponse>(`${API_BASE}/sources/dashboard`);
+			return data;
+		},
+		refetchInterval: 30_000,
+	});
+}
+
+export function useRetryIngestionSource() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: async (sourceId: string) => {
+			const { data } = await apiClient.post<{ success: boolean; message: string }>(
+				`${API_BASE}/sources/${sourceId}/retry`
+			);
+			return data;
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
+			queryClient.invalidateQueries({ queryKey: ingestionKeys.sources() });
+		},
+	});
+}
