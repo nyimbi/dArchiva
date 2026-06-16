@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1781202341490,
+  "lastScanned": 1781349292693,
   "projectRoot": "/Users/nyimbiodero/src/pjs/dArchiva/darchiva-ui",
   "techStack": {
     "languages": [
@@ -52,7 +52,7 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "npx tsc --noEmit 2>&1 | grep \"error TS\" | wc -l",
+    "buildCommand": "cd /Users/nyimbiodero/src/pjs/dArchiva/darchiva-ui && npx tsc --noEmit 2>&1 | head -80",
     "testCommand": "npm test",
     "lintCommand": "npm run lint",
     "devCommand": "npm run dev",
@@ -90,7 +90,7 @@
       "path": "dist",
       "purpose": "Distribution/build output",
       "fileCount": 2,
-      "lastAccessed": 1781202341481,
+      "lastAccessed": 1781349292683,
       "keyFiles": [
         "favicon.svg",
         "index.html"
@@ -100,7 +100,7 @@
       "path": "e2e",
       "purpose": null,
       "fileCount": 3,
-      "lastAccessed": 1781202341484,
+      "lastAccessed": 1781349292684,
       "keyFiles": [
         "auth.spec.ts",
         "documents.spec.ts",
@@ -111,7 +111,7 @@
       "path": "public",
       "purpose": "Public files",
       "fileCount": 1,
-      "lastAccessed": 1781202341484,
+      "lastAccessed": 1781349292687,
       "keyFiles": [
         "favicon.svg"
       ]
@@ -120,7 +120,7 @@
       "path": "src",
       "purpose": "Source code",
       "fileCount": 4,
-      "lastAccessed": 1781202341484,
+      "lastAccessed": 1781349292687,
       "keyFiles": [
         "App.tsx",
         "index.css",
@@ -132,7 +132,7 @@
       "path": "dist/assets",
       "purpose": "Static assets",
       "fileCount": 5,
-      "lastAccessed": 1781202341484,
+      "lastAccessed": 1781349292688,
       "keyFiles": [
         "index-CvFwgsje.css",
         "index-DqcxWziH.js",
@@ -143,14 +143,14 @@
       "path": "src/assets",
       "purpose": "Static assets",
       "fileCount": 0,
-      "lastAccessed": 1781202341485,
+      "lastAccessed": 1781349292688,
       "keyFiles": []
     },
     "src/components": {
       "path": "src/components",
       "purpose": "UI components",
       "fileCount": 6,
-      "lastAccessed": 1781202341485,
+      "lastAccessed": 1781349292689,
       "keyFiles": [
         "AuthenticatedImage.tsx",
         "Header.tsx",
@@ -161,7 +161,7 @@
       "path": "src/lib",
       "purpose": "Library code",
       "fileCount": 6,
-      "lastAccessed": 1781202341485,
+      "lastAccessed": 1781349292689,
       "keyFiles": [
         "api-client.ts",
         "api.ts",
@@ -172,7 +172,7 @@
       "path": "src/pages",
       "purpose": "Page components",
       "fileCount": 20,
-      "lastAccessed": 1781202341485,
+      "lastAccessed": 1781349292689,
       "keyFiles": [
         "AuditLogs.tsx",
         "Cases.tsx",
@@ -183,7 +183,7 @@
       "path": "src/test",
       "purpose": "Test files",
       "fileCount": 2,
-      "lastAccessed": 1781202341486,
+      "lastAccessed": 1781349292689,
       "keyFiles": [
         "setup.ts",
         "utils.tsx"
@@ -192,99 +192,15 @@
   },
   "hotPaths": [
     {
-      "path": "src/features/inventory/api.ts",
-      "accessCount": 6,
-      "lastAccessed": 1781233367355,
-      "type": "file"
-    },
-    {
-      "path": "src/features/scanning-ops/api/hooks.ts",
-      "accessCount": 4,
-      "lastAccessed": 1781202506663,
-      "type": "file"
-    },
-    {
-      "path": "src/features/scanner/api/hooks.ts",
-      "accessCount": 4,
-      "lastAccessed": 1781233424663,
-      "type": "file"
-    },
-    {
-      "path": "src/features/workflows/api.ts",
-      "accessCount": 3,
-      "lastAccessed": 1781231218622,
-      "type": "file"
-    },
-    {
-      "path": "src/features/settings/api/hooks.ts",
-      "accessCount": 3,
-      "lastAccessed": 1781233418824,
-      "type": "file"
-    },
-    {
-      "path": "src/features/scanning-projects/components/tabs/ShiftPlannerTab.tsx",
-      "accessCount": 2,
-      "lastAccessed": 1781203008341,
-      "type": "file"
-    },
-    {
-      "path": "src/features/api-tokens/api/hooks.ts",
-      "accessCount": 2,
-      "lastAccessed": 1781232850800,
-      "type": "file"
-    },
-    {
-      "path": "src/features/scanning-projects/components/AIProjectPlanner.tsx",
-      "accessCount": 2,
-      "lastAccessed": 1781232889534,
-      "type": "file"
-    },
-    {
-      "path": "src/lib/api-client.ts",
-      "accessCount": 2,
-      "lastAccessed": 1781233261754,
-      "type": "file"
-    },
-    {
-      "path": "src/features/documents/api.ts",
-      "accessCount": 2,
-      "lastAccessed": 1781233412874,
-      "type": "file"
-    },
-    {
-      "path": "src/features/security/api.ts",
-      "accessCount": 2,
-      "lastAccessed": 1781235630589,
-      "type": "file"
-    },
-    {
-      "path": "src/features/scanning-projects/api/index.ts",
-      "accessCount": 2,
-      "lastAccessed": 1781239065147,
-      "type": "file"
-    },
-    {
-      "path": "src/features/settings/components/SettingsPage.tsx",
-      "accessCount": 2,
-      "lastAccessed": 1781240888063,
-      "type": "file"
-    },
-    {
-      "path": "src/features/scanning-projects/components/tabs/OperatorsTab.tsx",
+      "path": "src/features/scanning-projects/index.ts",
       "accessCount": 1,
-      "lastAccessed": 1781203274186,
+      "lastAccessed": 1781349298534,
       "type": "file"
     },
     {
-      "path": "src/features/settings/types/index.ts",
+      "path": "src/features/exceptions/index.ts",
       "accessCount": 1,
-      "lastAccessed": 1781233793138,
-      "type": "file"
-    },
-    {
-      "path": "src/features/emails/api/index.ts",
-      "accessCount": 1,
-      "lastAccessed": 1781238961522,
+      "lastAccessed": 1781349299030,
       "type": "file"
     }
   ],

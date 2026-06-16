@@ -208,19 +208,18 @@ export function Forms() {
 							<div className="flex-1 bg-slate-800/30 p-4 overflow-auto min-h-[300px]">
 								{currentExtraction ? (
 									<div
-										className="mx-auto bg-white rounded shadow-lg"
+										className="mx-auto rounded shadow-lg overflow-hidden"
 										style={{
-											width: `${3.5 * (zoom / 100)}in`,
-											height: `${4.5 * (zoom / 100)}in`,
+											width: `${8.5 * (zoom / 100)}in`,
+											minHeight: `${11 * (zoom / 100)}in`,
 										}}
 									>
-										{/* Placeholder document content */}
-										<div className="p-4 text-slate-800 text-xs">
-											<div className="text-center mb-4">
-												<p className="font-bold text-sm">DOCUMENT PREVIEW</p>
-												<p className="text-slate-500">Page {currentPage}</p>
-											</div>
-										</div>
+										<img
+											src={`/api/thumbnails/${currentExtraction.documentId}/page/${currentPage}`}
+											alt={`Page ${currentPage}`}
+											className="w-full h-full object-contain"
+											style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top left' }}
+										/>
 									</div>
 								) : (
 									<div className="flex items-center justify-center h-full text-slate-500">

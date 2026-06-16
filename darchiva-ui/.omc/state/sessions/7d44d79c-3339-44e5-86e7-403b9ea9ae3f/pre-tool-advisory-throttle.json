@@ -2,25 +2,9 @@
   "version": 1,
   "entries": {
     "79a93d4a2f8f50b95f852280616242fee1855dc99a3c75211917f55e72e95fae": {
-      "last_emitted_at_ms": 1781241193317,
+      "last_emitted_at_ms": 1781625188856,
       "message": "Use parallel execution for independent tasks. Use run_in_background for long operations (npm install, builds, tests)."
-    },
-    "445ed27a3872b681d98190bae61ccb84954e1bc4e140df5370be958dee776b3a": {
-      "last_emitted_at_ms": 1781241120640,
-      "message": "Verify changes work after editing. Test functionality before marking complete."
-    },
-    "466399dafa2d20f60587180bad0a07358eb7f2bce724df0ff682f038ad33f5ad": {
-      "last_emitted_at_ms": 1781240845346,
-      "message": "Read multiple files in parallel when possible for faster analysis."
-    },
-    "0d11eba18b2e9a64f4d6578781be84f951378afe63089278fe7063ce9febb085": {
-      "last_emitted_at_ms": 1781240330950,
-      "message": "Spawning agent: Explore (sonnet) | Task: Audit remaining hollow implementations across codebase"
-    },
-    "a0190e2e0976312861a3f7f5c9846136352b5e232b8f6475b4a801790261447d": {
-      "last_emitted_at_ms": 1781239000971,
-      "message": "Spawning agent: unknown (inherit) | Task: Migrate scanning-projects API to apiClient"
     }
   },
-  "updated_at": "2026-06-12T05:13:13.317Z"
+  "updated_at": "2026-06-16T15:53:08.856Z"
 }

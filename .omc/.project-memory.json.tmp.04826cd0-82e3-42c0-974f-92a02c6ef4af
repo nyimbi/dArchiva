@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1781473563941,
+  "lastScanned": 1781351211988,
   "projectRoot": "/Users/nyimbiodero/src/pjs/dArchiva",
   "techStack": {
     "languages": [
@@ -52,20 +52,18 @@
     "darchiva-scan-agent": {
       "path": "darchiva-scan-agent",
       "purpose": null,
-      "fileCount": 4,
-      "lastAccessed": 1781473563932,
+      "fileCount": 2,
+      "lastAccessed": 1781351210671,
       "keyFiles": [
         "Makefile",
-        "README.md",
-        "go.mod",
-        "go.sum"
+        "go.mod"
       ]
     },
     "darchiva-ui": {
       "path": "darchiva-ui",
       "purpose": null,
       "fileCount": 13,
-      "lastAccessed": 1781473563936,
+      "lastAccessed": 1781351210674,
       "keyFiles": [
         "index.html",
         "package-lock.json",
@@ -78,7 +76,7 @@
       "path": "demo_documents",
       "purpose": null,
       "fileCount": 5,
-      "lastAccessed": 1781473563936,
+      "lastAccessed": 1781351210675,
       "keyFiles": [
         "Data_Protection_Policy.pdf",
         "Employment_Offer_Onyango.pdf",
@@ -91,7 +89,7 @@
       "path": "papermerge-auth-server",
       "purpose": null,
       "fileCount": 11,
-      "lastAccessed": 1781473563936,
+      "lastAccessed": 1781351210675,
       "keyFiles": [
         "CHANGELOG.md",
         "LICENSE",
@@ -104,7 +102,7 @@
       "path": "papermerge-core",
       "purpose": null,
       "fileCount": 11,
-      "lastAccessed": 1781473563936,
+      "lastAccessed": 1781351210675,
       "keyFiles": [
         "LICENSE",
         "README.md",
@@ -117,7 +115,7 @@
       "path": "papermerge-ocr-worker",
       "purpose": null,
       "fileCount": 7,
-      "lastAccessed": 1781473563936,
+      "lastAccessed": 1781351210675,
       "keyFiles": [
         "LICENSE",
         "README.md",
@@ -130,7 +128,7 @@
       "path": "papermerge-s3-worker",
       "purpose": null,
       "fileCount": 6,
-      "lastAccessed": 1781473563936,
+      "lastAccessed": 1781351210676,
       "keyFiles": [
         "LICENSE",
         "README.md",
@@ -143,7 +141,7 @@
       "path": "sample_documents",
       "purpose": null,
       "fileCount": 3,
-      "lastAccessed": 1781473563937,
+      "lastAccessed": 1781351210676,
       "keyFiles": [
         "download_samples.py",
         "upload_to_darchiva.py"
@@ -153,7 +151,7 @@
       "path": "scripts",
       "purpose": "Build/utility scripts",
       "fileCount": 9,
-      "lastAccessed": 1781473563937,
+      "lastAccessed": 1781351210676,
       "keyFiles": [
         "deploy.sh",
         "generate_sample_docs.py",
@@ -166,7 +164,7 @@
       "path": "spec",
       "purpose": "Test specifications",
       "fileCount": 4,
-      "lastAccessed": 1781473563937,
+      "lastAccessed": 1781351210676,
       "keyFiles": [
         "implementation-plan.md",
         "spec.md",
@@ -178,23 +176,14 @@
       "path": "darchiva-scan-agent/assets",
       "purpose": "Static assets",
       "fileCount": 0,
-      "lastAccessed": 1781473563937,
+      "lastAccessed": 1781351210676,
       "keyFiles": []
-    },
-    "darchiva-scan-agent/docs": {
-      "path": "darchiva-scan-agent/docs",
-      "purpose": "Documentation",
-      "fileCount": 1,
-      "lastAccessed": 1781473563937,
-      "keyFiles": [
-        "ARCHITECTURE.md"
-      ]
     },
     "darchiva-ui/dist": {
       "path": "darchiva-ui/dist",
       "purpose": "Distribution/build output",
       "fileCount": 2,
-      "lastAccessed": 1781473563937,
+      "lastAccessed": 1781351210677,
       "keyFiles": [
         "favicon.svg",
         "index.html"
@@ -204,14 +193,14 @@
       "path": "darchiva-ui/node_modules",
       "purpose": "Dependencies",
       "fileCount": 1,
-      "lastAccessed": 1781473563938,
+      "lastAccessed": 1781351210678,
       "keyFiles": []
     },
     "papermerge-s3-worker/tests": {
       "path": "papermerge-s3-worker/tests",
       "purpose": "Test files",
       "fileCount": 4,
-      "lastAccessed": 1781473563939,
+      "lastAccessed": 1781351210678,
       "keyFiles": [
         "__init__.py",
         "conftest.py",
@@ -219,6 +208,133 @@
       ]
     }
   },
-  "hotPaths": [],
+  "hotPaths": [
+    {
+      "path": "darchiva-scan-agent/internal/api/handlers.go",
+      "accessCount": 7,
+      "lastAccessed": 1781354175794,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-scan-agent/cmd/agent/main.go",
+      "accessCount": 4,
+      "lastAccessed": 1781354191144,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-scan-agent/internal/hotfolder/watcher.go",
+      "accessCount": 3,
+      "lastAccessed": 1781354118398,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-scan-agent/internal/uploader/uploader.go",
+      "accessCount": 3,
+      "lastAccessed": 1781354132582,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-scan-agent/go.mod",
+      "accessCount": 2,
+      "lastAccessed": 1781351835656,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-scan-agent/cmd/agent/tray.go",
+      "accessCount": 2,
+      "lastAccessed": 1781351932108,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-scan-agent/internal/config/config.go",
+      "accessCount": 2,
+      "lastAccessed": 1781354123755,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-scan-agent/internal/queue/queue.go",
+      "accessCount": 1,
+      "lastAccessed": 1781351237962,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-scan-agent/internal/scanner/registry.go",
+      "accessCount": 1,
+      "lastAccessed": 1781351455012,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-scan-agent/internal/scanner/interface.go",
+      "accessCount": 1,
+      "lastAccessed": 1781351477420,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-scan-agent/cmd/agent/browser.go",
+      "accessCount": 1,
+      "lastAccessed": 1781351698491,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-scan-agent/internal/scanner/sane.go",
+      "accessCount": 1,
+      "lastAccessed": 1781353410621,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-scan-agent/internal/scanner/twain_windows.go",
+      "accessCount": 1,
+      "lastAccessed": 1781353410715,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-scan-agent/Makefile",
+      "accessCount": 1,
+      "lastAccessed": 1781353411573,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-scan-agent/README.md",
+      "accessCount": 1,
+      "lastAccessed": 1781353475524,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-scan-agent/docs/ARCHITECTURE.md",
+      "accessCount": 1,
+      "lastAccessed": 1781353600811,
+      "type": "file"
+    },
+    {
+      "path": "papermerge-core/papermerge/core/features/scanning_projects/models.py",
+      "accessCount": 1,
+      "lastAccessed": 1781355249041,
+      "type": "file"
+    },
+    {
+      "path": "papermerge-core/papermerge/core/alembic/versions/d4rc_0004_enterprise_scanning_projects.py",
+      "accessCount": 1,
+      "lastAccessed": 1781355260966,
+      "type": "file"
+    },
+    {
+      "path": "papermerge-core/papermerge/core/features/scanning_projects/router.py",
+      "accessCount": 1,
+      "lastAccessed": 1781355352136,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-scan-agent/internal/ui/static/index.html",
+      "accessCount": 1,
+      "lastAccessed": 1781355560676,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-scan-agent/internal/api/ui.go",
+      "accessCount": 1,
+      "lastAccessed": 1781355726677,
+      "type": "file"
+    }
+  ],
   "userDirectives": []
 }
