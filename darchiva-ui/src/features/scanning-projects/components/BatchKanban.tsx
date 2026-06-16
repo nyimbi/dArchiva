@@ -3,20 +3,22 @@
  * Batch pipeline Kanban board.
  * Columns: Unassigned → In Progress → QC → Complete
  * Drag-and-drop between columns updates batch status.
+ * Priority lanes: 0=Normal (gray), 1=High (amber), 2=Urgent (red).
  */
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, User, FileText, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Loader2, User, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 type BatchStatus = 'pending' | 'assigned' | 'scanning' | 'qc_review' | 'completed' | 'on_hold';
+type BatchPriority = 0 | 1 | 2;
 
 interface Batch {
   id: string;
   batchNumber: string;
   status: BatchStatus;
+  priority: BatchPriority;
   estimatedPages: number;
   actualPages: number;
   scannedPages: number;
@@ -25,6 +27,12 @@ interface Batch {
   physicalLocation: string;
   hasIssues?: boolean;
 }
+
+const PRIORITY_CONFIG: Record<BatchPriority, { label: string; badgeClass: string; selectClass: string }> = {
+  0: { label: 'Normal',  badgeClass: 'bg-slate-500/15 text-slate-400 border-slate-500/30', selectClass: 'text-slate-400' },
+  1: { label: 'High',    badgeClass: 'bg-amber-500/15 text-amber-400 border-amber-500/30', selectClass: 'text-amber-400' },
+  2: { label: 'Urgent',  badgeClass: 'bg-red-500/15 text-red-400 border-red-500/30',       selectClass: 'text-red-400' },
+};
 
 interface BatchKanbanProps {
   projectId: string;
@@ -47,13 +55,16 @@ const NEXT_STATUS: Partial<Record<BatchStatus, BatchStatus>> = {
 function BatchCard({
   batch,
   onDragStart,
+  onPriorityChange,
 }: {
   batch: Batch;
   onDragStart: (e: React.DragEvent, id: string) => void;
+  onPriorityChange: (batchId: string, priority: BatchPriority) => void;
 }) {
   const pct = batch.estimatedPages > 0
     ? Math.round((batch.scannedPages / batch.estimatedPages) * 100)
     : 0;
+  const priorityCfg = PRIORITY_CONFIG[batch.priority ?? 0];
 
   return (
     <div
@@ -63,9 +74,15 @@ function BatchCard({
     >
       <div className="flex items-start justify-between gap-2">
         <span className="text-sm font-medium truncate">{batch.batchNumber}</span>
-        {batch.hasIssues && (
-          <AlertTriangle className="w-3.5 h-3.5 text-destructive flex-shrink-0 mt-0.5" />
-        )}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {batch.hasIssues && (
+            <AlertTriangle className="w-3.5 h-3.5 text-destructive mt-0.5" />
+          )}
+          {/* Priority badge */}
+          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${priorityCfg.badgeClass}`}>
+            {priorityCfg.label}
+          </span>
+        </div>
       </div>
       <p className="text-xs text-muted-foreground mt-0.5 truncate">{batch.physicalLocation}</p>
 
@@ -89,6 +106,23 @@ function BatchCard({
           <span className="text-xs text-muted-foreground truncate">{batch.assignedOperatorName}</span>
         </div>
       )}
+
+      {/* Priority selector */}
+      <div className="mt-2 pt-2 border-t border-border/50">
+        <select
+          value={batch.priority ?? 0}
+          onChange={(e) => {
+            e.stopPropagation();
+            onPriorityChange(batch.id, Number(e.target.value) as BatchPriority);
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          className={`w-full text-[11px] bg-transparent border border-border/50 rounded px-1.5 py-0.5 cursor-pointer focus:outline-none focus:border-border ${priorityCfg.selectClass}`}
+        >
+          <option value={0}>Normal</option>
+          <option value={1}>High</option>
+          <option value={2}>Urgent</option>
+        </select>
+      </div>
     </div>
   );
 }
@@ -115,6 +149,16 @@ export function BatchKanban({ projectId }: BatchKanbanProps) {
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['project-batches-kanban', projectId] }),
   });
+
+  const priorityMutation = useMutation({
+    mutationFn: ({ batchId, priority }: { batchId: string; priority: BatchPriority }) =>
+      apiClient.patch(`/scanning-projects/batches/${batchId}/priority`, { priority }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['project-batches-kanban', projectId] }),
+  });
+
+  const handlePriorityChange = (batchId: string, priority: BatchPriority) => {
+    priorityMutation.mutate({ batchId, priority });
+  };
 
   const handleDragStart = (e: React.DragEvent, batchId: string) => {
     e.dataTransfer.setData('batchId', batchId);
@@ -188,9 +232,16 @@ export function BatchKanban({ projectId }: BatchKanbanProps) {
                   <p className="text-xs text-muted-foreground/50 text-center">Drop here</p>
                 </div>
               ) : (
-                colBatches.map((b) => (
-                  <BatchCard key={b.id} batch={b} onDragStart={handleDragStart} />
-                ))
+                [...colBatches]
+                  .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
+                  .map((b) => (
+                    <BatchCard
+                      key={b.id}
+                      batch={b}
+                      onDragStart={handleDragStart}
+                      onPriorityChange={handlePriorityChange}
+                    />
+                  ))
               )}
             </div>
           );

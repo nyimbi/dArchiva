@@ -155,6 +155,19 @@ export function useUpdateBatch() {
 	});
 }
 
+export function usePrioritizeBatch() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({ batchId, priority }: { batchId: string; priority: 0 | 1 | 2 }) =>
+			api.prioritizeBatch(batchId, priority),
+		onSuccess: () => {
+			// Invalidate all batch queries since priority affects ordering
+			queryClient.invalidateQueries({ queryKey: scanningProjectKeys.all });
+		},
+	});
+}
+
 export function useStartBatchScan() {
 	const queryClient = useQueryClient();
 

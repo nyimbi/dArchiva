@@ -1,11 +1,17 @@
 // (c) Copyright Datacraft, 2026
 import { Viewer } from '@/features/documents/components/Viewer';
+import {
+	VersionDiffViewer,
+	VersionHistoryWithCompare,
+	type DocVerListItem,
+} from '@/features/documents/components/VersionDiffViewer';
 import { apiClient } from '@/lib/api-client';
 import { formatRelativeTime } from '@/lib/utils';
 import type { ViewerPage } from '@/types';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { ArrowLeft,Calendar,FileText,Loader2,Tag } from 'lucide-react';
+import { ArrowLeft,Calendar,FileText,GitCompare,History,Loader2,Tag } from 'lucide-react';
+import { useState } from 'react';
 import { useNavigate,useParams } from 'react-router-dom';
 
 interface DocumentDetail {
@@ -33,6 +39,10 @@ export function DocumentDetail() {
 	const { id } = useParams<{ id: string }>();
 	const navigate = useNavigate();
 
+	// Diff state: null means no diff panel open
+	const [diff, setDiff] = useState<{ versionA: number; versionB: number } | null>(null);
+	const [showVersionHistory, setShowVersionHistory] = useState(false);
+
 	// Fetch document details
 	const { data: document, isLoading, error } = useQuery({
 		queryKey: ['document', id],
@@ -51,6 +61,16 @@ export function DocumentDetail() {
 			return data;
 		},
 		enabled: !!id,
+	});
+
+	// Fetch version list (for history panel)
+	const { data: versionsData } = useQuery<DocVerListItem[]>({
+		queryKey: ['document-versions', id],
+		queryFn: async () => {
+			const { data } = await apiClient.get<DocVerListItem[]>(`/documents/${id}/versions`);
+			return data;
+		},
+		enabled: !!id && showVersionHistory,
 	});
 
 	// Handle saving OCR text
@@ -123,33 +143,79 @@ export function DocumentDetail() {
 					</div>
 				</div>
 
-				{/* Tags */}
-				{document.tags && document.tags.length > 0 && (
-					<div className="flex items-center gap-2">
-						<Tag className="w-4 h-4 text-slate-500" />
-						{document.tags.map((tag) => (
-							<span
-								key={tag.id}
-								className="px-2 py-1 text-xs rounded-full"
-								style={{
-									backgroundColor: `${tag.color}20`,
-									color: tag.color,
-								}}
-							>
-								{tag.name}
-							</span>
-						))}
-					</div>
-				)}
+				{/* Tags + Version history toggle */}
+				<div className="flex items-center gap-3">
+					{document.tags && document.tags.length > 0 && (
+						<div className="flex items-center gap-2">
+							<Tag className="w-4 h-4 text-slate-500" />
+							{document.tags.map((tag) => (
+								<span
+									key={tag.id}
+									className="px-2 py-1 text-xs rounded-full"
+									style={{
+										backgroundColor: `${tag.color}20`,
+										color: tag.color,
+									}}
+								>
+									{tag.name}
+								</span>
+							))}
+						</div>
+					)}
+					<button
+						onClick={() => { setShowVersionHistory((v) => !v); setDiff(null); }}
+						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+							showVersionHistory
+								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
+								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+						}`}
+						title="Version history"
+					>
+						<History className="w-3.5 h-3.5" />
+						History
+					</button>
+				</div>
 			</div>
 
-			{/* Viewer */}
-			<div className="flex-1 min-h-0">
-				<Viewer
-					documentId={id}
-					pages={pages}
-					isLoading={!pagesData}
-				/>
+			{/* Main content area — viewer + optional sidebars */}
+			<div className="flex-1 min-h-0 flex">
+				{/* Document viewer */}
+				<div className="flex-1 min-w-0">
+					<Viewer
+						documentId={id}
+						pages={pages}
+						isLoading={!pagesData}
+					/>
+				</div>
+
+				{/* Version history sidebar */}
+				{showVersionHistory && !diff && (
+					<div className="w-64 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto">
+						{versionsData ? (
+							<VersionHistoryWithCompare
+								documentId={id!}
+								versions={versionsData}
+								onCompare={(vA, vB) => setDiff({ versionA: vA, versionB: vB })}
+							/>
+						) : (
+							<div className="flex items-center justify-center h-24">
+								<Loader2 className="w-5 h-5 animate-spin text-slate-600" />
+							</div>
+						)}
+					</div>
+				)}
+
+				{/* Diff panel — replaces history sidebar when a comparison is active */}
+				{diff && (
+					<div className="w-1/2 shrink-0 border-l border-slate-800">
+						<VersionDiffViewer
+							documentId={id!}
+							versionA={diff.versionA}
+							versionB={diff.versionB}
+							onClose={() => setDiff(null)}
+						/>
+					</div>
+				)}
 			</div>
 		</motion.div>
 	);

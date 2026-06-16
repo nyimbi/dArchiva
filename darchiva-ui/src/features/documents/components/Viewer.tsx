@@ -10,10 +10,15 @@ import {
   Maximize,
   RotateCcw,
   RotateCw,
+  Share2,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
-import { useCallback,useEffect,useRef } from 'react';
+import { useCallback,useEffect,useRef,useState } from 'react';
+import { ShareLinkDialog } from './modals/ShareLinkDialog';
+import { AnnotationLayer } from '@/features/annotations/AnnotationLayer';
+import { AnnotationToolbar } from '@/features/annotations/AnnotationToolbar';
+import type { AnnotationMode } from '@/features/annotations/AnnotationToolbar';
 
 interface ViewerProps {
 	documentId?: string;
@@ -37,6 +42,9 @@ export function Viewer({ documentId, pages = [], isLoading }: ViewerProps) {
 		viewerMode,
 		setViewerMode,
 	} = useStore();
+
+	const [annotationMode, setAnnotationMode] = useState<AnnotationMode>('view');
+	const [shareOpen, setShareOpen] = useState(false);
 
 	const currentPage = pages[currentPageIndex];
 	const totalPages = pages.length;
@@ -86,6 +94,7 @@ export function Viewer({ documentId, pages = [], isLoading }: ViewerProps) {
 	}
 
 	return (
+		<>
 		<div className="h-full flex flex-col bg-slate-950">
 			{/* Toolbar */}
 			<div className="flex items-center justify-between px-4 py-2 border-b border-slate-800 bg-slate-900">
@@ -154,7 +163,19 @@ export function Viewer({ documentId, pages = [], isLoading }: ViewerProps) {
 					>
 						<Download className="w-5 h-5" />
 					</button>
+					<button
+						onClick={() => setShareOpen(true)}
+						className="p-1.5 text-slate-400 hover:text-slate-100 rounded transition-colors hover:bg-slate-800"
+						title="Share"
+					>
+						<Share2 className="w-5 h-5" />
+					</button>
 				</div>
+
+				{/* Annotation toolbar — only shown when a document is open */}
+				{documentId && (
+					<AnnotationToolbar mode={annotationMode} onModeChange={setAnnotationMode} />
+				)}
 			</div>
 
 			{/* Viewer area */}
@@ -206,6 +227,13 @@ export function Viewer({ documentId, pages = [], isLoading }: ViewerProps) {
 								<FileText className="w-16 h-16 text-slate-600" />
 							</div>
 						)}
+						{documentId && (
+							<AnnotationLayer
+								documentId={documentId}
+								pageNumber={currentPageIndex + 1}
+								mode={annotationMode}
+							/>
+						)}
 					</div>
 				) : (
 					<div className="text-slate-500">No pages available</div>
@@ -236,5 +264,13 @@ export function Viewer({ documentId, pages = [], isLoading }: ViewerProps) {
 				</div>
 			)}
 		</div>
+		{documentId && (
+			<ShareLinkDialog
+				open={shareOpen}
+				documentId={documentId}
+				onClose={() => setShareOpen(false)}
+			/>
+		)}
+		</>
 	);
 }

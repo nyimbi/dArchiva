@@ -134,6 +134,14 @@ export async function updateBatch(
 	return response;
 }
 
+export async function prioritizeBatch(batchId: string, priority: 0 | 1 | 2): Promise<{ id: string; priority: number }> {
+	const { data: response } = await apiClient.patch<{ id: string; priority: number }>(
+		`/scanning-projects/batches/${batchId}/priority`,
+		{ priority }
+	);
+	return response;
+}
+
 export async function startBatchScan(projectId: string, batchId: string): Promise<ScanningBatch> {
 	const { data: response } = await apiClient.post<ScanningBatch>(
 		`/scanning-projects/${projectId}/batches/${batchId}/start-scan`
