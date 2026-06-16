@@ -11,6 +11,7 @@ import {
   CheckCircle,
   ChevronLeft,
   ChevronRight,
+  Crosshair,
   Eye,
   FileText,
   Keyboard,
@@ -35,6 +36,7 @@ import { Link,useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { completeBatchScan,getBatch,getBatchDocuments,getScannerCapabilities,getScanners,quickScan,type BatchDocument,type ScanJobOptions,type ScannerCapabilities } from '../api';
 import { BrowserScannerConfig,ScanModeIndicator,type ScanMode } from '../components/BrowserScannerConfig';
+import { CalibrationWizard, loadCalibratedDpi } from '../components/CalibrationWizard';
 import { CameraCapture } from '../components/CameraCapture';
 import { ImageStitcher } from '../components/ImageStitcher';
 import { useBrowserScanner } from '../hooks/useBrowserScanner';
@@ -657,6 +659,8 @@ export function ScanningStation() {
 	const [isScanning, setIsScanning] = useState(false);
 	const [showSettings, setShowSettings] = useState(false);
 	const [showHotkeyConfig, setShowHotkeyConfig] = useState(false);
+	const [showCalibration, setShowCalibration] = useState(false);
+	const [calibratedDpi, setCalibratedDpi] = useState<number | null>(() => loadCalibratedDpi());
 	const [zoom, setZoom] = useState(100);
 
 	// Hotkey bindings state
@@ -1125,6 +1129,12 @@ export function ScanningStation() {
 						<span className="uppercase">{settings.format}</span>
 						{settings.autoDeskew && <span>Auto-Deskew</span>}
 						{settings.autoCrop && <span>Auto-Crop</span>}
+						{calibratedDpi !== null && (
+							<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brass-500/10 border border-brass-500/30 text-brass-400 text-xs font-medium">
+								<Crosshair className="w-3 h-3" />
+								{calibratedDpi} DPI calibrated
+							</span>
+						)}
 					</div>
 					<div className="flex items-center gap-3">
 						{/* Scan Mode Indicator */}
@@ -1177,6 +1187,16 @@ export function ScanningStation() {
 								</button>
 							)
 						)}
+
+						{/* Calibrate button */}
+						<button
+							onClick={() => setShowCalibration(true)}
+							className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-400 hover:text-brass-300 hover:bg-slate-800 rounded-lg border border-slate-700 hover:border-brass-500/40 transition-colors"
+							title="DPI calibration wizard"
+						>
+							<Crosshair className="w-3.5 h-3.5" />
+							Calibrate
+						</button>
 
 						{/* Mode config button */}
 						<button
@@ -1558,6 +1578,18 @@ export function ScanningStation() {
 				hotkeys={hotkeys}
 				onUpdateKey={handleUpdateKey}
 			/>
+
+			{/* DPI Calibration wizard */}
+			{showCalibration && projectId && (
+				<CalibrationWizard
+					projectId={projectId}
+					onClose={() => setShowCalibration(false)}
+					onCalibrated={(dpi) => {
+						setCalibratedDpi(dpi);
+						setShowCalibration(false);
+					}}
+				/>
+			)}
 		</div>
 	);
 }

@@ -25,6 +25,7 @@ import {
   Workflows,
 } from './pages';
 import { SupervisorDashboard } from './pages/SupervisorDashboard';
+import { Webhooks } from './pages/Webhooks';
 
 import {
   ProjectDetails,
@@ -89,6 +90,7 @@ export default function App() {
 								<Route path="scanning-projects/:projectId/qc" element={<QCReview />} />
 								<Route path="scanning-projects/:projectId/batches/:batchId/scan" element={<ScanningStation />} />
 								<Route path="scanning-projects/resources" element={<Resources />} />
+								<Route path="webhooks" element={<Webhooks />} />
 								<Route path="agents" element={<FleetManagement />} />
 								<Route path="supervisor" element={<SupervisorDashboard />} />
 								<Route path="exception-queue" element={<ExceptionQueue />} />

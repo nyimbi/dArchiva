@@ -644,6 +644,76 @@ export function useDeleteProject() {
   });
 }
 
+// ── Batch Split / Merge ───────────────────────────────────────────────────────
+
+export interface SplitBatchResult {
+  original_batch_id: string;
+  new_batch_id: string;
+  original_count: number;
+  new_count: number;
+}
+
+export interface MergeBatchesResult {
+  merged_into: string;
+  merged_from: string[];
+  total_documents: number;
+}
+
+/**
+ * POST /scanning-projects/batches/{batchId}/split?at_document_index=N
+ *
+ * Splits the batch at the given 0-based document index.
+ * Documents at positions < at_document_index remain; the rest move to a new batch.
+ */
+export function useSplitBatch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      batchId,
+      atDocumentIndex,
+    }: {
+      batchId: string;
+      atDocumentIndex: number;
+    }): Promise<SplitBatchResult> => {
+      const res = await apiClient.post<SplitBatchResult>(
+        `${BASE_URL}/batches/${batchId}/split?at_document_index=${atDocumentIndex}`,
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: scanningProjectKeys.all });
+    },
+  });
+}
+
+/**
+ * POST /scanning-projects/batches/merge
+ *
+ * Merges all source_batch_ids into target_batch_id (must be one of the sources).
+ * The non-target source batches are deleted after their documents are moved.
+ */
+export function useMergeBatches() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      sourceBatchIds,
+      targetBatchId,
+    }: {
+      sourceBatchIds: string[];
+      targetBatchId: string;
+    }): Promise<MergeBatchesResult> => {
+      const res = await apiClient.post<MergeBatchesResult>(`${BASE_URL}/batches/merge`, {
+        source_batch_ids: sourceBatchIds,
+        target_batch_id: targetBatchId,
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: scanningProjectKeys.all });
+    },
+  });
+}
+
 // ── Barcode Label Generation ──────────────────────────────────────────────────
 
 interface BarcodeLabelParams {

@@ -97,9 +97,9 @@ export function VirtualRebundler({ projectId, batchId, onClose }: VirtualRebundl
 
   const splitMutation = useMutation({
     mutationFn: async (atIndex: number) => {
-      const { data } = await apiClient.post<void>(`/scanning-projects/batches/${batchId}/split`, {
-        split_at_index: atIndex,
-      });
+      const { data } = await apiClient.post<void>(
+        `/scanning-projects/batches/${batchId}/split?at_document_index=${atIndex}`,
+      );
       return data;
     },
     onSuccess: () => {
@@ -109,9 +109,11 @@ export function VirtualRebundler({ projectId, batchId, onClose }: VirtualRebundl
   });
 
   const mergeMutation = useMutation({
+    // sourceBatchId is the batch to absorb INTO the current batchId
     mutationFn: async (sourceBatchId: string) => {
-      const { data } = await apiClient.post<void>(`/scanning-projects/batches/${batchId}/merge`, {
-        source_batch_id: sourceBatchId,
+      const { data } = await apiClient.post<void>(`/scanning-projects/batches/merge`, {
+        source_batch_ids: [batchId, sourceBatchId],
+        target_batch_id: batchId,
       });
       return data;
     },

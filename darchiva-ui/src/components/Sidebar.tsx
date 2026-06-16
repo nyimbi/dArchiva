@@ -24,6 +24,7 @@ import {
   Share2,
   Shield,
   Upload,
+  Webhook,
 } from 'lucide-react';
 import { Link,useLocation } from 'react-router-dom';
 
@@ -46,6 +47,7 @@ const navItems = [
 
 const adminItems = [
 	{ id: 'agents', label: 'Scan Agents', icon: MonitorPlay, path: '/agents' },
+	{ id: 'webhooks', label: 'Webhooks', icon: Webhook, path: '/webhooks' },
 	{ id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
 	{ id: 'audit', label: 'Audit Logs', icon: History, path: '/audit' },
 	{ id: 'encryption', label: 'Encryption', icon: Shield, path: '/encryption' },

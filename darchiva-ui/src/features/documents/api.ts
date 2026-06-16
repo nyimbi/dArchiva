@@ -205,3 +205,104 @@ export function useUpdatePageText() {
 export async function savePageOcrText(pageId: string, text: string): Promise<void> {
 	await apiClient.patch(`/pages/${pageId}/text`, { text });
 }
+
+// ---------------------------------------------------------------------------
+// Bulk operation types
+// ---------------------------------------------------------------------------
+
+export interface BulkMoveRequest {
+	node_ids: string[];
+	target_folder_id: string;
+}
+
+export interface BulkMoveResponse {
+	moved: number;
+	failed: number;
+	errors: string[];
+}
+
+export interface BulkDeleteRequest {
+	node_ids: string[];
+}
+
+export interface BulkDeleteResponse {
+	deleted: number;
+	failed: number;
+}
+
+export type BulkTagAction = 'add' | 'remove' | 'replace';
+
+export interface BulkTagRequest {
+	node_ids: string[];
+	tag_ids: string[];
+	action: BulkTagAction;
+}
+
+export interface BulkTagResponse {
+	updated: number;
+}
+
+export interface BulkAssignTypeRequest {
+	node_ids: string[];
+	document_type_id: string;
+}
+
+export interface BulkAssignTypeResponse {
+	updated: number;
+}
+
+// ---------------------------------------------------------------------------
+// Bulk operation hooks
+// ---------------------------------------------------------------------------
+
+export function useBulkMove() {
+	const queryClient = useQueryClient();
+	return useMutation<BulkMoveResponse, Error, BulkMoveRequest>({
+		mutationFn: async (data) => {
+			const { data: result } = await apiClient.post<BulkMoveResponse>('/nodes/bulk/move', data);
+			return result;
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: documentKeys.all });
+		},
+	});
+}
+
+export function useBulkDelete() {
+	const queryClient = useQueryClient();
+	return useMutation<BulkDeleteResponse, Error, BulkDeleteRequest>({
+		mutationFn: async (data) => {
+			const { data: result } = await apiClient.post<BulkDeleteResponse>('/nodes/bulk/delete', data);
+			return result;
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: documentKeys.all });
+		},
+	});
+}
+
+export function useBulkTag() {
+	const queryClient = useQueryClient();
+	return useMutation<BulkTagResponse, Error, BulkTagRequest>({
+		mutationFn: async (data) => {
+			const { data: result } = await apiClient.post<BulkTagResponse>('/nodes/bulk/tag', data);
+			return result;
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: documentKeys.all });
+		},
+	});
+}
+
+export function useBulkAssignType() {
+	const queryClient = useQueryClient();
+	return useMutation<BulkAssignTypeResponse, Error, BulkAssignTypeRequest>({
+		mutationFn: async (data) => {
+			const { data: result } = await apiClient.post<BulkAssignTypeResponse>('/nodes/bulk/assign-document-type', data);
+			return result;
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: documentKeys.all });
+		},
+	});
+}
