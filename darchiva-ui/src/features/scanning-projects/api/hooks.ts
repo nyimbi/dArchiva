@@ -613,3 +613,50 @@ export function useDeleteProject() {
     },
   });
 }
+
+// ── Barcode Label Generation ──────────────────────────────────────────────────
+
+interface BarcodeLabelParams {
+  projectId: string;
+  prefix?: string;
+  count: number;
+}
+
+/**
+ * POST /scanning-projects/{project_id}/barcode-labels
+ *
+ * Returns an HTML page (router_batch_ops endpoint) that auto-triggers window.print().
+ * Opens in a new tab so the browser print dialog fires immediately.
+ *
+ * If you need a PDF blob instead, swap the accept header and change the
+ * router_batch_ops endpoint to respond with application/pdf.
+ */
+export function useGenerateBarcodeLabels() {
+  return useMutation({
+    mutationFn: async ({ projectId, prefix = '', count }: BarcodeLabelParams) => {
+      const params = new URLSearchParams({ count: String(count) });
+      if (prefix) params.set('prefix', prefix);
+
+      const response = await apiClient.get(
+        `${BASE_URL}/${projectId}/barcode-labels?${params.toString()}`,
+        { responseType: 'blob' },
+      );
+
+      const blob = new Blob([response.data as BlobPart], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+
+      // Open printable page in a new tab — the server injects window.print()
+      const tab = window.open(url, '_blank');
+      if (!tab) {
+        // Fallback: trigger download if pop-up was blocked
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `barcode-labels-${projectId}.html`;
+        link.click();
+      }
+
+      // Revoke after a short delay to let the new tab load the blob URL
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    },
+  });
+}

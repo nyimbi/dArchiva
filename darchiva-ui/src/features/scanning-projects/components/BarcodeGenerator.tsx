@@ -1,5 +1,6 @@
 // (c) Copyright Datacraft, 2026
 import { cn } from '@/lib/utils';
+import { useGenerateBarcodeLabels } from '../api/hooks';
 import { Barcode,Check,Copy,Download,Grid3X3,Printer,QrCode,RefreshCw,Trash2 } from 'lucide-react';
 import { useCallback,useEffect,useRef,useState } from 'react';
 
@@ -278,7 +279,12 @@ const barcodeTypeConfig: Record<BarcodeType, { label: string; description: strin
 	code128: { label: 'Code 128', description: 'Standard linear barcode', icon: Barcode },
 };
 
-export function BarcodeGenerator() {
+interface BarcodeGeneratorProps {
+	projectId?: string;
+}
+
+export function BarcodeGenerator({ projectId }: BarcodeGeneratorProps = {}) {
+	const generateServerLabels = useGenerateBarcodeLabels();
 	const [barcodeType, setBarcodeType] = useState<BarcodeType>('datamatrix');
 	const [form, setForm] = useState<GenerationForm>({
 		prefix: 'BATCH',
@@ -571,6 +577,24 @@ export function BarcodeGenerator() {
 								<Printer className="w-4 h-4" />
 								Print {selectedIds.size > 0 ? `(${selectedIds.size})` : 'All'}
 							</button>
+							{projectId && (
+								<button
+									type="button"
+									disabled={generateServerLabels.isPending}
+									onClick={() =>
+										generateServerLabels.mutate({
+											projectId,
+											prefix: form.prefix || undefined,
+											count: form.quantity,
+										})
+									}
+									className="px-3 py-1.5 text-sm bg-brass-500/10 text-brass-400 hover:text-brass-300 border border-brass-500/30 rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+									title="Generate server-side barcode sheet (PDF)"
+								>
+									<Printer className="w-4 h-4" />
+									{generateServerLabels.isPending ? 'Generating…' : 'Print via Server'}
+								</button>
+							)}
 						</div>
 					</div>
 

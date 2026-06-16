@@ -358,3 +358,76 @@ export function useScanPage() {
         },
     });
 }
+
+// =====================================================
+// Clock-In / Clock-Out Hooks
+// =====================================================
+
+export const sessionKeys = {
+    all: ['sessions'] as const,
+    myActive: () => [...sessionKeys.all, 'my-active'] as const,
+};
+
+export interface ActiveSession {
+    session_id: string;
+    project_id: string;
+    project_name: string;
+    started_at: string;
+    duration_minutes: number;
+}
+
+export interface ClockInResponse {
+    session_id: string;
+    started_at: string;
+    project_name: string;
+}
+
+export interface ClockOutResponse {
+    session_id: string;
+    started_at: string;
+    ended_at: string;
+    duration_minutes: number;
+}
+
+export function useMyActiveSession() {
+    return useQuery<ActiveSession | null>({
+        queryKey: sessionKeys.myActive(),
+        queryFn: async () => {
+            const res = await apiClient.get<ActiveSession | null>('/scanning-projects/sessions/my-active');
+            return res.data ?? null;
+        },
+        refetchInterval: 30000,
+    });
+}
+
+export function useClockIn() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (data: { project_id: string; location_id?: string }) => {
+            const res = await apiClient.post<ClockInResponse>('/scanning-projects/sessions/clock-in', data);
+            return res.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: sessionKeys.myActive() });
+            queryClient.invalidateQueries({ queryKey: operatorKeys.stats() });
+        },
+    });
+}
+
+export function useClockOut() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (sessionId: string) => {
+            const res = await apiClient.post<ClockOutResponse>(
+                `/scanning-projects/sessions/${sessionId}/clock-out`,
+            );
+            return res.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: sessionKeys.myActive() });
+            queryClient.invalidateQueries({ queryKey: operatorKeys.stats() });
+        },
+    });
+}

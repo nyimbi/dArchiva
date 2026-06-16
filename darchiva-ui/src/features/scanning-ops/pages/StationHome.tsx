@@ -1,13 +1,23 @@
-import { Package,Scan,Trophy,User } from 'lucide-react';
+import { Clock,LogIn,LogOut,Package,Scan,Trophy,User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { Scoreboard } from '../components/Scoreboard';
-import { useShiftStats } from '../api/hooks';
+import { useClockIn,useClockOut,useMyActiveSession,useShiftStats } from '../api/hooks';
+
+function formatDuration(minutes: number): string {
+    const h = Math.floor(minutes / 60);
+    const m = Math.floor(minutes % 60);
+    if (h === 0) return `${m}m`;
+    return `${h}h ${m}m`;
+}
 
 export function StationHome() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { data: shiftStats } = useShiftStats();
+    const { data: activeSession, isLoading: sessionLoading } = useMyActiveSession();
+    const clockIn = useClockIn();
+    const clockOut = useClockOut();
 
     const displayName = user?.username ?? 'Operator';
     const targetPages = shiftStats?.target_pages ?? 0;
@@ -20,6 +30,26 @@ export function StationHome() {
         : 0;
     // Quality challenge: progress toward 100% quality score
     const perfectionistProgress = Math.min(Math.round(qualityScore), 100);
+
+    const handleClockIn = () => {
+        // Use first available project from shift stats, or a sensible fallback.
+        // The operator must have at least one active project; pick from URL or
+        // prompt — for now we derive project_id from the active session check
+        // or let the user navigate to a project first.
+        // We surface an alert if no project context is available.
+        const projectId = new URLSearchParams(window.location.search).get('projectId') ?? '';
+        if (!projectId) {
+            alert('No project selected. Navigate to a project and clock in from there, or ask your supervisor.');
+            return;
+        }
+        clockIn.mutate({ project_id: projectId });
+    };
+
+    const handleClockOut = () => {
+        if (activeSession) {
+            clockOut.mutate(activeSession.session_id);
+        }
+    };
 
     return (
         <div className="h-full grid grid-cols-12 gap-8">
@@ -34,12 +64,44 @@ export function StationHome() {
                                 ? ` Your shift target is ${targetPages.toLocaleString()} pages today.`
                                 : ' No shift assigned yet.'}
                         </p>
-                        <button
-                            onClick={() => navigate('/scanning/operator')}
-                            className="px-8 py-4 bg-slate-900 text-white rounded-xl font-bold text-lg hover:scale-105 transition-transform flex items-center gap-3"
-                        >
-                            <Scan className="w-6 h-6" /> Start Scanning
-                        </button>
+                        <div className="flex items-center gap-4 flex-wrap">
+                            <button
+                                onClick={() => navigate('/scanning/operator')}
+                                className="px-8 py-4 bg-slate-900 text-white rounded-xl font-bold text-lg hover:scale-105 transition-transform flex items-center gap-3"
+                            >
+                                <Scan className="w-6 h-6" /> Start Scanning
+                            </button>
+
+                            {/* Clock-in / clock-out */}
+                            {!sessionLoading && (
+                                activeSession ? (
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-2 px-4 py-3 bg-green-900/60 text-green-200 rounded-xl text-sm font-bold">
+                                            <Clock className="w-4 h-4 animate-pulse" />
+                                            <span>Clocked in — {activeSession.project_name}</span>
+                                            <span className="opacity-70">({formatDuration(activeSession.duration_minutes)})</span>
+                                        </div>
+                                        <button
+                                            onClick={handleClockOut}
+                                            disabled={clockOut.isPending}
+                                            className="px-5 py-3 bg-red-700 hover:bg-red-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 transition-colors disabled:opacity-50"
+                                        >
+                                            <LogOut className="w-4 h-4" />
+                                            {clockOut.isPending ? 'Clocking out...' : 'Clock Out'}
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={handleClockIn}
+                                        disabled={clockIn.isPending}
+                                        className="px-5 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 transition-colors disabled:opacity-50"
+                                    >
+                                        <LogIn className="w-4 h-4" />
+                                        {clockIn.isPending ? 'Clocking in...' : 'Clock In'}
+                                    </button>
+                                )
+                            )}
+                        </div>
                     </div>
                     <Scan className="absolute -right-10 -bottom-10 w-96 h-96 opacity-10" />
                 </div>

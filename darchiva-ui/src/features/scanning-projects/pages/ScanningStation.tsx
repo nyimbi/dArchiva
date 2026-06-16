@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Eye,
   FileText,
+  Keyboard,
   Loader2,
   Maximize2,
   Package,
@@ -29,7 +30,7 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
-import { useCallback,useEffect,useState } from 'react';
+import { useCallback,useEffect,useRef,useState } from 'react';
 import { Link,useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { completeBatchScan,getBatch,getBatchDocuments,getScannerCapabilities,getScanners,quickScan,type BatchDocument,type ScanJobOptions,type ScannerCapabilities } from '../api';
@@ -39,6 +40,175 @@ import { ImageStitcher } from '../components/ImageStitcher';
 import { useBrowserScanner } from '../hooks/useBrowserScanner';
 
 type CaptureMode = 'scanner' | 'camera' | 'stitch';
+
+// ─── Hotkey types & constants ───────────────────────────────────────────────
+
+type HotkeyAction = 'scan_next' | 'accept_page' | 'reject_page' | 'end_batch' | 'camera_mode';
+
+interface HotkeyBinding {
+	key: string;
+	label: string;
+	description: string;
+}
+
+type HotkeyMap = Record<HotkeyAction, HotkeyBinding>;
+
+const HOTKEY_ACTIONS: Record<HotkeyAction, Pick<HotkeyBinding, 'label' | 'description'>> = {
+	scan_next:   { label: 'Scan Next',    description: 'Trigger next scan' },
+	accept_page: { label: 'Accept Page',  description: 'Accept current previewed page' },
+	reject_page: { label: 'Reject Page',  description: 'Reject & add to rescan queue' },
+	end_batch:   { label: 'End Batch',    description: 'Complete current batch' },
+	camera_mode: { label: 'Camera Mode',  description: 'Switch to camera capture mode' },
+};
+
+const DEFAULT_HOTKEYS: HotkeyMap = {
+	scan_next:   { ...HOTKEY_ACTIONS.scan_next,   key: 'F9' },
+	accept_page: { ...HOTKEY_ACTIONS.accept_page, key: 'F10' },
+	reject_page: { ...HOTKEY_ACTIONS.reject_page, key: 'F11' },
+	end_batch:   { ...HOTKEY_ACTIONS.end_batch,   key: 'F12' },
+	camera_mode: { ...HOTKEY_ACTIONS.camera_mode, key: 'F8' },
+};
+
+const HOTKEYS_STORAGE_KEY = 'darchiva_scan_hotkeys';
+
+function loadHotkeys(): HotkeyMap {
+	try {
+		const raw = localStorage.getItem(HOTKEYS_STORAGE_KEY);
+		if (!raw) return DEFAULT_HOTKEYS;
+		const parsed = JSON.parse(raw) as Partial<Record<HotkeyAction, string>>;
+		const result = { ...DEFAULT_HOTKEYS };
+		for (const action of Object.keys(HOTKEY_ACTIONS) as HotkeyAction[]) {
+			if (typeof parsed[action] === 'string') {
+				result[action] = { ...HOTKEY_ACTIONS[action], key: parsed[action] as string };
+			}
+		}
+		return result;
+	} catch {
+		return DEFAULT_HOTKEYS;
+	}
+}
+
+function saveHotkeys(map: HotkeyMap): void {
+	const minimal: Partial<Record<HotkeyAction, string>> = {};
+	for (const action of Object.keys(HOTKEY_ACTIONS) as HotkeyAction[]) {
+		minimal[action] = map[action].key;
+	}
+	localStorage.setItem(HOTKEYS_STORAGE_KEY, JSON.stringify(minimal));
+}
+
+// ─── Hotkey config modal ─────────────────────────────────────────────────────
+
+function HotkeyConfigModal({
+	open,
+	onOpenChange,
+	hotkeys,
+	onUpdateKey,
+}: {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	hotkeys: HotkeyMap;
+	onUpdateKey: (action: HotkeyAction, key: string) => void;
+}) {
+	const [rebinding, setRebinding] = useState<HotkeyAction | null>(null);
+
+	// Capture the next keydown when in rebind mode
+	useEffect(() => {
+		if (!rebinding) return;
+		const handler = (e: KeyboardEvent) => {
+			e.preventDefault();
+			e.stopPropagation();
+			// Ignore bare modifier keys
+			if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
+			onUpdateKey(rebinding, e.key);
+			setRebinding(null);
+		};
+		window.addEventListener('keydown', handler, { capture: true });
+		return () => window.removeEventListener('keydown', handler, { capture: true });
+	}, [rebinding, onUpdateKey]);
+
+	return (
+		<Dialog.Root open={open} onOpenChange={(v) => { setRebinding(null); onOpenChange(v); }}>
+			<Dialog.Portal>
+				<Dialog.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
+				<Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-slate-900 border border-slate-800 rounded-xl p-6 w-full max-w-md shadow-xl">
+					<Dialog.Title className="text-xl font-semibold text-slate-100 mb-1">
+						Hotkey Configuration
+					</Dialog.Title>
+					<Dialog.Description className="text-sm text-slate-400 mb-5">
+						Click a binding to rebind it, then press the desired key.
+					</Dialog.Description>
+
+					<table className="w-full text-sm">
+						<thead>
+							<tr className="text-left text-slate-500 border-b border-slate-800">
+								<th className="pb-2 font-medium">Action</th>
+								<th className="pb-2 font-medium">Binding</th>
+								<th className="pb-2" />
+							</tr>
+						</thead>
+						<tbody className="divide-y divide-slate-800">
+							{(Object.keys(HOTKEY_ACTIONS) as HotkeyAction[]).map((action) => {
+								const binding = hotkeys[action];
+								const isWaiting = rebinding === action;
+								return (
+									<tr key={action}>
+										<td className="py-3 pr-4">
+											<div className="text-slate-200 font-medium">{binding.label}</div>
+											<div className="text-xs text-slate-500">{binding.description}</div>
+										</td>
+										<td className="py-3 pr-4">
+											{isWaiting ? (
+												<span className="px-2 py-1 rounded bg-brass-500/20 text-brass-400 text-xs animate-pulse">
+													Press a key…
+												</span>
+											) : (
+												<kbd className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-xs font-mono border border-slate-700">
+													{binding.key}
+												</kbd>
+											)}
+										</td>
+										<td className="py-3">
+											<button
+												onClick={() => setRebinding(isWaiting ? null : action)}
+												className={cn(
+													'px-2 py-1 text-xs rounded transition-colors',
+													isWaiting
+														? 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30'
+														: 'bg-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-700'
+												)}
+											>
+												{isWaiting ? 'Cancel' : 'Rebind'}
+											</button>
+										</td>
+									</tr>
+								);
+							})}
+						</tbody>
+					</table>
+
+					<div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-800">
+						<button
+							onClick={() => {
+								for (const action of Object.keys(HOTKEY_ACTIONS) as HotkeyAction[]) {
+									onUpdateKey(action, DEFAULT_HOTKEYS[action].key);
+								}
+							}}
+							className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+						>
+							Reset to defaults
+						</button>
+						<button
+							onClick={() => { setRebinding(null); onOpenChange(false); }}
+							className="px-4 py-2 bg-brass-500 text-slate-900 rounded-lg font-medium hover:bg-brass-400 transition-colors"
+						>
+							Done
+						</button>
+					</div>
+				</Dialog.Content>
+			</Dialog.Portal>
+		</Dialog.Root>
+	);
+}
 
 // Types for the scanning station
 interface ScannedPage {
@@ -486,7 +656,19 @@ export function ScanningStation() {
 	}, [fetchedPages, selectedPageId]);
 	const [isScanning, setIsScanning] = useState(false);
 	const [showSettings, setShowSettings] = useState(false);
+	const [showHotkeyConfig, setShowHotkeyConfig] = useState(false);
 	const [zoom, setZoom] = useState(100);
+
+	// Hotkey bindings state
+	const [hotkeys, setHotkeys] = useState<HotkeyMap>(() => loadHotkeys());
+
+	const handleUpdateKey = useCallback((action: HotkeyAction, key: string) => {
+		setHotkeys(prev => {
+			const next = { ...prev, [action]: { ...prev[action], key } };
+			saveHotkeys(next);
+			return next;
+		});
+	}, []);
 	const [scanError, setScanError] = useState<string | null>(null);
 	const [settings, setSettings] = useState<ScanSettings>({
 		dpi: 1200,
@@ -734,6 +916,70 @@ export function ScanningStation() {
 			});
 	}, [batchId, pages.length, projectId]);
 
+	// Stable refs so the keydown handler always sees current values
+	const hotkeysRef = useRef(hotkeys);
+	useEffect(() => { hotkeysRef.current = hotkeys; }, [hotkeys]);
+
+	const actionsRef = useRef({
+		toggleScanning,
+		handleAcceptPage,
+		handleRejectPage,
+		handleCompleteBatch,
+		setCaptureMode,
+		showHotkeyConfig,
+	});
+	useEffect(() => {
+		actionsRef.current = {
+			toggleScanning,
+			handleAcceptPage,
+			handleRejectPage,
+			handleCompleteBatch,
+			setCaptureMode,
+			showHotkeyConfig,
+		};
+	}, [toggleScanning, handleAcceptPage, handleRejectPage, handleCompleteBatch, showHotkeyConfig]);
+
+	// Document-level hotkey listener
+	useEffect(() => {
+		const handler = (e: KeyboardEvent) => {
+			// Never fire when the user is typing in an input/textarea or a modal is open
+			const target = e.target as HTMLElement;
+			if (
+				target.tagName === 'INPUT' ||
+				target.tagName === 'TEXTAREA' ||
+				target.isContentEditable ||
+				actionsRef.current.showHotkeyConfig
+			) return;
+
+			const hk = hotkeysRef.current;
+			switch (e.key) {
+				case hk.scan_next.key:
+					e.preventDefault();
+					actionsRef.current.toggleScanning();
+					break;
+				case hk.accept_page.key:
+					e.preventDefault();
+					actionsRef.current.handleAcceptPage();
+					break;
+				case hk.reject_page.key:
+					e.preventDefault();
+					actionsRef.current.handleRejectPage();
+					break;
+				case hk.end_batch.key:
+					e.preventDefault();
+					actionsRef.current.handleCompleteBatch();
+					break;
+				case hk.camera_mode.key:
+					e.preventDefault();
+					actionsRef.current.setCaptureMode('camera');
+					break;
+			}
+		};
+
+		document.addEventListener('keydown', handler);
+		return () => document.removeEventListener('keydown', handler);
+	}, []); // intentionally empty — handler reads from refs
+
 	return (
 		<div className="h-screen flex flex-col bg-slate-950">
 			{/* Header */}
@@ -819,6 +1065,13 @@ export function ScanningStation() {
 									title="Scan settings"
 								>
 									<Settings className="w-5 h-5" />
+								</button>
+								<button
+									onClick={() => setShowHotkeyConfig(true)}
+									className="p-2 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-lg transition-colors"
+									title="Hotkey configuration"
+								>
+									<Keyboard className="w-5 h-5" />
 								</button>
 								<button
 									onClick={toggleScanning}
@@ -1261,6 +1514,24 @@ export function ScanningStation() {
 						</button>
 					</div>
 				</div>
+
+				{/* Hotkey pill row */}
+				<div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-800">
+					<Keyboard className="w-3.5 h-3.5 text-slate-600 flex-shrink-0" />
+					<div className="flex items-center gap-1.5 flex-wrap">
+						{(Object.keys(HOTKEY_ACTIONS) as HotkeyAction[]).map((action) => (
+							<button
+								key={action}
+								onClick={() => setShowHotkeyConfig(true)}
+								title={`${hotkeys[action].description} — click to reconfigure`}
+								className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-800 border border-slate-700 hover:border-slate-600 transition-colors"
+							>
+								<kbd className="text-[10px] font-mono text-slate-300">{hotkeys[action].key}</kbd>
+								<span className="text-[10px] text-slate-500">{hotkeys[action].label}</span>
+							</button>
+						))}
+					</div>
+				</div>
 			</footer>
 
 			{/* Settings dialog */}
@@ -1278,6 +1549,14 @@ export function ScanningStation() {
 				onOpenChange={setShowModeConfig}
 				scanMode={scanMode}
 				onScanModeChange={setScanMode}
+			/>
+
+			{/* Hotkey Configuration dialog */}
+			<HotkeyConfigModal
+				open={showHotkeyConfig}
+				onOpenChange={setShowHotkeyConfig}
+				hotkeys={hotkeys}
+				onUpdateKey={handleUpdateKey}
 			/>
 		</div>
 	);
