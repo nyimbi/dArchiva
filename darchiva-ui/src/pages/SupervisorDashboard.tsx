@@ -2,21 +2,27 @@
 import { useState } from 'react';
 import {
 	Activity,
+	AlertTriangle,
 	ChevronDown,
 	Clock,
+	Download,
 	FileStack,
 	Layers,
 	MonitorDot,
+	Printer,
 	RefreshCw,
 	Users,
 } from 'lucide-react';
 import {
 	useBatchPipeline,
+	useExportKpis,
 	useLiveOps,
 	useOperatorKpis,
 	useProjects,
+	useSLAAlerts,
 	useTeamSummary,
 } from '@/features/scanning-projects/api/hooks';
+import type { SLAAlert } from '@/features/scanning-projects/types';
 import { BatchKanban } from '@/features/scanning-projects/components/BatchKanban';
 import type { OperatorKPI } from '@/features/scanning-projects/api/index';
 
@@ -237,7 +243,40 @@ function KpiTable({ kpis }: { kpis: OperatorKPI[] }) {
 	);
 }
 
-function BatchPipelineTab({ projectId }: { projectId: string }) {
+function SLAAlertBanner({ alerts }: { alerts: SLAAlert[] }) {
+	const active = alerts.filter((a) => !a.acknowledged_at);
+	if (active.length === 0) return null;
+
+	const hasCritical = active.some((a) => a.alert_type === 'critical');
+
+	return (
+		<div
+			className={[
+				'flex items-start gap-3 rounded-lg border px-4 py-3 text-sm',
+				hasCritical
+					? 'border-red-500/50 bg-red-500/10 text-red-300'
+					: 'border-amber-500/50 bg-amber-500/10 text-amber-300',
+			].join(' ')}
+		>
+			<AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+			<div className="min-w-0 space-y-1">
+				<p className="font-semibold text-xs uppercase tracking-wide">
+					{hasCritical ? 'SLA Breach' : 'SLA Warning'} &mdash; {active.length} active alert{active.length !== 1 ? 's' : ''}
+				</p>
+				{active.slice(0, 3).map((a) => (
+					<p key={a.id} className="text-xs opacity-80 truncate">
+						{a.message}
+					</p>
+				))}
+				{active.length > 3 && (
+					<p className="text-xs opacity-60">+{active.length - 3} more — check the SLAs tab for details.</p>
+				)}
+			</div>
+		</div>
+	);
+}
+
+function BatchPipelineTab({ projectId, slaAlerts }: { projectId: string; slaAlerts: SLAAlert[] }) {
 	const { data, isLoading, error } = useBatchPipeline(projectId);
 
 	if (!projectId) {
@@ -259,13 +298,30 @@ function BatchPipelineTab({ projectId }: { projectId: string }) {
 
 	if (error || !data) {
 		// Fall back to BatchKanban which fetches its own data from batches endpoint
-		return <BatchKanban projectId={projectId} />;
+		return (
+			<div className="space-y-4">
+				<SLAAlertBanner alerts={slaAlerts} />
+				<BatchKanban projectId={projectId} />
+			</div>
+		);
 	}
 
 	// Render pipeline columns directly from supervisor endpoint data
+	const hasCriticalAlert = slaAlerts.some((a) => !a.acknowledged_at && a.alert_type === 'critical');
+	const hasWarningAlert = slaAlerts.some((a) => !a.acknowledged_at && a.alert_type === 'warning');
+
 	const cols = [
 		{ label: 'Unassigned', items: data.unassigned, border: 'border-slate-600/40', badge: 'badge-gray' },
-		{ label: 'In Progress', items: data.in_progress, border: 'border-blue-500/40', badge: 'badge-blue' },
+		{
+			label: 'In Progress',
+			items: data.in_progress,
+			border: hasCriticalAlert
+				? 'border-red-500/60'
+				: hasWarningAlert
+					? 'border-amber-500/60'
+					: 'border-blue-500/40',
+			badge: 'badge-blue',
+		},
 		{ label: 'QC Review', items: data.qc_review, border: 'border-amber-500/40', badge: 'badge-brass' },
 		{ label: 'Complete', items: data.complete, border: 'border-emerald-500/40', badge: 'badge-green' },
 	];
@@ -275,6 +331,9 @@ function BatchPipelineTab({ projectId }: { projectId: string }) {
 
 	return (
 		<div className="space-y-4">
+			{/* SLA alert banner — shown when there are active unacknowledged alerts */}
+			<SLAAlertBanner alerts={slaAlerts} />
+
 			<div className="flex items-center justify-between">
 				<p className="text-xs text-slate-400">
 					{done}/{total} batches complete
@@ -291,9 +350,23 @@ function BatchPipelineTab({ projectId }: { projectId: string }) {
 						className={`flex flex-col gap-2 rounded-xl border-2 ${col.border} bg-slate-800/20 p-3 min-h-48`}
 					>
 						<div className="flex items-center justify-between mb-1">
-							<span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-								{col.label}
-							</span>
+							<div className="flex items-center gap-1.5">
+								<span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+									{col.label}
+								</span>
+								{col.label === 'In Progress' && hasCriticalAlert && (
+									<span className="inline-flex items-center gap-1 rounded-full bg-red-500/20 px-1.5 py-0.5 text-2xs font-semibold text-red-400 border border-red-500/30">
+										<AlertTriangle className="w-2.5 h-2.5" />
+										SLA Breach
+									</span>
+								)}
+								{col.label === 'In Progress' && !hasCriticalAlert && hasWarningAlert && (
+									<span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-1.5 py-0.5 text-2xs font-semibold text-amber-400 border border-amber-500/30">
+										<AlertTriangle className="w-2.5 h-2.5" />
+										Approaching
+									</span>
+								)}
+							</div>
 							<span className={`badge ${col.badge} text-xs`}>{col.items.length}</span>
 						</div>
 
@@ -351,9 +424,13 @@ export function SupervisorDashboard() {
 	const [activeTab, setActiveTab] = useState<Tab>('live-ops');
 	const [selectedProjectId, setSelectedProjectId] = useState<string>('');
 
+	const [selectedDays, setSelectedDays] = useState<number>(30);
+
 	const { data: liveOps, dataUpdatedAt: liveUpdated } = useLiveOps();
-	const { data: kpis } = useOperatorKpis();
+	const { data: kpis } = useOperatorKpis(selectedDays);
 	const { data: projects } = useProjects({});
+	const { mutate: exportKpis, isPending: isExporting } = useExportKpis();
+	const { data: slaAlerts } = useSLAAlerts(selectedProjectId);
 
 	const projectList = (projects as { items?: { id: string; name: string }[] } | { id: string; name: string }[] | undefined) ?? [];
 	const projectItems = Array.isArray(projectList)
@@ -496,9 +573,39 @@ export function SupervisorDashboard() {
 
 				{activeTab === 'operator-kpis' && (
 					<div className="glass-card">
-						<div className="px-4 py-3 border-b border-slate-700/60 flex items-center justify-between">
+						<div className="px-4 py-3 border-b border-slate-700/60 flex items-center justify-between gap-3 flex-wrap">
 							<h2 className="text-sm font-semibold text-slate-300">Operator KPIs</h2>
-							<span className="text-xs text-slate-500">Refreshes every 30s</span>
+							<div className="flex items-center gap-2 flex-wrap">
+								{/* Period selector */}
+								<select
+									value={selectedDays}
+									onChange={(e) => setSelectedDays(Number(e.target.value))}
+									className="appearance-none bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-brass-500 cursor-pointer"
+								>
+									<option value={7}>Last 7 days</option>
+									<option value={30}>Last 30 days</option>
+									<option value={90}>Last 90 days</option>
+								</select>
+								{/* Export CSV */}
+								<button
+									onClick={() => exportKpis({ days: selectedDays, format: 'csv' })}
+									disabled={isExporting}
+									className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+								>
+									<Download className="w-3.5 h-3.5" />
+									Export CSV
+								</button>
+								{/* Export PDF (print) */}
+								<button
+									onClick={() => exportKpis({ days: selectedDays, format: 'pdf' })}
+									disabled={isExporting}
+									className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+								>
+									<Printer className="w-3.5 h-3.5" />
+									Export PDF (Print)
+								</button>
+								<span className="text-xs text-slate-500">Refreshes every 30s</span>
+							</div>
 						</div>
 						<KpiTable kpis={kpis ?? []} />
 					</div>
@@ -511,7 +618,7 @@ export function SupervisorDashboard() {
 							<span className="text-xs text-slate-500">Refreshes every 15s</span>
 						</div>
 						{selectedProjectId ? (
-							<BatchPipelineTab projectId={selectedProjectId} />
+							<BatchPipelineTab projectId={selectedProjectId} slaAlerts={slaAlerts ?? []} />
 						) : (
 							<div className="flex items-center justify-center h-48 text-slate-500 text-sm">
 								Select a project above to view its batch pipeline.

@@ -561,6 +561,36 @@ export function useBatchPipeline(projectId: string) {
   });
 }
 
+export function useExportKpis() {
+  return useMutation({
+    mutationFn: async ({ days = 30, format = 'csv' }: { days?: number; format?: 'csv' | 'pdf' }) => {
+      if (format === 'pdf') {
+        window.open(
+          `/api${BASE_URL}/supervisor/operator-kpis/export?format=pdf&days=${days}`,
+          '_blank',
+        );
+        return;
+      }
+      // CSV: fetch as blob and trigger download
+      const res = await apiClient.get(
+        `${BASE_URL}/supervisor/operator-kpis/export`,
+        {
+          params: { format: 'csv', days },
+          responseType: 'blob',
+        },
+      );
+      const today = new Date().toISOString().slice(0, 10);
+      const blob = new Blob([res.data as BlobPart], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `operator-kpis-${today}.csv`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    },
+  });
+}
+
 export function useRecordPageEvent() {
   const queryClient = useQueryClient();
   return useMutation({
