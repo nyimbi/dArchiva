@@ -22,6 +22,7 @@ import { LegalHoldPanel } from '@/features/legal-hold/LegalHoldPanel';
 import { ActivityPanel } from '@/features/activity/ActivityPanel';
 import { ChatPanel } from '@/features/document-chat';
 import { ACLPanel } from '@/features/acl/ACLPanel';
+import { CommentsPanel } from '@/features/comments/CommentsPanel';
 import {
 	VersionDiffViewer,
 	VersionHistoryWithCompare,
@@ -65,7 +66,7 @@ export function DocumentDetail() {
 	const [diff, setDiff] = useState<{ versionA: number; versionB: number } | null>(null);
 	const [showVersionHistory, setShowVersionHistory] = useState(false);
 	// Right-panel tab: null = closed, or one of the named panels
-	type SidePanel = 'custom-fields' | 'related' | 'similar' | 'entities' | 'expiry' | 'annotations' | 'ocr-quality' | 'signatures' | 'approvals' | 'duplicates' | 'classification' | 'filing' | 'legal-hold' | 'activity' | 'chat' | 'acl';
+	type SidePanel = 'custom-fields' | 'related' | 'similar' | 'entities' | 'expiry' | 'annotations' | 'ocr-quality' | 'signatures' | 'approvals' | 'duplicates' | 'classification' | 'filing' | 'legal-hold' | 'activity' | 'chat' | 'acl' | 'comments';
 	const [sidePanel, setSidePanel] = useState<SidePanel | null>(null);
 	const [showPageEditor, setShowPageEditor] = useState(false);
 	const [showSplitDialog, setShowSplitDialog] = useState(false);
@@ -434,6 +435,18 @@ export function DocumentDetail() {
 					>
 						<Lock className="w-3.5 h-3.5" />
 						Access
+					</button>
+					<button
+						onClick={() => togglePanel('comments')}
+						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+							sidePanel === 'comments'
+								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
+								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+						}`}
+						title="Comments"
+					>
+						<MessageCircle className="w-3.5 h-3.5" />
+						Comments
 					</button>
 					<DownloadMenu
 						documentId={id!}

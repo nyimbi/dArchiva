@@ -1,5 +1,6 @@
 // (c) Copyright Datacraft, 2026
 import { useSearchDocuments, useSearchFacets } from '@/features/search/api';
+import { SavedSearchPanel } from '@/features/search/components/SavedSearchPanel';
 import type { ActiveFilter, SearchFilters, SearchSortBy } from '@/features/search/types';
 import { cn, formatRelativeTime } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -447,6 +448,14 @@ export function SearchPage() {
 						hasExceptions={filters.hasExceptions ?? null}
 						onChange={(key, val) => {
 							setFilters(prev => ({ ...prev, [key]: val }));
+							setPage(1);
+						}}
+					/>
+
+					<SavedSearchPanel
+						currentQuery={inputValue}
+						onApply={(query) => {
+							setInputValue(query);
 							setPage(1);
 						}}
 					/>

@@ -58,6 +58,7 @@ import { SuperAdminPage } from './features/superadmin/SuperAdminPage';
 import { AutomationRulesPage } from './features/automation/AutomationRulesPage';
 import { ScheduledReportsPage } from './features/reports/ScheduledReportsPage';
 import { ThemeProvider } from './features/theme/ThemeProvider';
+import { EntityGraphPage } from './features/entity-graph/EntityGraphPage';
 
 import { ScanningLayout } from './features/scanning-ops/layouts/ScanningLayout';
 import { OperatorDashboard } from './features/scanning-ops/pages/OperatorDashboard';
@@ -147,6 +148,8 @@ export default function App() {
 								<Route path="superadmin" element={<SuperAdminPage />} />
 								<Route path="automation" element={<AutomationRulesPage />} />
 								<Route path="reports/scheduled" element={<ScheduledReportsPage />} />
+								<Route path="analytics" element={<Analytics />} />
+								<Route path="entity-graph" element={<EntityGraphPage />} />
 							</Route>
 						</Route>
 
