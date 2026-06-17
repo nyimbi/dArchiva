@@ -19,6 +19,7 @@ import {
   Inbox,
   Key,
   LayoutDashboard,
+  Mail,
   MonitorDot,
   MonitorPlay,
   Route,
@@ -31,6 +32,7 @@ import {
   Timer,
   TrendingUp,
   Upload,
+  Users,
   Webhook,
 } from 'lucide-react';
 import { useBranding } from '@/hooks/useBranding';
@@ -60,6 +62,8 @@ const adminItems = [
 	{ id: 'agents', label: 'Scan Agents', icon: MonitorPlay, path: '/agents' },
 	{ id: 'retention', label: 'Retention', icon: Timer, path: '/retention' },
 	{ id: 'webhooks', label: 'Webhooks', icon: Webhook, path: '/webhooks' },
+	{ id: 'email-ingest', label: 'Email Ingest', icon: Mail, path: '/settings/email-ingest' },
+	{ id: 'admin-users', label: 'Users', icon: Users, path: '/admin/users' },
 	{ id: 'api-keys', label: 'API Keys', icon: Key, path: '/api-keys' },
 	{ id: 'system', label: 'System Health', icon: Activity, path: '/system' },
 	{ id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },

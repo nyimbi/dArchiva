@@ -1,7 +1,9 @@
 // (c) Copyright Datacraft, 2026
+import { AnnotationsPanel } from '@/features/documents/components/AnnotationsPanel';
 import { CustomFieldsPanel } from '@/features/documents/components/CustomFieldsPanel';
 import { EntityPanel } from '@/features/documents/components/EntityPanel';
 import { ExpiryPanel } from '@/features/documents/components/ExpiryPanel';
+import { OCRQualityPanel } from '@/features/documents/components/OCRQualityPanel';
 import { RelatedDocumentsPanel } from '@/features/documents/components/RelatedDocumentsPanel';
 import { SimilarDocuments } from '@/features/documents/components/SimilarDocuments';
 import { SplitDocumentDialog } from '@/features/documents/components/SplitDocumentDialog';
@@ -16,7 +18,7 @@ import { formatRelativeTime } from '@/lib/utils';
 import type { ViewerPage } from '@/types';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { ArrowLeft,Bell,Calendar,FileText,GitCompare,History,Loader2,Scissors,Tag,Tags } from 'lucide-react';
+import { ArrowLeft,Bell,Calendar,FileText,GitCompare,History,Loader2,MessageSquare,ScanLine,Scissors,Tag,Tags } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate,useParams } from 'react-router-dom';
 
@@ -49,7 +51,7 @@ export function DocumentDetail() {
 	const [diff, setDiff] = useState<{ versionA: number; versionB: number } | null>(null);
 	const [showVersionHistory, setShowVersionHistory] = useState(false);
 	// Right-panel tab: null = closed, or one of the named panels
-	type SidePanel = 'custom-fields' | 'related' | 'similar' | 'entities' | 'expiry';
+	type SidePanel = 'custom-fields' | 'related' | 'similar' | 'entities' | 'expiry' | 'annotations' | 'ocr-quality';
 	const [sidePanel, setSidePanel] = useState<SidePanel | null>(null);
 	const [showSplitDialog, setShowSplitDialog] = useState(false);
 
@@ -259,6 +261,30 @@ export function DocumentDetail() {
 						<Bell className="w-3.5 h-3.5" />
 						Expiry
 					</button>
+					<button
+						onClick={() => togglePanel('annotations')}
+						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+							sidePanel === 'annotations'
+								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
+								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+						}`}
+						title="Annotations"
+					>
+						<MessageSquare className="w-3.5 h-3.5" />
+						Annotations
+					</button>
+					<button
+						onClick={() => togglePanel('ocr-quality')}
+						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+							sidePanel === 'ocr-quality'
+								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
+								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+						}`}
+						title="OCR Quality"
+					>
+						<ScanLine className="w-3.5 h-3.5" />
+						OCR Quality
+					</button>
 				</div>
 			</div>
 
@@ -334,6 +360,20 @@ export function DocumentDetail() {
 				{sidePanel === 'expiry' && (
 					<div className="w-72 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto">
 						<ExpiryPanel documentId={id!} />
+					</div>
+				)}
+
+				{/* Annotations panel */}
+				{sidePanel === 'annotations' && (
+					<div className="w-72 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto">
+						<AnnotationsPanel documentId={id!} />
+					</div>
+				)}
+
+				{/* OCR quality panel */}
+				{sidePanel === 'ocr-quality' && (
+					<div className="w-72 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto">
+						<OCRQualityPanel documentId={id!} />
 					</div>
 				)}
 			</div>

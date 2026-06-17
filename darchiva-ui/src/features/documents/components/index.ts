@@ -8,3 +8,4 @@ export { MergeDocumentsDialog, useMergeDocuments } from './MergeDocumentsDialog'
 export type { MergeSourceDocument } from './MergeDocumentsDialog';
 export { SplitDocumentDialog, useSplitDocument } from './SplitDocumentDialog';
 export { SimilarDocuments } from './SimilarDocuments';
+export { BatchActionsBar } from './BatchActionsBar';

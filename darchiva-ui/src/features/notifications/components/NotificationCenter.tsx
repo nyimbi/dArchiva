@@ -1,31 +1,45 @@
-// Notification Center - Warm Archival Theme
+// Notification Center — domain-aware, warm archival theme
 import { cn } from '@/lib/utils';
 import {
-  AlertCircle,AlertTriangle,
-  Bell,
-  Check,
-  CheckCircle2,
-  Clock,
-  ExternalLink,
-  Info,
-  Trash2
+	Bell,
+	Check,
+	CheckCircle,
+	Clock,
+	Package,
+	Tag,
+	Trash2,
+	Workflow,
 } from 'lucide-react';
-import { useEffect,useRef,useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-  useClearAllNotifications,
-  useDismissNotification,
-  useMarkAllAsRead,
-  useMarkAsRead,
-  useNotifications,
+	useClearAllNotifications,
+	useDismissNotification,
+	useMarkAllAsRead,
+	useMarkAsRead,
+	useNotifications,
+	useUnreadCount,
 } from '../api/hooks';
-import type { Notification,NotificationType } from '../types';
+import type { Notification, NotificationType } from '../types';
 
-const ICONS: Record<NotificationType, typeof CheckCircle2> = {
-	success: CheckCircle2,
-	error: AlertCircle,
-	warning: AlertTriangle,
-	info: Info,
+// Domain-specific type icons per spec
+const TYPE_ICONS: Record<string, typeof Bell> = {
+	expiry_reminder: Clock,
+	ocr_complete: CheckCircle,
+	classification_done: Tag,
+	batch_complete: Package,
+	auto_routing: Workflow,
+	system: Bell,
+	// legacy generic types
+	success: CheckCircle,
+	error: Bell,
+	warning: Bell,
+	info: Bell,
 };
+
+function getIcon(type: NotificationType) {
+	return TYPE_ICONS[type] ?? Bell;
+}
 
 interface Props {
 	className?: string;
@@ -34,14 +48,14 @@ interface Props {
 export function NotificationCenter({ className }: Props) {
 	const [open, setOpen] = useState(false);
 	const ref = useRef<HTMLDivElement>(null);
+	const navigate = useNavigate();
 
 	const { data: notifications = [] } = useNotifications();
+	const { data: unreadCount = 0 } = useUnreadCount();
 	const markAsReadMutation = useMarkAsRead();
 	const markAllAsReadMutation = useMarkAllAsRead();
 	const dismissMutation = useDismissNotification();
 	const clearAllMutation = useClearAllNotifications();
-
-	const unreadCount = notifications.filter(n => !n.read).length;
 
 	useEffect(() => {
 		const handleClickOutside = (e: MouseEvent) => {
@@ -64,12 +78,27 @@ export function NotificationCenter({ className }: Props) {
 		return `${days}d ago`;
 	};
 
+	const handleNotificationClick = (notif: Notification) => {
+		if (!notif.read) markAsReadMutation.mutate(notif.id);
+		// Navigate to document if data.document_id present
+		const docId = notif.data?.document_id;
+		if (docId) {
+			navigate(`/document/${docId}`);
+			setOpen(false);
+			return;
+		}
+		if (notif.link) {
+			window.open(notif.link, '_blank');
+		}
+	};
+
 	return (
 		<div ref={ref} className={cn('notif-center', className)}>
 			{/* Bell Button */}
 			<button
 				onClick={() => setOpen(!open)}
 				className={cn('notif-bell', open && 'notif-bell-active')}
+				aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
 			>
 				<Bell className="w-5 h-5" />
 				{unreadCount > 0 && (
@@ -84,7 +113,12 @@ export function NotificationCenter({ className }: Props) {
 				<div className="notif-dropdown">
 					{/* Header */}
 					<div className="notif-header">
-						<h3 className="notif-title">Notifications</h3>
+						<div className="flex items-center gap-2">
+							<h3 className="notif-title">Notifications</h3>
+							{unreadCount > 0 && (
+								<span className="notif-badge-inline">{unreadCount}</span>
+							)}
+						</div>
 						<div className="flex gap-2">
 							{unreadCount > 0 && (
 								<button
@@ -114,14 +148,14 @@ export function NotificationCenter({ className }: Props) {
 						{notifications.length === 0 ? (
 							<div className="notif-empty">
 								<Bell className="w-10 h-10 text-[var(--notif-muted)] mb-2" />
-								<p>No notifications</p>
+								<p>You're all caught up</p>
 							</div>
 						) : (
 							notifications.map(notif => (
 								<NotificationItem
 									key={notif.id}
 									notification={notif}
-									onRead={() => markAsReadMutation.mutate(notif.id)}
+									onClick={() => handleNotificationClick(notif)}
 									onRemove={() => dismissMutation.mutate(notif.id)}
 									formatTime={formatTime}
 								/>
@@ -136,29 +170,27 @@ export function NotificationCenter({ className }: Props) {
 
 function NotificationItem({
 	notification,
-	onRead,
+	onClick,
 	onRemove,
 	formatTime,
 }: {
 	notification: Notification;
-	onRead: () => void;
+	onClick: () => void;
 	onRemove: () => void;
 	formatTime: (ts: string) => string;
 }) {
-	const Icon = ICONS[notification.type];
-
-	const handleClick = () => {
-		if (!notification.read) onRead();
-		if (notification.link) window.open(notification.link, '_blank');
-	};
+	const Icon = getIcon(notification.type);
+	const body = notification.body ?? notification.message;
+	const truncatedBody = body.length > 80 ? body.slice(0, 80) + '…' : body;
+	const isClickable = !!(notification.data?.document_id ?? notification.link);
 
 	return (
 		<div
-			onClick={handleClick}
+			onClick={onClick}
 			className={cn(
 				'notif-item group',
 				!notification.read && 'notif-item-unread',
-				notification.link && 'cursor-pointer'
+				isClickable && 'cursor-pointer'
 			)}
 		>
 			<div className={cn('notif-icon', `notif-icon-${notification.type}`)}>
@@ -166,20 +198,22 @@ function NotificationItem({
 			</div>
 			<div className="notif-content">
 				<p className="notif-item-title">{notification.title}</p>
-				<p className="notif-item-message">{notification.message}</p>
+				<p className="notif-item-message">{truncatedBody}</p>
 				<div className="notif-meta">
 					<Clock className="w-3 h-3" />
 					<span>{formatTime(notification.timestamp)}</span>
-					{notification.link && <ExternalLink className="w-3 h-3 ml-2" />}
 				</div>
 			</div>
-			<button
-				onClick={e => { e.stopPropagation(); onRemove(); }}
-				className="notif-remove"
-			>
-				<Trash2 className="w-3.5 h-3.5" />
-			</button>
-			{!notification.read && <div className="notif-unread-dot" />}
+			<div className="flex flex-col items-end gap-1">
+				{!notification.read && <div className="notif-unread-dot" />}
+				<button
+					onClick={e => { e.stopPropagation(); onRemove(); }}
+					className="notif-remove opacity-0 group-hover:opacity-100"
+					aria-label="Dismiss notification"
+				>
+					<Trash2 className="w-3.5 h-3.5" />
+				</button>
+			</div>
 		</div>
 	);
 }

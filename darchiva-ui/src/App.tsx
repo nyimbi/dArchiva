@@ -45,6 +45,9 @@ import {
 
 import { AutoRoutingRules } from './features/auto-routing/AutoRoutingRules';
 import { FleetManagement } from './features/agents';
+import { UserManagement } from './features/admin/UserManagement';
+import { RoleManagement } from './features/admin/RoleManagement';
+import { EmailIngestConfigs } from './features/email-ingest/EmailIngestConfigs';
 import { NotificationToaster } from './components/NotificationToaster';
 
 import { ScanningLayout } from './features/scanning-ops/layouts/ScanningLayout';
@@ -123,6 +126,9 @@ export default function App() {
 								<Route path="exception-queue" element={<ExceptionQueue />} />
 									<Route path="system" element={<SystemHealth />} />
 									<Route path="api-keys" element={<ApiKeys />} />
+									<Route path="admin/users" element={<UserManagement />} />
+									<Route path="admin/roles" element={<RoleManagement />} />
+									<Route path="settings/email-ingest" element={<EmailIngestConfigs />} />
 							</Route>
 						</Route>
 

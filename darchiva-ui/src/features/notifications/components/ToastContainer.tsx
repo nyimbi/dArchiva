@@ -4,9 +4,9 @@ import { AlertCircle,AlertTriangle,CheckCircle2,Info,X } from 'lucide-react';
 import { useEffect,useState } from 'react';
 import { useNotificationStore } from '../store';
 import '../styles/theme.css';
-import type { NotificationType,Toast } from '../types';
+import type { Toast, ToastType } from '../types';
 
-const ICONS: Record<NotificationType, typeof CheckCircle2> = {
+const ICONS: Record<ToastType, typeof CheckCircle2> = {
 	success: CheckCircle2,
 	error: AlertCircle,
 	warning: AlertTriangle,

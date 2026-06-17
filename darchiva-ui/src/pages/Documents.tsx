@@ -9,6 +9,7 @@ import {
   useDocuments,
   useFolderTree,
   useUpdateFolder,
+  BatchActionsBar,
   type Document as APIDocument,
   type TreeNode as APITreeNode,
 } from '@/features/documents';
@@ -1133,50 +1134,12 @@ export function Documents() {
         </div>
       </motion.div>
 
-      {/* Floating bulk action bar */}
-      <AnimatePresence>
-        {selectedNodeIds.size > 0 && (
-          <BulkActionBar
-            count={selectedNodeIds.size}
-            onClear={() => { clearNodeSelection(); setSelectionMode(false); }}
-            onAction={setActiveBulkModal}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Bulk modals */}
-      <AnimatePresence>
-        {activeBulkModal === 'move' && (
-          <FolderPickerModal
-            tree={folderTree ?? []}
-            onSelect={handleBulkMove}
-            onClose={() => setActiveBulkModal(null)}
-            isPending={bulkMove.isPending}
-          />
-        )}
-        {activeBulkModal === 'tag' && (
-          <TagPickerModal
-            onApply={handleBulkTag}
-            onClose={() => setActiveBulkModal(null)}
-            isPending={bulkTag.isPending}
-          />
-        )}
-        {activeBulkModal === 'delete' && (
-          <BulkDeleteModal
-            count={selectedNodeIds.size}
-            onConfirm={handleBulkDelete}
-            onClose={() => setActiveBulkModal(null)}
-            isPending={bulkDelete.isPending}
-          />
-        )}
-        {activeBulkModal === 'assign-type' && (
-          <DocTypePickerModal
-            onApply={handleBulkAssignType}
-            onClose={() => setActiveBulkModal(null)}
-            isPending={bulkAssignType.isPending}
-          />
-        )}
-      </AnimatePresence>
+      {/* Batch actions bar — replaces the old BulkActionBar + individual modals */}
+      <BatchActionsBar
+        selectedIds={selectedIds}
+        onClear={() => { clearNodeSelection(); setSelectionMode(false); }}
+        onComplete={() => { clearNodeSelection(); setSelectionMode(false); }}
+      />
 
       {/* Single-item folder context menu */}
       <AnimatePresence>

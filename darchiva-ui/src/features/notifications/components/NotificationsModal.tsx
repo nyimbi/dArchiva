@@ -7,11 +7,17 @@ import type { Notification,NotificationType } from '../types';
 
 type NotificationIcon = React.ComponentType<{ className?: string }>;
 
-const ICONS: Record<NotificationType, NotificationIcon> = {
+const ICONS: Partial<Record<NotificationType, NotificationIcon>> = {
     success: CheckCircle2,
     error: AlertCircle,
     warning: AlertTriangle,
     info: Info,
+    expiry_reminder: Clock,
+    ocr_complete: CheckCircle2,
+    classification_done: Bell,
+    batch_complete: Bell,
+    auto_routing: Bell,
+    system: Bell,
 };
 
 interface NotificationsModalProps {
