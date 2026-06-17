@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { useAssignedBatches,useShiftStats } from '../api/hooks';
 import { PerformanceChart } from '../components/PerformanceChart';
 import { Scoreboard } from '../components/Scoreboard';
+import { OperatorScorecard } from '../components/OperatorScorecard';
 
 export function OperatorDashboard() {
     const navigate = useNavigate();
@@ -33,7 +34,9 @@ export function OperatorDashboard() {
 
     if (!shiftStarted) {
         return (
-            <div className="h-full flex items-center justify-center">
+            <div className="h-full flex flex-col gap-6 overflow-y-auto">
+                <OperatorScorecard />
+                <div className="flex items-center justify-center flex-1">
                 <div className="max-w-6xl w-full grid grid-cols-12 gap-8">
                     {/* Left: Start Shift */}
                     <div className="col-span-7">
@@ -73,12 +76,15 @@ export function OperatorDashboard() {
                         <Scoreboard />
                     </div>
                 </div>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="h-full grid grid-cols-12 gap-6">
+        <div className="h-full flex flex-col gap-4 overflow-y-auto">
+            <OperatorScorecard />
+        <div className="flex-1 grid grid-cols-12 gap-6">
             {/* Left Column: Batches & Charts */}
             <div className="col-span-8 flex flex-col gap-6">
                 {/* Performance Chart */}
@@ -169,6 +175,7 @@ export function OperatorDashboard() {
                     Report Issue
                 </button>
             </div>
+        </div>
         </div>
     );
 }

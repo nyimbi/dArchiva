@@ -12,6 +12,9 @@ import { SimilarDocuments } from '@/features/documents/components/SimilarDocumen
 import { SplitDocumentDialog } from '@/features/documents/components/SplitDocumentDialog';
 import { Viewer } from '@/features/documents/components/Viewer';
 import { SignaturePanel } from '@/features/signatures/SignaturePanel';
+import { ApprovalPanel } from '@/features/approvals/ApprovalPanel';
+import { DuplicatesPanel } from '@/features/documents/components/DuplicatesPanel';
+import { ClassificationPanel } from '@/features/classification/ClassificationPanel';
 import {
 	VersionDiffViewer,
 	VersionHistoryWithCompare,
@@ -22,7 +25,7 @@ import { formatRelativeTime } from '@/lib/utils';
 import type { ViewerPage } from '@/types';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { ArrowLeft,Bell,Calendar,FileText,GitCompare,History,Loader2,MessageSquare,PenTool,QrCode,ScanLine,Scissors,Share2,Stamp,Tag,Tags } from 'lucide-react';
+import { ArrowLeft,Bell,Calendar,CheckSquare,Copy,FileText,GitCompare,History,Layers,Loader2,MessageSquare,PenTool,QrCode,ScanLine,Scissors,Share2,Stamp,Tag,Tags } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate,useParams } from 'react-router-dom';
 
@@ -55,7 +58,7 @@ export function DocumentDetail() {
 	const [diff, setDiff] = useState<{ versionA: number; versionB: number } | null>(null);
 	const [showVersionHistory, setShowVersionHistory] = useState(false);
 	// Right-panel tab: null = closed, or one of the named panels
-	type SidePanel = 'custom-fields' | 'related' | 'similar' | 'entities' | 'expiry' | 'annotations' | 'ocr-quality' | 'signatures';
+	type SidePanel = 'custom-fields' | 'related' | 'similar' | 'entities' | 'expiry' | 'annotations' | 'ocr-quality' | 'signatures' | 'approvals' | 'duplicates' | 'classification';
 	const [sidePanel, setSidePanel] = useState<SidePanel | null>(null);
 	const [showSplitDialog, setShowSplitDialog] = useState(false);
 	const [showShareDialog, setShowShareDialog] = useState(false);
@@ -328,6 +331,42 @@ export function DocumentDetail() {
 						<QrCode className="w-3.5 h-3.5" />
 						QR Label
 					</button>
+					<button
+						onClick={() => togglePanel('approvals')}
+						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+							sidePanel === 'approvals'
+								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
+								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+						}`}
+						title="Approvals"
+					>
+						<CheckSquare className="w-3.5 h-3.5" />
+						Approvals
+					</button>
+					<button
+						onClick={() => togglePanel('duplicates')}
+						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+							sidePanel === 'duplicates'
+								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
+								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+						}`}
+						title="Duplicates"
+					>
+						<Copy className="w-3.5 h-3.5" />
+						Duplicates
+					</button>
+					<button
+						onClick={() => togglePanel('classification')}
+						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+							sidePanel === 'classification'
+								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
+								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+						}`}
+						title="Classification"
+					>
+						<Layers className="w-3.5 h-3.5" />
+						Classification
+					</button>
 				</div>
 			</div>
 
@@ -424,6 +463,27 @@ export function DocumentDetail() {
 				{sidePanel === 'signatures' && (
 					<div className="w-80 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto">
 						<SignaturePanel documentId={id!} />
+					</div>
+				)}
+
+				{/* Approvals panel */}
+				{sidePanel === 'approvals' && (
+					<div className="w-80 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto">
+						<ApprovalPanel documentId={id!} />
+					</div>
+				)}
+
+				{/* Duplicates panel */}
+				{sidePanel === 'duplicates' && (
+					<div className="w-72 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto">
+						<DuplicatesPanel documentId={id!} />
+					</div>
+				)}
+
+				{/* Classification panel */}
+				{sidePanel === 'classification' && (
+					<div className="w-72 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto">
+						<ClassificationPanel documentId={id!} />
 					</div>
 				)}
 			</div>

@@ -49,6 +49,7 @@ import { FleetManagement } from './features/agents';
 import { UserManagement } from './features/admin/UserManagement';
 import { RoleManagement } from './features/admin/RoleManagement';
 import { EmailIngestConfigs } from './features/email-ingest/EmailIngestConfigs';
+import { ConnectorsPage } from './features/connectors/ConnectorsPage';
 import { NotificationToaster } from './components/NotificationToaster';
 import { DocumentComparison } from './pages/DocumentComparison';
 import { ShortcutsProvider } from './features/shortcuts/ShortcutsProvider';
@@ -135,6 +136,7 @@ export default function App() {
 									<Route path="settings/email-ingest" element={<EmailIngestConfigs />} />
 								<Route path="templates" element={<TemplatesPage />} />
 								<Route path="compare" element={<DocumentComparison />} />
+								<Route path="connectors" element={<ConnectorsPage />} />
 							</Route>
 						</Route>
 

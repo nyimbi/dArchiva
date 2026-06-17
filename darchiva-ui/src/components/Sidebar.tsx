@@ -22,6 +22,7 @@ import {
   Mail,
   MonitorDot,
   MonitorPlay,
+  Plug,
   Route,
   ScanLine,
   Workflow,
@@ -58,6 +59,7 @@ const navItems = [
 	{ id: 'auto-routing', label: 'Routing Rules', icon: Workflow, path: '/auto-routing' },
 	{ id: 'exception-queue', label: 'Exception Queue', icon: AlertTriangle, path: '/exception-queue' },
 	{ id: 'templates', label: 'Templates', icon: LayoutTemplate, path: '/templates' },
+	{ id: 'connectors', label: 'Connectors', icon: Plug, path: '/connectors' },
 ];
 
 const adminItems = [

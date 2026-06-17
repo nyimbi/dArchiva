@@ -11,6 +11,7 @@ import {
 	MonitorDot,
 	Printer,
 	RefreshCw,
+	Trophy,
 	Users,
 } from 'lucide-react';
 import {
@@ -25,6 +26,8 @@ import {
 import type { SLAAlert } from '@/features/scanning-projects/types';
 import { BatchKanban } from '@/features/scanning-projects/components/BatchKanban';
 import type { OperatorKPI } from '@/features/scanning-projects/api/index';
+import { Leaderboard } from '@/features/scanning-ops/components/Leaderboard';
+import { OperatorScorecard } from '@/features/scanning-ops/components/OperatorScorecard';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -418,7 +421,7 @@ function BatchPipelineTab({ projectId, slaAlerts }: { projectId: string; slaAler
 
 // ── main component ────────────────────────────────────────────────────────────
 
-type Tab = 'live-ops' | 'operator-kpis' | 'batch-pipeline';
+type Tab = 'live-ops' | 'operator-kpis' | 'batch-pipeline' | 'leaderboard';
 
 export function SupervisorDashboard() {
 	const [activeTab, setActiveTab] = useState<Tab>('live-ops');
@@ -441,10 +444,11 @@ export function SupervisorDashboard() {
 		? new Date(liveUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 		: '—';
 
-	const tabs: { id: Tab; label: string }[] = [
+	const tabs: { id: Tab; label: string; icon?: React.ElementType }[] = [
 		{ id: 'live-ops', label: 'Live Ops' },
 		{ id: 'operator-kpis', label: 'Operator KPIs' },
 		{ id: 'batch-pipeline', label: 'Batch Pipeline' },
+		{ id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
 	];
 
 	return (
@@ -517,26 +521,31 @@ export function SupervisorDashboard() {
 
 			{/* Tab navigation */}
 			<div className="flex gap-1 bg-slate-800/50 p-1 rounded-xl w-fit">
-				{tabs.map((tab) => (
-					<button
-						key={tab.id}
-						onClick={() => setActiveTab(tab.id)}
-						className={[
-							'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-							activeTab === tab.id
-								? 'bg-slate-700 text-slate-100 shadow-sm'
-								: 'text-slate-400 hover:text-slate-200',
-						].join(' ')}
-					>
-						{tab.label}
-					</button>
-				))}
+				{tabs.map((tab) => {
+					const Icon = tab.icon;
+					return (
+						<button
+							key={tab.id}
+							onClick={() => setActiveTab(tab.id)}
+							className={[
+								'flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+								activeTab === tab.id
+									? 'bg-slate-700 text-slate-100 shadow-sm'
+									: 'text-slate-400 hover:text-slate-200',
+							].join(' ')}
+						>
+							{Icon && <Icon className="w-3.5 h-3.5" />}
+							{tab.label}
+						</button>
+					);
+				})}
 			</div>
 
 			{/* Tab content */}
 			<div>
 				{activeTab === 'live-ops' && (
 					<div className="space-y-4">
+						<OperatorScorecard />
 						<div className="flex items-center justify-between">
 							<h2 className="text-sm font-semibold text-slate-300">
 								Operator Status ({liveOps?.operators.length ?? 0})
@@ -624,6 +633,12 @@ export function SupervisorDashboard() {
 								Select a project above to view its batch pipeline.
 							</div>
 						)}
+					</div>
+				)}
+
+				{activeTab === 'leaderboard' && (
+					<div className="space-y-4">
+						<Leaderboard />
 					</div>
 				)}
 			</div>

@@ -1,8 +1,10 @@
 // (c) Copyright Datacraft, 2026
 /**
- * Audit log viewer component with export controls.
+ * Audit log viewer — aligned with backend AuditLog schema.
+ *
+ * Backend fields: id, table_name, record_id, operation, timestamp, user_id, username
+ * Operations: INSERT | UPDATE | DELETE | TRUNCATE
  */
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -14,342 +16,430 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format, parseISO } from 'date-fns';
 import {
   Activity,
   Download,
-  Edit,
-  Eye,
   FileText,
   Filter,
-  Folder,
   Printer,
   RefreshCw,
-  Share2,
-  Shield,
-  Tag,
-  Trash2,
-  Upload,
-  User,
+  Search,
+  X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuditLogs, useExportAuditLog } from '../api';
-import type { AuditAction, AuditEntry, AuditResourceType } from '../types';
+import type { AuditLogEntry, AuditOperation } from '../types';
+import {
+  ALL_OPERATIONS,
+  OPERATION_BADGE_VARIANTS,
+  OPERATION_COLORS,
+  OPERATION_LABELS,
+} from '../types';
 
-const actionIcons: Partial<Record<AuditAction, typeof Eye>> = {
-	view: Eye,
-	download: Download,
-	upload: Upload,
-	delete: Trash2,
-	update: Edit,
-	share: Share2,
-};
+// ── helpers ──────────────────────────────────────────────────────────────────
 
-const resourceIcons: Record<AuditResourceType, typeof FileText> = {
-	document: FileText,
-	folder: Folder,
-	user: User,
-	group: User,
-	role: Shield,
-	tag: Tag,
-	workflow: Activity,
-	email: FileText,
-	system: Shield,
-};
+/** Deterministic color from a string (for user initials avatars). */
+function stringToColor(s: string): string {
+  const PALETTE = [
+    'bg-violet-600', 'bg-blue-600', 'bg-teal-600', 'bg-emerald-600',
+    'bg-amber-600',  'bg-rose-600', 'bg-fuchsia-600', 'bg-cyan-600',
+    'bg-indigo-600', 'bg-lime-600',
+  ];
+  let hash = 0;
+  for (let i = 0; i < s.length; i++) hash = s.charCodeAt(i) + ((hash << 5) - hash);
+  return PALETTE[Math.abs(hash) % PALETTE.length];
+}
 
-const actionColors: Partial<Record<AuditAction, string>> = {
-	create: 'text-green-500',
-	delete: 'text-red-500',
-	update: 'text-blue-500',
-	share: 'text-purple-500',
-};
+function getInitials(username: string | undefined): string {
+  if (!username) return '?';
+  const parts = username.trim().split(/[\s@._-]+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return username.slice(0, 2).toUpperCase();
+}
 
-const actionLabels: Record<AuditAction, string> = {
-	create: 'Created',
-	update: 'Updated',
-	delete: 'Deleted',
-	view: 'Viewed',
-	download: 'Downloaded',
-	upload: 'Uploaded',
-	share: 'Shared',
-	unshare: 'Unshared',
-	move: 'Moved',
-	copy: 'Copied',
-	rename: 'Renamed',
-	tag: 'Tagged',
-	untag: 'Untagged',
-	ocr: 'OCR Processed',
-	login: 'Logged In',
-	logout: 'Logged Out',
-	permission_change: 'Permission Changed',
-};
+/**
+ * Map backend table_name + operation → human-readable sentence.
+ * e.g. (nodes, INSERT) → "Created document/folder"
+ */
+function describeAction(tableName: string, operation: AuditOperation): string {
+  const opLabel = OPERATION_LABELS[operation] ?? operation;
+  const tableMap: Record<string, string> = {
+    nodes:         'node',
+    documents:     'document',
+    document_versions: 'document version',
+    pages:         'page',
+    users:         'user',
+    groups:        'group',
+    roles:         'role',
+    tags:          'tag',
+    folders:       'folder',
+    workflows:     'workflow',
+    custom_fields: 'custom field',
+    document_types:'document type',
+    tasks:         'task',
+    api_tokens:    'API token',
+  };
+  const friendly = tableMap[tableName] ?? tableName.replace(/_/g, ' ');
+  return `${opLabel} ${friendly}`;
+}
 
-const resourceLabels: Record<AuditResourceType, string> = {
-	document: 'Document',
-	folder: 'Folder',
-	user: 'User',
-	group: 'Group',
-	role: 'Role',
-	tag: 'Tag',
-	workflow: 'Workflow',
-	email: 'Email',
-	system: 'System',
-};
+// ── component props ───────────────────────────────────────────────────────────
 
 interface AuditLogProps {
-	resourceType?: AuditResourceType;
-	resourceId?: string;
-	userId?: string;
+  /** Lock to a specific record id (e.g. a document page). */
+  recordId?: string;
+  /** Lock to a specific user id. */
+  userId?: string;
+  /** If true, suppress the user filter row (already scoped). */
+  hideUserFilter?: boolean;
 }
 
-export function AuditLog({ resourceType, resourceId, userId }: AuditLogProps) {
-	const [page, setPage] = useState(1);
-	const [actionFilter, setActionFilter] = useState<string>('all');
-	const [typeFilter, setTypeFilter] = useState<string>(resourceType || 'all');
-	const [dateFrom, setDateFrom] = useState<string>('');
-	const [dateTo, setDateTo] = useState<string>('');
-	const [userFilter, setUserFilter] = useState<string>(userId || '');
-	const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null);
+// ── main component ────────────────────────────────────────────────────────────
 
-	const { exportLogs } = useExportAuditLog();
+export function AuditLog({ recordId, userId, hideUserFilter = false }: AuditLogProps) {
+  const navigate = useNavigate();
 
-	const { data, isLoading, refetch } = useAuditLogs({
-		page,
-		pageSize: 50,
-		action: actionFilter !== 'all' ? (actionFilter as AuditAction) : undefined,
-		resource_type: typeFilter !== 'all' ? (typeFilter as AuditResourceType) : resourceType,
-		resource_id: resourceId,
-		user_id: userFilter || userId,
-		date_from: dateFrom || undefined,
-		date_to: dateTo || undefined,
-	});
+  // ── filter state ────────────────────────────────────────────────────────────
+  const [page, setPage]                   = useState(1);
+  const [operationFilter, setOperationFilter] = useState<string>('all');
+  const [userSearch, setUserSearch]       = useState<string>(userId ?? '');
+  const [documentSearch, setDocumentSearch] = useState<string>(recordId ?? '');
+  const [dateFrom, setDateFrom]           = useState<string>('');
+  const [dateTo, setDateTo]               = useState<string>('');
+  const [exporting, setExporting]         = useState<'csv' | 'pdf' | null>(null);
 
-	const entries = data?.items ?? [];
-	const total = data?.total ?? 0;
-	const totalPages = Math.ceil(total / 50);
+  const { exportLogs } = useExportAuditLog();
 
-	// Build export params from current filters
-	function buildExportParams(fmt: 'csv' | 'pdf') {
-		return {
-			format: fmt,
-			filter_operation: actionFilter !== 'all' ? actionFilter.toUpperCase() : undefined,
-			filter_table_name: typeFilter !== 'all' ? typeFilter : undefined,
-			filter_user_id: userFilter || userId || undefined,
-			filter_timestamp_from: dateFrom || undefined,
-			filter_timestamp_to: dateTo || undefined,
-		};
-	}
+  const hasActiveFilters =
+    operationFilter !== 'all' || userSearch || documentSearch || dateFrom || dateTo;
 
-	async function handleExport(fmt: 'csv' | 'pdf') {
-		setExporting(fmt);
-		try {
-			await exportLogs(buildExportParams(fmt));
-		} finally {
-			setExporting(null);
-		}
-	}
+  function clearFilters() {
+    setOperationFilter('all');
+    setUserSearch(userId ?? '');
+    setDocumentSearch(recordId ?? '');
+    setDateFrom('');
+    setDateTo('');
+    setPage(1);
+  }
 
-	if (isLoading) {
-		return (
-			<div className="space-y-3">
-				{Array.from({ length: 10 }).map((_, i) => (
-					<Skeleton key={i} className="h-16" />
-				))}
-			</div>
-		);
-	}
+  // ── query ───────────────────────────────────────────────────────────────────
+  const { data, isLoading, isFetching, refetch } = useAuditLogs({
+    page,
+    pageSize: 50,
+    filterOperation: operationFilter !== 'all' ? operationFilter : undefined,
+    filterUsername:  userSearch && !isUuid(userSearch) ? userSearch : undefined,
+    filterUserId:    userSearch &&  isUuid(userSearch) ? userSearch : undefined,
+    filterRecordId:  documentSearch || undefined,
+    filterTimestampFrom: dateFrom ? `${dateFrom}T00:00:00Z` : undefined,
+    filterTimestampTo:   dateTo   ? `${dateTo}T23:59:59Z`   : undefined,
+  });
 
-	return (
-		<div className="space-y-4">
-			{/* Filters row 1: action, type, refresh, export */}
-			<div className="flex flex-wrap items-center gap-2">
-				<Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+  const entries    = data?.items    ?? [];
+  const totalItems = data?.totalItems ?? 0;
+  const numPages   = data?.numPages   ?? 0;
 
-				<Select value={actionFilter} onValueChange={setActionFilter}>
-					<SelectTrigger className="w-40">
-						<SelectValue placeholder="Action" />
-					</SelectTrigger>
-					<SelectContent>
-						<SelectItem value="all">All Actions</SelectItem>
-						{Object.entries(actionLabels).map(([value, label]) => (
-							<SelectItem key={value} value={value}>
-								{label}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
+  // ── export ──────────────────────────────────────────────────────────────────
+  function buildExportParams(fmt: 'csv' | 'pdf') {
+    return {
+      format: fmt,
+      filterOperation:     operationFilter !== 'all' ? operationFilter : undefined,
+      filterUsername:      userSearch && !isUuid(userSearch) ? userSearch : undefined,
+      filterUserId:        userSearch &&  isUuid(userSearch) ? userSearch : undefined,
+      filterTimestampFrom: dateFrom ? `${dateFrom}T00:00:00Z` : undefined,
+      filterTimestampTo:   dateTo   ? `${dateTo}T23:59:59Z`   : undefined,
+    };
+  }
 
-				{!resourceType && (
-					<Select value={typeFilter} onValueChange={setTypeFilter}>
-						<SelectTrigger className="w-40">
-							<SelectValue placeholder="Type" />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value="all">All Types</SelectItem>
-							{Object.entries(resourceLabels).map(([value, label]) => (
-								<SelectItem key={value} value={value}>
-									{label}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-				)}
+  async function handleExport(fmt: 'csv' | 'pdf') {
+    setExporting(fmt);
+    try {
+      await exportLogs(buildExportParams(fmt));
+    } finally {
+      setExporting(null);
+    }
+  }
 
-				<Button variant="outline" size="icon" onClick={() => refetch()} title="Refresh">
-					<RefreshCw className="h-4 w-4" />
-				</Button>
+  // ── render ──────────────────────────────────────────────────────────────────
+  return (
+    <div className="space-y-4">
+      {/* ── filter bar ──────────────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-end gap-3 p-3 rounded-lg bg-slate-900/40 border border-slate-800">
+        <Filter className="h-4 w-4 text-muted-foreground self-center shrink-0" />
 
-				{/* Export buttons pushed to the right */}
-				<div className="ml-auto flex items-center gap-2">
-					<Button
-						variant="outline"
-						size="sm"
-						disabled={exporting === 'csv'}
-						onClick={() => handleExport('csv')}
-						className="gap-1.5"
-					>
-						<Download className="h-4 w-4" />
-						{exporting === 'csv' ? 'Exporting…' : 'Export CSV'}
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						disabled={exporting === 'pdf'}
-						onClick={() => handleExport('pdf')}
-						className="gap-1.5"
-					>
-						<Printer className="h-4 w-4" />
-						{exporting === 'pdf' ? 'Opening…' : 'Export PDF'}
-					</Button>
-				</div>
-			</div>
+        {/* User search */}
+        {!hideUserFilter && (
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">User</span>
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <Input
+                type="text"
+                className="pl-7 w-44 h-8 text-xs"
+                placeholder="email or user ID"
+                value={userSearch}
+                onChange={(e) => { setUserSearch(e.target.value); setPage(1); }}
+              />
+            </div>
+          </div>
+        )}
 
-			{/* Filters row 2: date range + user */}
-			<div className="flex flex-wrap items-center gap-2 text-sm">
-				<span className="text-muted-foreground text-xs shrink-0">Date range:</span>
-				<Input
-					type="date"
-					className="w-36 h-8 text-xs"
-					value={dateFrom}
-					onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
-					title="From date"
-				/>
-				<span className="text-muted-foreground text-xs">to</span>
-				<Input
-					type="date"
-					className="w-36 h-8 text-xs"
-					value={dateTo}
-					onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
-					title="To date"
-				/>
+        {/* Operation select */}
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground">Operation</span>
+          <Select value={operationFilter} onValueChange={(v) => { setOperationFilter(v); setPage(1); }}>
+            <SelectTrigger className="w-36 h-8 text-xs">
+              <SelectValue placeholder="All operations" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All operations</SelectItem>
+              {ALL_OPERATIONS.map((op) => (
+                <SelectItem key={op} value={op}>{OPERATION_LABELS[op]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-				{!userId && (
-					<>
-						<span className="text-muted-foreground text-xs ml-2 shrink-0">User:</span>
-						<Input
-							type="text"
-							className="w-40 h-8 text-xs"
-							placeholder="username or ID"
-							value={userFilter}
-							onChange={(e) => { setUserFilter(e.target.value); setPage(1); }}
-						/>
-					</>
-				)}
+        {/* Date from */}
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground">From</span>
+          <Input
+            type="date"
+            className="w-36 h-8 text-xs"
+            value={dateFrom}
+            onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+          />
+        </div>
 
-				{(dateFrom || dateTo || userFilter) && (
-					<Button
-						variant="ghost"
-						size="sm"
-						className="h-8 text-xs text-muted-foreground"
-						onClick={() => { setDateFrom(''); setDateTo(''); setUserFilter(''); setPage(1); }}
-					>
-						Clear filters
-					</Button>
-				)}
-			</div>
+        {/* Date to */}
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground">To</span>
+          <Input
+            type="date"
+            className="w-36 h-8 text-xs"
+            value={dateTo}
+            onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+          />
+        </div>
 
-			{/* Log entries */}
-			{entries.length === 0 ? (
-				<div className="text-center py-12 text-muted-foreground">
-					<Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
-					<p>No audit entries found</p>
-				</div>
-			) : (
-				<div className="space-y-2">
-					{entries.map((entry) => (
-						<AuditEntryRow key={entry.id} entry={entry} />
-					))}
-				</div>
-			)}
+        {/* Document / record search */}
+        {!recordId && (
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">Document ID</span>
+            <div className="relative">
+              <FileText className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <Input
+                type="text"
+                className="pl-7 w-44 h-8 text-xs"
+                placeholder="record UUID"
+                value={documentSearch}
+                onChange={(e) => { setDocumentSearch(e.target.value); setPage(1); }}
+              />
+            </div>
+          </div>
+        )}
 
-			{/* Pagination */}
-			{totalPages > 1 && (
-				<div className="flex items-center justify-between pt-4">
-					<span className="text-sm text-muted-foreground">{total} entries</span>
-					<div className="flex items-center gap-2">
-						<Button
-							variant="outline"
-							size="sm"
-							disabled={page === 1}
-							onClick={() => setPage((p) => Math.max(1, p - 1))}
-						>
-							Previous
-						</Button>
-						<span className="text-sm">
-							Page {page} of {totalPages}
-						</span>
-						<Button
-							variant="outline"
-							size="sm"
-							disabled={page === totalPages}
-							onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-						>
-							Next
-						</Button>
-					</div>
-				</div>
-			)}
-		</div>
-	);
+        {/* Spacer + right-side buttons */}
+        <div className="ml-auto flex items-end gap-2">
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+              onClick={clearFilters}
+            >
+              <X className="h-3.5 w-3.5" />
+              Clear filters
+            </Button>
+          )}
+
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => refetch()}
+            title="Refresh"
+            disabled={isFetching}
+          >
+            <RefreshCw className={cn('h-4 w-4', isFetching && 'animate-spin')} />
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs gap-1.5"
+            disabled={exporting === 'csv'}
+            onClick={() => handleExport('csv')}
+          >
+            <Download className="h-3.5 w-3.5" />
+            {exporting === 'csv' ? 'Exporting…' : 'Export CSV'}
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs gap-1.5"
+            disabled={exporting === 'pdf'}
+            onClick={() => handleExport('pdf')}
+          >
+            <Printer className="h-3.5 w-3.5" />
+            {exporting === 'pdf' ? 'Opening…' : 'Export PDF'}
+          </Button>
+        </div>
+      </div>
+
+      {/* ── log entries ─────────────────────────────────────────────────────── */}
+      {isLoading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <Skeleton key={i} className="h-14 rounded-lg" />
+          ))}
+        </div>
+      ) : entries.length === 0 ? (
+        <div className="text-center py-16 text-muted-foreground">
+          <Activity className="h-12 w-12 mx-auto mb-4 opacity-40" />
+          <p className="text-sm">No audit entries found</p>
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          {entries.map((entry) => (
+            <AuditEntryRow
+              key={entry.id}
+              entry={entry}
+              onNavigate={(id) => navigate(`/documents/${id}`)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* ── pagination ──────────────────────────────────────────────────────── */}
+      {numPages > 1 && (
+        <div className="flex items-center justify-between pt-2 border-t border-border/40">
+          <span className="text-xs text-muted-foreground">
+            {totalItems.toLocaleString()} total entries
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              disabled={page === 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              Previous
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              Page {page} of {numPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              disabled={page >= numPages}
+              onClick={() => setPage((p) => Math.min(numPages, p + 1))}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
-function AuditEntryRow({ entry }: { entry: AuditEntry }) {
-	const ActionIcon = actionIcons[entry.action] || Activity;
-	const ResourceIcon = resourceIcons[entry.resource_type];
-	const actionColor = actionColors[entry.action] || 'text-muted-foreground';
-	const createdAt = new Date(entry.created_at);
+// ── row sub-component ─────────────────────────────────────────────────────────
 
-	return (
-		<div className="flex items-start gap-3 p-3 rounded-lg border border-border/50 hover:bg-accent/30 transition-colors">
-			<div className={cn('mt-0.5', actionColor)}>
-				<ActionIcon className="h-5 w-5" />
-			</div>
+function AuditEntryRow({
+  entry,
+  onNavigate,
+}: {
+  entry: AuditLogEntry;
+  onNavigate: (recordId: string) => void;
+}) {
+  const initials   = getInitials(entry.username);
+  const avatarBg   = stringToColor(entry.username ?? entry.userId ?? entry.id);
+  const opColor    = OPERATION_COLORS[entry.operation]  ?? 'text-muted-foreground';
+  const opBadge    = OPERATION_BADGE_VARIANTS[entry.operation] ?? 'bg-slate-500/10 text-slate-400';
+  const actionText = describeAction(entry.tableName, entry.operation);
 
-			<div className="flex-1 min-w-0">
-				<div className="flex items-center gap-2 flex-wrap">
-					<span className="font-medium">{entry.user_name}</span>
-					<span className={cn('text-sm', actionColor)}>{actionLabels[entry.action]}</span>
-					<Badge variant="outline" className="gap-1">
-						<ResourceIcon className="h-3 w-3" />
-						{resourceLabels[entry.resource_type]}
-					</Badge>
-					{entry.resource_name && (
-						<span className="text-sm text-muted-foreground truncate">"{entry.resource_name}"</span>
-					)}
-				</div>
+  const ts = parseISO(entry.timestamp);
+  const relativeTime = formatDistanceToNow(ts, { addSuffix: true });
+  const fullTime     = format(ts, 'PPpp');               // e.g. Jun 17, 2026, 14:35:00 PM
 
-				<div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-					<span>{format(createdAt, 'MMM d, yyyy HH:mm')}</span>
-					<span>•</span>
-					<span>{formatDistanceToNow(createdAt, { addSuffix: true })}</span>
-					{entry.ip_address && (
-						<>
-							<span>•</span>
-							<span>{entry.ip_address}</span>
-						</>
-					)}
-				</div>
-			</div>
-		</div>
-	);
+  const isDocumentTable =
+    entry.tableName === 'nodes' ||
+    entry.tableName === 'documents' ||
+    entry.tableName === 'document_versions' ||
+    entry.tableName === 'pages';
+
+  return (
+    <div className="flex items-start gap-3 px-3 py-2.5 rounded-lg border border-border/40 hover:bg-accent/20 transition-colors group">
+      {/* User initials avatar */}
+      <div
+        className={cn(
+          'flex items-center justify-center rounded-full w-8 h-8 shrink-0 text-xs font-semibold text-white',
+          avatarBg,
+        )}
+        title={entry.username ?? entry.userId ?? 'Unknown user'}
+      >
+        {initials}
+      </div>
+
+      {/* Main content */}
+      <div className="flex-1 min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Username */}
+          <span className="text-sm font-medium truncate max-w-[160px]" title={entry.username ?? undefined}>
+            {entry.username ?? <span className="text-muted-foreground italic">system</span>}
+          </span>
+
+          {/* Action description */}
+          <span className={cn('text-sm', opColor)}>{actionText}</span>
+
+          {/* Operation badge */}
+          <span className={cn('text-[10px] font-medium px-1.5 py-0.5 rounded border', opBadge)}>
+            {OPERATION_LABELS[entry.operation]}
+          </span>
+
+          {/* Document link — only show for document-related tables */}
+          {isDocumentTable && entry.recordId && (
+            <button
+              className="text-xs text-blue-400 hover:text-blue-300 hover:underline truncate max-w-[180px] font-mono"
+              onClick={() => onNavigate(entry.recordId)}
+              title={`Open record ${entry.recordId}`}
+            >
+              {entry.recordId.slice(0, 8)}…
+            </button>
+          )}
+        </div>
+
+        {/* Meta row: timestamp + table */}
+        <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-muted-foreground">
+          {/* Relative time with full datetime tooltip */}
+          <span
+            title={fullTime}
+            className="cursor-default hover:text-foreground transition-colors"
+          >
+            {relativeTime}
+          </span>
+
+          <span className="opacity-40">•</span>
+
+          {/* Table name badge */}
+          <span className="font-mono opacity-60">{entry.tableName}</span>
+        </div>
+      </div>
+    </div>
+  );
 }
+
+// ── util ──────────────────────────────────────────────────────────────────────
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isUuid(s: string): boolean { return UUID_RE.test(s.trim()); }
