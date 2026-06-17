@@ -15,6 +15,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Database,
+  FileSearch,
   HardDrive,
   Layers,
   Loader2,
@@ -33,6 +34,7 @@ import {
   type StorageHealth,
   type WorkerInfo,
 } from '@/features/system';
+import { SearchIndexPanel } from '@/features/admin/SearchIndexPanel';
 
 // ---------------------------------------------------------------------------
 // Utilities
@@ -646,6 +648,11 @@ export function SystemHealth() {
               database={data.database}
               cache={data.cache}
             />
+          </Section>
+
+          {/* ── Section 4: Search Index ── */}
+          <Section icon={FileSearch} title="Search Index">
+            <SearchIndexPanel />
           </Section>
         </>
       )}

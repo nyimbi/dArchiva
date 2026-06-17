@@ -44,9 +44,33 @@ export interface UpdateScanConfigInput {
 	quality_config: {
 		separator_mode: 'none' | 'blank_page' | 'barcode' | 'both';
 		separator_barcode_prefix: string;
+		/** Literal prefix used to extract a project code from a barcode value.
+		 *  E.g. "PROJ-" extracts "2024-001" from "PROJ-2024-001-SEP". */
+		project_code_pattern?: string;
 		auto_remove_blanks: boolean;
 		blank_threshold: number;
 	};
+}
+
+// ── Separator events ──────────────────────────────────────────────────────────
+
+export interface SeparatorEvent {
+	id: string;
+	batch_id: string | null;
+	page_number: number | null;
+	/** "blank" | "barcode" | null */
+	separator_type: string | null;
+	/** Extracted project code, e.g. "2024-001". null if not parsed. */
+	project_code: string | null;
+	/** ISO-8601 timestamp */
+	detected_at: string;
+}
+
+export async function getSeparatorEvents(projectId: string): Promise<SeparatorEvent[]> {
+	const { data: response } = await apiClient.get<SeparatorEvent[]>(
+		`/scanning-projects/${projectId}/separator-events`,
+	);
+	return response;
 }
 
 export async function updateProjectScanConfig(

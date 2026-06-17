@@ -9,3 +9,5 @@ export type { MergeSourceDocument } from './MergeDocumentsDialog';
 export { SplitDocumentDialog, useSplitDocument } from './SplitDocumentDialog';
 export { SimilarDocuments } from './SimilarDocuments';
 export { BatchActionsBar } from './BatchActionsBar';
+export { DownloadMenu } from './DownloadMenu';
+export { PageSelectDialog } from './PageSelectDialog';

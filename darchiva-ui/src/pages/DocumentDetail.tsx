@@ -15,6 +15,10 @@ import { SignaturePanel } from '@/features/signatures/SignaturePanel';
 import { ApprovalPanel } from '@/features/approvals/ApprovalPanel';
 import { DuplicatesPanel } from '@/features/documents/components/DuplicatesPanel';
 import { ClassificationPanel } from '@/features/classification/ClassificationPanel';
+import { PageEditor } from '@/features/documents/components/PageEditor';
+import { DownloadMenu } from '@/features/documents/components/DownloadMenu';
+import { FilingSuggestionsPanel } from '@/features/documents/components/FilingSuggestionsPanel';
+import { LegalHoldPanel } from '@/features/legal-hold/LegalHoldPanel';
 import {
 	VersionDiffViewer,
 	VersionHistoryWithCompare,
@@ -25,7 +29,7 @@ import { formatRelativeTime } from '@/lib/utils';
 import type { ViewerPage } from '@/types';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { ArrowLeft,Bell,Calendar,CheckSquare,Copy,FileText,GitCompare,History,Layers,Loader2,MessageSquare,PenTool,QrCode,ScanLine,Scissors,Share2,Stamp,Tag,Tags } from 'lucide-react';
+import { ArrowLeft,Bell,Calendar,CheckSquare,Copy,Download,Edit2,FileText,GitCompare,History,Layers,Lightbulb,Loader2,MessageSquare,PenTool,QrCode,ScanLine,Scissors,Share2,Shield,Stamp,Tag,Tags } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate,useParams } from 'react-router-dom';
 
@@ -58,8 +62,9 @@ export function DocumentDetail() {
 	const [diff, setDiff] = useState<{ versionA: number; versionB: number } | null>(null);
 	const [showVersionHistory, setShowVersionHistory] = useState(false);
 	// Right-panel tab: null = closed, or one of the named panels
-	type SidePanel = 'custom-fields' | 'related' | 'similar' | 'entities' | 'expiry' | 'annotations' | 'ocr-quality' | 'signatures' | 'approvals' | 'duplicates' | 'classification';
+	type SidePanel = 'custom-fields' | 'related' | 'similar' | 'entities' | 'expiry' | 'annotations' | 'ocr-quality' | 'signatures' | 'approvals' | 'duplicates' | 'classification' | 'filing' | 'legal-hold';
 	const [sidePanel, setSidePanel] = useState<SidePanel | null>(null);
+	const [showPageEditor, setShowPageEditor] = useState(false);
 	const [showSplitDialog, setShowSplitDialog] = useState(false);
 	const [showShareDialog, setShowShareDialog] = useState(false);
 	const [showWatermarkDialog, setShowWatermarkDialog] = useState(false);
@@ -367,6 +372,43 @@ export function DocumentDetail() {
 						<Layers className="w-3.5 h-3.5" />
 						Classification
 					</button>
+					<button
+						onClick={() => togglePanel('filing')}
+						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+							sidePanel === 'filing'
+								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
+								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+						}`}
+						title="Filing suggestions"
+					>
+						<Lightbulb className="w-3.5 h-3.5" />
+						Filing
+					</button>
+					<button
+						onClick={() => togglePanel('legal-hold')}
+						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+							sidePanel === 'legal-hold'
+								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
+								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+						}`}
+						title="Legal hold"
+					>
+						<Shield className="w-3.5 h-3.5" />
+						Hold
+					</button>
+					<DownloadMenu
+						documentId={id!}
+						documentTitle={document.title}
+						pageCount={document.pageCount ?? pages.length}
+					/>
+					<button
+						onClick={() => setShowPageEditor(true)}
+						className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors"
+						title="Edit pages"
+					>
+						<Edit2 className="w-3.5 h-3.5" />
+						Edit Pages
+					</button>
 				</div>
 			</div>
 
@@ -486,7 +528,30 @@ export function DocumentDetail() {
 						<ClassificationPanel documentId={id!} />
 					</div>
 				)}
+
+				{/* Filing suggestions panel */}
+				{sidePanel === 'filing' && (
+					<div className="w-72 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto">
+						<FilingSuggestionsPanel documentId={id!} />
+					</div>
+				)}
+
+				{/* Legal hold panel */}
+				{sidePanel === 'legal-hold' && (
+					<div className="w-80 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto">
+						<LegalHoldPanel documentId={id!} />
+					</div>
+				)}
 			</div>
+
+			{/* Page editor modal — rendered outside the flex row */}
+			{showPageEditor && (
+				<PageEditor
+					documentId={id!}
+					pageCount={document.pageCount ?? pages.length}
+					onClose={() => setShowPageEditor(false)}
+				/>
+			)}
 
 			{/* QR Code modal — rendered outside the flex row */}
 			{showQRCodeModal && (

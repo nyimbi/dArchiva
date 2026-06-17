@@ -25,7 +25,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
-import { CheckCircle2, Loader2, ScanLine, Scissors } from 'lucide-react';
+import { CheckCircle2, FlaskConical, Loader2, ScanLine, Scissors } from 'lucide-react';
 
 import { useScanningProject } from '../hooks';
 import { useUpdateProjectScanConfig } from '../hooks';
@@ -59,12 +59,17 @@ export function SeparatorConfig({ projectId }: Props) {
   const updateConfig = useUpdateProjectScanConfig();
 
   // Local form state — hydrated from project.quality_config when available
-  const [separatorMode, setSeparatorMode] = useState<SeparatorMode>('none');
-  const [barcodePrefix, setBarcodePrefix]   = useState('');
-  const [autoRemove, setAutoRemove]         = useState(false);
+  const [separatorMode, setSeparatorMode]       = useState<SeparatorMode>('none');
+  const [barcodePrefix, setBarcodePrefix]       = useState('');
+  const [projectCodePattern, setProjectCodePattern] = useState('');
+  const [autoRemove, setAutoRemove]             = useState(false);
   // threshold stored as 0–100 integer for the slider; converted to 0.0–1.0 on save
-  const [thresholdPct, setThresholdPct]     = useState(97);
-  const [saved, setSaved]                   = useState(false);
+  const [thresholdPct, setThresholdPct]         = useState(97);
+  const [saved, setSaved]                       = useState(false);
+
+  // "Test Barcode" mini-tester state
+  const [testBarcode, setTestBarcode]   = useState('');
+  const [testResult, setTestResult]     = useState<string | null>(null);
 
   // Hydrate from server once project data arrives
   useEffect(() => {
@@ -73,6 +78,7 @@ export function SeparatorConfig({ projectId }: Props) {
     const cfg = (project as unknown as { quality_config?: Record<string, unknown> }).quality_config ?? {};
     setSeparatorMode((cfg.separator_mode as SeparatorMode | undefined) ?? 'none');
     setBarcodePrefix((cfg.separator_barcode_prefix as string | undefined) ?? '');
+    setProjectCodePattern((cfg.project_code_pattern as string | undefined) ?? '');
     setAutoRemove((cfg.auto_remove_blanks as boolean | undefined) ?? false);
     const raw = cfg.blank_threshold as number | undefined;
     setThresholdPct(raw !== undefined ? Math.round(raw * 100) : 97);
@@ -88,6 +94,7 @@ export function SeparatorConfig({ projectId }: Props) {
           quality_config: {
             separator_mode: separatorMode,
             separator_barcode_prefix: barcodePrefix,
+            project_code_pattern: projectCodePattern,
             auto_remove_blanks: autoRemove,
             blank_threshold: thresholdPct / 100,
           },
@@ -167,6 +174,87 @@ export function SeparatorConfig({ projectId }: Props) {
               )}
             </p>
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="project-code-pattern">
+              Project code pattern
+            </Label>
+            <Input
+              id="project-code-pattern"
+              placeholder="e.g. PROJ-"
+              value={projectCodePattern}
+              onChange={(e) => {
+                setProjectCodePattern(e.target.value);
+                setTestResult(null);
+              }}
+              disabled={!barcodeEnabled(separatorMode)}
+              className="max-w-xs font-mono"
+            />
+            <p className="text-xs text-muted-foreground">
+              Prefix used to extract a project code from the barcode value.
+              E.g. prefix <code className="px-1 bg-muted rounded">PROJ-</code> extracts{' '}
+              <code className="px-1 bg-muted rounded">2024-001</code> from{' '}
+              <code className="px-1 bg-muted rounded">PROJ-2024-001-SEP</code>.
+            </p>
+          </div>
+
+          {/* Test Barcode mini-tool */}
+          {barcodeEnabled(separatorMode) && projectCodePattern && (
+            <div className="rounded-lg border border-dashed border-muted-foreground/30 p-4 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <FlaskConical className="h-4 w-4" />
+                Test barcode extraction
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Paste a sample barcode value…"
+                  value={testBarcode}
+                  onChange={(e) => {
+                    setTestBarcode(e.target.value);
+                    setTestResult(null);
+                  }}
+                  className="max-w-xs font-mono text-sm"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (!testBarcode.trim() || !projectCodePattern) {
+                      setTestResult(null);
+                      return;
+                    }
+                    // Mirror the Python regex: ^{pattern}(.+?)(-SEP)?$
+                    try {
+                      const escaped = projectCodePattern.replace(
+                        /[.*+?^${}()|[\]\\]/g,
+                        '\\$&',
+                      );
+                      const rx = new RegExp(`^${escaped}(.+?)(-SEP)?$`);
+                      const m = rx.exec(testBarcode.trim());
+                      setTestResult(m ? m[1] : null);
+                    } catch {
+                      setTestResult(null);
+                    }
+                  }}
+                >
+                  Test
+                </Button>
+              </div>
+              {testBarcode && (
+                <p className="text-xs">
+                  {testResult !== null ? (
+                    <span className="text-emerald-600 dark:text-emerald-400">
+                      Extracted code: <strong>{testResult}</strong>
+                    </span>
+                  ) : (
+                    <span className="text-amber-600 dark:text-amber-400">
+                      No match — barcode does not start with the pattern.
+                    </span>
+                  )}
+                </p>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

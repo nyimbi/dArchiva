@@ -457,3 +457,17 @@ export function useUpdateProjectScanConfig() {
 		},
 	});
 }
+
+// =====================================================
+// Separator Events Hook
+// =====================================================
+
+export function useSeparatorEvents(projectId: string, enabled = true) {
+	return useQuery({
+		queryKey: [...scanningProjectKeys.detail(projectId), 'separator-events'] as const,
+		queryFn: () => api.getSeparatorEvents(projectId),
+		enabled: enabled && !!projectId,
+		refetchInterval: 5000,   // poll every 5 s during active scanning
+		staleTime: 4000,
+	});
+}

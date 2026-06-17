@@ -26,6 +26,7 @@ import {
   Merge,
   Move,
   QrCode,
+  Shield,
   Tag,
   Trash2,
   X,
@@ -49,7 +50,7 @@ interface BatchActionsBarProps {
 // Internal dialog types
 // ---------------------------------------------------------------------------
 
-type ActiveDialog = 'tag' | 'move' | 'classify' | 'delete' | 'export' | 'merge' | null;
+type ActiveDialog = 'tag' | 'move' | 'classify' | 'delete' | 'export' | 'merge' | 'hold' | null;
 
 // ---------------------------------------------------------------------------
 // Tag dialog
@@ -281,6 +282,68 @@ function DeleteDialog({
 }
 
 // ---------------------------------------------------------------------------
+// Hold dialog
+// ---------------------------------------------------------------------------
+
+function HoldDialog({
+  count,
+  onApply,
+  onClose,
+  isPending,
+}: {
+  count: number;
+  onApply: (holdName: string, holdReason: string) => void;
+  onClose: () => void;
+  isPending: boolean;
+}) {
+  const [holdName, setHoldName] = useState('');
+  const [holdReason, setHoldReason] = useState('');
+  const valid = holdName.trim().length > 0 && holdReason.trim().length > 0;
+
+  return (
+    <Backdrop onClose={onClose}>
+      <DialogCard>
+        <DialogHeader
+          icon={<Shield className="w-5 h-5 text-brass-400" />}
+          title={`Place Legal Hold on ${count} document${count !== 1 ? 's' : ''}`}
+          subtitle="Documents under hold cannot be deleted or modified"
+        />
+        <div className="space-y-3 mb-4">
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Hold name</label>
+            <input
+              type="text"
+              value={holdName}
+              onChange={(e) => setHoldName(e.target.value)}
+              placeholder="e.g. Litigation Hold 2026-Q2"
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-brass-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Reason</label>
+            <textarea
+              value={holdReason}
+              onChange={(e) => setHoldReason(e.target.value)}
+              placeholder="Describe the reason for placing this hold..."
+              rows={3}
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-brass-500 resize-none"
+            />
+          </div>
+        </div>
+        <DialogFooter
+          onClose={onClose}
+          onConfirm={() => onApply(holdName.trim(), holdReason.trim())}
+          disabled={!valid || isPending}
+          isPending={isPending}
+          confirmLabel="Place Hold"
+          confirmIcon={<Shield className="w-4 h-4" />}
+        />
+      </DialogCard>
+    </Backdrop>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Shared dialog primitives
 // ---------------------------------------------------------------------------
 
@@ -368,10 +431,44 @@ function DialogFooter({
 // Main component
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Hold sequencer — calls usePlaceLegalHold per document id in sequence
+// ---------------------------------------------------------------------------
+
+function useBatchHold() {
+  const [isPending, setIsPending] = useState(false);
+
+  const placeHolds = async (
+    documentIds: string[],
+    holdName: string,
+    holdReason: string,
+    onSuccess: () => void,
+  ) => {
+    setIsPending(true);
+    try {
+      for (const docId of documentIds) {
+        // Each call is independent — we instantiate the hook payload directly
+        await fetch(`/api/v1/documents/${docId}/legal-holds`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ hold_name: holdName, hold_reason: holdReason }),
+        });
+      }
+      onSuccess();
+    } finally {
+      setIsPending(false);
+    }
+  };
+
+  return { placeHolds, isPending };
+}
+
 export function BatchActionsBar({ selectedIds, selectedDocuments, onClear, onComplete }: BatchActionsBarProps) {
   const [activeDialog, setActiveDialog] = useState<ActiveDialog>(null);
   const batch = useBatchOperation();
   const batchLabels = useBatchLabels();
+  const batchHold = useBatchHold();
   const navigate = useNavigate();
 
   // Derive merge sources: use selectedDocuments if provided, else bare id-only stubs
@@ -498,6 +595,18 @@ export function BatchActionsBar({ selectedIds, selectedDocuments, onClear, onCom
           </button>
 
           <button
+            onClick={() => setActiveDialog('hold')}
+            disabled={batchHold.isPending}
+            className="btn-ghost text-sm py-1.5 px-3 flex items-center gap-1.5"
+            title="Place legal hold on selected documents"
+          >
+            {batchHold.isPending
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <Shield className="w-4 h-4" />}
+            Hold
+          </button>
+
+          <button
             onClick={() => setActiveDialog('delete')}
             className="btn-ghost text-sm py-1.5 px-3 flex items-center gap-1.5 text-red-400 hover:text-red-300"
           >
@@ -534,6 +643,19 @@ export function BatchActionsBar({ selectedIds, selectedDocuments, onClear, onCom
             onConfirm={() => run('delete', {}, 'delete')}
             onClose={close}
             isPending={batch.isPending}
+          />
+        )}
+        {activeDialog === 'hold' && (
+          <HoldDialog
+            count={selectedIds.length}
+            onApply={(holdName, holdReason) =>
+              batchHold.placeHolds(selectedIds, holdName, holdReason, () => {
+                close();
+                onComplete();
+              })
+            }
+            onClose={close}
+            isPending={batchHold.isPending}
           />
         )}
       </AnimatePresence>
