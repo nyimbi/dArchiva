@@ -424,7 +424,6 @@ export function DocumentDetail() {
 				<WatermarkDialog
 					open={showWatermarkDialog}
 					documentId={id!}
-					documentTitle={document?.title ?? ''}
 					onClose={() => setShowWatermarkDialog(false)}
 				/>
 			)}
