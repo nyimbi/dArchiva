@@ -136,3 +136,66 @@ export function useSystemWorkers(options?: { refetchInterval?: number }) {
     retry: 1,
   });
 }
+
+// ---------------------------------------------------------------------------
+// Admin health — services + metrics  (GET /admin/health/services|metrics)
+// ---------------------------------------------------------------------------
+
+export interface ServiceStatus {
+  name: string;
+  status: 'ok' | 'degraded' | 'down' | 'unknown';
+  latencyMs: number;
+  details: string;
+}
+
+export interface ServicesResponse {
+  services: ServiceStatus[];
+  degradedCount: number;
+  downCount: number;
+}
+
+export interface MetricItem {
+  name: string;
+  value: number;
+  unit: string;
+  trend: 'up' | 'down' | 'stable' | null;
+}
+
+export interface MetricsResponse {
+  metrics: MetricItem[];
+  collectedAt: string;
+}
+
+const ADMIN_HEALTH_BASE = '/admin/health';
+
+export const adminHealthKeys = {
+  all: ['admin-health'] as const,
+  services: () => [...adminHealthKeys.all, 'services'] as const,
+  metrics: () => [...adminHealthKeys.all, 'metrics'] as const,
+};
+
+/** Live service dependency checks — one probe per service, runs in parallel on the backend. */
+export function useServiceHealth(options?: { refetchInterval?: number }) {
+  return useQuery({
+    queryKey: adminHealthKeys.services(),
+    queryFn: async () => {
+      const { data } = await apiClient.get<ServicesResponse>(`${ADMIN_HEALTH_BASE}/services`);
+      return data;
+    },
+    refetchInterval: options?.refetchInterval ?? 30_000,
+    retry: 1,
+  });
+}
+
+/** Document and pipeline operational metrics from the DB. */
+export function useHealthMetrics(options?: { refetchInterval?: number }) {
+  return useQuery({
+    queryKey: adminHealthKeys.metrics(),
+    queryFn: async () => {
+      const { data } = await apiClient.get<MetricsResponse>(`${ADMIN_HEALTH_BASE}/metrics`);
+      return data;
+    },
+    refetchInterval: options?.refetchInterval ?? 30_000,
+    retry: 1,
+  });
+}

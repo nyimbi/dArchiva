@@ -1,17 +1,24 @@
 // (c) Copyright Datacraft, 2026
 import { useDashboardPendingTasks,useDashboardStats,useRecentActivity } from '@/features/dashboard';
+import { useActivityFeed } from '@/features/activity';
 import { cn,formatBytes,formatRelativeTime } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import {
   AlertCircle,
   ArrowUpRight,
+  CheckSquare,
   Clock,
+  Cpu,
   FileSearch,
   FileText,
   FolderOpen,
   GitBranch,
   HardDrive,
   Loader2,
+  MessageSquare,
+  PenTool,
+  Shield,
+  Tag,
   TrendingUp,
 } from 'lucide-react';
 
@@ -28,10 +35,34 @@ const itemVariants = {
 	visible: { opacity: 1, y: 0 },
 };
 
+function feedEventIcon(eventType: string) {
+	const cls = 'w-3.5 h-3.5';
+	if (eventType.includes('ocr'))       return <Cpu         className={cls} />;
+	if (eventType.includes('classif'))   return <Tag         className={cls} />;
+	if (eventType.includes('moved'))     return <FolderOpen  className={cls} />;
+	if (eventType.includes('signed'))    return <PenTool     className={cls} />;
+	if (eventType.includes('approved'))  return <CheckSquare className={cls} />;
+	if (eventType.includes('held'))      return <Shield      className={cls} />;
+	if (eventType.includes('annotated')) return <MessageSquare className={cls} />;
+	return <FileText className={cls} />;
+}
+
+function feedIconBg(eventType: string): string {
+	if (eventType.includes('ocr'))       return 'bg-blue-500/10 text-blue-400';
+	if (eventType.includes('classif'))   return 'bg-purple-500/10 text-purple-400';
+	if (eventType.includes('moved'))     return 'bg-amber-500/10 text-amber-400';
+	if (eventType.includes('signed'))    return 'bg-emerald-500/10 text-emerald-400';
+	if (eventType.includes('approved'))  return 'bg-teal-500/10 text-teal-400';
+	if (eventType.includes('held'))      return 'bg-red-500/10 text-red-400';
+	if (eventType.includes('annotated')) return 'bg-sky-500/10 text-sky-400';
+	return 'bg-brass-500/10 text-brass-400';
+}
+
 export function Dashboard() {
 	const { data: stats, isLoading: statsLoading } = useDashboardStats();
 	const { data: activityData, isLoading: activityLoading } = useRecentActivity(5);
 	const { data: tasksData, isLoading: tasksLoading } = useDashboardPendingTasks();
+	const { data: feedEvents, isLoading: feedLoading } = useActivityFeed(10);
 
 	const activity = activityData?.items ?? [];
 	const pendingTasks = tasksData?.tasks ?? [];
@@ -295,6 +326,59 @@ export function Dashboard() {
 					</div>
 				</motion.div>
 			</div>
+
+			{/* Recent Activity Feed */}
+			<motion.div variants={itemVariants} className="glass-card">
+				<div className="p-4 border-b border-slate-700/50 flex items-center justify-between">
+					<h2 className="font-display font-semibold text-slate-100">Recent Activity</h2>
+					<a href="/audit" className="flex items-center gap-1 text-sm text-brass-400 hover:text-brass-300">
+						View all <ArrowUpRight className="w-4 h-4" />
+					</a>
+				</div>
+				<div className="divide-y divide-slate-800/50">
+					{feedLoading ? (
+						<div className="p-8 flex items-center justify-center">
+							<Loader2 className="w-5 h-5 animate-spin text-slate-500" />
+						</div>
+					) : !feedEvents || feedEvents.length === 0 ? (
+						<div className="p-8 text-center text-sm text-slate-500">No activity yet</div>
+					) : (
+						feedEvents.map((event, idx) => (
+							<motion.div
+								key={`feed-${event.event_type}-${event.timestamp}-${idx}`}
+								initial={{ opacity: 0 }}
+								animate={{ opacity: 1 }}
+								transition={{ delay: 0.04 * idx }}
+								className="flex items-start gap-3 py-3 px-4 hover:bg-slate-800/30 transition-colors"
+							>
+								<div className={cn('mt-0.5 p-1 rounded-md shrink-0', feedIconBg(event.event_type))}>
+									{feedEventIcon(event.event_type)}
+								</div>
+								<div className="flex-1 min-w-0">
+									<p className="text-sm text-slate-300 truncate">{event.description}</p>
+									{Boolean(event.data?.record_id) && (
+										<a
+											href={`/documents/${event.data!.record_id as string}`}
+											className="mt-0.5 text-xs text-brass-400 hover:text-brass-300 truncate block"
+										>
+											View document
+										</a>
+									)}
+								</div>
+								{event.timestamp && (
+									<time
+										className="shrink-0 text-xs text-slate-500 mt-0.5"
+										dateTime={event.timestamp}
+										title={new Date(event.timestamp).toLocaleString()}
+									>
+										{formatRelativeTime(event.timestamp)}
+									</time>
+								)}
+							</motion.div>
+						))
+					)}
+				</div>
+			</motion.div>
 
 			{/* Quick actions */}
 			<motion.div variants={itemVariants} className="glass-card p-4">

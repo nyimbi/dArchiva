@@ -8,6 +8,7 @@
  */
 import { useBatchOperation } from '../api/batch';
 import { useBatchLabels } from '../api/qr';
+import { useDownloadBundle } from '@/features/data-export/api';
 import { useFolderTree, type TreeNode as APITreeNode } from '../api';
 import { useTags } from '@/features/tags/api';
 import { useDocumentTypes } from '@/features/document-types/api';
@@ -19,6 +20,7 @@ import {
   AlertTriangle,
   Archive,
   Check,
+  Package,
   FileType,
   Folder,
   GitCompare,
@@ -469,6 +471,7 @@ export function BatchActionsBar({ selectedIds, selectedDocuments, onClear, onCom
   const batch = useBatchOperation();
   const batchLabels = useBatchLabels();
   const batchHold = useBatchHold();
+  const bundleDownload = useDownloadBundle();
   const navigate = useNavigate();
 
   // Derive merge sources: use selectedDocuments if provided, else bare id-only stubs
@@ -592,6 +595,20 @@ export function BatchActionsBar({ selectedIds, selectedDocuments, onClear, onCom
               ? <Loader2 className="w-4 h-4 animate-spin" />
               : <Archive className="w-4 h-4" />}
             Export ZIP
+          </button>
+
+          <button
+            onClick={() =>
+              bundleDownload.mutate({ document_ids: selectedIds, include_metadata: true })
+            }
+            disabled={bundleDownload.isPending || selectedIds.length === 0}
+            className="btn-ghost text-sm py-1.5 px-3 flex items-center gap-1.5"
+            title="Download selected documents as a bundle ZIP"
+          >
+            {bundleDownload.isPending
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <Package className="w-4 h-4" />}
+            Export Bundle
           </button>
 
           <button

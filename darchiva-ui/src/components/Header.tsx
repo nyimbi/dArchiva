@@ -7,21 +7,20 @@ import {
   FileText,
   FolderPlus,
   LogOut,
-  Moon,
   Plus,
   Search,
   Settings,
-  Sun,
   Upload,
   User,
 } from 'lucide-react';
 import { NotificationCenter } from '@/features/notifications';
+import { ThemeToggle } from '@/features/theme/ThemeToggle';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export function Header() {
 	const navigate = useNavigate();
-	const { theme, toggleTheme, user, pendingTasks, openModal, setUser } = useStore();
+	const { user, pendingTasks, openModal, setUser } = useStore();
 	const { logout } = useAuth();
 	const [searchOpen, setSearchOpen] = useState(false);
 	const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -144,17 +143,7 @@ export function Header() {
 				</div>
 
 				{/* Theme toggle */}
-				<button
-					onClick={toggleTheme}
-					className="btn-ghost p-2"
-					title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-				>
-					{theme === 'dark' ? (
-						<Sun className="w-5 h-5" />
-					) : (
-						<Moon className="w-5 h-5" />
-					)}
-				</button>
+				<ThemeToggle />
 
 				{/* Notifications */}
 				<NotificationCenter />

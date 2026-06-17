@@ -6,6 +6,7 @@ import {
   Activity,
   AlertTriangle,
   ArrowDownToLine,
+  DatabaseZap,
   Briefcase,
   ChevronLeft,
   ChevronRight,
@@ -31,6 +32,7 @@ import {
   Settings,
   Share2,
   Shield,
+  ShieldAlert,
   Timer,
   TrendingUp,
   Upload,
@@ -73,6 +75,8 @@ const adminItems = [
 	{ id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
 	{ id: 'audit', label: 'Audit Logs', icon: History, path: '/audit' },
 	{ id: 'encryption', label: 'Encryption', icon: Shield, path: '/encryption' },
+	{ id: 'data-export', label: 'Data Export', icon: DatabaseZap, path: '/admin/data-export' },
+	{ id: 'superadmin', label: 'Super Admin', icon: ShieldAlert, path: '/superadmin' },
 ];
 
 export function Sidebar() {

@@ -24,6 +24,12 @@
     --input: 226 232 240;
     --ring: 244 190 79;
     --radius: 0.5rem;
+    /* Semantic theme foundation — light mode */
+    --color-bg: #f8fafc;
+    --color-surface: #ffffff;
+    --color-text: #0f172a;
+    --color-text-muted: #64748b;
+    --color-border: #e2e8f0;
   }
 
   .dark {
@@ -46,6 +52,12 @@
     --border: 51 65 85;
     --input: 51 65 85;
     --ring: 244 190 79;
+    /* Semantic theme foundation — dark mode */
+    --color-bg: #080c14;
+    --color-surface: #0d1420;
+    --color-text: #f1f5f9;
+    --color-text-muted: #94a3b8;
+    --color-border: #334155;
   }
 
   * {

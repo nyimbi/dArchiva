@@ -19,6 +19,7 @@ import { PageEditor } from '@/features/documents/components/PageEditor';
 import { DownloadMenu } from '@/features/documents/components/DownloadMenu';
 import { FilingSuggestionsPanel } from '@/features/documents/components/FilingSuggestionsPanel';
 import { LegalHoldPanel } from '@/features/legal-hold/LegalHoldPanel';
+import { ActivityPanel } from '@/features/activity/ActivityPanel';
 import {
 	VersionDiffViewer,
 	VersionHistoryWithCompare,
@@ -29,7 +30,7 @@ import { formatRelativeTime } from '@/lib/utils';
 import type { ViewerPage } from '@/types';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { ArrowLeft,Bell,Calendar,CheckSquare,Copy,Download,Edit2,FileText,GitCompare,History,Layers,Lightbulb,Loader2,MessageSquare,PenTool,QrCode,ScanLine,Scissors,Share2,Shield,Stamp,Tag,Tags } from 'lucide-react';
+import { Activity,ArrowLeft,Bell,Calendar,CheckSquare,Copy,Download,Edit2,FileText,GitCompare,History,Layers,Lightbulb,Loader2,MessageSquare,PenTool,QrCode,ScanLine,Scissors,Share2,Shield,Stamp,Tag,Tags } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate,useParams } from 'react-router-dom';
 
@@ -62,7 +63,7 @@ export function DocumentDetail() {
 	const [diff, setDiff] = useState<{ versionA: number; versionB: number } | null>(null);
 	const [showVersionHistory, setShowVersionHistory] = useState(false);
 	// Right-panel tab: null = closed, or one of the named panels
-	type SidePanel = 'custom-fields' | 'related' | 'similar' | 'entities' | 'expiry' | 'annotations' | 'ocr-quality' | 'signatures' | 'approvals' | 'duplicates' | 'classification' | 'filing' | 'legal-hold';
+	type SidePanel = 'custom-fields' | 'related' | 'similar' | 'entities' | 'expiry' | 'annotations' | 'ocr-quality' | 'signatures' | 'approvals' | 'duplicates' | 'classification' | 'filing' | 'legal-hold' | 'activity';
 	const [sidePanel, setSidePanel] = useState<SidePanel | null>(null);
 	const [showPageEditor, setShowPageEditor] = useState(false);
 	const [showSplitDialog, setShowSplitDialog] = useState(false);
@@ -396,6 +397,18 @@ export function DocumentDetail() {
 						<Shield className="w-3.5 h-3.5" />
 						Hold
 					</button>
+					<button
+						onClick={() => togglePanel('activity')}
+						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+							sidePanel === 'activity'
+								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
+								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+						}`}
+						title="Activity feed"
+					>
+						<Activity className="w-3.5 h-3.5" />
+						Activity
+					</button>
 					<DownloadMenu
 						documentId={id!}
 						documentTitle={document.title}
@@ -540,6 +553,13 @@ export function DocumentDetail() {
 				{sidePanel === 'legal-hold' && (
 					<div className="w-80 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto">
 						<LegalHoldPanel documentId={id!} />
+					</div>
+				)}
+
+				{/* Activity feed panel */}
+				{sidePanel === 'activity' && (
+					<div className="w-80 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto">
+						<ActivityPanel documentId={id!} />
 					</div>
 				)}
 			</div>

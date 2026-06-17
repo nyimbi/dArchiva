@@ -53,6 +53,9 @@ import { ConnectorsPage } from './features/connectors/ConnectorsPage';
 import { NotificationToaster } from './components/NotificationToaster';
 import { DocumentComparison } from './pages/DocumentComparison';
 import { ShortcutsProvider } from './features/shortcuts/ShortcutsProvider';
+import { DataExportPage } from './features/data-export/DataExportPage';
+import { SuperAdminPage } from './features/superadmin/SuperAdminPage';
+import { ThemeProvider } from './features/theme/ThemeProvider';
 
 import { ScanningLayout } from './features/scanning-ops/layouts/ScanningLayout';
 import { OperatorDashboard } from './features/scanning-ops/pages/OperatorDashboard';
@@ -85,6 +88,7 @@ function AppInner() {
 export default function App() {
 	return (
 		<QueryClientProvider client={queryClient}>
+			<ThemeProvider>
 			<AuthProvider>
 				<ShortcutsProvider>
 				<AppInner />
@@ -137,6 +141,8 @@ export default function App() {
 								<Route path="templates" element={<TemplatesPage />} />
 								<Route path="compare" element={<DocumentComparison />} />
 								<Route path="connectors" element={<ConnectorsPage />} />
+								<Route path="admin/data-export" element={<DataExportPage />} />
+								<Route path="superadmin" element={<SuperAdminPage />} />
 							</Route>
 						</Route>
 
@@ -154,6 +160,7 @@ export default function App() {
 				</BrowserRouter>
 				</ShortcutsProvider>
 			</AuthProvider>
+			</ThemeProvider>
 		</QueryClientProvider>
 	);
 }
