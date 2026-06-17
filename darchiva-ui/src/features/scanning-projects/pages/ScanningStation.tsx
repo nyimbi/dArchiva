@@ -20,6 +20,7 @@ import {
   Package,
   Pause,
   Play,
+  Printer,
   RefreshCw,
   RotateCcw,
   RotateCw,
@@ -1163,6 +1164,19 @@ export function ScanningStation() {
 
 					{/* Capture mode toggle + scanner controls */}
 					<div className="flex items-center gap-2">
+						{/* Separator sheet quick-print */}
+						{projectId && (
+							<a
+								href={`/api/v1/scanning-projects/${projectId}/separator-sheet`}
+								target="_blank"
+								rel="noreferrer"
+								className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-400 border border-slate-700 rounded-lg hover:text-slate-100 hover:border-slate-500 transition-colors"
+								title="Download separator sheet PDF"
+							>
+								<Printer className="w-3.5 h-3.5" />
+								Sep Sheet
+							</a>
+						)}
 						{/* Capture mode toggle: Scanner | Camera | Stitch */}
 						<div className="flex items-center rounded-lg border border-slate-700 overflow-hidden text-xs font-medium">
 							{(['scanner', 'camera', 'stitch'] as CaptureMode[]).map((mode) => (

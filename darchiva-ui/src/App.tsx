@@ -55,6 +55,8 @@ import { DocumentComparison } from './pages/DocumentComparison';
 import { ShortcutsProvider } from './features/shortcuts/ShortcutsProvider';
 import DataExportPage from './features/data-export/DataExportPage';
 import { SuperAdminPage } from './features/superadmin/SuperAdminPage';
+import { AutomationRulesPage } from './features/automation/AutomationRulesPage';
+import { ScheduledReportsPage } from './features/reports/ScheduledReportsPage';
 import { ThemeProvider } from './features/theme/ThemeProvider';
 
 import { ScanningLayout } from './features/scanning-ops/layouts/ScanningLayout';
@@ -143,6 +145,8 @@ export default function App() {
 								<Route path="connectors" element={<ConnectorsPage />} />
 								<Route path="admin/data-export" element={<DataExportPage />} />
 								<Route path="superadmin" element={<SuperAdminPage />} />
+								<Route path="automation" element={<AutomationRulesPage />} />
+								<Route path="reports/scheduled" element={<ScheduledReportsPage />} />
 							</Route>
 						</Route>
 

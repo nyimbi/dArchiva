@@ -6,13 +6,15 @@ import {
   useBulkTag,
   useCreateFolder,
   useDeleteFolder,
-  useDocuments,
   useFolderTree,
   useUpdateFolder,
   BatchActionsBar,
   type Document as APIDocument,
   type TreeNode as APITreeNode,
 } from '@/features/documents';
+import { useInfiniteDocuments } from '@/features/documents/api/infiniteDocuments';
+import { VirtualDocumentList } from '@/features/documents/components/VirtualDocumentList';
+import { ThumbnailGrid } from '@/features/documents/components/ThumbnailGrid';
 import { useDocumentTypes } from '@/features/document-types/api';
 import { useTags } from '@/features/tags/api';
 import type { DocumentType } from '@/features/document-types/types';
@@ -35,6 +37,9 @@ import {
   GitBranch,
   Grid,
   Image,
+  LayoutDashboard,
+  LayoutGrid,
+  LayoutList,
   List,
   Loader2,
   MoreVertical,
@@ -850,15 +855,25 @@ function BulkActionBar({
 // Main Documents page
 // ---------------------------------------------------------------------------
 export function Documents() {
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'list' | 'card' | 'thumbnail'>(() => {
+    const stored = localStorage.getItem('docs_view_mode');
+    if (stored === 'list' || stored === 'card' || stored === 'thumbnail') return stored;
+    return 'card';
+  });
   const [selectionMode, setSelectionMode] = useState(false);
   const [activeBulkModal, setActiveBulkModal] = useState<BulkModal>(null);
 
-  const { selectedNodeIds, clearNodeSelection, selectNodes, currentFolderId, openModal } = useStore();
+  const { selectedNodeIds, clearNodeSelection, selectNodes, toggleNodeSelection, currentFolderId, openModal } = useStore();
   const navigate = useNavigate();
 
   const { data: folderTree, isLoading: treeLoading } = useFolderTree();
-  const { data: documentsData, isLoading: docsLoading } = useDocuments(currentFolderId || undefined);
+  const {
+    documents: infiniteDocs,
+    isLoading: docsLoading,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useInfiniteDocuments(currentFolderId || undefined);
 
   const bulkMove = useBulkMove();
   const bulkDelete = useBulkDelete();
@@ -873,7 +888,12 @@ export function Documents() {
   const updateFolder = useUpdateFolder();
   const deleteFolder = useDeleteFolder();
 
-  const documents = documentsData?.items.filter((d) => d.ctype === 'document') || [];
+  const setAndPersistViewMode = useCallback((mode: 'list' | 'card' | 'thumbnail') => {
+    localStorage.setItem('docs_view_mode', mode);
+    setViewMode(mode);
+  }, []);
+
+  const documents = infiniteDocs as APIDocument[];
   const [sharingNode, setSharingNode] = useState<APIDocument | null>(null);
 
   // Folder tree UI state
@@ -1046,16 +1066,25 @@ export function Documents() {
             </button>
             <div className="flex border border-slate-700 rounded-lg overflow-hidden">
               <button
-                onClick={() => setViewMode('grid')}
-                className={cn('p-2 transition-colors', viewMode === 'grid' ? 'bg-slate-700 text-slate-200' : 'text-slate-500 hover:text-slate-300')}
+                onClick={() => setAndPersistViewMode('list')}
+                className={cn('p-2 transition-colors', viewMode === 'list' ? 'bg-slate-700 text-slate-200' : 'text-slate-500 hover:text-slate-300')}
+                title="List view"
               >
-                <Grid className="w-4 h-4" />
+                <LayoutList className="w-4 h-4" />
               </button>
               <button
-                onClick={() => setViewMode('list')}
-                className={cn('p-2 transition-colors', viewMode === 'list' ? 'bg-slate-700 text-slate-200' : 'text-slate-500 hover:text-slate-300')}
+                onClick={() => setAndPersistViewMode('card')}
+                className={cn('p-2 transition-colors', viewMode === 'card' ? 'bg-slate-700 text-slate-200' : 'text-slate-500 hover:text-slate-300')}
+                title="Grid view"
               >
-                <List className="w-4 h-4" />
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setAndPersistViewMode('thumbnail')}
+                className={cn('p-2 transition-colors', viewMode === 'thumbnail' ? 'bg-slate-700 text-slate-200' : 'text-slate-500 hover:text-slate-300')}
+                title="Thumbnail view"
+              >
+                <LayoutDashboard className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -1087,49 +1116,31 @@ export function Documents() {
               <FileText className="w-12 h-12 mb-4" />
               <p>No documents in this folder</p>
             </div>
-          ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-              {documents.map((doc) => (
-                <DocumentCard
-                  key={doc.id}
-                  doc={doc}
-                  onShare={setSharingNode}
-                  onOpen={handleOpenDocument}
-                  selectionMode={selectionMode}
-                />
-              ))}
-            </div>
+          ) : viewMode === 'thumbnail' ? (
+            <ThumbnailGrid
+              documents={documents.map((d) => ({
+                id: d.id,
+                title: d.title,
+                pageCount: d.page_count,
+                updatedAt: d.updated_at,
+                tags: d.tags,
+              }))}
+              selectedIds={selectedNodeIds}
+              onToggleSelect={toggleNodeSelection}
+              isSelectMode={selectionMode}
+            />
           ) : (
-            <div className="glass-card overflow-hidden">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th className="w-10">
-                      <input
-                        type="checkbox"
-                        onChange={(e) =>
-                          e.target.checked
-                            ? selectNodes(documents.map((d) => d.id))
-                            : clearNodeSelection()
-                        }
-                        className="rounded border-slate-600 bg-slate-800 text-brass-500 focus:ring-brass-500/50"
-                      />
-                    </th>
-                    <th>Name</th>
-                    <th>Size</th>
-                    <th>Pages</th>
-                    <th>Modified</th>
-                    <th>Status</th>
-                    <th className="w-32">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {documents.map((doc) => (
-                    <DocumentRow key={doc.id} doc={doc} onShare={setSharingNode} onOpen={handleOpenDocument} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <VirtualDocumentList
+              documents={documents}
+              isLoading={docsLoading}
+              hasNextPage={hasNextPage}
+              isFetchingNextPage={isFetchingNextPage}
+              onFetchNextPage={fetchNextPage}
+              viewMode={viewMode}
+              selectedIds={selectedNodeIds}
+              onToggleSelect={toggleNodeSelection}
+              isSelectMode={selectionMode}
+            />
           )}
         </div>
       </motion.div>

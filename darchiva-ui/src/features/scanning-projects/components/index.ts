@@ -2,6 +2,7 @@
 export { AIAdvisorPanel } from './AIAdvisorPanel';
 export { AIProjectPlanner } from './AIProjectPlanner';
 export { BarcodeGenerator } from './BarcodeGenerator';
+export { CoverSheetDialog } from './CoverSheetDialog';
 export { BatchCard } from './BatchCard';
 export { BrowserScannerConfig,ScanModeIndicator } from './BrowserScannerConfig';
 export type { BrowserScannerConfigProps,ScanMode } from './BrowserScannerConfig';

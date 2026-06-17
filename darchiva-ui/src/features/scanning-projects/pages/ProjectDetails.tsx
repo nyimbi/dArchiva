@@ -1,10 +1,10 @@
 // (c) Copyright Datacraft, 2026
 import { cn } from '@/lib/utils';
-import { AlertTriangle,ArrowLeft,Barcode,Calendar,CheckCircle,FileText,Gauge,Layers,LayoutTemplate,Plus,Wand2,Wrench } from 'lucide-react';
+import { AlertTriangle,ArrowLeft,Barcode,Calendar,CheckCircle,FileText,Gauge,Layers,LayoutTemplate,Plus,Printer,Wand2,Wrench } from 'lucide-react';
 import { useState } from 'react';
 import { Link,useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { AIProjectPlanner,BatchCard,CreateBatchDialog,MilestoneTimeline,ScannerDiscovery } from '../components';
+import { AIProjectPlanner,BatchCard,CreateBatchDialog,CoverSheetDialog,MilestoneTimeline,ScannerDiscovery } from '../components';
 import { BarcodeGenerator } from '../components/BarcodeGenerator';
 import { BatchTemplateManager } from '../components/BatchTemplateManager';
 import { VirtualRebundler } from '../components/VirtualRebundler';
@@ -23,6 +23,7 @@ export function ProjectDetails() {
 	const { data: milestones } = useProjectMilestones(projectId!);
 	const [showAddBatch, setShowAddBatch] = useState(false);
 	const [showAIPlanner, setShowAIPlanner] = useState(false);
+	const [showCoverSheet, setShowCoverSheet] = useState(false);
 	const [activeTab, setActiveTab] = useState<'batches' | 'milestones' | 'metrics' | 'equipment' | 'rebundle' | 'barcodes' | 'templates'>('batches');
 	const [rebundleBatchId, setRebundleBatchId] = useState<string | null>(null);
 
@@ -66,6 +67,13 @@ export function ProjectDetails() {
 						)}
 					</div>
 					<div className="flex items-center gap-2">
+						<button
+							onClick={() => setShowCoverSheet(true)}
+							className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 text-slate-300 border border-slate-700 rounded-lg text-sm font-medium hover:border-slate-500 hover:text-slate-100 transition-colors"
+						>
+							<Printer className="w-4 h-4" />
+							Print Cover Sheets
+						</button>
 						<button
 							onClick={() => setShowAIPlanner(true)}
 							className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 text-cyan-400 border border-cyan-500/30 rounded-lg text-sm font-medium hover:border-cyan-400/50 transition-colors"
@@ -306,6 +314,12 @@ export function ProjectDetails() {
 			)}
 
 			<CreateBatchDialog projectId={project.id} open={showAddBatch} onOpenChange={setShowAddBatch} />
+			<CoverSheetDialog
+				projectId={project.id}
+				projectName={project.name}
+				open={showCoverSheet}
+				onOpenChange={setShowCoverSheet}
+			/>
 			<AIProjectPlanner
 				projectId={project.id}
 				projectName={project.name}

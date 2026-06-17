@@ -6,6 +6,7 @@ import {
   Activity,
   AlertTriangle,
   ArrowDownToLine,
+  CalendarClock,
   DatabaseZap,
   Briefcase,
   ChevronLeft,
@@ -38,6 +39,7 @@ import {
   Upload,
   Users,
   Webhook,
+  Zap,
 } from 'lucide-react';
 import { useBranding } from '@/hooks/useBranding';
 import { Link,useLocation } from 'react-router-dom';
@@ -62,6 +64,8 @@ const navItems = [
 	{ id: 'exception-queue', label: 'Exception Queue', icon: AlertTriangle, path: '/exception-queue' },
 	{ id: 'templates', label: 'Templates', icon: LayoutTemplate, path: '/templates' },
 	{ id: 'connectors', label: 'Connectors', icon: Plug, path: '/connectors' },
+	{ id: 'automation', label: 'Automation', icon: Zap, path: '/automation' },
+	{ id: 'reports-scheduled', label: 'Scheduled Reports', icon: CalendarClock, path: '/reports/scheduled' },
 ];
 
 const adminItems = [

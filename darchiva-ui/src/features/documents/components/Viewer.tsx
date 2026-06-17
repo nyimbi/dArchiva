@@ -9,7 +9,9 @@ import {
   Eye,
   EyeOff,
   FileText,
+  LayoutList,
   Maximize,
+  Minimize,
   RotateCcw,
   RotateCw,
   Share2,
@@ -22,6 +24,7 @@ import { AnnotationLayer } from '@/features/annotations/AnnotationLayer';
 import { AnnotationToolbar } from '@/features/annotations/AnnotationToolbar';
 import type { AnnotationMode } from '@/features/annotations/AnnotationToolbar';
 import { OcrConfidenceOverlay } from '@/features/documents/OcrConfidenceOverlay';
+import { ThumbnailStrip } from './ThumbnailStrip';
 
 interface ViewerProps {
 	documentId?: string;
@@ -31,10 +34,12 @@ interface ViewerProps {
 
 export function Viewer({ documentId, pages = [], isLoading }: ViewerProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
+	const viewerAreaRef = useRef<HTMLDivElement>(null);
 	const {
 		currentPageIndex,
 		setCurrentPageIndex,
 		zoom,
+		setZoom,
 		zoomIn,
 		zoomOut,
 		rotation,
@@ -49,20 +54,75 @@ export function Viewer({ documentId, pages = [], isLoading }: ViewerProps) {
 	const [annotationMode, setAnnotationMode] = useState<AnnotationMode>('view');
 	const [shareOpen, setShareOpen] = useState(false);
 	const [showOcrOverlay, setShowOcrOverlay] = useState(false);
-	const [ocrThreshold, setOcrThreshold] = useState(90); // hide words >= 90% confidence
+	const [ocrThreshold, setOcrThreshold] = useState(90);
+	const [stripOpen, setStripOpen] = useState(false);
+	const [fitHeight, setFitHeight] = useState(false);
 
 	const currentPage = pages[currentPageIndex];
 	const totalPages = pages.length;
 
+	// Persist zoom to localStorage per document
+	useEffect(() => {
+		if (!documentId) return;
+		const stored = localStorage.getItem(`viewer_zoom_${documentId}`);
+		if (stored) {
+			const parsed = Number(stored);
+			if (!Number.isNaN(parsed)) setZoom(parsed);
+		}
+	// Only run on mount / documentId change
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [documentId]);
+
+	useEffect(() => {
+		if (!documentId) return;
+		localStorage.setItem(`viewer_zoom_${documentId}`, String(zoom));
+	}, [zoom, documentId]);
+
+	// Fit-width / fit-height helpers
+	const handleFitWidth = useCallback(() => {
+		setFitToWidth(true);
+		setFitHeight(false);
+	}, [setFitToWidth]);
+
+	const handleFitHeight = useCallback(() => {
+		if (!viewerAreaRef.current || !currentPage) return;
+		const containerH = viewerAreaRef.current.clientHeight - 32; // 32px padding
+		const pageH = currentPage.height || 1056; // fallback A4 height
+		const computed = Math.round((containerH / pageH) * 100);
+		setZoom(Math.max(25, Math.min(400, computed)));
+		setFitToWidth(false);
+		setFitHeight(true);
+	}, [currentPage, setZoom, setFitToWidth]);
+
 	const handleKeyDown = useCallback((e: KeyboardEvent) => {
+		// Only handle when focused inside the viewer container or no input focused
+		const active = document.activeElement;
+		if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+
 		switch (e.key) {
 			case 'ArrowLeft':
 			case 'ArrowUp':
-				if (currentPageIndex > 0) setCurrentPageIndex(currentPageIndex - 1);
+			case 'PageUp':
+				if (currentPageIndex > 0) {
+					e.preventDefault();
+					setCurrentPageIndex(currentPageIndex - 1);
+				}
 				break;
 			case 'ArrowRight':
 			case 'ArrowDown':
-				if (currentPageIndex < totalPages - 1) setCurrentPageIndex(currentPageIndex + 1);
+			case 'PageDown':
+				if (currentPageIndex < totalPages - 1) {
+					e.preventDefault();
+					setCurrentPageIndex(currentPageIndex + 1);
+				}
+				break;
+			case 'Home':
+				e.preventDefault();
+				setCurrentPageIndex(0);
+				break;
+			case 'End':
+				e.preventDefault();
+				setCurrentPageIndex(totalPages - 1);
 				break;
 			case '+':
 			case '=':
@@ -71,8 +131,13 @@ export function Viewer({ documentId, pages = [], isLoading }: ViewerProps) {
 			case '-':
 				zoomOut();
 				break;
+			case '0':
+				setZoom(100);
+				setFitToWidth(false);
+				setFitHeight(false);
+				break;
 		}
-	}, [currentPageIndex, totalPages, setCurrentPageIndex, zoomIn, zoomOut]);
+	}, [currentPageIndex, totalPages, setCurrentPageIndex, zoomIn, zoomOut, setZoom, setFitToWidth]);
 
 	useEffect(() => {
 		window.addEventListener('keydown', handleKeyDown);
@@ -103,11 +168,27 @@ export function Viewer({ documentId, pages = [], isLoading }: ViewerProps) {
 		<div className="h-full flex flex-col bg-slate-950">
 			{/* Toolbar */}
 			<div className="flex items-center justify-between px-4 py-2 border-b border-slate-800 bg-slate-900">
-				<div className="flex items-center gap-2">
+				{/* Left: page navigation + strip toggle */}
+				<div className="flex items-center gap-1">
+					{/* Thumbnail strip toggle */}
+					{totalPages > 1 && (
+						<button
+							onClick={() => setStripOpen((v) => !v)}
+							className={cn(
+								'p-1.5 rounded transition-colors mr-1',
+								stripOpen ? 'bg-slate-700 text-slate-100' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800',
+							)}
+							title={stripOpen ? 'Hide page strip' : 'Show page strip'}
+						>
+							<LayoutList className="w-5 h-5" />
+						</button>
+					)}
+					<div className="w-px h-5 bg-slate-700 mx-0.5" />
 					<button
 						onClick={() => setCurrentPageIndex(Math.max(0, currentPageIndex - 1))}
 						disabled={currentPageIndex === 0}
 						className="p-1.5 text-slate-400 hover:text-slate-100 disabled:opacity-50 disabled:cursor-not-allowed rounded transition-colors hover:bg-slate-800"
+						title="Previous page (←)"
 					>
 						<ChevronLeft className="w-5 h-5" />
 					</button>
@@ -118,26 +199,55 @@ export function Viewer({ documentId, pages = [], isLoading }: ViewerProps) {
 						onClick={() => setCurrentPageIndex(Math.min(totalPages - 1, currentPageIndex + 1))}
 						disabled={currentPageIndex === totalPages - 1}
 						className="p-1.5 text-slate-400 hover:text-slate-100 disabled:opacity-50 disabled:cursor-not-allowed rounded transition-colors hover:bg-slate-800"
+						title="Next page (→)"
 					>
 						<ChevronRight className="w-5 h-5" />
 					</button>
 				</div>
 
+				{/* Center: zoom + fit + rotate controls */}
 				<div className="flex items-center gap-1">
 					<button
 						onClick={zoomOut}
 						className="p-1.5 text-slate-400 hover:text-slate-100 rounded transition-colors hover:bg-slate-800"
-						title="Zoom out"
+						title="Zoom out (−)"
 					>
 						<ZoomOut className="w-5 h-5" />
 					</button>
-					<span className="text-sm text-slate-300 min-w-[50px] text-center">{zoom}%</span>
+					<button
+						onClick={() => { setZoom(100); setFitToWidth(false); setFitHeight(false); }}
+						className="text-sm text-slate-300 min-w-[52px] text-center px-1 py-0.5 rounded hover:bg-slate-800 transition-colors"
+						title="Reset zoom (0)"
+					>
+						{zoom}%
+					</button>
 					<button
 						onClick={zoomIn}
 						className="p-1.5 text-slate-400 hover:text-slate-100 rounded transition-colors hover:bg-slate-800"
-						title="Zoom in"
+						title="Zoom in (+)"
 					>
 						<ZoomIn className="w-5 h-5" />
+					</button>
+					<div className="w-px h-5 bg-slate-700 mx-1" />
+					<button
+						onClick={handleFitWidth}
+						className={cn(
+							'p-1.5 rounded transition-colors text-xs font-medium px-2',
+							fitToWidth ? 'bg-slate-700 text-slate-100' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800',
+						)}
+						title="Fit width"
+					>
+						<Maximize className="w-4 h-4" />
+					</button>
+					<button
+						onClick={handleFitHeight}
+						className={cn(
+							'p-1.5 rounded transition-colors',
+							fitHeight ? 'bg-slate-700 text-slate-100' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800',
+						)}
+						title="Fit height"
+					>
+						<Minimize className="w-4 h-4" />
 					</button>
 					<div className="w-px h-5 bg-slate-700 mx-1" />
 					<button
@@ -155,13 +265,6 @@ export function Viewer({ documentId, pages = [], isLoading }: ViewerProps) {
 						<RotateCw className="w-5 h-5" />
 					</button>
 					<div className="w-px h-5 bg-slate-700 mx-1" />
-					<button
-						onClick={() => setFitToWidth(!fitToWidth)}
-						className={cn('p-1.5 rounded transition-colors', fitToWidth ? 'bg-slate-700 text-slate-100' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800')}
-						title="Fit to width"
-					>
-						<Maximize className="w-5 h-5" />
-					</button>
 					<button
 						className="p-1.5 text-slate-400 hover:text-slate-100 rounded transition-colors hover:bg-slate-800"
 						title="Download"
@@ -208,105 +311,96 @@ export function Viewer({ documentId, pages = [], isLoading }: ViewerProps) {
 					)}
 				</div>
 
-				{/* Annotation toolbar — only shown when a document is open */}
+				{/* Right: annotation toolbar */}
 				{documentId && (
 					<AnnotationToolbar mode={annotationMode} onModeChange={setAnnotationMode} />
 				)}
 			</div>
 
-			{/* Viewer area */}
-			<div ref={containerRef} className="flex-1 overflow-auto p-4 flex justify-center">
-				{viewerMode === 'thumbnails' ? (
-					<div className="grid grid-cols-4 gap-4">
-						{pages.map((page, idx) => (
-							<button
-								key={page.id}
-								onClick={() => {
-									setCurrentPageIndex(idx);
-									setViewerMode('single');
+			{/* Body: optional ThumbnailStrip + viewer area */}
+			<div className="flex-1 flex overflow-hidden">
+				{/* Left thumbnail strip (collapsible) */}
+				{stripOpen && documentId && totalPages > 1 && (
+					<ThumbnailStrip
+						documentId={documentId}
+						pageCount={totalPages}
+						currentPage={currentPageIndex + 1}
+						onPageSelect={(page) => setCurrentPageIndex(page - 1)}
+					/>
+				)}
+
+				{/* Main viewer area */}
+				<div ref={viewerAreaRef} className="flex-1 overflow-auto p-4 flex justify-center">
+					<div ref={containerRef}>
+						{viewerMode === 'thumbnails' ? (
+							<div className="grid grid-cols-4 gap-4">
+								{pages.map((page, idx) => (
+									<button
+										key={page.id}
+										onClick={() => {
+											setCurrentPageIndex(idx);
+											setViewerMode('single');
+										}}
+										className={cn(
+											'relative rounded-lg overflow-hidden border-2 transition-colors',
+											idx === currentPageIndex ? 'border-brass-500' : 'border-transparent hover:border-slate-600'
+										)}
+									>
+										{page.thumbnailUrl ? (
+											<img src={page.thumbnailUrl} alt={`Page ${idx + 1}`} className="w-full" />
+										) : (
+											<div className="w-full h-32 bg-slate-800 flex items-center justify-center">
+												<FileText className="w-8 h-8 text-slate-600" />
+											</div>
+										)}
+										<span className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-slate-900/80 rounded text-xs text-slate-300">
+											{idx + 1}
+										</span>
+									</button>
+								))}
+							</div>
+						) : currentPage ? (
+							<div
+								className="relative transition-transform"
+								style={{
+									transform: `scale(${zoom / 100}) rotate(${rotation}deg)`,
+									transformOrigin: 'top center',
 								}}
-								className={cn(
-									'relative rounded-lg overflow-hidden border-2 transition-colors',
-									idx === currentPageIndex ? 'border-brass-500' : 'border-transparent hover:border-slate-600'
-								)}
 							>
-								{page.thumbnailUrl ? (
-									<img src={page.thumbnailUrl} alt={`Page ${idx + 1}`} className="w-full" />
+								{currentPage.imageUrl ? (
+									<img
+										src={currentPage.imageUrl}
+										alt={`Page ${currentPageIndex + 1}`}
+										className="max-w-full shadow-xl"
+										style={fitToWidth ? { width: '100%' } : undefined}
+									/>
 								) : (
-									<div className="w-full h-32 bg-slate-800 flex items-center justify-center">
-										<FileText className="w-8 h-8 text-slate-600" />
+									<div className="w-[600px] h-[800px] bg-slate-800 flex items-center justify-center rounded-lg">
+										<FileText className="w-16 h-16 text-slate-600" />
 									</div>
 								)}
-								<span className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-slate-900/80 rounded text-xs text-slate-300">
-									{idx + 1}
-								</span>
-							</button>
-						))}
-					</div>
-				) : currentPage ? (
-					<div
-						className="relative transition-transform"
-						style={{
-							transform: `scale(${zoom / 100}) rotate(${rotation}deg)`,
-							transformOrigin: 'top center',
-						}}
-					>
-						{currentPage.imageUrl ? (
-							<img
-								src={currentPage.imageUrl}
-								alt={`Page ${currentPageIndex + 1}`}
-								className="max-w-full shadow-xl"
-								style={fitToWidth ? { width: '100%' } : undefined}
-							/>
-						) : (
-							<div className="w-[600px] h-[800px] bg-slate-800 flex items-center justify-center rounded-lg">
-								<FileText className="w-16 h-16 text-slate-600" />
+								{documentId && (
+									<AnnotationLayer
+										documentId={documentId}
+										pageNumber={currentPageIndex + 1}
+										mode={annotationMode}
+									/>
+								)}
+								{documentId && (
+									<OcrConfidenceOverlay
+										documentId={documentId}
+										pageNumber={currentPageIndex + 1}
+										show={showOcrOverlay}
+										threshold={ocrThreshold}
+									/>
+								)}
 							</div>
-						)}
-						{documentId && (
-							<AnnotationLayer
-								documentId={documentId}
-								pageNumber={currentPageIndex + 1}
-								mode={annotationMode}
-							/>
-						)}
-						{documentId && (
-							<OcrConfidenceOverlay
-								documentId={documentId}
-								pageNumber={currentPageIndex + 1}
-								show={showOcrOverlay}
-								threshold={ocrThreshold}
-							/>
+						) : (
+							<div className="text-slate-500">No pages available</div>
 						)}
 					</div>
-				) : (
-					<div className="text-slate-500">No pages available</div>
-				)}
-			</div>
-
-			{/* Thumbnail strip */}
-			{viewerMode === 'single' && totalPages > 1 && (
-				<div className="h-20 border-t border-slate-800 bg-slate-900 flex items-center gap-2 px-4 overflow-x-auto">
-					{pages.map((page, idx) => (
-						<button
-							key={page.id}
-							onClick={() => setCurrentPageIndex(idx)}
-							className={cn(
-								'flex-shrink-0 w-12 h-16 rounded border-2 transition-colors overflow-hidden',
-								idx === currentPageIndex ? 'border-brass-500' : 'border-transparent hover:border-slate-600'
-							)}
-						>
-							{page.thumbnailUrl ? (
-								<img src={page.thumbnailUrl} alt={`Page ${idx + 1}`} className="w-full h-full object-cover" />
-							) : (
-								<div className="w-full h-full bg-slate-800 flex items-center justify-center text-xs text-slate-500">
-									{idx + 1}
-								</div>
-							)}
-						</button>
-					))}
 				</div>
-			)}
+			</div>
 		</div>
 		{documentId && (
 			<ShareLinkDialog

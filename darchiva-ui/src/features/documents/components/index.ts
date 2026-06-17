@@ -11,3 +11,5 @@ export { SimilarDocuments } from './SimilarDocuments';
 export { BatchActionsBar } from './BatchActionsBar';
 export { DownloadMenu } from './DownloadMenu';
 export { PageSelectDialog } from './PageSelectDialog';
+export { ThumbnailGrid } from './ThumbnailGrid';
+export { ThumbnailStrip } from './ThumbnailStrip';
