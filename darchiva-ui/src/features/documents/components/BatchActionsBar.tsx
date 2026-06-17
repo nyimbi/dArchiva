@@ -7,6 +7,7 @@
  * All operations call POST /api/v1/documents/batch via useBatchOperation().
  */
 import { useBatchOperation } from '../api/batch';
+import { useBatchLabels } from '../api/qr';
 import { useFolderTree, type TreeNode as APITreeNode } from '../api';
 import { useTags } from '@/features/tags/api';
 import { useDocumentTypes } from '@/features/document-types/api';
@@ -20,14 +21,17 @@ import {
   Check,
   FileType,
   Folder,
+  GitCompare,
   Loader2,
   Merge,
   Move,
+  QrCode,
   Tag,
   Trash2,
   X,
 } from 'lucide-react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MergeDocumentsDialog, type MergeSourceDocument } from './MergeDocumentsDialog';
 
 // ---------------------------------------------------------------------------
@@ -367,6 +371,8 @@ function DialogFooter({
 export function BatchActionsBar({ selectedIds, selectedDocuments, onClear, onComplete }: BatchActionsBarProps) {
   const [activeDialog, setActiveDialog] = useState<ActiveDialog>(null);
   const batch = useBatchOperation();
+  const batchLabels = useBatchLabels();
+  const navigate = useNavigate();
 
   // Derive merge sources: use selectedDocuments if provided, else bare id-only stubs
   const mergeSources: MergeSourceDocument[] = selectedDocuments && selectedDocuments.length > 0
@@ -452,6 +458,30 @@ export function BatchActionsBar({ selectedIds, selectedDocuments, onClear, onCom
             title={selectedIds.length < 2 ? 'Select at least 2 documents to merge' : 'Merge into one PDF'}
           >
             <Merge className="w-4 h-4" /> Merge
+          </button>
+
+          <button
+            onClick={() => {
+              const [id1, id2] = selectedIds;
+              navigate(`/compare?a=${id1}&b=${id2}`);
+            }}
+            disabled={selectedIds.length !== 2}
+            className="btn-ghost text-sm py-1.5 px-3 flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+            title={selectedIds.length !== 2 ? 'Select exactly 2 documents to compare' : 'Compare side by side'}
+          >
+            <GitCompare className="w-4 h-4" /> Compare
+          </button>
+
+          <button
+            onClick={() => batchLabels.mutate(selectedIds)}
+            disabled={batchLabels.isPending}
+            className="btn-ghost text-sm py-1.5 px-3 flex items-center gap-1.5"
+            title="Download QR label sheet for selected documents"
+          >
+            {batchLabels.isPending
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <QrCode className="w-4 h-4" />}
+            Labels
           </button>
 
           <button

@@ -10,6 +10,7 @@ import {
 	CheckCircle2,
 	ChevronDown,
 	ChevronUp,
+	Clock,
 	FileText,
 	Filter,
 	FolderOpen,
@@ -17,11 +18,64 @@ import {
 	Search,
 	SlidersHorizontal,
 	Star,
+	Tag,
+	Trash2,
 	User,
 	X,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+
+// ---------------------------------------------------------------------------
+// Search History helpers (localStorage)
+// ---------------------------------------------------------------------------
+
+const HISTORY_KEY = 'darchiva_search_history';
+const HISTORY_MAX = 10;
+
+function loadHistory(): string[] {
+	try {
+		const raw = localStorage.getItem(HISTORY_KEY);
+		return raw ? (JSON.parse(raw) as string[]) : [];
+	} catch {
+		return [];
+	}
+}
+
+function saveToHistory(query: string): void {
+	if (!query.trim()) return;
+	const prev = loadHistory().filter(q => q !== query.trim());
+	const next = [query.trim(), ...prev].slice(0, HISTORY_MAX);
+	try {
+		localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+	} catch {
+		// storage quota — ignore
+	}
+}
+
+function clearHistory(): void {
+	try {
+		localStorage.removeItem(HISTORY_KEY);
+	} catch {
+		// ignore
+	}
+}
+
+function useSearchHistory() {
+	const [history, setHistory] = useState<string[]>(loadHistory);
+
+	const push = useCallback((query: string) => {
+		saveToHistory(query);
+		setHistory(loadHistory());
+	}, []);
+
+	const clear = useCallback(() => {
+		clearHistory();
+		setHistory([]);
+	}, []);
+
+	return { history, push, clear };
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -66,6 +120,12 @@ function buildActiveFilters(filters: SearchFilters): ActiveFilter[] {
 	filters.documentTypes?.forEach(v =>
 		chips.push({ key: 'documentTypes', label: `Type: ${v}`, value: v })
 	);
+	filters.tags?.forEach(v =>
+		chips.push({ key: 'tags', label: `Tag: ${v}`, value: v })
+	);
+	filters.status?.forEach(v =>
+		chips.push({ key: 'status', label: `OCR: ${v}`, value: v })
+	);
 	if (filters.dateFrom) chips.push({ key: 'dateFrom', label: `From: ${filters.dateFrom}`, value: filters.dateFrom });
 	if (filters.dateTo) chips.push({ key: 'dateTo', label: `To: ${filters.dateTo}`, value: filters.dateTo });
 	if (filters.qualityScoreMin != null && filters.qualityScoreMin > 0)
@@ -88,6 +148,9 @@ export function SearchPage() {
 	const urlQuery = searchParams.get('q') ?? '';
 	const [inputValue, setInputValue] = useState(urlQuery);
 	const debouncedQuery = useDebounce(inputValue, 300);
+	const inputRef = useRef<HTMLInputElement>(null);
+	const [inputFocused, setInputFocused] = useState(false);
+	const { history, push: pushHistory, clear: clearHistoryFn } = useSearchHistory();
 
 	const [filters, setFilters] = useState<SearchFilters>({});
 	const [sortBy, setSortBy] = useState<SearchSortBy>('date_desc');
@@ -100,11 +163,14 @@ export function SearchPage() {
 		setPage(1);
 	}, [urlQuery]);
 
-	// Update URL when debounced query changes
+	// Update URL when debounced query changes + push to history
 	useEffect(() => {
 		if (debouncedQuery !== urlQuery) {
 			setSearchParams(debouncedQuery ? { q: debouncedQuery } : {}, { replace: true });
 			setPage(1);
+		}
+		if (debouncedQuery.trim()) {
+			pushHistory(debouncedQuery.trim());
 		}
 	}, [debouncedQuery]);
 
@@ -139,6 +205,28 @@ export function SearchPage() {
 		setPage(1);
 	}, []);
 
+	const toggleTag = useCallback((name: string) => {
+		setFilters(prev => {
+			const list = prev.tags ?? [];
+			return {
+				...prev,
+				tags: list.includes(name) ? list.filter(v => v !== name) : [...list, name],
+			};
+		});
+		setPage(1);
+	}, []);
+
+	const toggleOcrStatus = useCallback((status: string) => {
+		setFilters(prev => {
+			const list = prev.status ?? [];
+			return {
+				...prev,
+				status: list.includes(status) ? list.filter(v => v !== status) : [...list, status],
+			};
+		});
+		setPage(1);
+	}, []);
+
 	const setOperator = useCallback((name: string) => {
 		setFilters(prev => ({ ...prev, scannedById: prev.scannedById === name ? null : name }));
 		setPage(1);
@@ -154,6 +242,10 @@ export function SearchPage() {
 			const next = { ...prev };
 			if (key === 'documentTypes') {
 				next.documentTypes = (next.documentTypes ?? []).filter(v => v !== value);
+			} else if (key === 'tags') {
+				next.tags = (next.tags ?? []).filter(v => v !== value);
+			} else if (key === 'status') {
+				next.status = (next.status ?? []).filter(v => v !== value);
 			} else if (key === 'dateFrom') {
 				next.dateFrom = null;
 			} else if (key === 'dateTo') {
@@ -188,9 +280,12 @@ export function SearchPage() {
 						<div className="relative">
 							<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
 							<input
+								ref={inputRef}
 								type="text"
 								value={inputValue}
 								onChange={e => setInputValue(e.target.value)}
+								onFocus={() => setInputFocused(true)}
+								onBlur={() => setTimeout(() => setInputFocused(false), 150)}
 								placeholder="Search documents…"
 								className="w-full bg-slate-800/60 border border-slate-700/60 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brass-500/60 focus:ring-1 focus:ring-brass-500/30 transition-colors"
 								autoFocus
@@ -198,6 +293,48 @@ export function SearchPage() {
 							{isFetching && (
 								<div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-brass-500/60 border-t-transparent rounded-full animate-spin" />
 							)}
+
+							{/* Search history dropdown */}
+							<AnimatePresence>
+								{inputFocused && !inputValue && history.length > 0 && (
+									<motion.div
+										initial={{ opacity: 0, y: -4 }}
+										animate={{ opacity: 1, y: 0 }}
+										exit={{ opacity: 0, y: -4 }}
+										transition={{ duration: 0.13 }}
+										className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-slate-900 border border-slate-700/70 rounded-xl shadow-xl p-3"
+									>
+										<div className="flex items-center justify-between mb-2">
+											<span className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+												<Clock className="w-3 h-3" />
+												Recent searches
+											</span>
+											<button
+												onClick={clearHistoryFn}
+												className="flex items-center gap-1 text-xs text-slate-600 hover:text-red-400 transition-colors"
+											>
+												<Trash2 className="w-3 h-3" />
+												Clear
+											</button>
+										</div>
+										<div className="flex flex-wrap gap-1.5">
+											{history.map(q => (
+												<button
+													key={q}
+													onMouseDown={() => {
+														setInputValue(q);
+														setInputFocused(false);
+													}}
+													className="flex items-center gap-1 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded-full text-xs text-slate-300 transition-colors"
+												>
+													<Clock className="w-2.5 h-2.5 text-slate-500" />
+													{q}
+												</button>
+											))}
+										</div>
+									</motion.div>
+								)}
+							</AnimatePresence>
 						</div>
 					</div>
 
@@ -263,6 +400,17 @@ export function SearchPage() {
 						items={facets?.document_types ?? []}
 						selected={filters.documentTypes ?? []}
 						onToggle={toggleDocType}
+					/>
+
+					<FilterPanelTags
+						items={facets?.document_types ?? []}
+						selected={filters.tags ?? []}
+						onToggle={toggleTag}
+					/>
+
+					<FilterPanelOcrStatus
+						selected={filters.status ?? []}
+						onToggle={toggleOcrStatus}
 					/>
 
 					<FilterPanelDateRange
@@ -697,6 +845,118 @@ function ToggleRow({
 			{value === true && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
 			{value === false && <X className="w-3.5 h-3.5 text-red-400" />}
 		</button>
+	);
+}
+
+// Tags filter — chips with color swatches
+function FilterPanelTags({
+	items,
+	selected,
+	onToggle,
+}: {
+	items: Array<{ name: string; count: number; color?: string }>;
+	selected: string[];
+	onToggle: (name: string) => void;
+}) {
+	const [showAll, setShowAll] = useState(false);
+	const displayed = showAll ? items : items.slice(0, 8);
+
+	return (
+		<CollapsiblePanel
+			title="Tags"
+			icon={<Tag className="w-4 h-4" />}
+			badge={selected.length}
+			defaultOpen={false}
+		>
+			{items.length === 0 ? (
+				<p className="text-xs text-slate-600 py-1">No tags available</p>
+			) : (
+				<div className="flex flex-wrap gap-1.5">
+					{displayed.map(item => {
+						const active = selected.includes(item.name);
+						return (
+							<button
+								key={item.name}
+								onClick={() => onToggle(item.name)}
+								className={cn(
+									'flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors',
+									active
+										? 'bg-brass-500/15 border-brass-500/40 text-brass-300'
+										: 'bg-slate-800/60 border-slate-700/50 text-slate-400 hover:border-slate-600'
+								)}
+								style={item.color && !active ? { borderColor: item.color + '50', color: item.color } : undefined}
+							>
+								{item.color && (
+									<span
+										className="w-2 h-2 rounded-full flex-shrink-0"
+										style={{ background: item.color }}
+									/>
+								)}
+								{item.name}
+								<span className="text-slate-500 ml-0.5">{item.count}</span>
+							</button>
+						);
+					})}
+					{items.length > 8 && (
+						<button
+							onClick={() => setShowAll(s => !s)}
+							className="text-xs text-brass-500/70 hover:text-brass-400 transition-colors px-1"
+						>
+							{showAll ? 'Less' : `+${items.length - 8} more`}
+						</button>
+					)}
+				</div>
+			)}
+		</CollapsiblePanel>
+	);
+}
+
+const OCR_STATUS_OPTIONS = [
+	{ value: 'pending',    label: 'Pending',    color: '#94a3b8' },
+	{ value: 'processing', label: 'Processing', color: '#f59e0b' },
+	{ value: 'completed',  label: 'Completed',  color: '#10b981' },
+	{ value: 'failed',     label: 'Failed',     color: '#ef4444' },
+] as const;
+
+// OCR Status checkboxes
+function FilterPanelOcrStatus({
+	selected,
+	onToggle,
+}: {
+	selected: string[];
+	onToggle: (status: string) => void;
+}) {
+	return (
+		<CollapsiblePanel
+			title="OCR Status"
+			icon={<CheckCircle2 className="w-4 h-4" />}
+			badge={selected.length}
+			defaultOpen={false}
+		>
+			<div className="space-y-1">
+				{OCR_STATUS_OPTIONS.map(opt => {
+					const active = selected.includes(opt.value);
+					return (
+						<label
+							key={opt.value}
+							className="flex items-center gap-2 px-1 py-1 rounded hover:bg-slate-700/40 cursor-pointer"
+						>
+							<input
+								type="checkbox"
+								checked={active}
+								onChange={() => onToggle(opt.value)}
+								className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 accent-brass-500"
+							/>
+							<span
+								className="w-2 h-2 rounded-full flex-shrink-0"
+								style={{ background: opt.color }}
+							/>
+							<span className="text-sm text-slate-300">{opt.label}</span>
+						</label>
+					);
+				})}
+			</div>
+		</CollapsiblePanel>
 	);
 }
 

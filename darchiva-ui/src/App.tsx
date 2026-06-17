@@ -50,6 +50,8 @@ import { UserManagement } from './features/admin/UserManagement';
 import { RoleManagement } from './features/admin/RoleManagement';
 import { EmailIngestConfigs } from './features/email-ingest/EmailIngestConfigs';
 import { NotificationToaster } from './components/NotificationToaster';
+import { DocumentComparison } from './pages/DocumentComparison';
+import { ShortcutsProvider } from './features/shortcuts/ShortcutsProvider';
 
 import { ScanningLayout } from './features/scanning-ops/layouts/ScanningLayout';
 import { OperatorDashboard } from './features/scanning-ops/pages/OperatorDashboard';
@@ -83,6 +85,7 @@ export default function App() {
 	return (
 		<QueryClientProvider client={queryClient}>
 			<AuthProvider>
+				<ShortcutsProvider>
 				<AppInner />
 				<BrowserRouter>
 					<Routes>
@@ -131,6 +134,7 @@ export default function App() {
 									<Route path="admin/roles" element={<RoleManagement />} />
 									<Route path="settings/email-ingest" element={<EmailIngestConfigs />} />
 								<Route path="templates" element={<TemplatesPage />} />
+								<Route path="compare" element={<DocumentComparison />} />
 							</Route>
 						</Route>
 
@@ -146,6 +150,7 @@ export default function App() {
 
 					</Routes>
 				</BrowserRouter>
+				</ShortcutsProvider>
 			</AuthProvider>
 		</QueryClientProvider>
 	);

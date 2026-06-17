@@ -22,6 +22,9 @@ export interface WebhookDelivery {
 	webhook_id: string;
 	event_type: string;
 	payload: Record<string, unknown>;
+	status: 'pending' | 'delivered' | 'failed';
+	attempts: number;
+	last_attempt_at: string | null;
 	response_status: number | null;
 	response_body: string | null;
 	delivered_at: string | null;
@@ -110,10 +113,24 @@ export function useWebhookDeliveries(id: string) {
 		queryKey: deliveriesKey(id),
 		queryFn: async () => {
 			const { data } = await apiClient.get<WebhookDelivery[]>(
-				`/webhooks/${id}/deliveries?limit=10`,
+				`/webhooks/${id}/deliveries?limit=20`,
 			);
 			return data;
 		},
 		enabled: !!id,
+	});
+}
+
+export function useRetryDelivery() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: async ({ webhookId, deliveryId }: { webhookId: string; deliveryId: string }) => {
+			const { data } = await apiClient.post<WebhookDelivery>(
+				`/webhooks/${webhookId}/deliveries/${deliveryId}/retry`,
+			);
+			return data;
+		},
+		onSuccess: (_data, { webhookId }) =>
+			qc.invalidateQueries({ queryKey: deliveriesKey(webhookId) }),
 	});
 }

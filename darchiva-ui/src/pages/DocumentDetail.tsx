@@ -6,10 +6,12 @@ import { CustomFieldsPanel } from '@/features/documents/components/CustomFieldsP
 import { EntityPanel } from '@/features/documents/components/EntityPanel';
 import { ExpiryPanel } from '@/features/documents/components/ExpiryPanel';
 import { OCRQualityPanel } from '@/features/documents/components/OCRQualityPanel';
+import { QRCodeModal } from '@/features/documents/components/QRCodeModal';
 import { RelatedDocumentsPanel } from '@/features/documents/components/RelatedDocumentsPanel';
 import { SimilarDocuments } from '@/features/documents/components/SimilarDocuments';
 import { SplitDocumentDialog } from '@/features/documents/components/SplitDocumentDialog';
 import { Viewer } from '@/features/documents/components/Viewer';
+import { SignaturePanel } from '@/features/signatures/SignaturePanel';
 import {
 	VersionDiffViewer,
 	VersionHistoryWithCompare,
@@ -20,7 +22,7 @@ import { formatRelativeTime } from '@/lib/utils';
 import type { ViewerPage } from '@/types';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { ArrowLeft,Bell,Calendar,FileText,GitCompare,History,Loader2,MessageSquare,ScanLine,Scissors,Share2,Stamp,Tag,Tags } from 'lucide-react';
+import { ArrowLeft,Bell,Calendar,FileText,GitCompare,History,Loader2,MessageSquare,PenTool,QrCode,ScanLine,Scissors,Share2,Stamp,Tag,Tags } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate,useParams } from 'react-router-dom';
 
@@ -53,11 +55,12 @@ export function DocumentDetail() {
 	const [diff, setDiff] = useState<{ versionA: number; versionB: number } | null>(null);
 	const [showVersionHistory, setShowVersionHistory] = useState(false);
 	// Right-panel tab: null = closed, or one of the named panels
-	type SidePanel = 'custom-fields' | 'related' | 'similar' | 'entities' | 'expiry' | 'annotations' | 'ocr-quality';
+	type SidePanel = 'custom-fields' | 'related' | 'similar' | 'entities' | 'expiry' | 'annotations' | 'ocr-quality' | 'signatures';
 	const [sidePanel, setSidePanel] = useState<SidePanel | null>(null);
 	const [showSplitDialog, setShowSplitDialog] = useState(false);
 	const [showShareDialog, setShowShareDialog] = useState(false);
 	const [showWatermarkDialog, setShowWatermarkDialog] = useState(false);
+	const [showQRCodeModal, setShowQRCodeModal] = useState(false);
 
 	const togglePanel = (panel: SidePanel) => {
 		setSidePanel((prev) => (prev === panel ? null : panel));
@@ -305,6 +308,26 @@ export function DocumentDetail() {
 						<ScanLine className="w-3.5 h-3.5" />
 						OCR Quality
 					</button>
+					<button
+						onClick={() => togglePanel('signatures')}
+						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+							sidePanel === 'signatures'
+								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
+								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+						}`}
+						title="Signatures"
+					>
+						<PenTool className="w-3.5 h-3.5" />
+						Signatures
+					</button>
+					<button
+						onClick={() => setShowQRCodeModal(true)}
+						className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors"
+						title="QR Code label"
+					>
+						<QrCode className="w-3.5 h-3.5" />
+						QR Label
+					</button>
 				</div>
 			</div>
 
@@ -396,7 +419,24 @@ export function DocumentDetail() {
 						<OCRQualityPanel documentId={id!} />
 					</div>
 				)}
+
+				{/* Signatures panel */}
+				{sidePanel === 'signatures' && (
+					<div className="w-80 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto">
+						<SignaturePanel documentId={id!} />
+					</div>
+				)}
 			</div>
+
+			{/* QR Code modal — rendered outside the flex row */}
+			{showQRCodeModal && (
+				<QRCodeModal
+					open={showQRCodeModal}
+					documentId={id!}
+					documentTitle={document?.title ?? ''}
+					onClose={() => setShowQRCodeModal(false)}
+				/>
+			)}
 
 			{/* Split document dialog — rendered outside the flex row */}
 			{showSplitDialog && (

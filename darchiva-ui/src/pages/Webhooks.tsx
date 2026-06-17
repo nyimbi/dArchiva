@@ -20,7 +20,9 @@ import {
 	useDeleteWebhook,
 	useTestWebhook,
 	useWebhookDeliveries,
+	useRetryDelivery,
 	type Webhook as WebhookType,
+	type WebhookDelivery,
 } from '@/features/webhooks/api';
 
 // ---------------------------------------------------------------------------
@@ -29,7 +31,11 @@ import {
 
 const ALL_EVENTS = [
 	{ value: 'document.created', label: 'Document Created' },
+	{ value: 'document.classified', label: 'Document Classified' },
 	{ value: 'document.ocr_complete', label: 'OCR Complete' },
+	{ value: 'scan.batch_complete', label: 'Scan Batch Complete' },
+	{ value: 'routing.rule_applied', label: 'Routing Rule Applied' },
+	{ value: 'document.expiring', label: 'Document Expiring' },
 	{ value: 'batch.complete', label: 'Batch Complete' },
 	{ value: 'exception.raised', label: 'Exception Raised' },
 ] as const;
@@ -62,11 +68,40 @@ function generateSecret(len = 32): string {
 }
 
 // ---------------------------------------------------------------------------
+// Delivery status badge
+// ---------------------------------------------------------------------------
+
+function deliveryStatusBadge(status: WebhookDelivery['status']) {
+	const map = {
+		delivered: 'bg-emerald-900/40 text-emerald-400 border-emerald-700/40',
+		failed: 'bg-red-900/40 text-red-400 border-red-700/40',
+		pending: 'bg-amber-900/40 text-amber-400 border-amber-700/40',
+	} as const;
+	const Icon = {
+		delivered: CheckCircle2,
+		failed: XCircle,
+		pending: AlertCircle,
+	}[status];
+	return (
+		<span
+			className={cn(
+				'inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border',
+				map[status] ?? map.pending,
+			)}
+		>
+			<Icon className="w-3 h-3" />
+			{status}
+		</span>
+	);
+}
+
+// ---------------------------------------------------------------------------
 // Delivery log sub-component
 // ---------------------------------------------------------------------------
 
 function DeliveryLog({ webhookId }: { webhookId: string }) {
 	const { data, isLoading } = useWebhookDeliveries(webhookId);
+	const retry = useRetryDelivery();
 
 	if (isLoading)
 		return <p className="text-xs text-slate-500 py-2">Loading deliveries…</p>;
@@ -74,21 +109,64 @@ function DeliveryLog({ webhookId }: { webhookId: string }) {
 		return <p className="text-xs text-slate-500 py-2">No deliveries yet.</p>;
 
 	return (
-		<div className="mt-3 space-y-1">
-			{data.map((d) => (
-				<div
-					key={d.id}
-					className="flex items-center gap-3 text-xs py-1.5 border-b border-slate-800/50 last:border-0"
-				>
-					<span className="text-slate-400 font-mono w-36 truncate">{d.event_type}</span>
-					{statusBadge(d.response_status)}
-					<span className="text-slate-500 ml-auto">
-						{d.delivered_at
-							? new Date(d.delivered_at).toLocaleString()
-							: new Date(d.created_at).toLocaleString()}
-					</span>
-				</div>
-			))}
+		<div className="mt-3 overflow-x-auto">
+			<table className="w-full text-xs">
+				<thead>
+					<tr className="text-slate-600 uppercase tracking-wider border-b border-slate-800">
+						<th className="text-left pb-1.5 pr-3 font-medium">Event</th>
+						<th className="text-left pb-1.5 pr-3 font-medium">Status</th>
+						<th className="text-left pb-1.5 pr-3 font-medium">Attempts</th>
+						<th className="text-left pb-1.5 pr-3 font-medium">HTTP</th>
+						<th className="text-left pb-1.5 pr-3 font-medium">Time</th>
+						<th className="pb-1.5" />
+					</tr>
+				</thead>
+				<tbody>
+					{data.map((d) => (
+						<tr
+							key={d.id}
+							className="border-b border-slate-800/40 last:border-0 hover:bg-slate-800/20 transition-colors"
+						>
+							<td className="py-1.5 pr-3 font-mono text-slate-300 truncate max-w-[10rem]">
+								{d.event_type}
+							</td>
+							<td className="py-1.5 pr-3">
+								{deliveryStatusBadge(d.status ?? 'pending')}
+							</td>
+							<td className="py-1.5 pr-3 text-slate-400 tabular-nums">
+								{d.attempts ?? 0}
+							</td>
+							<td className="py-1.5 pr-3">
+								{statusBadge(d.response_status)}
+							</td>
+							<td className="py-1.5 pr-3 text-slate-500 whitespace-nowrap">
+								{new Date(
+									d.delivered_at ?? d.last_attempt_at ?? d.created_at,
+								).toLocaleString()}
+							</td>
+							<td className="py-1.5 text-right">
+								{d.status !== 'delivered' && (
+									<button
+										onClick={() =>
+											retry.mutate({ webhookId, deliveryId: d.id })
+										}
+										disabled={retry.isPending}
+										title="Retry delivery"
+										className="p-1 rounded text-slate-500 hover:text-brass-400 hover:bg-slate-800 transition-colors disabled:opacity-40"
+									>
+										<RefreshCw
+											className={cn(
+												'w-3.5 h-3.5',
+												retry.isPending && 'animate-spin',
+											)}
+										/>
+									</button>
+								)}
+							</td>
+						</tr>
+					))}
+				</tbody>
+			</table>
 		</div>
 	);
 }

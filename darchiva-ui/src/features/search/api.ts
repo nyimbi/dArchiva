@@ -230,6 +230,10 @@ function buildStructuredPayload(
 		f.has_exceptions = filters.hasExceptions;
 	}
 
+	if (filters.status?.length) {
+		f.ocr_status = filters.status;
+	}
+
 	return {
 		filters: f,
 		page_number: page,
