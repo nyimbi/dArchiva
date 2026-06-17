@@ -4,9 +4,12 @@
  *
  * Route: /system/health
  * Sections:
+ *   0. Service Status  — live probes: PostgreSQL, Redis, LiteLLM, Storage
+ *   0b. Metrics        — document counters: total, today, OCR queue, failed
  *   1. Celery Workers  — per-worker card: hostname, online/offline dot, active tasks, tasks/24h
  *   2. Queue Depths    — bar gauge per queue (core, ocr, s3, workflow) colour-coded by depth
  *   3. Storage & DB    — donut for used/total bytes, doc count, avg size, DB pool, Redis ping
+ *   4. Search Index
  *
  * Auto-refreshes every 30 s via TanStack Query refetchInterval.
  */
@@ -24,15 +27,21 @@ import {
   Wifi,
   WifiOff,
   Zap,
+  BarChart2,
+  ShieldCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   useSystemHealth,
+  useServiceHealth,
+  useHealthMetrics,
   type CacheHealth,
   type DatabaseHealth,
   type QueueInfo,
   type StorageHealth,
   type WorkerInfo,
+  type ServiceStatus,
+  type MetricItem,
 } from '@/features/system';
 import { SearchIndexPanel } from '@/features/admin/SearchIndexPanel';
 
@@ -49,6 +58,175 @@ function fmtBytes(bytes: number): string {
 
 function fmtNumber(n: number): string {
   return n.toLocaleString();
+}
+
+// ---------------------------------------------------------------------------
+// Service dependency cards
+// ---------------------------------------------------------------------------
+
+const SERVICE_ICONS: Record<string, React.ReactNode> = {
+  postgres:  <Database className="w-4 h-4 text-indigo-400" />,
+  redis:     <Zap className="w-4 h-4 text-rose-400" />,
+  litellm:   <Activity className="w-4 h-4 text-cyan-400" />,
+  storage:   <HardDrive className="w-4 h-4 text-amber-400" />,
+};
+
+const SERVICE_LABELS: Record<string, string> = {
+  postgres: 'PostgreSQL',
+  redis:    'Redis',
+  litellm:  'LiteLLM',
+  storage:  'Storage',
+};
+
+function serviceStatusColor(status: ServiceStatus['status']): string {
+  switch (status) {
+    case 'ok':       return 'text-emerald-400';
+    case 'degraded': return 'text-amber-400';
+    case 'down':     return 'text-red-400';
+    default:         return 'text-slate-500';
+  }
+}
+
+function serviceStatusDot(status: ServiceStatus['status']): string {
+  switch (status) {
+    case 'ok':       return 'bg-emerald-400 animate-pulse';
+    case 'degraded': return 'bg-amber-400';
+    case 'down':     return 'bg-red-500';
+    default:         return 'bg-slate-600';
+  }
+}
+
+function serviceStatusBadge(status: ServiceStatus['status']): string {
+  switch (status) {
+    case 'ok':       return 'bg-emerald-500/15 text-emerald-400';
+    case 'degraded': return 'bg-amber-500/15 text-amber-400';
+    case 'down':     return 'bg-red-500/15 text-red-400';
+    default:         return 'bg-slate-700/50 text-slate-500';
+  }
+}
+
+function ServiceCard({ service }: { service: ServiceStatus }) {
+  const label = SERVICE_LABELS[service.name] ?? service.name;
+  const icon = SERVICE_ICONS[service.name] ?? <Server className="w-4 h-4 text-slate-400" />;
+
+  return (
+    <div className="rounded-xl border border-slate-700/50 bg-slate-900/60 p-4 flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          {icon}
+          <span className="text-sm font-semibold text-slate-200">{label}</span>
+        </div>
+        <span className={cn('flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full', serviceStatusBadge(service.status))}>
+          <span className={cn('w-1.5 h-1.5 rounded-full', serviceStatusDot(service.status))} />
+          {service.status === 'ok' ? 'Operational' : service.status.charAt(0).toUpperCase() + service.status.slice(1)}
+        </span>
+      </div>
+
+      <div className="flex items-center justify-between text-xs text-slate-500">
+        {service.latencyMs != null ? (
+          <span className="tabular-nums text-slate-400">{service.latencyMs.toFixed(1)} ms</span>
+        ) : (
+          <span>—</span>
+        )}
+        {service.details && (
+          <span className="text-slate-600 truncate max-w-[12rem]" title={service.details}>
+            {service.details}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ServiceCardSkeleton() {
+  return (
+    <div className="rounded-xl border border-slate-700/30 bg-slate-900/40 p-4 animate-pulse flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <div className="h-4 w-24 bg-slate-800 rounded" />
+        <div className="h-5 w-20 bg-slate-800 rounded-full" />
+      </div>
+      <div className="h-3 w-16 bg-slate-800 rounded" />
+    </div>
+  );
+}
+
+function ServicesBanner({ degradedCount, downCount }: { degradedCount: number; downCount: number }) {
+  if (downCount > 0) {
+    return (
+      <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg border bg-red-500/10 border-red-500/30 text-red-300 text-sm">
+        <AlertCircle className="w-4 h-4 text-red-400" />
+        {downCount} service{downCount !== 1 ? 's' : ''} down
+        {degradedCount > 0 ? `, ${degradedCount} degraded` : ''}
+      </div>
+    );
+  }
+  if (degradedCount > 0) {
+    return (
+      <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg border bg-amber-500/10 border-amber-500/30 text-amber-300 text-sm">
+        <AlertCircle className="w-4 h-4 text-amber-400" />
+        {degradedCount} service{degradedCount !== 1 ? 's' : ''} degraded
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg border bg-emerald-500/10 border-emerald-500/30 text-emerald-300 text-sm">
+      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+      All Systems Operational
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Metrics tiles
+// ---------------------------------------------------------------------------
+
+const METRIC_ICONS: Record<string, React.ReactNode> = {
+  documents_total: <Database className="w-4 h-4 text-cyan-400" />,
+  documents_today: <Activity className="w-4 h-4 text-emerald-400" />,
+  ocr_queue_depth: <Layers className="w-4 h-4 text-amber-400" />,
+  failed_ocr:      <AlertCircle className="w-4 h-4 text-red-400" />,
+};
+
+const METRIC_LABELS: Record<string, string> = {
+  documents_total: 'Documents Total',
+  documents_today: 'Indexed Today',
+  ocr_queue_depth: 'OCR Queue',
+  failed_ocr:      'Failed OCR',
+};
+
+function metricValueColor(name: string, value: number): string {
+  if (name === 'failed_ocr' && value > 0) return 'text-red-400';
+  if (name === 'ocr_queue_depth' && value > 50) return 'text-amber-400';
+  return 'text-slate-100';
+}
+
+function MetricTile({ metric }: { metric: MetricItem }) {
+  const label = METRIC_LABELS[metric.name] ?? metric.name;
+  const icon = METRIC_ICONS[metric.name] ?? <BarChart2 className="w-4 h-4 text-slate-400" />;
+
+  return (
+    <div className="rounded-xl border border-slate-700/50 bg-slate-900/60 p-4 flex flex-col gap-2">
+      <div className="flex items-center gap-2 text-xs text-slate-500">
+        {icon}
+        <span>{label}</span>
+      </div>
+      <p className={cn('text-3xl font-display font-semibold tabular-nums', metricValueColor(metric.name, metric.value))}>
+        {fmtNumber(Math.round(metric.value))}
+      </p>
+      {metric.unit && (
+        <span className="text-xs text-slate-600">{metric.unit}</span>
+      )}
+    </div>
+  );
+}
+
+function MetricTileSkeleton() {
+  return (
+    <div className="rounded-xl border border-slate-700/30 bg-slate-900/40 p-4 animate-pulse flex flex-col gap-2">
+      <div className="h-3 w-24 bg-slate-800 rounded" />
+      <div className="h-8 w-16 bg-slate-800 rounded" />
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -505,6 +683,14 @@ export function SystemHealth() {
   const { data, isLoading, isFetching, refetch, isError } = useSystemHealth({
     refetchInterval: 30_000,
   });
+  const {
+    data: servicesData,
+    isLoading: servicesLoading,
+  } = useServiceHealth({ refetchInterval: 30_000 });
+  const {
+    data: metricsData,
+    isLoading: metricsLoading,
+  } = useHealthMetrics({ refetchInterval: 30_000 });
 
   const workers = data?.workers ?? [];
   const queues = data?.queues ?? [];
@@ -514,6 +700,8 @@ export function SystemHealth() {
   const totalActiveTasks = workers.reduce((s, w) => s + w.activeTasks, 0);
   const totalPending = queues.reduce((s, q) => s + q.pending, 0);
 
+  const anyFetching = isFetching;
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -522,7 +710,7 @@ export function SystemHealth() {
           <div className="flex items-center gap-2">
             <Activity className="w-5 h-5 text-slate-400" />
             <h1 className="text-2xl font-display font-semibold text-slate-100">System Health</h1>
-            {isFetching && !isLoading && (
+            {anyFetching && !isLoading && (
               <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
             )}
           </div>
@@ -535,11 +723,53 @@ export function SystemHealth() {
           className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors"
           title="Refresh now"
         >
-          <RefreshCw className={cn('w-4 h-4', isFetching && 'animate-spin')} />
+          <RefreshCw className={cn('w-4 h-4', anyFetching && 'animate-spin')} />
         </button>
       </div>
 
-      {/* Loading skeleton */}
+      {/* ── Section 0: Service Status ── */}
+      <Section icon={ShieldCheck} title="Service Status">
+        {servicesLoading ? (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[0, 1, 2, 3].map((i) => <ServiceCardSkeleton key={i} />)}
+            </div>
+          </>
+        ) : servicesData ? (
+          <>
+            <ServicesBanner
+              degradedCount={servicesData.degradedCount ?? 0}
+              downCount={servicesData.downCount ?? 0}
+            />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {servicesData.services.map((svc) => (
+                <ServiceCard key={svc.name} service={svc} />
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-slate-500">Service probe data unavailable.</p>
+        )}
+      </Section>
+
+      {/* ── Section 0b: Metrics ── */}
+      <Section icon={BarChart2} title="Document Metrics">
+        {metricsLoading ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[0, 1, 2, 3].map((i) => <MetricTileSkeleton key={i} />)}
+          </div>
+        ) : metricsData?.metrics ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {metricsData.metrics.map((m) => (
+              <MetricTile key={m.name} metric={m} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-500">Metrics unavailable.</p>
+        )}
+      </Section>
+
+      {/* Loading skeleton for Celery / storage sections */}
       {isLoading && (
         <div className="flex items-center justify-center py-24">
           <Loader2 className="w-8 h-8 animate-spin text-slate-500" />
