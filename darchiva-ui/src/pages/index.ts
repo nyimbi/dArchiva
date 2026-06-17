@@ -21,3 +21,4 @@ export * from './RetentionPolicies';
 export * from './Workflows';
 export * from './SystemHealth';
 export * from './ApiKeys';
+export * from './Analytics';

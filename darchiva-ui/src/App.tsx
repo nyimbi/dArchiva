@@ -4,6 +4,7 @@ import { BrowserRouter,Route,Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { AuthProvider,LoginPage,ProtectedRoute } from './features/auth';
 import {
+  Analytics,
   ApiKeys,
   AuditLogs,
   Cases,
@@ -28,6 +29,8 @@ import {
   UserHomePage,
   Workflows,
 } from './pages';
+import { OnboardingWizard } from './features/onboarding/OnboardingWizard';
+import { useBranding } from './hooks/useBranding';
 import { SupervisorDashboard } from './pages/SupervisorDashboard';
 import { Webhooks } from './pages/Webhooks';
 
@@ -57,11 +60,23 @@ const queryClient = new QueryClient({
 	},
 });
 
+function AppInner() {
+	const { logoUrl } = useBranding();
+	void logoUrl; // side-effect: applies CSS variables and caches branding
+
+	return (
+		<>
+			<NotificationToaster />
+			<OnboardingWizard />
+		</>
+	);
+}
+
 export default function App() {
 	return (
 		<QueryClientProvider client={queryClient}>
 			<AuthProvider>
-				<NotificationToaster />
+				<AppInner />
 				<BrowserRouter>
 					<Routes>
 						{/* Public route */}

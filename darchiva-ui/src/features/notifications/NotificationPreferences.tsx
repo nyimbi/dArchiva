@@ -9,11 +9,23 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 // Types
 // ---------------------------------------------------------------------------
 
+export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0 = Sunday … 6 = Saturday
+
+export interface WeeklyKpiSchedule {
+	/** Day of week to send report (0=Sun, 1=Mon … 6=Sat). Default: 1 (Monday). */
+	day_of_week: DayOfWeek;
+	/** UTC hour to send (0–23). Default: 8. */
+	send_hour: number;
+}
+
 export interface EmailNotificationPreferences {
 	batch_complete: boolean;
 	sla_breach: boolean;
 	exceptions: boolean;
 	weekly_summary: boolean;
+	/** Weekly KPI report toggle + schedule */
+	weekly_kpi_report: boolean;
+	weekly_kpi_schedule: WeeklyKpiSchedule;
 	/** Override email address; blank = use account email */
 	notification_email: string;
 }
@@ -54,6 +66,67 @@ export function useUpdatePreferences() {
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
+
+const DAY_LABELS: Record<DayOfWeek, string> = {
+	0: 'Sunday',
+	1: 'Monday',
+	2: 'Tuesday',
+	3: 'Wednesday',
+	4: 'Thursday',
+	5: 'Friday',
+	6: 'Saturday',
+};
+
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
+
+interface KpiSchedulePickerProps {
+	schedule: WeeklyKpiSchedule;
+	disabled: boolean;
+	onChange: (s: WeeklyKpiSchedule) => void;
+}
+
+function KpiSchedulePicker({ schedule, disabled, onChange }: KpiSchedulePickerProps) {
+	const selectCls = [
+		'rounded-md bg-slate-700/60 border border-slate-600',
+		'px-2 py-1 text-sm text-slate-100',
+		'focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent',
+		disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer',
+	].join(' ');
+
+	return (
+		<div className="flex flex-wrap items-center gap-3 mt-2 pl-1">
+			<label className="text-xs text-slate-400">Send on</label>
+			<select
+				disabled={disabled}
+				value={schedule.day_of_week}
+				onChange={(e) =>
+					onChange({ ...schedule, day_of_week: Number(e.target.value) as DayOfWeek })
+				}
+				className={selectCls}
+			>
+				{(Object.entries(DAY_LABELS) as [string, string][]).map(([v, label]) => (
+					<option key={v} value={v}>
+						{label}
+					</option>
+				))}
+			</select>
+
+			<label className="text-xs text-slate-400">at</label>
+			<select
+				disabled={disabled}
+				value={schedule.send_hour}
+				onChange={(e) => onChange({ ...schedule, send_hour: Number(e.target.value) })}
+				className={selectCls}
+			>
+				{HOURS.map((h) => (
+					<option key={h} value={h}>
+						{String(h).padStart(2, '0')}:00 UTC
+					</option>
+				))}
+			</select>
+		</div>
+	);
+}
 
 interface ToggleRowProps {
 	label: string;
@@ -170,6 +243,21 @@ export function NotificationPreferences() {
 					checked={prefs.weekly_summary}
 					onChange={toggle('weekly_summary')}
 				/>
+				<div className="py-3">
+					<ToggleRow
+						label="Weekly KPI Report"
+						description="Full tenant-wide KPI report emailed to supervisors on a schedule"
+						checked={prefs.weekly_kpi_report}
+						onChange={toggle('weekly_kpi_report')}
+					/>
+					{prefs.weekly_kpi_report && (
+						<KpiSchedulePicker
+							schedule={prefs.weekly_kpi_schedule}
+							disabled={updateMutation.isPending}
+							onChange={(s) => updateMutation.mutate({ weekly_kpi_schedule: s })}
+						/>
+					)}
+				</div>
 			</div>
 
 			{/* Email address override */}

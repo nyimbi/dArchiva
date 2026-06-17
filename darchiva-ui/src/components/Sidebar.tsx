@@ -28,9 +28,11 @@ import {
   Share2,
   Shield,
   Timer,
+  TrendingUp,
   Upload,
   Webhook,
 } from 'lucide-react';
+import { useBranding } from '@/hooks/useBranding';
 import { Link,useLocation } from 'react-router-dom';
 
 const navItems = [
