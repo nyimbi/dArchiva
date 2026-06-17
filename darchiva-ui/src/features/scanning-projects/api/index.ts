@@ -39,6 +39,27 @@ export interface UpdateScanningProjectInput {
 	targetEndDate?: string;
 }
 
+// Separator / blank-page scan config update — maps to quality_config sub-fields
+export interface UpdateScanConfigInput {
+	quality_config: {
+		separator_mode: 'none' | 'blank_page' | 'barcode' | 'both';
+		separator_barcode_prefix: string;
+		auto_remove_blanks: boolean;
+		blank_threshold: number;
+	};
+}
+
+export async function updateProjectScanConfig(
+	projectId: string,
+	input: UpdateScanConfigInput,
+): Promise<ScanningProject> {
+	const { data: response } = await apiClient.patch<ScanningProject>(
+		`/scanning-projects/${projectId}`,
+		input,
+	);
+	return response;
+}
+
 export async function getScanningProjects(): Promise<ScanningProject[]> {
 	const { data: response } = await apiClient.get<ScanningProject[]>('/scanning-projects');
 	return response;

@@ -12,3 +12,4 @@ export { ProjectCard } from './ProjectCard';
 export { QCSampleCard } from './QCSampleCard';
 export { ResourceCard } from './ResourceCard';
 export { ScannerDiscovery } from './ScannerDiscovery';
+export { SeparatorConfig } from './SeparatorConfig';

@@ -435,3 +435,25 @@ export function useDeleteResource() {
 		},
 	});
 }
+
+// =====================================================
+// Scan Config Hooks (separator / blank-page detection)
+// =====================================================
+
+export function useUpdateProjectScanConfig() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({
+			projectId,
+			input,
+		}: {
+			projectId: string;
+			input: api.UpdateScanConfigInput;
+		}) => api.updateProjectScanConfig(projectId, input),
+		onSuccess: (data) => {
+			queryClient.invalidateQueries({ queryKey: scanningProjectKeys.detail(data.id) });
+			queryClient.invalidateQueries({ queryKey: scanningProjectKeys.lists() });
+		},
+	});
+}

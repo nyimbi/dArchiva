@@ -43,6 +43,7 @@ import {
   ScanningStation,
 } from './features/scanning-projects/pages';
 
+import { AutoRoutingRules } from './features/auto-routing/AutoRoutingRules';
 import { FleetManagement } from './features/agents';
 import { NotificationToaster } from './components/NotificationToaster';
 
@@ -103,6 +104,7 @@ export default function App() {
 								<Route path="ingestion" element={<Ingestion />} />
 								<Route path="ingestion/dashboard" element={<IngestionDashboard />} />
 								<Route path="routing" element={<Routing />} />
+								<Route path="auto-routing" element={<AutoRoutingRules />} />
 								<Route path="audit" element={<AuditLogs />} />
 								<Route path="search" element={<SearchPage />} />
 								<Route path="settings" element={<Settings />} />

@@ -27,6 +27,24 @@ export type ShiftStatus = 'scheduled' | 'active' | 'completed' | 'cancelled';
 
 export type CheckpointStatus = 'pending' | 'passed' | 'failed' | 'skipped';
 
+// ── Separator / blank-page scan config ───────────────────────────────────────
+export type SeparatorMode = 'none' | 'blank_page' | 'barcode' | 'both';
+
+export interface ScanConfig {
+  separator_mode: SeparatorMode;
+  separator_barcode_prefix: string;
+  auto_remove_blanks: boolean;
+  /** White-pixel fraction threshold (0.90–0.99) */
+  blank_threshold: number;
+}
+
+export const defaultScanConfig: ScanConfig = {
+  separator_mode: 'none',
+  separator_barcode_prefix: '',
+  auto_remove_blanks: false,
+  blank_threshold: 0.97,
+};
+
 // Core entities
 export interface ScanningProject {
   id: string;

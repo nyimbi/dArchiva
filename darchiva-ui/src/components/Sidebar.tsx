@@ -23,6 +23,7 @@ import {
   MonitorPlay,
   Route,
   ScanLine,
+  Workflow,
   Search,
   Settings,
   Share2,
@@ -51,6 +52,7 @@ const navItems = [
 	{ id: 'ingestion', label: 'Ingestion', icon: Upload, path: '/ingestion' },
 	{ id: 'ingestion-dashboard', label: 'Ingestion Sources', icon: ArrowDownToLine, path: '/ingestion/dashboard' },
 	{ id: 'routing', label: 'Auto-Routing', icon: Route, path: '/routing' },
+	{ id: 'auto-routing', label: 'Routing Rules', icon: Workflow, path: '/auto-routing' },
 	{ id: 'exception-queue', label: 'Exception Queue', icon: AlertTriangle, path: '/exception-queue' },
 ];
 

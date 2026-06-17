@@ -1,5 +1,7 @@
 // (c) Copyright Datacraft, 2026
 import { CustomFieldsPanel } from '@/features/documents/components/CustomFieldsPanel';
+import { EntityPanel } from '@/features/documents/components/EntityPanel';
+import { ExpiryPanel } from '@/features/documents/components/ExpiryPanel';
 import { RelatedDocumentsPanel } from '@/features/documents/components/RelatedDocumentsPanel';
 import { SimilarDocuments } from '@/features/documents/components/SimilarDocuments';
 import { SplitDocumentDialog } from '@/features/documents/components/SplitDocumentDialog';
@@ -14,7 +16,7 @@ import { formatRelativeTime } from '@/lib/utils';
 import type { ViewerPage } from '@/types';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { ArrowLeft,Calendar,FileText,GitCompare,History,Loader2,Scissors,Tag } from 'lucide-react';
+import { ArrowLeft,Bell,Calendar,FileText,GitCompare,History,Loader2,Scissors,Tag,Tags } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate,useParams } from 'react-router-dom';
 
@@ -47,7 +49,7 @@ export function DocumentDetail() {
 	const [diff, setDiff] = useState<{ versionA: number; versionB: number } | null>(null);
 	const [showVersionHistory, setShowVersionHistory] = useState(false);
 	// Right-panel tab: null = closed, or one of the named panels
-	type SidePanel = 'custom-fields' | 'related' | 'similar';
+	type SidePanel = 'custom-fields' | 'related' | 'similar' | 'entities' | 'expiry';
 	const [sidePanel, setSidePanel] = useState<SidePanel | null>(null);
 	const [showSplitDialog, setShowSplitDialog] = useState(false);
 
@@ -233,6 +235,30 @@ export function DocumentDetail() {
 						<Scissors className="w-3.5 h-3.5" />
 						Split
 					</button>
+					<button
+						onClick={() => togglePanel('entities')}
+						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+							sidePanel === 'entities'
+								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
+								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+						}`}
+						title="Named entities"
+					>
+						<Tags className="w-3.5 h-3.5" />
+						Entities
+					</button>
+					<button
+						onClick={() => togglePanel('expiry')}
+						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+							sidePanel === 'expiry'
+								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
+								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+						}`}
+						title="Expiry & reminders"
+					>
+						<Bell className="w-3.5 h-3.5" />
+						Expiry
+					</button>
 				</div>
 			</div>
 
@@ -294,6 +320,20 @@ export function DocumentDetail() {
 				{sidePanel === 'similar' && (
 					<div className="w-72 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto">
 						<SimilarDocuments documentId={id!} />
+					</div>
+				)}
+
+				{/* Named entities panel */}
+				{sidePanel === 'entities' && (
+					<div className="w-72 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto">
+						<EntityPanel documentId={id!} />
+					</div>
+				)}
+
+				{/* Expiry & reminders panel */}
+				{sidePanel === 'expiry' && (
+					<div className="w-72 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto">
+						<ExpiryPanel documentId={id!} />
 					</div>
 				)}
 			</div>
