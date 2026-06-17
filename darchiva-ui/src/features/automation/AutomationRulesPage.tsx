@@ -1,28 +1,35 @@
 import { useState } from 'react';
+import { Loader2, Pencil, Play, Plus, Trash2, X } from 'lucide-react';
+
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
-	Badge,
-	Box,
-	Button,
 	Dialog,
-	Flex,
-	Heading,
-	IconButton,
-	ScrollArea,
-	Select,
-	Spinner,
-	Switch,
-	Table,
-	Text,
-	TextField,
-	TextArea,
-} from '@radix-ui/themes';
+	DialogClose,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import {
-	PlusIcon,
-	Pencil1Icon,
-	TrashIcon,
-	PlayIcon,
-	Cross2Icon,
-} from '@radix-ui/react-icons';
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
+
 import type {
 	Action,
 	ActionType,
@@ -90,62 +97,62 @@ function ActionParamsEditor({
 	switch (actionType) {
 		case 'notify_user':
 			return (
-				<Flex gap="2" direction="column">
-					<TextField.Root
+				<div className="flex flex-col gap-2">
+					<Input
 						placeholder="User ID"
 						value={(params.user_id as string) ?? ''}
-						onChange={e => update('user_id', e.target.value)}
+						onChange={(e: React.ChangeEvent<HTMLInputElement>) => update('user_id', e.target.value)}
 					/>
-					<TextField.Root
+					<Input
 						placeholder="Title"
 						value={(params.title as string) ?? ''}
-						onChange={e => update('title', e.target.value)}
+						onChange={(e: React.ChangeEvent<HTMLInputElement>) => update('title', e.target.value)}
 					/>
-					<TextField.Root
+					<Input
 						placeholder="Message"
 						value={(params.message as string) ?? ''}
-						onChange={e => update('message', e.target.value)}
+						onChange={(e: React.ChangeEvent<HTMLInputElement>) => update('message', e.target.value)}
 					/>
-				</Flex>
+				</div>
 			);
 		case 'route_to_folder':
 			return (
-				<TextField.Root
+				<Input
 					placeholder="Folder ID"
 					value={(params.folder_id as string) ?? ''}
-					onChange={e => update('folder_id', e.target.value)}
+					onChange={(e: React.ChangeEvent<HTMLInputElement>) => update('folder_id', e.target.value)}
 				/>
 			);
 		case 'apply_tag':
 			return (
-				<TextField.Root
+				<Input
 					placeholder="Tag ID"
 					value={(params.tag_id as string) ?? ''}
-					onChange={e => update('tag_id', e.target.value)}
+					onChange={(e: React.ChangeEvent<HTMLInputElement>) => update('tag_id', e.target.value)}
 				/>
 			);
 		case 'set_document_type':
 			return (
-				<TextField.Root
+				<Input
 					placeholder="Document Type ID"
 					value={(params.document_type_id as string) ?? ''}
-					onChange={e => update('document_type_id', e.target.value)}
+					onChange={(e: React.ChangeEvent<HTMLInputElement>) => update('document_type_id', e.target.value)}
 				/>
 			);
 		case 'assign_approval_workflow':
 			return (
-				<TextField.Root
+				<Input
 					placeholder="Workflow Name"
 					value={(params.workflow_name as string) ?? ''}
-					onChange={e => update('workflow_name', e.target.value)}
+					onChange={(e: React.ChangeEvent<HTMLInputElement>) => update('workflow_name', e.target.value)}
 				/>
 			);
 		case 'send_webhook':
 			return (
-				<TextField.Root
+				<Input
 					placeholder="Webhook URL"
 					value={(params.url as string) ?? ''}
-					onChange={e => update('url', e.target.value)}
+					onChange={(e: React.ChangeEvent<HTMLInputElement>) => update('url', e.target.value)}
 				/>
 			);
 		default:
@@ -230,232 +237,222 @@ function RuleBuilderDialog({ open, onClose, existing }: RuleBuilderDialogProps) 
 	};
 
 	return (
-		<Dialog.Root open={open} onOpenChange={v => !v && onClose()}>
-			<Dialog.Content style={{ maxWidth: 700, maxHeight: '90vh' }}>
-				<Dialog.Title>{existing ? 'Edit Rule' : 'New Automation Rule'}</Dialog.Title>
+		<Dialog open={open} onOpenChange={(v: boolean) => !v && onClose()}>
+			<DialogContent className="max-w-[700px] max-h-[90vh] flex flex-col">
+				<DialogHeader>
+					<DialogTitle>{existing ? 'Edit Rule' : 'New Automation Rule'}</DialogTitle>
+				</DialogHeader>
 
-				<ScrollArea style={{ maxHeight: 'calc(90vh - 120px)' }}>
-					<Flex direction="column" gap="4" p="2">
+				<div className="flex-1 overflow-y-auto">
+					<div className="flex flex-col gap-4 p-2">
 						{/* Name & description */}
-						<Flex direction="column" gap="2">
-							<Text size="2" weight="medium">Name</Text>
-							<TextField.Root
+						<div className="flex flex-col gap-2">
+							<span className="text-sm font-medium">Name</span>
+							<Input
 								placeholder="Rule name"
 								value={name}
-								onChange={e => setName(e.target.value)}
+								onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
 							/>
-						</Flex>
+						</div>
 
-						<Flex direction="column" gap="2">
-							<Text size="2" weight="medium">Description</Text>
-							<TextArea
+						<div className="flex flex-col gap-2">
+							<span className="text-sm font-medium">Description</span>
+							<Textarea
 								placeholder="Optional description"
 								value={description}
-								onChange={e => setDescription(e.target.value)}
+								onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
 								rows={2}
 							/>
-						</Flex>
+						</div>
 
 						{/* Trigger */}
-						<Flex direction="column" gap="2">
-							<Text size="2" weight="medium">Trigger Event</Text>
-							<Select.Root
+						<div className="flex flex-col gap-2">
+							<span className="text-sm font-medium">Trigger Event</span>
+							<Select
 								value={trigger}
-								onValueChange={v => setTrigger(v as TriggerEvent)}
+								onValueChange={(v: string) => setTrigger(v as TriggerEvent)}
 							>
-								<Select.Trigger />
-								<Select.Content>
+								<SelectTrigger>
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
 									{Object.entries(TRIGGER_LABELS).map(([val, label]) => (
-										<Select.Item key={val} value={val}>
+										<SelectItem key={val} value={val}>
 											{label}
-										</Select.Item>
+										</SelectItem>
 									))}
-								</Select.Content>
-							</Select.Root>
-						</Flex>
+								</SelectContent>
+							</Select>
+						</div>
 
 						{/* Conditions */}
-						<Flex direction="column" gap="2">
-							<Flex justify="between" align="center">
-								<Text size="2" weight="medium">Conditions (AND)</Text>
-								<Button size="1" variant="soft" onClick={addCondition}>
-									<PlusIcon /> Add
+						<div className="flex flex-col gap-2">
+							<div className="flex justify-between items-center">
+								<span className="text-sm font-medium">Conditions (AND)</span>
+								<Button size="sm" variant="outline" onClick={addCondition}>
+									<Plus className="h-3 w-3 mr-1" /> Add
 								</Button>
-							</Flex>
+							</div>
 							{conditions.length === 0 && (
-								<Text size="1" color="gray">No conditions — rule fires on every matching event.</Text>
+								<span className="text-xs text-muted-foreground">No conditions — rule fires on every matching event.</span>
 							)}
 							{conditions.map((cond, i) => (
-								<Flex key={i} gap="2" align="center">
-									<Select.Root
+								<div key={i} className="flex gap-2 items-center">
+									<Select
 										value={cond.field}
-										onValueChange={v => updateCondition(i, { field: v as ConditionField })}
+										onValueChange={(v: string) => updateCondition(i, { field: v as ConditionField })}
 									>
-										<Select.Trigger style={{ flex: 1 }} />
-										<Select.Content>
+										<SelectTrigger className="flex-1">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
 											{CONDITION_FIELDS.map(f => (
-												<Select.Item key={f.value} value={f.value}>{f.label}</Select.Item>
+												<SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
 											))}
-										</Select.Content>
-									</Select.Root>
+										</SelectContent>
+									</Select>
 
-									<Select.Root
+									<Select
 										value={cond.operator}
-										onValueChange={v => updateCondition(i, { operator: v as ConditionOperator })}
+										onValueChange={(v: string) => updateCondition(i, { operator: v as ConditionOperator })}
 									>
-										<Select.Trigger style={{ flex: 1 }} />
-										<Select.Content>
+										<SelectTrigger className="flex-1">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
 											{CONDITION_OPERATORS.map(op => (
-												<Select.Item key={op.value} value={op.value}>{op.label}</Select.Item>
+												<SelectItem key={op.value} value={op.value}>{op.label}</SelectItem>
 											))}
-										</Select.Content>
-									</Select.Root>
+										</SelectContent>
+									</Select>
 
-									<TextField.Root
+									<Input
 										placeholder="Value"
 										value={cond.value}
-										onChange={e => updateCondition(i, { value: e.target.value })}
-										style={{ flex: 1 }}
+										onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateCondition(i, { value: e.target.value })}
+										className="flex-1"
 									/>
 
-									<IconButton
-										size="1"
+									<Button
+										size="icon"
 										variant="ghost"
-										color="red"
+										className="text-destructive hover:text-destructive"
 										onClick={() => removeCondition(i)}
 									>
-										<Cross2Icon />
-									</IconButton>
-								</Flex>
+										<X className="h-4 w-4" />
+									</Button>
+								</div>
 							))}
-						</Flex>
+						</div>
 
 						{/* Actions */}
-						<Flex direction="column" gap="2">
-							<Flex justify="between" align="center">
-								<Text size="2" weight="medium">Actions</Text>
-								<Button size="1" variant="soft" onClick={addAction}>
-									<PlusIcon /> Add
+						<div className="flex flex-col gap-2">
+							<div className="flex justify-between items-center">
+								<span className="text-sm font-medium">Actions</span>
+								<Button size="sm" variant="outline" onClick={addAction}>
+									<Plus className="h-3 w-3 mr-1" /> Add
 								</Button>
-							</Flex>
+							</div>
 							{actions.length === 0 && (
-								<Text size="1" color="gray">No actions — add at least one.</Text>
+								<span className="text-xs text-muted-foreground">No actions — add at least one.</span>
 							)}
 							{actions.map((action, i) => (
-								<Box
+								<div
 									key={i}
-									p="3"
-									style={{
-										border: '1px solid var(--gray-6)',
-										borderRadius: 'var(--radius-2)',
-									}}
+									className="p-3 border rounded-md"
 								>
-									<Flex justify="between" align="start" gap="2">
-										<Flex direction="column" gap="2" style={{ flex: 1 }}>
-											<Select.Root
+									<div className="flex justify-between items-start gap-2">
+										<div className="flex flex-col gap-2 flex-1">
+											<Select
 												value={action.type}
-												onValueChange={v =>
+												onValueChange={(v: string) =>
 													updateAction(i, { type: v as ActionType, params: {} })
 												}
 											>
-												<Select.Trigger />
-												<Select.Content>
+												<SelectTrigger>
+													<SelectValue />
+												</SelectTrigger>
+												<SelectContent>
 													{ACTION_TYPES.map(a => (
-														<Select.Item key={a.value} value={a.value}>{a.label}</Select.Item>
+														<SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>
 													))}
-												</Select.Content>
-											</Select.Root>
+												</SelectContent>
+											</Select>
 											<ActionParamsEditor
 												actionType={action.type}
 												params={action.params}
 												onChange={params => updateAction(i, { params })}
 											/>
-										</Flex>
-										<IconButton
-											size="1"
+										</div>
+										<Button
+											size="icon"
 											variant="ghost"
-											color="red"
+											className="text-destructive hover:text-destructive"
 											onClick={() => removeAction(i)}
 										>
-											<Cross2Icon />
-										</IconButton>
-									</Flex>
-								</Box>
+											<X className="h-4 w-4" />
+										</Button>
+									</div>
+								</div>
 							))}
-						</Flex>
+						</div>
 
 						{/* Enable toggle */}
-						<Flex align="center" gap="3">
+						<div className="flex items-center gap-3">
 							<Switch checked={isActive} onCheckedChange={setIsActive} />
-							<Text size="2">Rule enabled</Text>
-						</Flex>
+							<span className="text-sm">Rule enabled</span>
+						</div>
 
 						{/* Test panel (only available when editing an existing rule) */}
 						{existing && (
-							<Box
-								p="3"
-								style={{
-									border: '1px solid var(--blue-6)',
-									borderRadius: 'var(--radius-2)',
-									background: 'var(--blue-2)',
-								}}
-							>
-								<Text size="2" weight="medium" color="blue">Test Rule (Dry Run)</Text>
-								<Flex gap="2" mt="2" align="center">
-									<TextField.Root
+							<div className="p-3 border border-blue-200 rounded-md bg-blue-50">
+								<span className="text-sm font-medium text-blue-700">Test Rule (Dry Run)</span>
+								<div className="flex gap-2 mt-2 items-center">
+									<Input
 										placeholder="Document ID"
 										value={testDocId}
-										onChange={e => setTestDocId(e.target.value)}
-										style={{ flex: 1 }}
+										onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTestDocId(e.target.value)}
+										className="flex-1"
 									/>
 									<Button
-										size="2"
-										variant="soft"
+										size="default"
+										variant="outline"
 										onClick={handleTest}
 										disabled={!testDocId || testMutation.isPending}
 									>
-										{testMutation.isPending ? <Spinner /> : <PlayIcon />}
+										{testMutation.isPending
+											? <Loader2 className="h-4 w-4 animate-spin mr-1" />
+											: <Play className="h-4 w-4 mr-1" />}
 										Run Test
 									</Button>
-								</Flex>
+								</div>
 								{testResults.length > 0 && (
-									<Box mt="2">
-										<Text size="1" weight="medium">Results:</Text>
-										<Box
-											p="2"
-											mt="1"
-											style={{
-												background: 'var(--gray-2)',
-												borderRadius: 'var(--radius-1)',
-												fontFamily: 'monospace',
-												fontSize: 11,
-												whiteSpace: 'pre-wrap',
-												wordBreak: 'break-all',
-											}}
-										>
+									<div className="mt-2">
+										<span className="text-xs font-medium">Results:</span>
+										<pre className="mt-1 p-2 bg-muted rounded text-xs whitespace-pre-wrap break-all">
 											{JSON.stringify(testResults, null, 2)}
-										</Box>
-									</Box>
+										</pre>
+									</div>
 								)}
 								{testResults.length === 0 && testMutation.isSuccess && (
-									<Text size="1" color="gray" mt="2">No rules matched (conditions not met).</Text>
+									<span className="text-xs text-muted-foreground mt-2 block">No rules matched (conditions not met).</span>
 								)}
-							</Box>
+							</div>
 						)}
-					</Flex>
-				</ScrollArea>
+					</div>
+				</div>
 
-				<Flex gap="3" justify="end" mt="4">
-					<Dialog.Close>
-						<Button variant="soft" color="gray">Cancel</Button>
-					</Dialog.Close>
+				<DialogFooter className="mt-4">
+					<DialogClose asChild>
+						<Button variant="outline">Cancel</Button>
+					</DialogClose>
 					<Button onClick={handleSave} disabled={!name || busy}>
-						{busy ? <Spinner /> : null}
+						{busy && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
 						{existing ? 'Save Changes' : 'Create Rule'}
 					</Button>
-				</Flex>
-			</Dialog.Content>
-		</Dialog.Root>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 	);
 }
 
@@ -490,106 +487,108 @@ export function AutomationRulesPage() {
 	};
 
 	return (
-		<Box p="5">
-			<Flex justify="between" align="center" mb="4">
-				<Heading size="5">Automation Rules</Heading>
+		<div className="p-5">
+			<div className="flex justify-between items-center mb-4">
+				<h2 className="text-xl font-semibold">Automation Rules</h2>
 				<Button onClick={openNew}>
-					<PlusIcon /> New Rule
+					<Plus className="h-4 w-4 mr-1" /> New Rule
 				</Button>
-			</Flex>
+			</div>
 
 			{isLoading && (
-				<Flex justify="center" py="8">
-					<Spinner size="3" />
-				</Flex>
+				<div className="flex justify-center py-8">
+					<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+				</div>
 			)}
 
 			{!isLoading && (!rules || rules.length === 0) && (
-				<Flex direction="column" align="center" py="8" gap="2">
-					<Text color="gray">No automation rules yet.</Text>
-					<Button variant="soft" onClick={openNew}>
-						<PlusIcon /> Create your first rule
+				<div className="flex flex-col items-center py-8 gap-2">
+					<span className="text-muted-foreground">No automation rules yet.</span>
+					<Button variant="outline" onClick={openNew}>
+						<Plus className="h-4 w-4 mr-1" /> Create your first rule
 					</Button>
-				</Flex>
+				</div>
 			)}
 
 			{rules && rules.length > 0 && (
-				<Table.Root variant="surface">
-					<Table.Header>
-						<Table.Row>
-							<Table.ColumnHeaderCell>Name</Table.ColumnHeaderCell>
-							<Table.ColumnHeaderCell>Trigger</Table.ColumnHeaderCell>
-							<Table.ColumnHeaderCell>Conditions</Table.ColumnHeaderCell>
-							<Table.ColumnHeaderCell>Actions</Table.ColumnHeaderCell>
-							<Table.ColumnHeaderCell>Runs</Table.ColumnHeaderCell>
-							<Table.ColumnHeaderCell>Last Run</Table.ColumnHeaderCell>
-							<Table.ColumnHeaderCell>Status</Table.ColumnHeaderCell>
-							<Table.ColumnHeaderCell>Actions</Table.ColumnHeaderCell>
-						</Table.Row>
-					</Table.Header>
-					<Table.Body>
-						{rules.map(rule => (
-							<Table.Row key={rule.id}>
-								<Table.Cell>
-									<Flex direction="column">
-										<Text size="2" weight="medium">{rule.name}</Text>
-										{rule.description && (
-											<Text size="1" color="gray">{rule.description}</Text>
-										)}
-									</Flex>
-								</Table.Cell>
-								<Table.Cell>
-									<Badge color="blue" variant="soft">
-										{TRIGGER_LABELS[rule.trigger_event] ?? rule.trigger_event}
-									</Badge>
-								</Table.Cell>
-								<Table.Cell>
-									<Text size="2">{rule.conditions.length}</Text>
-								</Table.Cell>
-								<Table.Cell>
-									<Text size="2">{rule.actions.length}</Text>
-								</Table.Cell>
-								<Table.Cell>
-									<Text size="2">{rule.run_count}</Text>
-								</Table.Cell>
-								<Table.Cell>
-									<Text size="2" color="gray">
-										{rule.last_run_at
-											? new Date(rule.last_run_at).toLocaleString()
-											: 'Never'}
-									</Text>
-								</Table.Cell>
-								<Table.Cell>
-									<Switch
-										checked={rule.is_active}
-										onCheckedChange={() => handleToggle(rule)}
-										disabled={updateMutation.isPending}
-									/>
-								</Table.Cell>
-								<Table.Cell>
-									<Flex gap="2">
-										<IconButton
-											size="1"
-											variant="ghost"
-											onClick={() => openEdit(rule)}
-										>
-											<Pencil1Icon />
-										</IconButton>
-										<IconButton
-											size="1"
-											variant="ghost"
-											color="red"
-											onClick={() => handleDelete(rule.id)}
-											disabled={deleteMutation.isPending}
-										>
-											<TrashIcon />
-										</IconButton>
-									</Flex>
-								</Table.Cell>
-							</Table.Row>
-						))}
-					</Table.Body>
-				</Table.Root>
+				<div className="rounded-md border">
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>Name</TableHead>
+								<TableHead>Trigger</TableHead>
+								<TableHead>Conditions</TableHead>
+								<TableHead>Actions</TableHead>
+								<TableHead>Runs</TableHead>
+								<TableHead>Last Run</TableHead>
+								<TableHead>Status</TableHead>
+								<TableHead>Actions</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{rules.map(rule => (
+								<TableRow key={rule.id}>
+									<TableCell>
+										<div className="flex flex-col">
+											<span className="text-sm font-medium">{rule.name}</span>
+											{rule.description && (
+												<span className="text-xs text-muted-foreground">{rule.description}</span>
+											)}
+										</div>
+									</TableCell>
+									<TableCell>
+										<Badge variant="secondary">
+											{TRIGGER_LABELS[rule.trigger_event] ?? rule.trigger_event}
+										</Badge>
+									</TableCell>
+									<TableCell>
+										<span className="text-sm">{rule.conditions.length}</span>
+									</TableCell>
+									<TableCell>
+										<span className="text-sm">{rule.actions.length}</span>
+									</TableCell>
+									<TableCell>
+										<span className="text-sm">{rule.run_count}</span>
+									</TableCell>
+									<TableCell>
+										<span className="text-sm text-muted-foreground">
+											{rule.last_run_at
+												? new Date(rule.last_run_at).toLocaleString()
+												: 'Never'}
+										</span>
+									</TableCell>
+									<TableCell>
+										<Switch
+											checked={rule.is_active}
+											onCheckedChange={() => handleToggle(rule)}
+											disabled={updateMutation.isPending}
+										/>
+									</TableCell>
+									<TableCell>
+										<div className="flex gap-2">
+											<Button
+												size="icon"
+												variant="ghost"
+												onClick={() => openEdit(rule)}
+											>
+												<Pencil className="h-4 w-4" />
+											</Button>
+											<Button
+												size="icon"
+												variant="ghost"
+												className="text-destructive hover:text-destructive"
+												onClick={() => handleDelete(rule.id)}
+												disabled={deleteMutation.isPending}
+											>
+												<Trash2 className="h-4 w-4" />
+											</Button>
+										</div>
+									</TableCell>
+								</TableRow>
+							))}
+						</TableBody>
+					</Table>
+				</div>
 			)}
 
 			{dialogOpen && (
@@ -599,6 +598,6 @@ export function AutomationRulesPage() {
 					existing={editing}
 				/>
 			)}
-		</Box>
+		</div>
 	);
 }
