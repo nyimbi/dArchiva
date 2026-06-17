@@ -1,4 +1,5 @@
 // Notification Center — domain-aware, warm archival theme
+import '../styles/theme.css';
 import { cn } from '@/lib/utils';
 import {
 	Bell,

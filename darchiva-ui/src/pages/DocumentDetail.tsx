@@ -1,4 +1,6 @@
 // (c) Copyright Datacraft, 2026
+import { ShareDialog } from '@/features/sharing/ShareDialog';
+import { WatermarkDialog } from '@/features/documents/components/WatermarkDialog';
 import { AnnotationsPanel } from '@/features/documents/components/AnnotationsPanel';
 import { CustomFieldsPanel } from '@/features/documents/components/CustomFieldsPanel';
 import { EntityPanel } from '@/features/documents/components/EntityPanel';
@@ -18,7 +20,7 @@ import { formatRelativeTime } from '@/lib/utils';
 import type { ViewerPage } from '@/types';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { ArrowLeft,Bell,Calendar,FileText,GitCompare,History,Loader2,MessageSquare,ScanLine,Scissors,Tag,Tags } from 'lucide-react';
+import { ArrowLeft,Bell,Calendar,FileText,GitCompare,History,Loader2,MessageSquare,ScanLine,Scissors,Share2,Stamp,Tag,Tags } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate,useParams } from 'react-router-dom';
 
@@ -54,6 +56,8 @@ export function DocumentDetail() {
 	type SidePanel = 'custom-fields' | 'related' | 'similar' | 'entities' | 'expiry' | 'annotations' | 'ocr-quality';
 	const [sidePanel, setSidePanel] = useState<SidePanel | null>(null);
 	const [showSplitDialog, setShowSplitDialog] = useState(false);
+	const [showShareDialog, setShowShareDialog] = useState(false);
+	const [showWatermarkDialog, setShowWatermarkDialog] = useState(false);
 
 	const togglePanel = (panel: SidePanel) => {
 		setSidePanel((prev) => (prev === panel ? null : panel));
@@ -238,6 +242,22 @@ export function DocumentDetail() {
 						Split
 					</button>
 					<button
+						onClick={() => setShowShareDialog(true)}
+						className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors"
+						title="Share document"
+					>
+						<Share2 className="w-3.5 h-3.5" />
+						Share
+					</button>
+					<button
+						onClick={() => setShowWatermarkDialog(true)}
+						className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors"
+						title="Apply watermark"
+					>
+						<Stamp className="w-3.5 h-3.5" />
+						Watermark
+					</button>
+					<button
 						onClick={() => togglePanel('entities')}
 						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
 							sidePanel === 'entities'
@@ -386,6 +406,26 @@ export function DocumentDetail() {
 					documentTitle={document?.title ?? ''}
 					pageCount={document?.pageCount ?? 1}
 					onClose={() => setShowSplitDialog(false)}
+				/>
+			)}
+
+			{/* Share dialog */}
+			{showShareDialog && (
+				<ShareDialog
+					open={showShareDialog}
+					documentId={id!}
+					documentTitle={document?.title ?? ''}
+					onClose={() => setShowShareDialog(false)}
+				/>
+			)}
+
+			{/* Watermark dialog */}
+			{showWatermarkDialog && (
+				<WatermarkDialog
+					open={showWatermarkDialog}
+					documentId={id!}
+					documentTitle={document?.title ?? ''}
+					onClose={() => setShowWatermarkDialog(false)}
 				/>
 			)}
 		</motion.div>

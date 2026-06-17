@@ -15,7 +15,7 @@ import {
   Upload,
   User,
 } from 'lucide-react';
-import { NotificationBell } from './NotificationBell';
+import { NotificationCenter } from '@/features/notifications';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -157,7 +157,7 @@ export function Header() {
 				</button>
 
 				{/* Notifications */}
-				<NotificationBell />
+				<NotificationCenter />
 
 				{/* User menu */}
 				<div className="relative ml-2">

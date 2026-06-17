@@ -44,6 +44,7 @@ import {
 } from './features/scanning-projects/pages';
 
 import { AutoRoutingRules } from './features/auto-routing/AutoRoutingRules';
+import { TemplatesPage } from './features/templates/TemplatesPage';
 import { FleetManagement } from './features/agents';
 import { UserManagement } from './features/admin/UserManagement';
 import { RoleManagement } from './features/admin/RoleManagement';
@@ -129,6 +130,7 @@ export default function App() {
 									<Route path="admin/users" element={<UserManagement />} />
 									<Route path="admin/roles" element={<RoleManagement />} />
 									<Route path="settings/email-ingest" element={<EmailIngestConfigs />} />
+								<Route path="templates" element={<TemplatesPage />} />
 							</Route>
 						</Route>
 

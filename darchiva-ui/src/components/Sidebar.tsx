@@ -25,6 +25,7 @@ import {
   Route,
   ScanLine,
   Workflow,
+  LayoutTemplate,
   Search,
   Settings,
   Share2,
@@ -56,6 +57,7 @@ const navItems = [
 	{ id: 'routing', label: 'Auto-Routing', icon: Route, path: '/routing' },
 	{ id: 'auto-routing', label: 'Routing Rules', icon: Workflow, path: '/auto-routing' },
 	{ id: 'exception-queue', label: 'Exception Queue', icon: AlertTriangle, path: '/exception-queue' },
+	{ id: 'templates', label: 'Templates', icon: LayoutTemplate, path: '/templates' },
 ];
 
 const adminItems = [

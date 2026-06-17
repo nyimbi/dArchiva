@@ -175,6 +175,20 @@
 	justify-content: center;
 }
 
+.notif-badge-inline {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 1.125rem;
+	height: 1.125rem;
+	padding: 0 0.3rem;
+	font-size: 0.65rem;
+	font-weight: 700;
+	color: white;
+	background: var(--notif-accent);
+	border-radius: 999px;
+}
+
 .notif-dropdown {
 	position: absolute;
 	top: calc(100% + 0.5rem);

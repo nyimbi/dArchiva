@@ -21,12 +21,14 @@ import {
   FileType,
   Folder,
   Loader2,
+  Merge,
   Move,
   Tag,
   Trash2,
   X,
 } from 'lucide-react';
 import { useState } from 'react';
+import { MergeDocumentsDialog, type MergeSourceDocument } from './MergeDocumentsDialog';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -34,6 +36,7 @@ import { useState } from 'react';
 
 interface BatchActionsBarProps {
   selectedIds: string[];
+  selectedDocuments?: MergeSourceDocument[];
   onClear: () => void;
   onComplete: () => void;
 }
@@ -42,7 +45,7 @@ interface BatchActionsBarProps {
 // Internal dialog types
 // ---------------------------------------------------------------------------
 
-type ActiveDialog = 'tag' | 'move' | 'classify' | 'delete' | 'export' | null;
+type ActiveDialog = 'tag' | 'move' | 'classify' | 'delete' | 'export' | 'merge' | null;
 
 // ---------------------------------------------------------------------------
 // Tag dialog
@@ -361,9 +364,14 @@ function DialogFooter({
 // Main component
 // ---------------------------------------------------------------------------
 
-export function BatchActionsBar({ selectedIds, onClear, onComplete }: BatchActionsBarProps) {
+export function BatchActionsBar({ selectedIds, selectedDocuments, onClear, onComplete }: BatchActionsBarProps) {
   const [activeDialog, setActiveDialog] = useState<ActiveDialog>(null);
   const batch = useBatchOperation();
+
+  // Derive merge sources: use selectedDocuments if provided, else bare id-only stubs
+  const mergeSources: MergeSourceDocument[] = selectedDocuments && selectedDocuments.length > 0
+    ? selectedDocuments
+    : selectedIds.map((id) => ({ id, title: id }));
 
   const close = () => setActiveDialog(null);
 
@@ -438,6 +446,15 @@ export function BatchActionsBar({ selectedIds, onClear, onComplete }: BatchActio
           </button>
 
           <button
+            onClick={() => setActiveDialog('merge')}
+            disabled={selectedIds.length < 2}
+            className="btn-ghost text-sm py-1.5 px-3 flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+            title={selectedIds.length < 2 ? 'Select at least 2 documents to merge' : 'Merge into one PDF'}
+          >
+            <Merge className="w-4 h-4" /> Merge
+          </button>
+
+          <button
             onClick={() =>
               run('export', {}, 'export')
             }
@@ -490,6 +507,20 @@ export function BatchActionsBar({ selectedIds, onClear, onComplete }: BatchActio
           />
         )}
       </AnimatePresence>
+
+      {activeDialog === 'merge' && (
+        <MergeDocumentsDialog
+          open={true}
+          documents={mergeSources}
+          onClose={close}
+          onSuccess={(result) => {
+            close();
+            onComplete();
+            // Navigate user to the new merged document
+            window.location.href = `/document/${result.document_id}`;
+          }}
+        />
+      )}
     </>
   );
 }

@@ -183,6 +183,201 @@ function CapacityGauge({
 	);
 }
 
+// ─────────────────────── export panel ────────────────────────
+
+type ExportReport = 'document_summary' | 'ocr_quality' | 'scanning_productivity';
+type ExportFormat = 'csv' | 'xlsx';
+
+const REPORT_OPTIONS: { value: ExportReport; label: string }[] = [
+	{ value: 'document_summary', label: 'Document Summary' },
+	{ value: 'ocr_quality', label: 'OCR Quality' },
+	{ value: 'scanning_productivity', label: 'Scanning Productivity' },
+];
+
+function toIso(d: string): string {
+	// d is YYYY-MM-DD from <input type="date">
+	return d ? new Date(d).toISOString() : '';
+}
+
+function ExportPanel({ days }: { days: number }) {
+	const [report, setReport] = React.useState<ExportReport>('document_summary');
+	const [fmt, setFmt] = React.useState<ExportFormat>('csv');
+	const [useDateRange, setUseDateRange] = React.useState(false);
+	const [dateFrom, setDateFrom] = React.useState('');
+	const [dateTo, setDateTo] = React.useState('');
+
+	const handleDownload = () => {
+		const params = new URLSearchParams({ format: fmt, report });
+		if (useDateRange && dateFrom) params.set('date_from', toIso(dateFrom));
+		if (useDateRange && dateTo) params.set('date_to', toIso(dateTo));
+		window.location.href = `/api/v1/analytics/export?${params.toString()}`;
+	};
+
+	const btnBase: React.CSSProperties = {
+		padding: '5px 14px',
+		borderRadius: 6,
+		border: '1px solid #3e3e5e',
+		cursor: 'pointer',
+		fontSize: 13,
+		transition: 'all 0.15s',
+	};
+
+	return (
+		<div
+			style={{
+				background: '#1e1e2e',
+				border: '1px solid #2e2e3e',
+				borderRadius: 12,
+				padding: '20px 24px',
+				marginBottom: 28,
+			}}
+		>
+			<SectionHeader title="Export Report" />
+			<div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+				{/* Report type */}
+				<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+					<label style={{ fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+						Report type
+					</label>
+					<select
+						value={report}
+						onChange={e => setReport(e.target.value as ExportReport)}
+						style={{
+							background: '#13131f',
+							border: '1px solid #3e3e5e',
+							borderRadius: 6,
+							color: '#ccc',
+							fontSize: 13,
+							padding: '6px 10px',
+							minWidth: 220,
+						}}
+					>
+						{REPORT_OPTIONS.map(o => (
+							<option key={o.value} value={o.value}>
+								{o.label}
+							</option>
+						))}
+					</select>
+				</div>
+
+				{/* Format toggle */}
+				<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+					<label style={{ fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+						Format
+					</label>
+					<div style={{ display: 'flex', gap: 4 }}>
+						{(['csv', 'xlsx'] as ExportFormat[]).map(f => (
+							<button
+								key={f}
+								onClick={() => setFmt(f)}
+								style={{
+									...btnBase,
+									background: fmt === f ? '#6366f1' : '#2e2e3e',
+									color: fmt === f ? '#fff' : '#aaa',
+									border: fmt === f ? '1px solid #6366f1' : '1px solid #3e3e5e',
+								}}
+							>
+								{f.toUpperCase()}
+							</button>
+						))}
+					</div>
+				</div>
+
+				{/* Date range toggle */}
+				<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+					<label style={{ fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+						Date window
+					</label>
+					<div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+						<button
+							onClick={() => setUseDateRange(false)}
+							style={{
+								...btnBase,
+								background: !useDateRange ? '#6366f1' : '#2e2e3e',
+								color: !useDateRange ? '#fff' : '#aaa',
+								border: !useDateRange ? '1px solid #6366f1' : '1px solid #3e3e5e',
+							}}
+						>
+							Last {days}d
+						</button>
+						<button
+							onClick={() => setUseDateRange(true)}
+							style={{
+								...btnBase,
+								background: useDateRange ? '#6366f1' : '#2e2e3e',
+								color: useDateRange ? '#fff' : '#aaa',
+								border: useDateRange ? '1px solid #6366f1' : '1px solid #3e3e5e',
+							}}
+						>
+							Custom
+						</button>
+					</div>
+				</div>
+
+				{/* Custom date inputs */}
+				{useDateRange && (
+					<>
+						<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+							<label style={{ fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+								From
+							</label>
+							<input
+								type="date"
+								value={dateFrom}
+								onChange={e => setDateFrom(e.target.value)}
+								style={{
+									background: '#13131f',
+									border: '1px solid #3e3e5e',
+									borderRadius: 6,
+									color: '#ccc',
+									fontSize: 13,
+									padding: '6px 10px',
+								}}
+							/>
+						</div>
+						<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+							<label style={{ fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+								To
+							</label>
+							<input
+								type="date"
+								value={dateTo}
+								onChange={e => setDateTo(e.target.value)}
+								style={{
+									background: '#13131f',
+									border: '1px solid #3e3e5e',
+									borderRadius: 6,
+									color: '#ccc',
+									fontSize: 13,
+									padding: '6px 10px',
+								}}
+							/>
+						</div>
+					</>
+				)}
+
+				{/* Download button */}
+				<button
+					onClick={handleDownload}
+					style={{
+						padding: '7px 20px',
+						borderRadius: 6,
+						border: 'none',
+						background: '#6366f1',
+						color: '#fff',
+						cursor: 'pointer',
+						fontSize: 13,
+						fontWeight: 600,
+						alignSelf: 'flex-end',
+					}}
+				>
+					Download Report
+				</button>
+			</div>
+		</div>
+	);
+}
+
 // ─────────────────────── main page ───────────────────────────
 
 export function Analytics() {
@@ -289,6 +484,9 @@ export function Analytics() {
 				<StatCard label="SLA Compliance" value={`${slaCompliance}%`} sub="Pages above threshold" color="#4ade80" />
 				<StatCard label="Active Workers" value={workersActive} sub="Current sessions" color="#f59e0b" />
 			</div>
+
+			{/* ── Export Panel ── */}
+			<ExportPanel days={days} />
 
 			{/* ── Throughput + Quality Line Chart ── */}
 			<div

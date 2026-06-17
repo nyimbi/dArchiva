@@ -1137,6 +1137,9 @@ export function Documents() {
       {/* Batch actions bar — replaces the old BulkActionBar + individual modals */}
       <BatchActionsBar
         selectedIds={selectedIds}
+        selectedDocuments={documents
+          .filter((d) => selectedNodeIds.has(d.id))
+          .map((d) => ({ id: d.id, title: d.title, page_count: d.page_count }))}
         onClear={() => { clearNodeSelection(); setSelectionMode(false); }}
         onComplete={() => { clearNodeSelection(); setSelectionMode(false); }}
       />
