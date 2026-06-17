@@ -301,7 +301,10 @@ export function DocumentDetail() {
 			{/* Split document dialog — rendered outside the flex row */}
 			{showSplitDialog && (
 				<SplitDocumentDialog
+					open={showSplitDialog}
 					documentId={id!}
+					documentTitle={document?.title ?? ''}
+					pageCount={document?.pageCount ?? 1}
 					onClose={() => setShowSplitDialog(false)}
 				/>
 			)}

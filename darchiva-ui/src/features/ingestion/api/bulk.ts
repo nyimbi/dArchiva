@@ -68,7 +68,6 @@ export function useBulkImport() {
 			const { data } = await apiClient.post<BulkUploadResponse>(
 				`${API_BASE}/bulk-upload`,
 				form,
-				{ headers: { 'Content-Type': 'multipart/form-data' } },
 			);
 			return data;
 		},
@@ -76,7 +75,7 @@ export function useBulkImport() {
 			// Seed the cache with initial state so the status hook has something to show instantly
 			qc.setQueryData(bulkKeys.job(data.job_id), {
 				job_id: data.job_id,
-				status: data.status,
+				status: data.status as BulkJobStatus,
 				total_files: data.total_files,
 				processed: 0,
 				failed: 0,
