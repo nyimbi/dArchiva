@@ -58,14 +58,11 @@ export const chatKeys = {
 export function useChatWithDocument(documentId: string) {
 	return useMutation({
 		mutationFn: async (req: ChatRequest): Promise<ChatResponse> => {
-			const res = await apiClient.post<ChatResponse>(
+			const { data } = await apiClient.post<ChatResponse>(
 				`/documents/${documentId}/chat`,
 				req,
 			);
-			if (!res.ok || !res.data) {
-				throw new Error((res as any).error || 'Chat request failed');
-			}
-			return res.data;
+			return data;
 		},
 	});
 }
@@ -77,13 +74,10 @@ export function useConversationHistory(
 	return useQuery({
 		queryKey: chatKeys.conversation(documentId, conversationId ?? ''),
 		queryFn: async (): Promise<ConversationHistoryResponse> => {
-			const res = await apiClient.get<ConversationHistoryResponse>(
+			const { data } = await apiClient.get<ConversationHistoryResponse>(
 				`/documents/${documentId}/chat/${conversationId}`,
 			);
-			if (!res.ok || !res.data) {
-				throw new Error('Failed to load conversation history');
-			}
-			return res.data;
+			return data;
 		},
 		enabled: !!conversationId,
 	});
@@ -93,12 +87,9 @@ export function useClearConversation(documentId: string) {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async (conversationId: string): Promise<void> => {
-			const res = await apiClient.delete(
+			await apiClient.delete(
 				`/documents/${documentId}/chat/${conversationId}`,
 			);
-			if (!res.ok) {
-				throw new Error('Failed to clear conversation');
-			}
 		},
 		onSuccess: (_data, conversationId) => {
 			queryClient.removeQueries({

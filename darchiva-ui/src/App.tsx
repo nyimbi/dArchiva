@@ -53,7 +53,7 @@ import { ConnectorsPage } from './features/connectors/ConnectorsPage';
 import { NotificationToaster } from './components/NotificationToaster';
 import { DocumentComparison } from './pages/DocumentComparison';
 import { ShortcutsProvider } from './features/shortcuts/ShortcutsProvider';
-import { DataExportPage } from './features/data-export/DataExportPage';
+import DataExportPage from './features/data-export/DataExportPage';
 import { SuperAdminPage } from './features/superadmin/SuperAdminPage';
 import { ThemeProvider } from './features/theme/ThemeProvider';
 
