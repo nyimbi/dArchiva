@@ -3,7 +3,6 @@ import { useAuth } from '@/features/auth';
 import { useStore } from '@/hooks/useStore';
 import { AnimatePresence,motion } from 'framer-motion';
 import {
-  Bell,
   ChevronDown,
   FileText,
   FolderPlus,
@@ -16,6 +15,7 @@ import {
   Upload,
   User,
 } from 'lucide-react';
+import { NotificationBell } from './NotificationBell';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -157,16 +157,7 @@ export function Header() {
 				</button>
 
 				{/* Notifications */}
-				<button
-					onClick={() => openModal('notifications')}
-					className="btn-ghost p-2 relative"
-					aria-label="View notifications"
-				>
-					<Bell className="w-5 h-5" aria-hidden="true" />
-					{pendingTasks.length > 0 && (
-						<span className="absolute top-1 right-1 w-2 h-2 bg-brass-500 rounded-full" aria-hidden="true" />
-					)}
-				</button>
+				<NotificationBell />
 
 				{/* User menu */}
 				<div className="relative ml-2">

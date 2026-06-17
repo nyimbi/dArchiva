@@ -4,6 +4,7 @@ import { BrowserRouter,Route,Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { AuthProvider,LoginPage,ProtectedRoute } from './features/auth';
 import {
+  ApiKeys,
   AuditLogs,
   Cases,
   Dashboard,
@@ -22,6 +23,7 @@ import {
   Security,
   Settings,
   SharedDocuments,
+  SystemHealth,
   UnauthorizedPage,
   UserHomePage,
   Workflows,
@@ -38,6 +40,7 @@ import {
 } from './features/scanning-projects/pages';
 
 import { FleetManagement } from './features/agents';
+import { NotificationToaster } from './components/NotificationToaster';
 
 import { ScanningLayout } from './features/scanning-ops/layouts/ScanningLayout';
 import { OperatorDashboard } from './features/scanning-ops/pages/OperatorDashboard';
@@ -58,6 +61,7 @@ export default function App() {
 	return (
 		<QueryClientProvider client={queryClient}>
 			<AuthProvider>
+				<NotificationToaster />
 				<BrowserRouter>
 					<Routes>
 						{/* Public route */}
@@ -98,6 +102,8 @@ export default function App() {
 								<Route path="agents" element={<FleetManagement />} />
 								<Route path="supervisor" element={<SupervisorDashboard />} />
 								<Route path="exception-queue" element={<ExceptionQueue />} />
+									<Route path="system" element={<SystemHealth />} />
+									<Route path="api-keys" element={<ApiKeys />} />
 							</Route>
 						</Route>
 

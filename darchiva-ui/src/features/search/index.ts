@@ -7,4 +7,5 @@ export * from './api';
 export * from './components/AdvancedSearch';
 export * from './components/SearchResults';
 export * from './components/SemanticSearch';
+export { SearchModeToggle } from './components/SearchModeToggle';
 export * from './types';

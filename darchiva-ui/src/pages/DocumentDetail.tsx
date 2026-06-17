@@ -1,4 +1,8 @@
 // (c) Copyright Datacraft, 2026
+import { CustomFieldsPanel } from '@/features/documents/components/CustomFieldsPanel';
+import { RelatedDocumentsPanel } from '@/features/documents/components/RelatedDocumentsPanel';
+import { SimilarDocuments } from '@/features/documents/components/SimilarDocuments';
+import { SplitDocumentDialog } from '@/features/documents/components/SplitDocumentDialog';
 import { Viewer } from '@/features/documents/components/Viewer';
 import {
 	VersionDiffViewer,
@@ -10,7 +14,7 @@ import { formatRelativeTime } from '@/lib/utils';
 import type { ViewerPage } from '@/types';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { ArrowLeft,Calendar,FileText,GitCompare,History,Loader2,Tag } from 'lucide-react';
+import { ArrowLeft,Calendar,FileText,GitCompare,History,Loader2,Scissors,Tag } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate,useParams } from 'react-router-dom';
 
@@ -42,6 +46,17 @@ export function DocumentDetail() {
 	// Diff state: null means no diff panel open
 	const [diff, setDiff] = useState<{ versionA: number; versionB: number } | null>(null);
 	const [showVersionHistory, setShowVersionHistory] = useState(false);
+	// Right-panel tab: null = closed, or one of the named panels
+	type SidePanel = 'custom-fields' | 'related' | 'similar';
+	const [sidePanel, setSidePanel] = useState<SidePanel | null>(null);
+	const [showSplitDialog, setShowSplitDialog] = useState(false);
+
+	const togglePanel = (panel: SidePanel) => {
+		setSidePanel((prev) => (prev === panel ? null : panel));
+		// Close version history when opening a side panel
+		if (showVersionHistory) setShowVersionHistory(false);
+		setDiff(null);
+	};
 
 	// Fetch document details
 	const { data: document, isLoading, error } = useQuery({
@@ -163,7 +178,7 @@ export function DocumentDetail() {
 						</div>
 					)}
 					<button
-						onClick={() => { setShowVersionHistory((v) => !v); setDiff(null); }}
+						onClick={() => { setShowVersionHistory((v) => !v); setDiff(null); setSidePanel(null); }}
 						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
 							showVersionHistory
 								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
@@ -173,6 +188,50 @@ export function DocumentDetail() {
 					>
 						<History className="w-3.5 h-3.5" />
 						History
+					</button>
+					<button
+						onClick={() => togglePanel('custom-fields')}
+						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+							sidePanel === 'custom-fields'
+								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
+								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+						}`}
+						title="Custom fields"
+					>
+						<Tag className="w-3.5 h-3.5" />
+						Fields
+					</button>
+					<button
+						onClick={() => togglePanel('related')}
+						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+							sidePanel === 'related'
+								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
+								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+						}`}
+						title="Related documents"
+					>
+						<GitCompare className="w-3.5 h-3.5" />
+						Related
+					</button>
+					<button
+						onClick={() => togglePanel('similar')}
+						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+							sidePanel === 'similar'
+								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
+								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+						}`}
+						title="Similar documents"
+					>
+						<FileText className="w-3.5 h-3.5" />
+						Similar
+					</button>
+					<button
+						onClick={() => setShowSplitDialog(true)}
+						className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors"
+						title="Split document"
+					>
+						<Scissors className="w-3.5 h-3.5" />
+						Split
 					</button>
 				</div>
 			</div>
@@ -216,7 +275,36 @@ export function DocumentDetail() {
 						/>
 					</div>
 				)}
+
+				{/* Custom fields panel */}
+				{sidePanel === 'custom-fields' && (
+					<div className="w-72 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto">
+						<CustomFieldsPanel documentId={id!} />
+					</div>
+				)}
+
+				{/* Related documents panel */}
+				{sidePanel === 'related' && (
+					<div className="w-72 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto">
+						<RelatedDocumentsPanel documentId={id!} />
+					</div>
+				)}
+
+				{/* Similar documents panel */}
+				{sidePanel === 'similar' && (
+					<div className="w-72 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto">
+						<SimilarDocuments documentId={id!} />
+					</div>
+				)}
 			</div>
+
+			{/* Split document dialog — rendered outside the flex row */}
+			{showSplitDialog && (
+				<SplitDocumentDialog
+					documentId={id!}
+					onClose={() => setShowSplitDialog(false)}
+				/>
+			)}
 		</motion.div>
 	);
 }

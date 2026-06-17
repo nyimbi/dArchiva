@@ -19,3 +19,5 @@ export * from './UnauthorizedPage';
 export * from './UserHomePage';
 export * from './RetentionPolicies';
 export * from './Workflows';
+export * from './SystemHealth';
+export * from './ApiKeys';

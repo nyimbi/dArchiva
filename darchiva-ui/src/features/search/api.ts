@@ -41,12 +41,17 @@ export function useSearchDocuments(
 	pageSize = 20,
 	sortBy = 'date_desc',
 	enabled = true,
+	mode: import('./types').SearchMode = 'keyword',
 ) {
 	return useQuery({
-		queryKey: [...SEARCH_KEY, 'documents', query, filters, page, pageSize, sortBy],
+		queryKey: [...SEARCH_KEY, 'documents', query, filters, page, pageSize, sortBy, mode],
 		queryFn: async () => {
 			const payload = buildStructuredPayload(query, filters, page, pageSize, sortBy);
-			const { data } = await apiClient.post<SearchResponse>('/search/', payload);
+			const { data } = await apiClient.post<SearchResponse>(
+				'/search/',
+				payload,
+				{ params: { mode } },
+			);
 			return normalizeSearchResponse(data);
 		},
 		enabled: enabled,

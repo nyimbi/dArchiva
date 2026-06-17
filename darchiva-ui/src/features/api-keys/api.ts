@@ -1,0 +1,70 @@
+// (c) Copyright Datacraft, 2026.
+import { apiClient } from '@/lib/api-client';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export interface ApiKey {
+	id: string;
+	name: string;
+	key_prefix: string;
+	scopes: string[];
+	last_used_at: string | null;
+	expires_at: string | null;
+	is_active: boolean;
+	created_at: string;
+}
+
+export interface ApiKeyCreated extends ApiKey {
+	/** Plaintext key — only present on creation response. */
+	key: string;
+}
+
+export interface CreateApiKeyInput {
+	name: string;
+	scopes: string[];
+	expires_at?: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Query keys
+// ---------------------------------------------------------------------------
+
+const API_KEYS_KEY = ['api-keys'] as const;
+
+// ---------------------------------------------------------------------------
+// Hooks
+// ---------------------------------------------------------------------------
+
+export function useApiKeys() {
+	return useQuery({
+		queryKey: API_KEYS_KEY,
+		queryFn: async () => {
+			const { data } = await apiClient.get<ApiKey[]>('/api-keys');
+			return data;
+		},
+	});
+}
+
+export function useCreateApiKey() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: async (input: CreateApiKeyInput) => {
+			const { data } = await apiClient.post<ApiKeyCreated>('/api-keys', input);
+			return data;
+		},
+		onSuccess: () => qc.invalidateQueries({ queryKey: API_KEYS_KEY }),
+	});
+}
+
+export function useRevokeApiKey() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: async (id: string) => {
+			await apiClient.delete(`/api-keys/${id}`);
+		},
+		onSuccess: () => qc.invalidateQueries({ queryKey: API_KEYS_KEY }),
+	});
+}

@@ -3,6 +3,7 @@ import { useStore } from '@/hooks/useStore';
 import { cn } from '@/lib/utils';
 import { AnimatePresence,motion } from 'framer-motion';
 import {
+  Activity,
   AlertTriangle,
   ArrowDownToLine,
   Briefcase,
@@ -16,6 +17,7 @@ import {
   History,
   Home,
   Inbox,
+  Key,
   LayoutDashboard,
   MonitorDot,
   MonitorPlay,
@@ -54,6 +56,8 @@ const adminItems = [
 	{ id: 'agents', label: 'Scan Agents', icon: MonitorPlay, path: '/agents' },
 	{ id: 'retention', label: 'Retention', icon: Timer, path: '/retention' },
 	{ id: 'webhooks', label: 'Webhooks', icon: Webhook, path: '/webhooks' },
+	{ id: 'api-keys', label: 'API Keys', icon: Key, path: '/api-keys' },
+	{ id: 'system', label: 'System Health', icon: Activity, path: '/system' },
 	{ id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
 	{ id: 'audit', label: 'Audit Logs', icon: History, path: '/audit' },
 	{ id: 'encryption', label: 'Encryption', icon: Shield, path: '/encryption' },

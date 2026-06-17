@@ -57,6 +57,33 @@ export interface CustomFieldListResponse {
 	total: number;
 }
 
+// ------------------------------------------------------------------
+// Document custom-field-values (v2 — typed columns)
+// ------------------------------------------------------------------
+
+export interface DocumentCustomFieldValueEntry {
+	field_id: string;
+	field_name: string;
+	field_type: CustomFieldType;
+	label?: string;
+	required: boolean;
+	options?: CustomFieldOption[];
+	sort_order: number;
+	value_text: string | null;
+	value_number: number | null;
+	value_date: string | null;  // ISO date string YYYY-MM-DD
+	value_bool: boolean | null;
+}
+
+/** Shape returned by GET /documents/{id}/custom-field-values */
+export type DocumentCustomFieldValues = DocumentCustomFieldValueEntry[];
+
+/** Body for PUT /documents/{id}/custom-field-values */
+export type UpsertCustomFieldValuesPayload = Record<
+	string,
+	string | number | boolean | null
+>;
+
 export const FIELD_TYPE_LABELS: Record<CustomFieldType, string> = {
 	text: 'Text',
 	number: 'Number',
