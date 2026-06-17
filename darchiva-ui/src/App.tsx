@@ -1,4 +1,5 @@
 // (c) Copyright Datacraft, 2026
+import { useState } from 'react';
 import { QueryClient,QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter,Route,Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
@@ -63,11 +64,12 @@ const queryClient = new QueryClient({
 function AppInner() {
 	const { logoUrl } = useBranding();
 	void logoUrl; // side-effect: applies CSS variables and caches branding
+	const [wizardDismissed, setWizardDismissed] = useState(false);
 
 	return (
 		<>
 			<NotificationToaster />
-			<OnboardingWizard />
+			{!wizardDismissed && <OnboardingWizard onDone={() => setWizardDismissed(true)} />}
 		</>
 	);
 }

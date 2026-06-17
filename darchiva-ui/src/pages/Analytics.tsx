@@ -185,7 +185,7 @@ function CapacityGauge({
 
 // ─────────────────────── main page ───────────────────────────
 
-export default function Analytics() {
+export function Analytics() {
 	const [days, setDays] = useState<DateRange>(30);
 	const granularity: Granularity = days <= 7 ? 'day' : days <= 30 ? 'day' : 'week';
 
