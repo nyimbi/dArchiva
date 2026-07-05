@@ -57,11 +57,13 @@ export function QualityDashboard({
 	const {
 		data: fetchedStats,
 		isLoading: isFetching,
+		isError: isFetchError,
 		refetch,
 	} = useQualityStats(7);
 
 	const stats = statsProp ?? fetchedStats;
 	const isLoading = isLoadingProp ?? isFetching;
+	const isError = isFetchError;
 	const handleRefresh = onRefresh ?? (() => void refetch());
 
 	return (
@@ -90,6 +92,12 @@ export function QualityDashboard({
 			</div>
 
 			{/* Stats */}
+			{isError && !isLoading && (
+				<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+					<AlertTriangle className="h-4 w-4 shrink-0" />
+					Failed to load quality stats. Click Refresh to try again.
+				</div>
+			)}
 			{isLoading ? (
 				<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 					{Array.from({ length: 4 }).map((_, i) => (
