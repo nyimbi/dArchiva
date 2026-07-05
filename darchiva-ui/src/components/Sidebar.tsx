@@ -46,6 +46,7 @@ import {
   BookOpen,
   Scale,
   Hash,
+  Package,
 } from 'lucide-react';
 import { useBranding } from '@/hooks/useBranding';
 import { Link,useLocation } from 'react-router-dom';
@@ -74,6 +75,7 @@ const navItems = [
 	{ id: 'reports-scheduled', label: 'Scheduled Reports', icon: CalendarClock, path: '/reports/scheduled' },
 	{ id: 'quality', label: 'Quality Control', icon: ShieldCheck, path: '/quality' },
 	{ id: 'serial-numbers', label: 'Serial Numbers', icon: Hash, path: '/serial-numbers' },
+	{ id: 'inventory', label: 'Inventory', icon: Package, path: '/inventory' },
 ];
 
 const adminItems = [

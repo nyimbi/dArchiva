@@ -64,6 +64,7 @@ import { QualityDashboard } from './features/quality';
 import { IAMDashboard } from './features/iam';
 import { ComplianceDashboard } from './features/compliance';
 import { SerialNumbersPage } from './features/serial-numbers';
+import { InventoryManager } from './features/inventory';
 
 import { ScanningLayout } from './features/scanning-ops/layouts/ScanningLayout';
 import { OperatorDashboard } from './features/scanning-ops/pages/OperatorDashboard';
@@ -160,7 +161,8 @@ export default function App() {
 								<Route path="iam" element={<IAMDashboard />} />
 								<Route path="compliance" element={<ComplianceDashboard />} />
 								<Route path="serial-numbers" element={<SerialNumbersPage />} />
-								<Route path="onboarding" element={<OnboardingWizard />} />
+								<Route path="onboarding" element={<OnboardingWizard onDone={() => window.history.back()} />} />
+								<Route path="inventory" element={<InventoryManager />} />
 							</Route>
 						</Route>
 
