@@ -1,16 +1,10 @@
 /**
  * React hook for browser-based OCR using VLM
  *
- * Supports:
- * - Ollama Cloud (recommended)
- * - Local Ollama
- * - Anthropic Claude Vision
- * - OpenAI GPT-4 Vision
- *
- * This allows OCR to be processed in the browser when the backend is remote.
+ * Browser OCR uses the backend OCR proxy, constrained to the configured
+ * OpenAI-compatible LiteLLM gateway.
  */
 import {
-  checkOllamaStatus,
   ocrPdfDocument,
   performOCR,
   VLM_PROVIDERS,
@@ -22,14 +16,9 @@ import { useCallback,useRef,useState } from 'react';
 
 export interface BrowserOCRConfig {
 	provider: VLMProvider;
-	ollamaHost: string;
 	ollamaModel: string;
-	ollamaApiKey: string; // For Ollama Cloud
-	apiKey: string; // For Anthropic/OpenAI/Azure
-	// Azure OpenAI specific
-	azureEndpoint: string;
-	azureDeployment: string;
-	azureApiVersion: string;
+	apiKey: string;
+	openaiBaseUrl: string;
 	enabled: boolean;
 }
 
@@ -84,15 +73,10 @@ export interface UseBrowserOCRReturn {
 }
 
 const DEFAULT_CONFIG: BrowserOCRConfig = {
-	provider: 'azure-openai',
-	ollamaHost: 'https://ollama.com',
-	ollamaModel: 'qwen3-vl:235b-cloud',
-	ollamaApiKey: import.meta.env.VITE_OLLAMA_API_KEY || '',
-	apiKey: import.meta.env.VITE_AZURE_OPENAI_API_KEY || '',
-	// Azure OpenAI defaults from environment
-	azureEndpoint: import.meta.env.VITE_AZURE_OPENAI_ENDPOINT || 'https://lindela.openai.azure.com/',
-	azureDeployment: import.meta.env.VITE_AZURE_OPENAI_DEPLOYMENT || 'gpt-4.1-mini',
-	azureApiVersion: import.meta.env.VITE_AZURE_OPENAI_API_VERSION || '2024-02-15-preview',
+	provider: 'openai',
+	ollamaModel: 'qwen2.5-VL',
+	apiKey: import.meta.env.VITE_LITELLM_API_KEY || 'sk-pjs-litellm-master-key',
+	openaiBaseUrl: import.meta.env.VITE_LITELLM_BASE_URL || 'http://84.247.181.100:4000/v1',
 	enabled: false,
 };
 
@@ -101,7 +85,15 @@ function loadConfig(): BrowserOCRConfig {
 	try {
 		const stored = localStorage.getItem('browserOCRConfig');
 		if (stored) {
-			return { ...DEFAULT_CONFIG, ...JSON.parse(stored) };
+			const parsed = JSON.parse(stored) as Partial<BrowserOCRConfig>;
+			return {
+				...DEFAULT_CONFIG,
+				...parsed,
+				provider: 'openai',
+				ollamaModel: 'qwen2.5-VL',
+				apiKey: parsed.apiKey || DEFAULT_CONFIG.apiKey,
+				openaiBaseUrl: parsed.openaiBaseUrl || DEFAULT_CONFIG.openaiBaseUrl,
+			};
 		}
 	} catch {
 		// Ignore parse errors
@@ -113,7 +105,7 @@ function loadConfig(): BrowserOCRConfig {
 function saveConfig(config: BrowserOCRConfig): void {
 	try {
 		// Don't persist API keys for security
-		const safeConfig = { ...config, ollamaApiKey: '', apiKey: '' };
+			const safeConfig = { ...config, apiKey: '' };
 		localStorage.setItem('browserOCRConfig', JSON.stringify(safeConfig));
 	} catch {
 		// Ignore storage errors
@@ -143,43 +135,21 @@ export function useBrowserOCR(): UseBrowserOCRReturn {
 
 	// Build VLMConfig from our config
 	const getVLMConfig = useCallback((): VLMConfig => {
-		return {
-			provider: config.provider,
-			ollamaHost: config.ollamaHost,
-			ollamaModel: config.ollamaModel,
-			ollamaApiKey: config.ollamaApiKey,
-			apiKey: config.apiKey,
-			anthropicModel: 'claude-sonnet-4-20250514',
-			openaiModel: 'gpt-4o',
-			// Azure OpenAI settings
-			azureOpenaiEndpoint: config.azureEndpoint,
-			azureOpenaiDeployment: config.azureDeployment,
-			azureOpenaiApiVersion: config.azureApiVersion,
-		};
-	}, [config]);
+			return {
+				provider: config.provider,
+				apiKey: config.apiKey,
+				openaiBaseUrl: config.openaiBaseUrl,
+				openaiModel: config.ollamaModel,
+			};
+		}, [config]);
 
 	const checkConnection = useCallback(async (): Promise<ConnectionStatus> => {
-		// For Ollama (local or cloud), check status
-		if (config.provider === 'ollama' || config.provider === 'ollama-cloud') {
-			const host =
-				config.provider === 'ollama-cloud'
-					? 'https://ollama.com'
-					: config.ollamaHost;
-			const result = await checkOllamaStatus(host, config.ollamaApiKey);
-			setStatus(result);
-			if (result.available) {
-				setAvailableModels(result.models);
-			}
-			return result;
-		}
-
-		// For Anthropic/OpenAI, just check if API key is set
 		const hasKey = !!config.apiKey;
 		const result: ConnectionStatus = {
 			available: hasKey,
 			isCloud: true,
-			models: VLM_PROVIDERS[config.provider].models as unknown as string[],
-			error: hasKey ? undefined : 'API key required',
+			models: VLM_PROVIDERS.openai.models as unknown as string[],
+			error: hasKey ? undefined : 'LiteLLM API key required',
 		};
 		setStatus(result);
 		setAvailableModels(result.models);

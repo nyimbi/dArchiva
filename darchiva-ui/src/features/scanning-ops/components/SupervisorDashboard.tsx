@@ -7,7 +7,6 @@ import { motion } from 'framer-motion';
 import {
 	Activity,
 	AlertTriangle,
-	CheckCircle,
 	Clock,
 	FileText,
 	Layers,

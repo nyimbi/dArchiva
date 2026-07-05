@@ -1,11 +1,7 @@
 /**
  * Browser OCR Configuration Component
  *
- * Allows users to configure VLM-based OCR with multiple providers:
- * - Ollama Cloud (recommended)
- * - Local Ollama
- * - Anthropic Claude Vision
- * - OpenAI GPT-4 Vision
+ * Allows users to configure VLM-based OCR through the approved LiteLLM gateway.
  */
 
 import { cn } from '@/lib/utils';
@@ -20,7 +16,6 @@ import {
   Info,
   Key,
   Loader2,
-  Monitor,
   RefreshCw,
   Server,
   Zap,
@@ -39,12 +34,10 @@ export interface BrowserOCRConfigProps {
 }
 
 const PROVIDER_ICONS: Record<VLMProvider, React.ReactNode> = {
-	'azure-openai': <Cloud className="w-5 h-5" />,
-	'ollama-cloud': <Cloud className="w-5 h-5" />,
-	ollama: <Monitor className="w-5 h-5" />,
-	anthropic: <Zap className="w-5 h-5" />,
 	openai: <Zap className="w-5 h-5" />,
 };
+
+const ALLOWED_BROWSER_OCR_PROVIDERS: VLMProvider[] = ['openai'];
 
 export function BrowserOCRConfig({
 	open,
@@ -98,29 +91,19 @@ export function BrowserOCRConfig({
 		const info = providerInfo[provider];
 		setConfig({
 			provider,
-			ollamaHost: 'host' in info ? info.host : config.ollamaHost,
 			ollamaModel: info.defaultModel,
 		});
 		setTempApiKey('');
 	};
 
 	const handleApiKeySubmit = () => {
-		if (config.provider === 'ollama-cloud') {
-			setConfig({ ollamaApiKey: tempApiKey });
-		} else {
-			setConfig({ apiKey: tempApiKey });
-		}
+		setConfig({ apiKey: tempApiKey });
 		setTimeout(handleCheckConnection, 100);
 	};
 
 	const currentProvider = providerInfo[config.provider];
 	const needsApiKey = currentProvider.requiresApiKey;
-	const hasApiKey =
-		config.provider === 'ollama-cloud'
-			? !!config.ollamaApiKey
-			: config.provider === 'ollama'
-				? true
-				: !!config.apiKey;
+	const hasApiKey = !!config.apiKey;
 
 	return (
 		<Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -177,7 +160,7 @@ export function BrowserOCRConfig({
 										: 'border-slate-700 hover:border-slate-600'
 								)}
 							>
-								<Monitor
+								<Zap
 									className={cn(
 										'w-8 h-8',
 										ocrMode === 'browser' ? 'text-brass-400' : 'text-slate-400'
@@ -226,9 +209,8 @@ export function BrowserOCRConfig({
 										Browser VLM OCR
 									</p>
 									<p className="text-slate-400 mt-1">
-										Your browser connects directly to a VLM service for
-										high-quality OCR. Choose from Ollama Cloud, local Ollama,
-										or other providers.
+										Your browser sends OCR work through the approved LiteLLM
+										gateway using an OpenAI-compatible request format.
 									</p>
 								</>
 							)}
@@ -244,7 +226,7 @@ export function BrowserOCRConfig({
 									VLM Provider
 								</label>
 								<div className="grid grid-cols-2 gap-2">
-									{(Object.keys(providerInfo) as VLMProvider[]).map(
+									{ALLOWED_BROWSER_OCR_PROVIDERS.map(
 										(provider) => {
 											const info = providerInfo[provider];
 											const isSelected = config.provider === provider;
@@ -359,13 +341,7 @@ export function BrowserOCRConfig({
 								<div className="space-y-2">
 									<label className="text-sm font-medium text-slate-300 flex items-center gap-2">
 										<Key className="w-4 h-4" />
-										{config.provider === 'ollama-cloud'
-											? 'Ollama API Key'
-											: config.provider === 'anthropic'
-												? 'Anthropic API Key'
-												: config.provider === 'azure-openai'
-													? 'Azure OpenAI API Key'
-													: 'OpenAI API Key'}
+										LiteLLM API Key
 									</label>
 									<div className="flex gap-2">
 										<div className="relative flex-1">
@@ -399,105 +375,22 @@ export function BrowserOCRConfig({
 										</button>
 									</div>
 									<p className="text-xs text-slate-500">
-										{config.provider === 'ollama-cloud' && (
-											<>
-												Get your API key at{' '}
-												<a
-													href="https://ollama.com/settings/keys"
-													target="_blank"
-													rel="noopener noreferrer"
-													className="text-brass-400 hover:underline"
-												>
-													ollama.com/settings/keys
-												</a>
-											</>
-										)}
-										{config.provider === 'anthropic' && (
-											<>
-												Get your API key at{' '}
-												<a
-													href="https://console.anthropic.com/settings/keys"
-													target="_blank"
-													rel="noopener noreferrer"
-													className="text-brass-400 hover:underline"
-												>
-													console.anthropic.com
-												</a>
-											</>
-										)}
-										{config.provider === 'openai' && (
-											<>
-												Get your API key at{' '}
-												<a
-													href="https://platform.openai.com/api-keys"
-													target="_blank"
-													rel="noopener noreferrer"
-													className="text-brass-400 hover:underline"
-												>
-													platform.openai.com
-												</a>
-											</>
-										)}
-										{config.provider === 'azure-openai' && (
-											<>
-												Get your API key from Azure Portal &gt; OpenAI resource &gt; Keys
-											</>
-										)}
+										Requests are routed through the local LiteLLM proxy.
 									</p>
 								</div>
 							)}
 
-							{/* Azure OpenAI specific settings */}
-							{config.provider === 'azure-openai' && (
-								<>
-									<div className="space-y-2">
-										<label className="text-sm font-medium text-slate-300">
-											Azure Endpoint
-										</label>
-										<input
-											type="text"
-											value={config.azureEndpoint || ''}
-											onChange={(e) =>
-												setConfig({ azureEndpoint: e.target.value } as Partial<OCRConfig>)
-											}
-											placeholder="https://your-resource.openai.azure.com/"
-											className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-brass-500"
-										/>
-									</div>
-									<div className="space-y-2">
-										<label className="text-sm font-medium text-slate-300">
-											Deployment Name
-										</label>
-										<input
-											type="text"
-											value={config.azureDeployment || ''}
-											onChange={(e) =>
-												setConfig({ azureDeployment: e.target.value } as Partial<OCRConfig>)
-											}
-											placeholder="gpt-4o"
-											className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-brass-500"
-										/>
-									</div>
-								</>
-							)}
-
-							{/* Local Ollama Host (only for local provider) */}
-							{config.provider === 'ollama' && (
-								<div className="space-y-2">
-									<label className="text-sm font-medium text-slate-300">
-										Ollama Host
-									</label>
-									<input
-										type="text"
-										value={config.ollamaHost}
-										onChange={(e) =>
-											setConfig({ ollamaHost: e.target.value })
-										}
-										placeholder="http://localhost:11434"
-										className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-brass-500"
-									/>
-								</div>
-							)}
+							<div className="space-y-2">
+								<label className="text-sm font-medium text-slate-300">
+									LiteLLM Base URL
+								</label>
+								<input
+									type="text"
+									value={config.openaiBaseUrl}
+									onChange={(e) => setConfig({ openaiBaseUrl: e.target.value } as Partial<OCRConfig>)}
+									className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-brass-500"
+								/>
+							</div>
 
 							{/* Model Selection */}
 							<div className="space-y-2">
@@ -521,33 +414,6 @@ export function BrowserOCRConfig({
 								</select>
 							</div>
 
-							{/* Provider-specific notes */}
-							{config.provider === 'ollama' && !isConnected && (
-								<div className="p-3 bg-slate-800 rounded-lg space-y-2">
-									<p className="text-sm font-medium text-slate-300">
-										Quick Setup
-									</p>
-									<ol className="text-xs text-slate-400 space-y-1 list-decimal list-inside">
-										<li>
-											Install Ollama:{' '}
-											<code className="text-slate-300">
-												brew install ollama
-											</code>
-										</li>
-										<li>
-											Start Ollama:{' '}
-											<code className="text-slate-300">ollama serve</code>
-										</li>
-										<li>
-											Pull a vision model:{' '}
-											<code className="text-slate-300">
-												ollama pull qwen2.5-vl:7b
-											</code>
-										</li>
-										<li>Click "Check connection" above</li>
-									</ol>
-								</div>
-							)}
 						</div>
 					)}
 
@@ -608,11 +474,7 @@ export function OCRModeIndicator({
 				</>
 			) : (
 				<>
-					{provider === 'ollama-cloud' || provider === 'ollama' ? (
-						<Monitor className="w-3 h-3" />
-					) : (
-						<Cloud className="w-3 h-3" />
-					)}
+					<Cloud className="w-3 h-3" />
 					<span>{providerName}</span>
 					{!isConnected && <AlertCircle className="w-3 h-3" />}
 				</>
