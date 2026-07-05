@@ -59,6 +59,9 @@ export function ScanningInterface() {
     } = useBrowserScanner({
         autoDiscover: false,
     });
+    const scannerId = activeScanner
+        ? activeScanner.uuid || activeScanner.serialNumber || `${activeScanner.host}:${activeScanner.port}`
+        : undefined;
 
     // Real scanning function using API
     const handleScan = async () => {
@@ -104,7 +107,7 @@ export function ScanningInterface() {
                         await scanPage.mutateAsync({
                             project_id: projectId,
                             batch_id: batchId,
-                            scanner_id: activeScanner?.id,
+                            scanner_id: scannerId,
                         });
                         await recordPageEvent.mutateAsync({
                             project_id: projectId,
