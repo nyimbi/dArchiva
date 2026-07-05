@@ -222,7 +222,7 @@ function SourceCard({ source }: SourceCardProps) {
 
 export function IngestionDashboard() {
   const navigate = useNavigate();
-  const { data, isLoading, isFetching, refetch } = useIngestionDashboard();
+  const { data, isLoading, isFetching, isError, refetch } = useIngestionDashboard();
 
   const sources = data?.sources ?? [];
 
@@ -233,6 +233,12 @@ export function IngestionDashboard() {
 
   return (
     <div className="space-y-6">
+      {isError && (
+        <div className="flex items-center justify-between rounded-md border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          <span>Failed to load ingestion dashboard data.</span>
+          <button onClick={() => refetch()} className="ml-4 underline hover:text-red-200">Retry</button>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
