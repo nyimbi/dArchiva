@@ -133,13 +133,18 @@ function RouteFallback() {
 function AppInner() {
 	const { logoUrl } = useBranding();
 	void logoUrl; // side-effect: applies CSS variables and caches branding
-	const [wizardDismissed, setWizardDismissed] = useState(false);
+	const [wizardDismissed, setWizardDismissed] = useState(
+		() => localStorage.getItem('darchiva-onboarding-done') === 'true'
+	);
 
 	return (
 		<>
 			<Toaster richColors position="top-right" visibleToasts={4} />
 			<NotificationToaster />
-			{!wizardDismissed && <OnboardingWizard onDone={() => setWizardDismissed(true)} />}
+			{!wizardDismissed && <OnboardingWizard onDone={() => {
+				localStorage.setItem('darchiva-onboarding-done', 'true');
+				setWizardDismissed(true);
+			}} />}
 		</>
 	);
 }
