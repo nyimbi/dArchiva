@@ -3,7 +3,7 @@ import { UnifiedHierarchyView } from '@/features/hierarchy';
 
 export function HierarchyPage() {
 	return (
-		<div style={{ padding: '1.5rem' }}>
+		<div className="p-6">
 			<UnifiedHierarchyView />
 		</div>
 	);
