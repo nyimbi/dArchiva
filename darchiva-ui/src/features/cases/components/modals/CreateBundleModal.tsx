@@ -31,7 +31,7 @@ export function CreateBundleModal({ onClose, case_ }: Props) {
 			<div className="glass-card w-full max-w-md p-6">
 				<div className="flex items-center justify-between mb-5">
 					<h2 className="text-lg font-semibold text-slate-100">Create Bundle</h2>
-					<button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-200 rounded"><X className="w-5 h-5" /></button>
+					<button aria-label="Close" onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-200 rounded"><X className="w-5 h-5" /></button>
 				</div>
 
 				{case_ && (

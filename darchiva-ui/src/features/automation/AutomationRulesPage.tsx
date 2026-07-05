@@ -721,10 +721,11 @@ export function AutomationRulesPage() {
 									</TableCell>
 									<TableCell>
 										<div className="flex gap-2">
-											<Button size="icon" variant="ghost" onClick={() => openEdit(rule)}>
+											<Button aria-label="Edit rule" size="icon" variant="ghost" onClick={() => openEdit(rule)}>
 												<Pencil className="h-4 w-4" />
 											</Button>
 											<Button
+												aria-label="Delete rule"
 												size="icon"
 												variant="ghost"
 												className="text-destructive hover:text-destructive"

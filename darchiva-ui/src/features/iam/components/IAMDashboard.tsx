@@ -362,7 +362,7 @@ function UserRow({ user }: { user: IAMUser }) {
 			<TableCell>
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
-						<Button variant="ghost" size="icon" className="h-7 w-7">
+						<Button aria-label="User actions" variant="ghost" size="icon" className="h-7 w-7">
 							<MoreHorizontal className="w-4 h-4" />
 						</Button>
 					</DropdownMenuTrigger>
@@ -555,7 +555,7 @@ function GroupRow({ group }: { group: Group }) {
 			<TableCell>
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
-						<Button variant="ghost" size="icon" className="h-7 w-7">
+						<Button aria-label="Group actions" variant="ghost" size="icon" className="h-7 w-7">
 							<MoreHorizontal className="w-4 h-4" />
 						</Button>
 					</DropdownMenuTrigger>

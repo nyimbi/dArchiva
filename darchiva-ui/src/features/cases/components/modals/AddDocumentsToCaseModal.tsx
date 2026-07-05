@@ -46,7 +46,7 @@ export function AddDocumentsToCaseModal({ onClose, case_ }: Props) {
 						<h2 className="text-lg font-semibold text-slate-100">Add Documents</h2>
 						{case_ && <p className="text-xs text-slate-500 mt-0.5">to case: {case_.title}</p>}
 					</div>
-					<button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-200 rounded"><X className="w-5 h-5" /></button>
+					<button aria-label="Close" onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-200 rounded"><X className="w-5 h-5" /></button>
 				</div>
 
 				<div className="p-4 border-b border-slate-700/50">

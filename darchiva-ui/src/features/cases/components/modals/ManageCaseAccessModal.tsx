@@ -41,7 +41,7 @@ export function ManageCaseAccessModal({ onClose, case_ }: Props) {
 						<Shield className="w-5 h-5 text-brass-400" />
 						<h2 className="text-lg font-semibold text-slate-100">Manage Access</h2>
 					</div>
-					<button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-200 rounded"><X className="w-5 h-5" /></button>
+					<button aria-label="Close" onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-200 rounded"><X className="w-5 h-5" /></button>
 				</div>
 
 				{case_ && <p className="text-sm text-slate-500 mb-4">Case: <span className="text-slate-300">{case_.title}</span></p>}

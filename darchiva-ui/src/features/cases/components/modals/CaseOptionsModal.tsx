@@ -25,7 +25,7 @@ export function CaseOptionsModal({ onClose, case_ }: Props) {
 			<div className="glass-card w-full max-w-xs p-4">
 				<div className="flex items-center justify-between mb-3">
 					<h3 className="text-sm font-semibold text-slate-200 truncate">{case_.title}</h3>
-					<button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-200 rounded"><X className="w-4 h-4" /></button>
+					<button aria-label="Close" onClick={onClose} className="p-1 text-slate-400 hover:text-slate-200 rounded"><X className="w-4 h-4" /></button>
 				</div>
 				<div className="space-y-1">
 					{actions.map((action) => (
