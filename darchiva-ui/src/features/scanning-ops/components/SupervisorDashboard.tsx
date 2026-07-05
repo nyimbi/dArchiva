@@ -16,8 +16,10 @@ import {
 	Users,
 } from 'lucide-react';
 import { useMemo } from 'react';
-import { useAssignedBatches, useLeaderboard, useShiftStats } from '../api/hooks';
-import type { AssignedBatch, OperatorScore } from '../api/hooks';
+import { useAssignedBatches, useShiftStats } from '../api/hooks';
+import type { AssignedBatch } from '../api/hooks';
+import { useOperatorKpis } from '@/features/scanning-projects/api/hooks';
+import type { OperatorKPI } from '@/features/scanning-projects/api/index';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Types
@@ -178,15 +180,13 @@ function BatchKanban({ batches }: { batches: AssignedBatch[] }) {
 	);
 }
 
-function OperatorKPITable({ scores }: { scores: OperatorScore[] }) {
-	// Derive pages/hour from quality_score as a proxy (real impl would use a dedicated endpoint)
+function OperatorKPITable({ scores }: { scores: OperatorKPI[] }) {
 	const rows = scores.map((op, i) => ({
 		...op,
 		rank: i + 1,
-		// These would come from a real supervisor API; mocked reasonably here
-		pagesHour: op.pages_scanned > 0 ? Math.round(op.pages_scanned / 8) : 0,
-		rescanRate: op.quality_score > 0 ? Math.max(0, 100 - op.quality_score).toFixed(1) : '—',
-		firstPassYield: op.quality_score > 0 ? `${op.quality_score.toFixed(1)}%` : '—',
+		pagesHour: op.pages_per_hour,
+		rescanRate: op.rescan_rate > 0 ? op.rescan_rate.toFixed(1) : '—',
+		firstPassYield: op.first_pass_yield > 0 ? `${op.first_pass_yield.toFixed(1)}%` : '—',
 	}));
 
 	return (
@@ -217,7 +217,7 @@ function OperatorKPITable({ scores }: { scores: OperatorScore[] }) {
 						) : (
 							rows.map((op) => (
 								<motion.tr
-									key={op.id}
+									key={op.operator_id}
 									initial={{ opacity: 0 }}
 									animate={{ opacity: 1 }}
 									className="hover:bg-slate-800/30 transition-colors"
@@ -272,9 +272,9 @@ function OperatorKPITable({ scores }: { scores: OperatorScore[] }) {
 										<span
 											className={cn(
 												'text-sm font-medium',
-												op.quality_score >= 90
+												op.first_pass_yield >= 90
 													? 'text-emerald-400'
-													: op.quality_score >= 75
+													: op.first_pass_yield >= 75
 													? 'text-yellow-400'
 													: 'text-red-400'
 											)}
@@ -296,17 +296,17 @@ function OperatorKPITable({ scores }: { scores: OperatorScore[] }) {
 // Main component
 
 export function SupervisorDashboard() {
-	const { data: leaderboard = [], isLoading: loadingLeaderboard, refetch } = useLeaderboard(50);
+	const { data: operatorKpis = [], isLoading: loadingKpis, refetch } = useOperatorKpis(7);
 	const { data: batches = [], isLoading: loadingBatches } = useAssignedBatches();
 	const { data: shiftStats } = useShiftStats();
 
-	const activeOperators = leaderboard.filter((op) => op.pages_scanned > 0).length;
-	const totalPagesToday = leaderboard.reduce((sum, op) => sum + op.pages_scanned, 0);
+	const activeOperators = operatorKpis.filter((op) => op.pages_scanned > 0).length;
+	const totalPagesToday = operatorKpis.reduce((sum, op) => sum + op.pages_scanned, 0);
 	const queueDepth = batches.filter(
 		(b) => b.status === 'pending' || b.status === 'in_progress'
 	).length;
 
-	const isLoading = loadingLeaderboard || loadingBatches;
+	const isLoading = loadingKpis || loadingBatches;
 
 	return (
 		<div className="space-y-6">
@@ -331,7 +331,7 @@ export function SupervisorDashboard() {
 				<SummaryCard
 					label="Active Operators"
 					value={activeOperators}
-					sub={`${leaderboard.length} total on roster`}
+					sub={`${operatorKpis.length} total on roster`}
 					icon={Users}
 					color="text-brass-400"
 					bg="bg-brass-500/10"
@@ -362,12 +362,12 @@ export function SupervisorDashboard() {
 			</div>
 
 			{/* Operator KPI Table */}
-			{loadingLeaderboard ? (
+			{loadingKpis ? (
 				<div className="glass-card p-6 text-center text-slate-500 animate-pulse">
 					Loading operator data...
 				</div>
 			) : (
-				<OperatorKPITable scores={leaderboard} />
+				<OperatorKPITable scores={operatorKpis} />
 			)}
 
 			{/* Batch Pipeline Kanban */}
@@ -380,7 +380,7 @@ export function SupervisorDashboard() {
 			)}
 
 			{/* Alerts section — high rescan rates */}
-			{leaderboard.some((op) => op.quality_score > 0 && op.quality_score < 75) && (
+			{operatorKpis.some((op) => op.first_pass_yield > 0 && op.first_pass_yield < 75) && (
 				<motion.div
 					initial={{ opacity: 0, y: 8 }}
 					animate={{ opacity: 1, y: 0 }}
@@ -391,11 +391,11 @@ export function SupervisorDashboard() {
 						<div>
 							<p className="text-sm font-medium text-amber-300">Quality Alerts</p>
 							<ul className="mt-1 space-y-0.5">
-								{leaderboard
-									.filter((op) => op.quality_score > 0 && op.quality_score < 75)
+								{operatorKpis
+									.filter((op) => op.first_pass_yield > 0 && op.first_pass_yield < 75)
 									.map((op) => (
-										<li key={op.id} className="text-xs text-amber-400/80">
-											{op.operator_name} — first-pass yield {op.quality_score.toFixed(1)}% (below 75% threshold)
+										<li key={op.operator_id} className="text-xs text-amber-400/80">
+											{op.operator_name} — first-pass yield {op.first_pass_yield.toFixed(1)}% (below 75% threshold)
 										</li>
 									))}
 							</ul>
