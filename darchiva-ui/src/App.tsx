@@ -53,6 +53,7 @@ import { UserManagement } from './features/admin/UserManagement';
 import { RoleManagement } from './features/admin/RoleManagement';
 import { EmailIngestConfigs } from './features/email-ingest/EmailIngestConfigs';
 import { ConnectorsPage } from './features/connectors/ConnectorsPage';
+import { TenantsPage } from './features/tenants';
 import { NotificationToaster } from './components/NotificationToaster';
 import { ShortcutsProvider } from './features/shortcuts/ShortcutsProvider';
 import { AutomationRulesPage } from './features/automation/AutomationRulesPage';
@@ -216,6 +217,7 @@ export default function App() {
 								<Route path="inventory" element={<InventoryManager />} />
 								<Route path="segmentation" element={<SegmentationPage />} />
 								<Route path="hierarchy" element={<HierarchyPage />} />
+								<Route path="admin/tenants" element={<TenantsPage />} />
 								<Route path="*" element={<NotFound />} />
 							</Route>
 						</Route>

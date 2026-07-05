@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   ArrowDownToLine,
   BarChart2,
+  Building2,
   CalendarClock,
   CreditCard,
   DatabaseZap,
@@ -212,6 +213,7 @@ export const adminItems = [
 	{ id: 'security', label: 'Security', icon: ShieldHalf, path: '/security' },
 	{ id: 'admin-roles', label: 'Roles', icon: UserCheck, path: '/admin/roles' },
 	{ id: 'hierarchy', label: 'Hierarchy', icon: GitFork, path: '/hierarchy' },
+	{ id: 'admin-tenants', label: 'Tenants', icon: Building2, path: '/admin/tenants' },
 ];
 
 interface SidebarProps {
