@@ -23,6 +23,7 @@ import { ActivityPanel } from '@/features/activity/ActivityPanel';
 import { ChatPanel } from '@/features/document-chat';
 import { ACLPanel } from '@/features/acl/ACLPanel';
 import { CommentsPanel } from '@/features/comments/CommentsPanel';
+import { OCRCorrectionPanel } from '@/features/ocr-correction';
 import {
 	VersionDiffViewer,
 	VersionHistoryWithCompare,
@@ -33,7 +34,7 @@ import { formatRelativeTime } from '@/lib/utils';
 import type { ViewerPage } from '@/types';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Activity,ArrowLeft,Bell,Calendar,CheckSquare,Copy,Download,Edit2,FileText,GitCompare,History,Layers,Lightbulb,Loader2,Lock,MessageCircle,MessageSquare,PenTool,QrCode,ScanLine,Scissors,Share2,Shield,Stamp,Tag,Tags } from 'lucide-react';
+import { Activity,ArrowLeft,Bell,Calendar,CheckSquare,Copy,Download,Edit2,FileText,GitCompare,History,Layers,Lightbulb,Loader2,Lock,MessageCircle,MessageSquare,PenTool,QrCode,ScanLine,ScanText,Scissors,Share2,Shield,Stamp,Tag,Tags } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate,useParams } from 'react-router-dom';
 
@@ -66,7 +67,7 @@ export function DocumentDetail() {
 	const [diff, setDiff] = useState<{ versionA: number; versionB: number } | null>(null);
 	const [showVersionHistory, setShowVersionHistory] = useState(false);
 	// Right-panel tab: null = closed, or one of the named panels
-	type SidePanel = 'custom-fields' | 'related' | 'similar' | 'entities' | 'expiry' | 'annotations' | 'ocr-quality' | 'signatures' | 'approvals' | 'duplicates' | 'classification' | 'filing' | 'legal-hold' | 'activity' | 'chat' | 'acl' | 'comments';
+	type SidePanel = 'custom-fields' | 'related' | 'similar' | 'entities' | 'expiry' | 'annotations' | 'ocr-quality' | 'ocr-correction' | 'signatures' | 'approvals' | 'duplicates' | 'classification' | 'filing' | 'legal-hold' | 'activity' | 'chat' | 'acl' | 'comments';
 	const [sidePanel, setSidePanel] = useState<SidePanel | null>(null);
 	const [showPageEditor, setShowPageEditor] = useState(false);
 	const [showSplitDialog, setShowSplitDialog] = useState(false);
@@ -319,6 +320,18 @@ export function DocumentDetail() {
 					>
 						<ScanLine className="w-3.5 h-3.5" />
 						OCR Quality
+					</button>
+					<button
+						onClick={() => togglePanel('ocr-correction')}
+						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+							sidePanel === 'ocr-correction'
+								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
+								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+						}`}
+						title="Correct OCR"
+					>
+						<ScanText className="w-3.5 h-3.5" />
+						Correct OCR
 					</button>
 					<button
 						onClick={() => togglePanel('signatures')}
@@ -613,6 +626,23 @@ export function DocumentDetail() {
 				{sidePanel === 'acl' && (
 					<div className="w-72 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto">
 						<ACLPanel documentId={id!} />
+					</div>
+				)}
+
+				{/* Comments panel */}
+				{sidePanel === 'comments' && (
+					<div className="w-80 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto">
+						<CommentsPanel documentId={id!} />
+					</div>
+				)}
+
+				{/* OCR correction panel */}
+				{sidePanel === 'ocr-correction' && (
+					<div className="w-96 shrink-0 border-l border-slate-800 flex flex-col">
+						<OCRCorrectionPanel
+							documentId={id!}
+							pageCount={document.pageCount ?? pages.length}
+						/>
 					</div>
 				)}
 			</div>
