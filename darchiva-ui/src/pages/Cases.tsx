@@ -11,6 +11,7 @@ import { cn,formatDate } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import {
   Archive,
+  AlertCircle,
   Briefcase,
   Calendar,
   ChevronRight,
@@ -135,14 +136,24 @@ export function Cases() {
 		return () => clearTimeout(timer);
 	}, [searchQuery]);
 
-	const { data: casesData, isLoading: casesLoading } = useCases(
+	const {
+		data: casesData,
+		isLoading: casesLoading,
+		isError: casesError,
+		refetch: refetchCases,
+	} = useCases(
 		1,
 		50,
 		statusFilter !== 'all' ? statusFilter as CaseStatus : undefined,
 		undefined,
 		debouncedSearch || undefined,
 	);
-	const { data: bundlesData, isLoading: bundlesLoading } = useBundles(selectedCase?.id);
+	const {
+		data: bundlesData,
+		isLoading: bundlesLoading,
+		isError: bundlesError,
+		refetch: refetchBundles,
+	} = useBundles(selectedCase?.id);
 
 	const handleNewCase = () => openModal('create-case');
 	const handleMoreFilters = () => openModal('case-filters');
@@ -155,6 +166,7 @@ export function Cases() {
 
 	const cases = casesData?.items || [];
 	const bundles = bundlesData?.items || [];
+	const hasCaseFilters = statusFilter !== 'all' || !!debouncedSearch;
 
 	return (
 		<div className="space-y-6">
@@ -211,10 +223,34 @@ export function Cases() {
 						<div className="flex justify-center py-16">
 							<Loader2 className="w-8 h-8 animate-spin text-slate-500" />
 						</div>
+					) : casesError ? (
+						<div className="glass-card p-8 text-center">
+							<AlertCircle className="mx-auto mb-4 h-10 w-10 text-red-400" />
+							<h3 className="text-lg font-medium text-slate-100">Could not load cases</h3>
+							<p className="mt-2 text-sm text-slate-500">
+								Case records are temporarily unavailable. Retry the request or adjust your filters.
+							</p>
+							<button type="button" onClick={() => refetchCases()} className="btn-primary mt-5">
+								Retry
+							</button>
+						</div>
 					) : cases.length === 0 ? (
-						<div className="text-center py-16 text-slate-500">
-							<Briefcase className="w-12 h-12 mx-auto mb-4" />
-							<p>No cases found</p>
+						<div className="glass-card p-8 text-center">
+							<Briefcase className="w-12 h-12 mx-auto mb-4 text-slate-600" />
+							<h3 className="text-lg font-medium text-slate-100">
+								{hasCaseFilters ? 'No cases match your filters' : 'No cases yet'}
+							</h3>
+							<p className="mt-2 text-sm text-slate-500">
+								{hasCaseFilters
+									? 'Try a different search term or status filter.'
+									: 'Create a case to organize legal matters and document bundles.'}
+							</p>
+							{!hasCaseFilters && (
+								<button type="button" onClick={handleNewCase} className="btn-primary mt-5">
+									<Plus className="h-4 w-4" />
+									New Case
+								</button>
+							)}
 						</div>
 					) : (
 						cases.map((caseData: Case, idx: number) => (
@@ -263,8 +299,18 @@ export function Cases() {
 									<div className="flex justify-center py-8">
 										<Loader2 className="w-6 h-6 animate-spin text-slate-500" />
 									</div>
+								) : bundlesError ? (
+									<div className="rounded-lg border border-red-500/20 bg-red-500/5 p-4 text-center">
+										<AlertCircle className="mx-auto mb-2 h-5 w-5 text-red-400" />
+										<p className="text-sm text-slate-300">Could not load bundles</p>
+										<button type="button" onClick={() => refetchBundles()} className="mt-3 text-xs text-brass-400 hover:text-brass-300">
+											Retry
+										</button>
+									</div>
 								) : bundles.length === 0 ? (
-									<p className="text-sm text-slate-500 text-center py-4">No bundles</p>
+									<p className="text-sm text-slate-500 text-center py-4">
+										No bundles in this case yet
+									</p>
 								) : (
 									<div className="space-y-1">
 										{bundles.map((bundle: Bundle) => (
