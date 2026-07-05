@@ -1544,7 +1544,7 @@ export function ScanningStation() {
 			)}
 
 			{/* Main content */}
-			{captureMode === 'scanner' && <div className="flex-1 flex overflow-hidden">
+			{captureMode === 'scanner' && <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
 				{/* Thumbnail panel */}
 				<aside className="w-64 flex-shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col">
 					<div className="p-3 border-b border-slate-800">
@@ -1580,10 +1580,10 @@ export function ScanningStation() {
 				</aside>
 
 				{/* Preview panel */}
-				<main className="flex-1 flex flex-col bg-slate-950">
+				<main className="flex flex-col bg-slate-950 lg:flex-1">
 					{/* Preview toolbar */}
-					<div className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-slate-900/50 border-b border-slate-800">
-						<div className="flex items-center gap-2">
+					<div className="flex-shrink-0 flex flex-wrap items-center justify-between gap-1 px-4 py-2 bg-slate-900/50 border-b border-slate-800">
+						<div className="flex flex-wrap items-center gap-1">
 							<button
 								onClick={() => navigatePage('prev')}
 								disabled={!selectedPage || pages.indexOf(selectedPage) === 0}
@@ -1603,7 +1603,7 @@ export function ScanningStation() {
 							</button>
 						</div>
 
-						<div className="flex items-center gap-1">
+						<div className="flex flex-wrap items-center gap-1">
 							<button
 								onClick={() => setZoom(z => Math.max(25, z - 25))}
 								className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded transition-colors"
@@ -1628,7 +1628,7 @@ export function ScanningStation() {
 							</button>
 						</div>
 
-						<div className="flex items-center gap-1">
+						<div className="flex flex-wrap items-center gap-1">
 							<button
 								onClick={() => handleRotate('ccw')}
 								className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded transition-colors"

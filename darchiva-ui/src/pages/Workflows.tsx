@@ -42,6 +42,7 @@ import {
 import { cn, formatRelativeTime } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
+  Activity,
   AlertCircle,
   Calendar,
   CheckCircle2,
@@ -499,7 +500,11 @@ function WorkflowDetailSheet({
               <div>
                 <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Recent Executions</p>
                 {wfExecutions.length === 0 ? (
-                  <p className="text-sm text-slate-600">No executions yet.</p>
+                  <EmptyState
+                    icon={Activity}
+                    title="No executions yet"
+                    description="Run a workflow to see execution history here."
+                  />
                 ) : (
                   <div className="space-y-2">
                     {wfExecutions.slice(0, 6).map((exec) => (
@@ -749,9 +754,9 @@ export function Workflows() {
   const [runTarget, setRunTarget] = useState<string | null>(null);
 
   // API hooks
-  const { data: workflowsData, isLoading: workflowsLoading, refetch: refetchWorkflows } = useWorkflows();
-  const { data: executionsData, isLoading: executionsLoading, refetch: refetchExecutions } = useExecutions();
-  const { data: pendingTasksData, isLoading: tasksLoading, refetch: refetchTasks } = usePendingTasks();
+  const { data: workflowsData, isLoading: workflowsLoading, isError: workflowsError, refetch: refetchWorkflows } = useWorkflows();
+  const { data: executionsData, isLoading: executionsLoading, isError: executionsError, refetch: refetchExecutions } = useExecutions();
+  const { data: pendingTasksData, isLoading: tasksLoading, isError: tasksError, refetch: refetchTasks } = usePendingTasks();
 
   const createWorkflowMutation   = useCreateWorkflow();
   const activateWorkflowMutation = useActivateWorkflow();
@@ -1007,6 +1012,15 @@ export function Workflows() {
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-8 h-8 animate-spin text-slate-500" />
               </div>
+            ) : tasksError ? (
+              <div className="glass-card p-8 flex flex-col items-center gap-3 text-slate-400">
+                <AlertCircle className="w-6 h-6 text-red-400" />
+                <p className="text-sm">Failed to load workflow tasks.</p>
+                <button className="btn-ghost text-xs" onClick={() => refetchTasks()}>
+                  <RefreshCw className="w-3 h-3" />
+                  Retry
+                </button>
+              </div>
             ) : pendingTasks.length === 0 ? (
               <EmptyState
                 icon={CheckCircle2}
@@ -1049,6 +1063,15 @@ export function Workflows() {
             {workflowsLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-8 h-8 animate-spin text-slate-500" />
+              </div>
+            ) : workflowsError ? (
+              <div className="glass-card p-8 flex flex-col items-center gap-3 text-slate-400">
+                <AlertCircle className="w-6 h-6 text-red-400" />
+                <p className="text-sm">Failed to load workflows.</p>
+                <button className="btn-ghost text-xs" onClick={() => refetchWorkflows()}>
+                  <RefreshCw className="w-3 h-3" />
+                  Retry
+                </button>
               </div>
             ) : workflows.length === 0 ? (
               <EmptyState
@@ -1098,6 +1121,15 @@ export function Workflows() {
             {executionsLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-8 h-8 animate-spin text-slate-500" />
+              </div>
+            ) : executionsError ? (
+              <div className="glass-card p-8 flex flex-col items-center gap-3 text-slate-400">
+                <AlertCircle className="w-6 h-6 text-red-400" />
+                <p className="text-sm">Failed to load workflow executions.</p>
+                <button className="btn-ghost text-xs" onClick={() => refetchExecutions()}>
+                  <RefreshCw className="w-3 h-3" />
+                  Retry
+                </button>
               </div>
             ) : executions.length === 0 ? (
               <div className="glass-card p-12 text-center">

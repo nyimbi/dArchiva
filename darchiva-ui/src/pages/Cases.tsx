@@ -65,6 +65,7 @@ import {
   Filter,
   FolderOpen,
   Loader2,
+  Package,
   Plus,
   Search,
   Trash2,
@@ -516,7 +517,11 @@ function CaseDetailSheet({
                 </Button>
               </div>
             ) : bundles.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">No bundles yet</p>
+              <EmptyState
+                icon={Package}
+                title="No bundles yet"
+                description="Add documents to create a bundle."
+              />
             ) : (
               <div className="divide-y">
                 {bundles.map((b: Bundle) => (

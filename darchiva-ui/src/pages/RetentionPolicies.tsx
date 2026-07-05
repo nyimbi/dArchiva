@@ -11,6 +11,7 @@ import {
 	Trash2,
 	XCircle,
 } from 'lucide-react';
+import { EmptyState } from '@/components/EmptyState';
 import { cn } from '@/lib/utils';
 import {
 	useRetentionPolicies,
@@ -578,9 +579,11 @@ export function RetentionPolicies() {
 
 			{!isLoading && !isError && policies?.length === 0 && (
 				<div className="text-center py-16 text-slate-500">
-					<Clock className="w-10 h-10 mx-auto mb-3 opacity-30" />
-					<p className="text-sm">No retention policies yet.</p>
-					<p className="text-xs mt-1">Create one to start automating document lifecycle.</p>
+					<EmptyState
+						icon={Clock}
+						title="No retention policies"
+						description="Add a retention policy to automatically manage document lifecycle."
+					/>
 				</div>
 			)}
 

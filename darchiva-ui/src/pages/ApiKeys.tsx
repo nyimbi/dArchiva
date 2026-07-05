@@ -11,6 +11,7 @@ import {
 	Trash2,
 	Zap,
 } from 'lucide-react';
+import { EmptyState } from '@/components/EmptyState';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -471,14 +472,12 @@ export function ApiKeys() {
 
 				{!isLoading && !isError && keys.length === 0 && (
 					<div className="flex flex-col items-center justify-center h-48 text-slate-500 space-y-2">
-						<Key className="w-10 h-10 opacity-30" />
-						<p className="text-sm">No API keys yet.</p>
-						<button
-							onClick={() => setShowCreate(true)}
-							className="text-indigo-400 hover:text-indigo-300 text-sm underline underline-offset-2"
-						>
-							Create your first key
-						</button>
+						<EmptyState
+							icon={Key}
+							title="No API keys yet"
+							description="Create an API key to access the API programmatically."
+							action={{ label: 'Create your first key', onClick: () => setShowCreate(true) }}
+						/>
 					</div>
 				)}
 
