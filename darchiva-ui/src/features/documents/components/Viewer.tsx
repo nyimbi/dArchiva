@@ -10,11 +10,12 @@ import {
   ChevronRight,
   Download,
   Eye,
-  EyeOff,
-  FileText,
-  LayoutList,
-  Maximize,
-  Minimize,
+	EyeOff,
+	FileText,
+	ImageOff,
+	LayoutList,
+	Maximize,
+	Minimize,
   Printer,
   RotateCcw,
   RotateCw,
@@ -95,6 +96,7 @@ export function Viewer({ documentId, pages = [], isLoading }: ViewerProps) {
 	const [fitHeight, setFitHeight] = useState(false);
 	const [pageInput, setPageInput] = useState('1');
 	const [imageLoaded, setImageLoaded] = useState(false);
+	const [failedPages, setFailedPages] = useState<Set<number>>(new Set());
 
 	const currentPage = pages[currentPageIndex];
 	const totalPages = pages.length;
@@ -102,6 +104,7 @@ export function Viewer({ documentId, pages = [], isLoading }: ViewerProps) {
 	const currentImageUrl = documentId && currentPage
 		? currentPage.imageUrl ?? pageImageUrl(documentId, currentPageNumber)
 		: undefined;
+	const currentPageFailed = failedPages.has(currentPageNumber);
 
 	const setBoundedZoom = useCallback((nextZoom: number) => {
 		setZoom(clampZoom(nextZoom));
@@ -149,6 +152,10 @@ export function Viewer({ documentId, pages = [], isLoading }: ViewerProps) {
 	useEffect(() => {
 		setImageLoaded(false);
 	}, [currentImageUrl]);
+
+	useEffect(() => {
+		setFailedPages(new Set());
+	}, [documentId, totalPages]);
 
 	// Fit-width / fit-height helpers
 	const handleFitWidth = useCallback(() => {
@@ -545,6 +552,19 @@ export function Viewer({ documentId, pages = [], isLoading }: ViewerProps) {
 							>
 								{currentImageUrl ? (
 									<>
+									{currentPageFailed ? (
+										<div
+											className="w-[600px] max-w-[75vw] rounded-lg border border-dashed border-slate-700 bg-slate-800/80 flex flex-col items-center justify-center gap-3 text-slate-500 shadow-xl"
+											style={{ aspectRatio: `${currentPage.width || 816} / ${currentPage.height || 1056}` }}
+										>
+											<ImageOff className="w-14 h-14" />
+											<div className="text-center">
+												<p className="text-sm font-medium text-slate-400">Page image unavailable</p>
+												<p className="text-xs">Page {currentPageNumber}</p>
+											</div>
+										</div>
+									) : (
+										<>
 									{!imageLoaded && (
 										<Skeleton
 											className="w-[600px] max-w-[75vw] rounded-lg bg-slate-800"
@@ -555,9 +575,18 @@ export function Viewer({ documentId, pages = [], isLoading }: ViewerProps) {
 										src={currentImageUrl}
 										alt={`Page ${currentPageNumber}`}
 										onLoad={() => setImageLoaded(true)}
+										onError={() => {
+											setFailedPages((prev) => {
+												const next = new Set(prev);
+												next.add(currentPageNumber);
+												return next;
+											});
+										}}
 										className={cn('max-w-full shadow-xl', !imageLoaded && 'hidden')}
 										style={fitToWidth ? { width: currentPage.width || 816 } : undefined}
 									/>
+										</>
+									)}
 									</>
 								) : (
 									<div className="w-[600px] h-[800px] bg-slate-800 flex items-center justify-center rounded-lg">

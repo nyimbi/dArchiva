@@ -25,6 +25,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
 	ArrowLeft,
 	ArrowLeftRight,
+	AlertCircle,
 	ChevronDown,
 	Download,
 	ExternalLink,
@@ -59,6 +60,7 @@ interface DocumentForComparison {
 	isLoadingMeta: boolean;
 	isLoadingPages: boolean;
 	isError: boolean;
+	isPagesError: boolean;
 	versionLabel?: string;
 }
 
@@ -178,7 +180,7 @@ export function useDocumentForComparison(
 		enabled: !!docId,
 	});
 
-	const { data: pagesData, isLoading: isLoadingPages } = useQuery({
+	const { data: pagesData, isLoading: isLoadingPages, isError: isPagesError } = useQuery({
 		queryKey: ['document-pages', docId, versionId ?? 'current'],
 		queryFn: async () => {
 			const { data } = await apiClient.get<{ pages: ViewerPage[] }>(
@@ -195,6 +197,7 @@ export function useDocumentForComparison(
 		isLoadingMeta,
 		isLoadingPages,
 		isError,
+		isPagesError,
 		versionLabel: versionLabel(versionId),
 	};
 }
@@ -290,6 +293,7 @@ interface TextPanelProps {
 	isLoadingMeta: boolean;
 	isLoadingPages: boolean;
 	isError: boolean;
+	isPagesError: boolean;
 	versionLabel?: string;
 	/** Pre-filtered lines for this side: common + del (left) or common + add (right) */
 	lines: DiffLine[];
@@ -307,6 +311,7 @@ function TextPanel({
 	isLoadingMeta,
 	isLoadingPages,
 	isError,
+	isPagesError,
 	versionLabel,
 	lines,
 	hasText,
@@ -378,7 +383,7 @@ function TextPanel({
 					<DocPicker label={label} onSelect={onSelectDoc} />
 
 					<Link
-						to={`/documents/${docId}`}
+						to={`/document/${docId}`}
 						className="flex items-center gap-1 px-2 py-1 text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded transition-colors"
 						title="Open in detail view"
 					>
@@ -412,24 +417,29 @@ function TextPanel({
 					</div>
 				)}
 
-				{isError && !isLoading && (
-					<div className="text-red-400 text-sm p-3 rounded bg-red-900/20 border border-red-800/30">
-						Failed to load document.
+				{!isLoading && (isError || isPagesError) && (
+					<div className="flex items-start gap-2 text-red-400 text-sm p-3 rounded bg-red-900/20 border border-red-800/30">
+						<AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+						<span>
+							{isPagesError
+								? 'Failed to load document pages and OCR text.'
+								: 'Failed to load document.'}
+						</span>
 					</div>
 				)}
 
-				{!isLoading && !isError && !hasText && (
+				{!isLoading && !isError && !isPagesError && !hasText && (
 					<div className="flex flex-col items-center justify-center h-32 text-slate-600 gap-2">
 						<FileText className="w-8 h-8 opacity-40" />
 						<p className="text-sm">No OCR text available for this document.</p>
 					</div>
 				)}
 
-				{!isLoading && !isError && hasText && lines.length === 0 && (
+				{!isLoading && !isError && !isPagesError && hasText && lines.length === 0 && (
 					<div className="text-slate-500 text-sm text-center py-8">No text to display.</div>
 				)}
 
-				{!isLoading && !isError && hasText && lines.length > 0 && (
+				{!isLoading && !isError && !isPagesError && hasText && lines.length > 0 && (
 					<div className="space-y-0.5">
 						{lines.map((line, idx) => (
 							<div
@@ -764,6 +774,7 @@ export function DocumentComparison() {
 					isLoadingMeta={docAData.isLoadingMeta}
 					isLoadingPages={docAData.isLoadingPages}
 					isError={docAData.isError}
+					isPagesError={docAData.isPagesError}
 					versionLabel={docAData.versionLabel}
 					lines={leftLines}
 					hasText={hasTextA}
@@ -779,6 +790,7 @@ export function DocumentComparison() {
 					isLoadingMeta={docBData.isLoadingMeta}
 					isLoadingPages={docBData.isLoadingPages}
 					isError={docBData.isError}
+					isPagesError={docBData.isPagesError}
 					versionLabel={docBData.versionLabel}
 					lines={rightLines}
 					hasText={hasTextB}

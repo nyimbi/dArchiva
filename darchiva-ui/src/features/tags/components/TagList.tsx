@@ -19,6 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { AlertCircle,ChevronDown,ChevronRight,Edit,FileText,Search,Tag as TagIcon,Trash2 } from 'lucide-react';
 import { useMemo,useState } from 'react';
+import { toast } from 'sonner';
 import { useDeleteTag,useTags } from '../api';
 import type { Tag,TagTreeNode } from '../types';
 
@@ -75,6 +76,13 @@ export function TagList({ onSelect, onEdit, selectedId }: TagListProps) {
 				next.add(id);
 			}
 			return next;
+		});
+	};
+
+	const handleDelete = (id: string) => {
+		deleteMutation.mutate(id, {
+			onSuccess: () => toast.success('Tag deleted'),
+			onError: () => toast.error('Failed to delete tag'),
 		});
 	};
 
@@ -139,7 +147,7 @@ export function TagList({ onSelect, onEdit, selectedId }: TagListProps) {
 								onToggleExpand={toggleExpanded}
 								onSelect={onSelect}
 								onEdit={onEdit}
-								onDelete={(id) => deleteMutation.mutate(id)}
+								onDelete={handleDelete}
 							/>
 						))}
 					</div>

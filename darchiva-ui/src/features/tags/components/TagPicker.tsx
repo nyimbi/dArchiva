@@ -11,8 +11,9 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { Check,Plus,Search,Tag as TagIcon,X } from 'lucide-react';
+import { AlertCircle,Check,Loader2,Plus,Search,Tag as TagIcon,X } from 'lucide-react';
 import { useMemo,useState } from 'react';
+import { toast } from 'sonner';
 import { useCreateTag,useTags } from '../api';
 import type { Tag } from '../types';
 
@@ -23,7 +24,7 @@ interface TagPickerProps {
 }
 
 export function TagPicker({ selectedTags, onTagsChange, className }: TagPickerProps) {
-	const { data } = useTags();
+	const { data, isLoading, isError } = useTags();
 	const createMutation = useCreateTag();
 	const [open, setOpen] = useState(false);
 	const [search, setSearch] = useState('');
@@ -49,15 +50,18 @@ export function TagPicker({ selectedTags, onTagsChange, className }: TagPickerPr
 		if (!search.trim()) return;
 
 		try {
-			const newTag = await createMutation.mutateAsync({ name: search.trim() });
+			const newTag = await createMutation.mutateAsync(
+				{ name: search.trim() },
+				{ onError: () => toast.error('Failed to create tag') },
+			);
 			onTagsChange([...selectedTags, newTag]);
 			setSearch('');
 		} catch {
-			// Handle error
+			// Toast is emitted by mutation options above.
 		}
 	};
 
-	const noMatch = search && filteredTags.length === 0;
+	const noMatch = !isLoading && !isError && search && filteredTags.length === 0;
 
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
@@ -86,7 +90,17 @@ export function TagPicker({ selectedTags, onTagsChange, className }: TagPickerPr
 				</div>
 
 				<div className="max-h-60 overflow-auto p-1">
-					{filteredTags.map((tag) => (
+					{isLoading ? (
+						<div className="flex items-center justify-center gap-2 px-2 py-4 text-sm text-muted-foreground">
+							<Loader2 className="h-4 w-4 animate-spin" />
+							Loading tags...
+						</div>
+					) : isError ? (
+						<div className="flex items-center gap-2 px-2 py-3 text-sm text-destructive">
+							<AlertCircle className="h-4 w-4 shrink-0" />
+							Failed to load tags
+						</div>
+					) : filteredTags.map((tag) => (
 						<button
 							key={tag.id}
 							onClick={() => toggleTag(tag)}

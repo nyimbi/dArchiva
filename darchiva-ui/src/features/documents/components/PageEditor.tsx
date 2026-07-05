@@ -4,7 +4,20 @@
 //   documentId  — UUID string of the document
 //   pageCount   — current page count (1-based)
 //   onClose     — called when the panel should close (Cancel or after Apply)
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useQueryClient } from '@tanstack/react-query';
+import type React from 'react';
+import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import {
 	useRotatePage,
 	useDeletePage,
@@ -209,6 +222,7 @@ function PageCard({
 // ---------------------------------------------------------------------------
 
 export function PageEditor({ documentId, pageCount, onClose }: PageEditorProps) {
+	const queryClient = useQueryClient();
 	// Build initial page state
 	const initialPages = useMemo<PageState[]>(
 		() =>
@@ -226,6 +240,7 @@ export function PageEditor({ documentId, pageCount, onClose }: PageEditorProps) 
 	const [applyStatus, setApplyStatus] = useState<'idle' | 'applying' | 'done' | 'error'>('idle');
 	const [applyError, setApplyError] = useState<string | null>(null);
 	const [progress, setProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
+	const [confirmDeleteApplyOpen, setConfirmDeleteApplyOpen] = useState(false);
 
 	const rotateMut = useRotatePage();
 	const deleteMut = useDeletePage();
@@ -233,6 +248,7 @@ export function PageEditor({ documentId, pageCount, onClose }: PageEditorProps) 
 
 	// Live (non-deleted) pages for display
 	const livePages = useMemo(() => pages.filter(p => !p.deleted), [pages]);
+	const deletedCount = useMemo(() => pages.filter(p => p.deleted).length, [pages]);
 
 	// Whether anything has changed from the original
 	const hasChanges = useMemo(() => {
@@ -265,7 +281,7 @@ export function PageEditor({ documentId, pageCount, onClose }: PageEditorProps) 
 	function deleteLivePage(liveIdx: number) {
 		const target = livePages[liveIdx];
 		if (livePages.length <= 1) {
-			alert('Cannot delete the only remaining page.');
+			toast.error('Cannot delete the only remaining page');
 			return;
 		}
 		setPages(prev => prev.map(p => (p === target ? { ...p, deleted: true } : p)));
@@ -278,7 +294,6 @@ export function PageEditor({ documentId, pageCount, onClose }: PageEditorProps) 
 		[newLive[liveIdx], newLive[swapIdx]] = [newLive[swapIdx], newLive[liveIdx]];
 
 		// Reconstruct pages: keep deleted pages in their original positions, splice in the reordered live pages
-		const deletedPages = pages.filter(p => p.deleted);
 		// Build a new full-order array: deleted pages keep their slot (based on originalPageNum order)
 		// Simplest approach: replace live pages in order, keep deleted as-is
 		setPages(() => {
@@ -338,6 +353,15 @@ export function PageEditor({ documentId, pageCount, onClose }: PageEditorProps) 
 	// Apply all changes
 	// ---------------------------------------------------------------------------
 
+	function requestApply() {
+		if (!hasChanges) return;
+		if (deletedCount > 0) {
+			setConfirmDeleteApplyOpen(true);
+			return;
+		}
+		void handleApply();
+	}
+
 	async function handleApply() {
 		if (!hasChanges) return;
 
@@ -389,12 +413,19 @@ export function PageEditor({ documentId, pageCount, onClose }: PageEditorProps) 
 				setProgress({ done, total: totalOps });
 			}
 
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: ['documents', 'detail', documentId] }),
+				queryClient.invalidateQueries({ queryKey: ['documents', documentId, 'pages'] }),
+				queryClient.invalidateQueries({ queryKey: ['document-pages', documentId] }),
+			]);
+			toast.success('Page changes applied');
 			setApplyStatus('done');
 			setTimeout(onClose, 800);
 		} catch (err: unknown) {
 			const msg = err instanceof Error ? err.message : String(err);
 			setApplyError(msg);
 			setApplyStatus('error');
+			toast.error('Failed to apply page changes');
 		}
 	}
 
@@ -434,7 +465,7 @@ export function PageEditor({ documentId, pageCount, onClose }: PageEditorProps) 
 						Cancel
 					</button>
 					<button
-						onClick={handleApply}
+						onClick={requestApply}
 						disabled={!hasChanges || applyStatus === 'applying' || applyStatus === 'done'}
 						className="px-4 py-1.5 text-sm font-medium rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
 					>
@@ -515,6 +546,29 @@ export function PageEditor({ documentId, pageCount, onClose }: PageEditorProps) 
 						))}
 				</div>
 			</div>
+			<AlertDialog open={confirmDeleteApplyOpen} onOpenChange={setConfirmDeleteApplyOpen}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Delete marked pages?</AlertDialogTitle>
+						<AlertDialogDescription>
+							This will permanently delete {deletedCount} page{deletedCount === 1 ? '' : 's'} from the document when changes are applied.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={applyStatus === 'applying'}>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							disabled={applyStatus === 'applying'}
+							onClick={() => {
+								setConfirmDeleteApplyOpen(false);
+								void handleApply();
+							}}
+							className="bg-red-600 text-white hover:bg-red-700"
+						>
+							Delete and Apply
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }
