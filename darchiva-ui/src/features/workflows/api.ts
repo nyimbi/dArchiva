@@ -284,46 +284,46 @@ export async function listWorkflows(
 		page_size: String(pageSize),
 	});
 
-	const response = await apiClient.get<{
+	const { data } = await apiClient.get<{
 		items: BackendWorkflowSummary[];
 		total: number;
 		page: number;
 		page_size: number;
 	}>(`${API_BASE}/?${params.toString()}`);
 
-	const mapped = response.data.items.map((item) => toWorkflowModel(item));
+	const mapped = data.items.map((item) => toWorkflowModel(item));
 	const filtered =
 		status != null ? mapped.filter((item) => item.status === status) : mapped;
 
 	return {
 		items: filtered,
-		total: status != null ? filtered.length : response.data.total,
-		page: response.data.page,
-		page_size: response.data.page_size,
+		total: status != null ? filtered.length : data.total,
+		page: data.page,
+		page_size: data.page_size,
 	};
 }
 
 export async function getWorkflow(id: string): Promise<Workflow> {
-	const response = await apiClient.get<BackendWorkflowDetail>(`${API_BASE}/${id}`);
-	return toWorkflowModel(response.data);
+	const { data } = await apiClient.get<BackendWorkflowDetail>(`${API_BASE}/${id}`);
+	return toWorkflowModel(data);
 }
 
-export async function createWorkflow(data: WorkflowCreate): Promise<Workflow> {
-	const response = await apiClient.post<BackendWorkflowDetail>(API_BASE, {
-		name: data.name,
-		description: data.description,
-		steps: toBackendSteps(data.nodes),
+export async function createWorkflow(input: WorkflowCreate): Promise<Workflow> {
+	const { data } = await apiClient.post<BackendWorkflowDetail>(API_BASE, {
+		name: input.name,
+		description: input.description,
+		steps: toBackendSteps(input.nodes),
 	});
-	return toWorkflowModel(response.data);
+	return toWorkflowModel(data);
 }
 
-export async function updateWorkflow(id: string, data: WorkflowUpdate): Promise<Workflow> {
-	const response = await apiClient.patch<BackendWorkflowDetail>(`${API_BASE}/${id}`, {
-		name: data.name,
-		description: data.description,
-		steps: data.nodes ? toBackendSteps(data.nodes) : undefined,
+export async function updateWorkflow(id: string, input: WorkflowUpdate): Promise<Workflow> {
+	const { data } = await apiClient.patch<BackendWorkflowDetail>(`${API_BASE}/${id}`, {
+		name: input.name,
+		description: input.description,
+		steps: input.nodes ? toBackendSteps(input.nodes) : undefined,
 	});
-	return toWorkflowModel(response.data);
+	return toWorkflowModel(data);
 }
 
 export async function deleteWorkflow(id: string): Promise<void> {
@@ -331,16 +331,16 @@ export async function deleteWorkflow(id: string): Promise<void> {
 }
 
 export async function activateWorkflow(id: string): Promise<Workflow> {
-	const response = await apiClient.post<BackendWorkflowDetail>(`${API_BASE}/${id}/activate`, {});
-	return toWorkflowModel(response.data);
+	const { data } = await apiClient.post<BackendWorkflowDetail>(`${API_BASE}/${id}/activate`, {});
+	return toWorkflowModel(data);
 }
 
 export async function deactivateWorkflow(id: string): Promise<Workflow> {
-	const response = await apiClient.post<BackendWorkflowDetail>(
+	const { data } = await apiClient.post<BackendWorkflowDetail>(
 		`${API_BASE}/${id}/deactivate`,
 		{},
 	);
-	return toWorkflowModel(response.data);
+	return toWorkflowModel(data);
 }
 
 // --- Executions ---
@@ -358,7 +358,7 @@ export async function listExecutions(
 	if (workflowId) params.append('workflow_id', workflowId);
 	if (status) params.append('status', status);
 
-	const response = await apiClient.get<{
+	const { data } = await apiClient.get<{
 		items: BackendWorkflowExecution[];
 		total: number;
 		page: number;
@@ -366,18 +366,18 @@ export async function listExecutions(
 	}>(`${API_BASE}/executions/?${params.toString()}`);
 
 	return {
-		items: response.data.items.map(toWorkflowExecutionModel),
-		total: response.data.total,
-		page: response.data.page,
-		page_size: response.data.page_size,
+		items: data.items.map(toWorkflowExecutionModel),
+		total: data.total,
+		page: data.page,
+		page_size: data.page_size,
 	};
 }
 
 export async function getExecution(id: string): Promise<WorkflowExecution> {
-	const response = await apiClient.get<BackendWorkflowExecution>(
+	const { data } = await apiClient.get<BackendWorkflowExecution>(
 		`${API_BASE}/instances/${id}`,
 	);
-	return toWorkflowExecutionModel(response.data);
+	return toWorkflowExecutionModel(data);
 }
 
 export async function runWorkflow(
@@ -389,27 +389,27 @@ export async function runWorkflow(
 		throw new Error('A valid documentId is required to start a workflow.');
 	}
 
-	const response = await apiClient.post<BackendWorkflowExecution>(`${API_BASE}/${id}/start`, {
+	const { data } = await apiClient.post<BackendWorkflowExecution>(`${API_BASE}/${id}/start`, {
 		documentId,
 		context: input ?? {},
 	});
-	return toWorkflowExecutionModel(response.data);
+	return toWorkflowExecutionModel(data);
 }
 
 export async function cancelExecution(executionId: string): Promise<WorkflowExecution> {
-	const response = await apiClient.post<BackendWorkflowExecution>(
+	const { data } = await apiClient.post<BackendWorkflowExecution>(
 		`${API_BASE}/instances/${executionId}/cancel`,
 		{},
 	);
-	return toWorkflowExecutionModel(response.data);
+	return toWorkflowExecutionModel(data);
 }
 
 export async function retryExecution(executionId: string): Promise<WorkflowExecution> {
-	const response = await apiClient.post<BackendWorkflowExecution>(
+	const { data } = await apiClient.post<BackendWorkflowExecution>(
 		`${API_BASE}/instances/${executionId}/retry`,
 		{},
 	);
-	return toWorkflowExecutionModel(response.data);
+	return toWorkflowExecutionModel(data);
 }
 
 // --- Templates ---
@@ -435,13 +435,13 @@ function toWorkflowTemplateModel(t: BackendWorkflowTemplate): WorkflowTemplate {
 }
 
 export async function listTemplates(): Promise<WorkflowTemplate[]> {
-	const response = await apiClient.get<BackendWorkflowTemplate[]>(`${API_BASE}/templates/`);
-	return response.data.map(toWorkflowTemplateModel);
+	const { data } = await apiClient.get<BackendWorkflowTemplate[]>(`${API_BASE}/templates/`);
+	return data.map(toWorkflowTemplateModel);
 }
 
 export async function getTemplate(id: string): Promise<WorkflowTemplate> {
-	const response = await apiClient.get<BackendWorkflowTemplate>(`${API_BASE}/templates/${id}`);
-	return toWorkflowTemplateModel(response.data);
+	const { data } = await apiClient.get<BackendWorkflowTemplate>(`${API_BASE}/templates/${id}`);
+	return toWorkflowTemplateModel(data);
 }
 
 export async function createFromTemplate(
@@ -449,11 +449,11 @@ export async function createFromTemplate(
 	name: string,
 	description?: string,
 ): Promise<Workflow> {
-	const response = await apiClient.post<BackendWorkflowDetail>(
+	const { data } = await apiClient.post<BackendWorkflowDetail>(
 		`${API_BASE}/templates/${templateId}/instantiate`,
 		{ name, description },
 	);
-	return toWorkflowModel(response.data);
+	return toWorkflowModel(data);
 }
 
 // --- Validation ---
@@ -539,12 +539,12 @@ export interface PendingTasksResponse {
 }
 
 export async function getPendingTasks(): Promise<PendingTasksResponse> {
-	const response = await apiClient.get<{ tasks: Array<Record<string, unknown>> }>(
+	const { data } = await apiClient.get<{ tasks: Array<Record<string, unknown>> }>(
 		`${API_BASE}/instances/pending`,
 	);
 
 	return {
-		tasks: (response.data.tasks ?? []).map(toPendingTask),
+		tasks: (data.tasks ?? []).map(toPendingTask),
 	};
 }
 
@@ -558,11 +558,11 @@ export async function processWorkflowAction(
 	instanceId: string,
 	request: WorkflowActionRequest,
 ): Promise<WorkflowExecution> {
-	const response = await apiClient.post<BackendWorkflowExecution>(
+	const { data } = await apiClient.post<BackendWorkflowExecution>(
 		`${API_BASE}/instances/${instanceId}/actions`,
 		request,
 	);
-	return toWorkflowExecutionModel(response.data);
+	return toWorkflowExecutionModel(data);
 }
 
 export async function startWorkflow(
@@ -570,22 +570,22 @@ export async function startWorkflow(
 	documentId: string,
 	context?: Record<string, unknown>,
 ): Promise<WorkflowExecution> {
-	const response = await apiClient.post<BackendWorkflowExecution>(`${API_BASE}/${workflowId}/start`, {
+	const { data } = await apiClient.post<BackendWorkflowExecution>(`${API_BASE}/${workflowId}/start`, {
 		documentId,
 		context,
 	});
-	return toWorkflowExecutionModel(response.data);
+	return toWorkflowExecutionModel(data);
 }
 
 export async function cancelWorkflowInstance(
 	instanceId: string,
 	reason?: string,
 ): Promise<WorkflowExecution> {
-	const response = await apiClient.post<BackendWorkflowExecution>(
+	const { data } = await apiClient.post<BackendWorkflowExecution>(
 		`${API_BASE}/instances/${instanceId}/cancel`,
 		{ reason },
 	);
-	return toWorkflowExecutionModel(response.data);
+	return toWorkflowExecutionModel(data);
 }
 
 /**
@@ -600,11 +600,11 @@ export async function resumeWorkflow(
 	instanceId: string,
 	request: ResumeWorkflowRequest,
 ): Promise<WorkflowExecution> {
-	const response = await apiClient.post<BackendWorkflowExecution>(
+	const { data } = await apiClient.post<BackendWorkflowExecution>(
 		`${API_BASE}/instances/${instanceId}/resume`,
 		request,
 	);
-	return toWorkflowExecutionModel(response.data);
+	return toWorkflowExecutionModel(data);
 }
 
 /**
@@ -613,14 +613,14 @@ export async function resumeWorkflow(
 export async function getWorkflowInstanceStatus(
 	instanceId: string,
 ): Promise<WorkflowExecution & { prefect_state?: string }> {
-	const response = await apiClient.get<
+	const { data } = await apiClient.get<
 		BackendWorkflowExecution & { prefect_state?: string }
 	>(`${API_BASE}/instances/${instanceId}/status`);
 
-	const mapped = toWorkflowExecutionModel(response.data);
+	const mapped = toWorkflowExecutionModel(data);
 	return {
 		...mapped,
-		prefect_state: response.data.prefect_state,
+		prefect_state: data.prefect_state,
 	};
 }
 
@@ -637,10 +637,10 @@ export async function listBackendWorkflows(
 	page = 1,
 	pageSize = 20,
 ): Promise<BackendWorkflowListResponse> {
-	const response = await apiClient.get<BackendWorkflowListResponse>(`${API_BASE}/`, {
+	const { data } = await apiClient.get<BackendWorkflowListResponse>(`${API_BASE}/`, {
 		params: { page, page_size: pageSize },
 	});
-	return response.data;
+	return data;
 }
 
 export interface BackendWorkflowCreate {
@@ -655,10 +655,10 @@ export interface BackendWorkflowCreate {
 }
 
 export async function createBackendWorkflow(
-	data: BackendWorkflowCreate,
+	input: BackendWorkflowCreate,
 ): Promise<BackendWorkflowDetail> {
-	const response = await apiClient.post<BackendWorkflowDetail>(API_BASE, data);
-	return response.data;
+	const { data } = await apiClient.post<BackendWorkflowDetail>(API_BASE, input);
+	return data;
 }
 
 // ============================================================================
@@ -760,10 +760,10 @@ export interface DelegationRequest {
 // --- SLA Dashboard ---
 
 export async function getSLADashboard(periodDays = 30): Promise<SLADashboardResponse> {
-	const response = await apiClient.get<SLADashboardResponse>(
+	const { data } = await apiClient.get<SLADashboardResponse>(
 		`${API_BASE}/sla/dashboard?period_days=${periodDays}`,
 	);
-	return response.data;
+	return data;
 }
 
 // --- SLA Metrics ---
@@ -781,10 +781,10 @@ export async function getSLAMetrics(
 	if (workflowId) params.append('workflow_id', workflowId);
 	if (slaStatus) params.append('sla_status', slaStatus);
 
-	const response = await apiClient.get<SLAMetricsResponse>(
+	const { data } = await apiClient.get<SLAMetricsResponse>(
 		`${API_BASE}/sla/metrics?${params}`,
 	);
-	return response.data;
+	return data;
 }
 
 // --- SLA Alerts ---
@@ -802,31 +802,31 @@ export async function getSLAAlerts(
 	if (acknowledged !== undefined) params.append('acknowledged', String(acknowledged));
 	if (severity) params.append('severity', severity);
 
-	const response = await apiClient.get<SLAAlertsResponse>(
+	const { data } = await apiClient.get<SLAAlertsResponse>(
 		`${API_BASE}/sla/alerts?${params}`,
 	);
-	return response.data;
+	return data;
 }
 
 export async function acknowledgeSLAAlert(alertId: string, notes?: string): Promise<SLAAlert> {
-	const response = await apiClient.post<SLAAlert>(
+	const { data } = await apiClient.post<SLAAlert>(
 		`${API_BASE}/sla/alerts/${alertId}/acknowledge`,
 		{ notes },
 	);
-	return response.data;
+	return data;
 }
 
 // --- SLA Configs ---
 
 export async function getSLAConfigs(workflowId?: string): Promise<SLAConfig[]> {
 	const params = workflowId ? `?workflow_id=${workflowId}` : '';
-	const response = await apiClient.get<SLAConfig[]>(`${API_BASE}/sla/configs${params}`);
-	return response.data;
+	const { data } = await apiClient.get<SLAConfig[]>(`${API_BASE}/sla/configs${params}`);
+	return data;
 }
 
-export async function createSLAConfig(data: SLAConfigCreate): Promise<SLAConfig> {
-	const response = await apiClient.post<SLAConfig>(`${API_BASE}/sla/configs`, data);
-	return response.data;
+export async function createSLAConfig(input: SLAConfigCreate): Promise<SLAConfig> {
+	const { data } = await apiClient.post<SLAConfig>(`${API_BASE}/sla/configs`, input);
+	return data;
 }
 
 // --- Delegation ---
@@ -835,9 +835,9 @@ export async function delegateApprovalRequest(
 	requestId: string,
 	delegation: DelegationRequest,
 ): Promise<{ status: string; delegated_to: string }> {
-	const response = await apiClient.post<{ status: string; delegated_to: string }>(
+	const { data } = await apiClient.post<{ status: string; delegated_to: string }>(
 		`${API_BASE}/approval-requests/${requestId}/delegate`,
 		delegation,
 	);
-	return response.data;
+	return data;
 }
