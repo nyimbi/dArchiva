@@ -1,4 +1,6 @@
 import { BrowserScannerConfig,type ScanMode } from '@/features/scanning-projects/components/BrowserScannerConfig';
+import { useAuth } from '@/features/auth/context/AuthContext';
+import { useRecordPageEvent } from '@/features/scanning-projects/api/hooks';
 import { useBrowserScanner } from '@/features/scanning-projects/hooks';
 import { AnimatePresence,motion,Reorder } from 'framer-motion';
 import {
@@ -19,6 +21,8 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate,useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
+import { useMyActiveSession,useScanPage } from '../api/hooks';
 import { useScanningControls } from '../hooks/useScanningControls';
 import { autoQC,QCResult } from '../services/AutoQCService';
 
@@ -34,13 +38,17 @@ interface ScannedPage {
 export function ScanningInterface() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const { user } = useAuth();
+    const { data: activeSession } = useMyActiveSession();
+    const scanPage = useScanPage();
+    const recordPageEvent = useRecordPageEvent();
     const [currentStep, setCurrentStep] = useState<Step>('receive');
     const [pages, setPages] = useState<ScannedPage[]>([]);
     const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
     const [showScannerConfig, setShowScannerConfig] = useState(false);
     const [scanMode, setScanMode] = useState<ScanMode>('browser');
     const [scanError, setScanError] = useState<string | null>(null);
-    const projectId = searchParams.get('projectId') || '';
+    const projectId = searchParams.get('projectId') || activeSession?.project_id || '';
     const batchId = searchParams.get('batchId') || '';
     const batchNumber = searchParams.get('batchNumber') || batchId || 'UNASSIGNED';
 
@@ -85,19 +93,44 @@ export function ScanningInterface() {
                 result.pages.map(async (blob, index) => {
                     const url = URL.createObjectURL(blob);
                     const qcResult = await autoQC.analyzeImage(url);
-                    return {
+                    const page: ScannedPage = {
                         id: result.documentIds[index] || `${Date.now()}-${index + 1}`,
                         url,
                         qc: qcResult,
                         rotation: 0,
-                    } satisfies ScannedPage;
+                    };
+
+                    try {
+                        await scanPage.mutateAsync({
+                            project_id: projectId,
+                            batch_id: batchId,
+                            scanner_id: activeScanner?.id,
+                        });
+                        await recordPageEvent.mutateAsync({
+                            project_id: projectId,
+                            batch_id: batchId,
+                            operator_id: user?.id,
+                            session_id: activeSession?.session_id,
+                            event_type: qcResult.isBlank ? 'blank_detected' : 'scanned',
+                            page_number: pages.length + index + 1,
+                            quality_score: Math.round(qcResult.confidence * 100),
+                            defects: qcResult.issues,
+                        });
+                    } catch (error) {
+                        URL.revokeObjectURL(url);
+                        throw error;
+                    }
+
+                    return page;
                 }),
             );
 
             setPages((prev) => [...prev, ...scannedPages]);
             setSelectedPageId(scannedPages[scannedPages.length - 1]?.id ?? null);
         } catch (error) {
-            setScanError(error instanceof Error ? error.message : 'Scan failed');
+            const message = error instanceof Error ? error.message : 'Scan failed';
+            setScanError(message);
+            toast.error(message);
         }
     };
 

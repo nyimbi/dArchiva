@@ -518,12 +518,15 @@ export function useLiveOps() {
   });
 }
 
-export function useOperatorKpis(days?: number) {
+export function useOperatorKpis(days?: number, operatorId?: string) {
   return useQuery<OperatorKPI[]>({
-    queryKey: ['supervisor', 'operator-kpis', days],
+    queryKey: ['supervisor', 'operator-kpis', days, operatorId],
     queryFn: async () => {
       const res = await apiClient.get<OperatorKPI[]>(`${BASE_URL}/supervisor/operator-kpis`, {
-        params: days ? { days } : undefined,
+        params: {
+          ...(days ? { days } : {}),
+          ...(operatorId ? { operator_id: operatorId } : {}),
+        },
       });
       return res.data;
     },

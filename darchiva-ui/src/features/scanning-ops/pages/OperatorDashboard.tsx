@@ -1,4 +1,5 @@
 import { Activity, AlertTriangle, RefreshCw, Target, TrendingUp, Users } from 'lucide-react';
+import { useAuth } from '@/features/auth/context/AuthContext';
 import { useOperatorKpis } from '@/features/scanning-projects/api/hooks';
 import type { OperatorKPI } from '@/features/scanning-projects/api/index';
 import { useShiftStats } from '../api/hooks';
@@ -59,7 +60,8 @@ function SummaryCard({
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function OperatorDashboard() {
-    const { data: operatorKpis = [], isLoading, refetch } = useOperatorKpis(1);
+    const { user } = useAuth();
+    const { data: operatorKpis = [], isLoading, refetch } = useOperatorKpis(undefined, user?.id);
     const { data: shiftStats } = useShiftStats();
 
     const activeCount   = operatorKpis.filter(op => op.pages_per_hour > 0).length;

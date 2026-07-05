@@ -719,11 +719,16 @@ export interface BatchPipelineResponse {
 }
 
 export interface PageEventInput {
-	project_id: string;
-	batch_id: string;
-	operator_id: string;
-	page_count?: number;
-	event_type?: 'scan' | 'rescan' | 'accept' | 'reject';
+	project_id?: string;
+	batch_id?: string;
+	operator_id?: string;
+	session_id?: string;
+	scan_job_id?: string;
+	event_type: 'scanned' | 'accepted' | 'rejected' | 'rescanned' | 'blank_detected';
+	page_number?: number;
+	quality_score?: number;
+	defects?: string[];
+	duration_ms?: number;
 }
 
 export async function getLiveOps(): Promise<LiveOpsResponse> {
