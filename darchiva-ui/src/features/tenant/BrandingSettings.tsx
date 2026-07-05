@@ -4,6 +4,7 @@
  * Wiring agent connects this to the settings page.
  */
 import { useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { useTenantSettings, useUpdateTenantSettings, useUploadLogo } from './api';
 import type { BrandingUpdate } from '../tenants/types';
 
@@ -294,7 +295,7 @@ export function BrandingSettings() {
 			const { logo_url } = await uploadMutation.mutateAsync(file);
 			setForm((prev) => ({ ...prev, logo_url }));
 		} catch {
-			// error surfaced via mutation state
+			toast.error('Failed to upload logo');
 		}
 		// reset so same file can be re-selected
 		e.target.value = '';
@@ -302,7 +303,12 @@ export function BrandingSettings() {
 
 	const handleSave = async () => {
 		const { timezone: _tz, date_format: _df, org_name: _on, support_email: _se, ...brandingFields } = form;
-		await updateMutation.mutateAsync(brandingFields);
+		try {
+			await updateMutation.mutateAsync(brandingFields);
+			toast.success('Branding settings saved');
+		} catch {
+			toast.error('Failed to save branding settings');
+		}
 	};
 
 	const saving = updateMutation.isPending;

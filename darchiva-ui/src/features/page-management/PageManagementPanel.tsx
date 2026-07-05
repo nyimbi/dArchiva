@@ -25,6 +25,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { useApplyPageOps, useExtractPages } from './api';
 import type { ExtractStrategy, PageState } from './types';
 
@@ -120,6 +121,7 @@ export function PageManagementPanel({ documentId, pages }: PageManagementPanelPr
     }));
     applyOps.mutate(ops, {
       onSuccess: () => setIsDirty(false),
+      onError: () => toast.error('Failed to apply page changes'),
     });
   }
 
@@ -141,6 +143,7 @@ export function PageManagementPanel({ documentId, pages }: PageManagementPanelPr
           setExtractOpen(false);
           setExtractFolderId('');
         },
+        onError: () => toast.error('Failed to extract pages'),
       },
     );
   }
