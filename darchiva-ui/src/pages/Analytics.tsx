@@ -1,6 +1,8 @@
 // (c) Copyright Datacraft, 2026
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { differenceInCalendarDays, endOfDay, format, startOfDay } from 'date-fns';
+import type { DateRange as CalendarDateRange } from 'react-day-picker';
 import { toast } from 'sonner';
 import {
 	AreaChart,
@@ -13,7 +15,6 @@ import {
 	YAxis,
 	CartesianGrid,
 	Tooltip,
-	Legend,
 	ResponsiveContainer,
 } from 'recharts';
 import {
@@ -21,25 +22,27 @@ import {
 	useAnalyticsQualityTrend,
 	useAnalyticsOperatorPerformance,
 	useAnalyticsCapacity,
-	fetchThroughput,
 } from '@/features/analytics/api';
-import type { Granularity } from '@/features/analytics/api';
+import type { AnalyticsRangeParams, Granularity } from '@/features/analytics/api';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { apiClient } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 import {
 	BarChart2,
+	CalendarIcon,
 	Download,
 	FileText,
 	Loader2,
 	TrendingUp,
 	Users,
-	HardDrive,
 	Activity,
 } from 'lucide-react';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-type DateRange = 7 | 30 | 90;
+type PresetDateRange = 7 | 30 | 90;
+type RangeMode = 'preset' | 'custom';
 
 function fmtTimestamp(ts: string): string {
 	try {
@@ -50,19 +53,23 @@ function fmtTimestamp(ts: string): string {
 	}
 }
 
-function exportCsv(
-	data: { timestamp: string; pages_scanned: number; batches_completed: number }[],
-	days: number,
-) {
-	const header = 'timestamp,pages_scanned,batches_completed\n';
-	const rows = data.map((r) => `${r.timestamp},${r.pages_scanned},${r.batches_completed}`).join('\n');
-	const blob = new Blob([header + rows], { type: 'text/csv' });
-	const url = URL.createObjectURL(blob);
-	const a = document.createElement('a');
-	a.href = url;
-	a.download = `throughput-${days}d.csv`;
-	a.click();
-	URL.revokeObjectURL(url);
+function toApiStartDate(date?: Date): string | undefined {
+	return date ? startOfDay(date).toISOString() : undefined;
+}
+
+function toApiEndDate(date?: Date): string | undefined {
+	return date ? endOfDay(date).toISOString() : undefined;
+}
+
+function getRangeDays(days: PresetDateRange, startDate?: Date, endDate?: Date): number {
+	if (!startDate || !endDate) return days;
+	return Math.max(1, differenceInCalendarDays(endDate, startDate) + 1);
+}
+
+function formatRangeLabel(startDate?: Date, endDate?: Date): string {
+	if (startDate && endDate) return `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d')}`;
+	if (startDate) return `${format(startDate, 'MMM d')} - ...`;
+	return 'Custom';
 }
 
 const TOOLTIP_STYLE = {
@@ -345,12 +352,30 @@ function DocTypeDistribution() {
 // ── main page ─────────────────────────────────────────────────────────────────
 
 export function Analytics() {
-	const [days, setDays] = useState<DateRange>(30);
-	const granularity: Granularity = days <= 7 ? 'day' : days <= 30 ? 'day' : 'week';
+	const [days, setDays] = useState<PresetDateRange>(30);
+	const [rangeMode, setRangeMode] = useState<RangeMode>('preset');
+	const [startDate, setStartDate] = useState<Date | undefined>();
+	const [endDate, setEndDate] = useState<Date | undefined>();
+	const [customOpen, setCustomOpen] = useState(false);
+	const rangeDays = rangeMode === 'custom' ? getRangeDays(days, startDate, endDate) : days;
+	const granularity: Granularity = rangeDays <= 30 ? 'day' : 'week';
+	const analyticsRange: AnalyticsRangeParams = {
+		days: rangeDays,
+		...(rangeMode === 'custom'
+			? {
+					date_from: toApiStartDate(startDate),
+					date_to: toApiEndDate(endDate),
+				}
+			: {}),
+	};
+	const rangeSubLabel =
+		rangeMode === 'custom' && startDate
+			? formatRangeLabel(startDate, endDate)
+			: `Last ${days} days`;
 
-	const throughput = useAnalyticsThroughput(days, granularity);
-	const quality = useAnalyticsQualityTrend(days, granularity);
-	const operators = useAnalyticsOperatorPerformance(days);
+	const throughput = useAnalyticsThroughput(analyticsRange, granularity);
+	const quality = useAnalyticsQualityTrend(analyticsRange, granularity);
+	const operators = useAnalyticsOperatorPerformance(analyticsRange);
 	const capacity = useAnalyticsCapacity();
 
 	// Derived summary stats
@@ -392,8 +417,8 @@ export function Analytics() {
 			docs: o.pages_scanned,
 		}));
 
-	// Storage growth proxy — cumulative pages over time (area)
-	const storageData = (() => {
+	// Page count growth — cumulative pages over time (area)
+	const pageCountGrowthData = (() => {
 		let cumulative = 0;
 		return (throughput.data?.data ?? []).map((r) => {
 			cumulative += r.pages_scanned;
@@ -401,12 +426,12 @@ export function Analytics() {
 		});
 	})();
 
-	const handleExport = useCallback(async () => {
-		const result = await fetchThroughput(days, granularity);
-		exportCsv(result.data, days);
-	}, [days, granularity]);
+	const handleCustomRangeSelect = (range: CalendarDateRange | undefined) => {
+		setStartDate(range?.from);
+		setEndDate(range?.to);
+	};
 
-	const RANGE_OPTIONS: DateRange[] = [7, 30, 90];
+	const RANGE_OPTIONS: PresetDateRange[] = [7, 30, 90];
 
 	return (
 		<div className="space-y-6">
@@ -429,10 +454,13 @@ export function Analytics() {
 						{RANGE_OPTIONS.map((d) => (
 							<button
 								key={d}
-								onClick={() => setDays(d)}
+								onClick={() => {
+									setDays(d);
+									setRangeMode('preset');
+								}}
 								className={cn(
 									'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
-									days === d
+									rangeMode === 'preset' && days === d
 										? 'bg-slate-700 text-slate-100'
 										: 'text-slate-400 hover:text-slate-200',
 								)}
@@ -440,11 +468,38 @@ export function Analytics() {
 								{d}d
 							</button>
 						))}
+						<Popover
+							open={customOpen}
+							onOpenChange={(open) => {
+								setCustomOpen(open);
+								if (open) setRangeMode('custom');
+							}}
+						>
+							<PopoverTrigger asChild>
+								<button
+									onClick={() => setRangeMode('custom')}
+									className={cn(
+										'px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2',
+										rangeMode === 'custom'
+											? 'bg-slate-700 text-slate-100'
+											: 'text-slate-400 hover:text-slate-200',
+									)}
+								>
+									<CalendarIcon className="w-4 h-4" />
+									{rangeMode === 'custom' ? formatRangeLabel(startDate, endDate) : 'Custom'}
+								</button>
+							</PopoverTrigger>
+							<PopoverContent className="w-auto p-0 bg-slate-900 border-slate-700" align="end">
+								<Calendar
+									mode="range"
+									selected={{ from: startDate, to: endDate }}
+									onSelect={handleCustomRangeSelect}
+									numberOfMonths={2}
+									initialFocus
+								/>
+							</PopoverContent>
+						</Popover>
 					</div>
-					<button onClick={handleExport} className="btn-secondary flex items-center gap-2">
-						<Download className="w-4 h-4" />
-						Export CSV
-					</button>
 				</div>
 			</div>
 
@@ -453,7 +508,7 @@ export function Analytics() {
 				<StatCard
 					label="Total Docs"
 					value={totalPages.toLocaleString()}
-					sub={`Last ${days} days`}
+					sub={rangeSubLabel}
 					icon={FileText}
 					valueClass="text-indigo-400"
 				/>
@@ -561,22 +616,22 @@ export function Analytics() {
 					)}
 				</ChartCard>
 
-				{/* Storage Growth — Area */}
+				{/* Page Count Growth — Area */}
 				<ChartCard
-					title="Storage Growth (Cumulative Docs)"
+					title="Page Count Growth"
 					isLoading={throughput.isLoading}
 					isError={throughput.isError}
-					errorMsg="Failed to load storage data"
+					errorMsg="Failed to load page count data"
 				>
-					{storageData.length === 0 ? (
+					{pageCountGrowthData.length === 0 ? (
 						<div className="flex items-center justify-center h-56 text-sm text-slate-500">
 							No data for this period
 						</div>
 					) : (
 						<ResponsiveContainer width="100%" height={220}>
-							<AreaChart data={storageData} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
+							<AreaChart data={pageCountGrowthData} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
 								<defs>
-									<linearGradient id="storageGrad" x1="0" y1="0" x2="0" y2="1">
+									<linearGradient id="pageCountGrad" x1="0" y1="0" x2="0" y2="1">
 										<stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
 										<stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
 									</linearGradient>
@@ -590,8 +645,8 @@ export function Analytics() {
 									dataKey="cumulative"
 									stroke="#f59e0b"
 									strokeWidth={2}
-									fill="url(#storageGrad)"
-									name="Cumulative Docs"
+									fill="url(#pageCountGrad)"
+									name="Cumulative Pages"
 									dot={false}
 								/>
 							</AreaChart>

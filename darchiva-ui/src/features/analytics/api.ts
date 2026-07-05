@@ -53,26 +53,38 @@ export interface SummaryResponse {
 }
 
 export type Granularity = 'hour' | 'day' | 'week' | 'month';
+export interface AnalyticsRangeParams {
+	days: number;
+	date_from?: string;
+	date_to?: string;
+}
+
+function rangeParams(range: AnalyticsRangeParams): Record<string, string | number> {
+	const params: Record<string, string | number> = { days: range.days };
+	if (range.date_from) params.date_from = range.date_from;
+	if (range.date_to) params.date_to = range.date_to;
+	return params;
+}
 
 // ─────────────────────────── Fetchers ────────────────────────
 
-export async function fetchThroughput(days: number, granularity: Granularity): Promise<ThroughputResponse> {
+export async function fetchThroughput(range: AnalyticsRangeParams, granularity: Granularity): Promise<ThroughputResponse> {
 	const { data } = await apiClient.get<ThroughputResponse>('/analytics/throughput', {
-		params: { days, granularity },
+		params: { ...rangeParams(range), granularity },
 	});
 	return data;
 }
 
-export async function fetchQualityTrend(days: number, granularity: Granularity): Promise<QualityTrendResponse> {
+export async function fetchQualityTrend(range: AnalyticsRangeParams, granularity: Granularity): Promise<QualityTrendResponse> {
 	const { data } = await apiClient.get<QualityTrendResponse>('/analytics/quality-trend', {
-		params: { days, granularity },
+		params: { ...rangeParams(range), granularity },
 	});
 	return data;
 }
 
-export async function fetchOperatorPerformance(days: number): Promise<OperatorPerformanceResponse> {
+export async function fetchOperatorPerformance(range: AnalyticsRangeParams): Promise<OperatorPerformanceResponse> {
 	const { data } = await apiClient.get<OperatorPerformanceResponse>('/analytics/operator-performance', {
-		params: { days },
+		params: rangeParams(range),
 	});
 	return data;
 }
@@ -82,9 +94,9 @@ export async function fetchCapacity(): Promise<CapacityResponse> {
 	return data;
 }
 
-export async function fetchSummary(days: number): Promise<SummaryResponse> {
+export async function fetchSummary(range: AnalyticsRangeParams): Promise<SummaryResponse> {
 	const { data } = await apiClient.get<SummaryResponse>('/analytics/summary', {
-		params: { days },
+		params: rangeParams(range),
 	});
 	return data;
 }
@@ -93,36 +105,36 @@ export async function fetchSummary(days: number): Promise<SummaryResponse> {
 
 export const analyticsKeys = {
 	all: ['analytics'] as const,
-	throughput: (days: number, granularity: Granularity) =>
-		[...analyticsKeys.all, 'throughput', days, granularity] as const,
-	qualityTrend: (days: number, granularity: Granularity) =>
-		[...analyticsKeys.all, 'quality-trend', days, granularity] as const,
-	operatorPerformance: (days: number) =>
-		[...analyticsKeys.all, 'operator-performance', days] as const,
+	throughput: (range: AnalyticsRangeParams, granularity: Granularity) =>
+		[...analyticsKeys.all, 'throughput', range, granularity] as const,
+	qualityTrend: (range: AnalyticsRangeParams, granularity: Granularity) =>
+		[...analyticsKeys.all, 'quality-trend', range, granularity] as const,
+	operatorPerformance: (range: AnalyticsRangeParams) =>
+		[...analyticsKeys.all, 'operator-performance', range] as const,
 	capacity: () => [...analyticsKeys.all, 'capacity'] as const,
-	summary: (days: number) => [...analyticsKeys.all, 'summary', days] as const,
+	summary: (range: AnalyticsRangeParams) => [...analyticsKeys.all, 'summary', range] as const,
 };
 
-export function useAnalyticsThroughput(days: number, granularity: Granularity = 'day') {
+export function useAnalyticsThroughput(range: AnalyticsRangeParams, granularity: Granularity = 'day') {
 	return useQuery({
-		queryKey: analyticsKeys.throughput(days, granularity),
-		queryFn: () => fetchThroughput(days, granularity),
+		queryKey: analyticsKeys.throughput(range, granularity),
+		queryFn: () => fetchThroughput(range, granularity),
 		staleTime: 60_000,
 	});
 }
 
-export function useAnalyticsQualityTrend(days: number, granularity: Granularity = 'day') {
+export function useAnalyticsQualityTrend(range: AnalyticsRangeParams, granularity: Granularity = 'day') {
 	return useQuery({
-		queryKey: analyticsKeys.qualityTrend(days, granularity),
-		queryFn: () => fetchQualityTrend(days, granularity),
+		queryKey: analyticsKeys.qualityTrend(range, granularity),
+		queryFn: () => fetchQualityTrend(range, granularity),
 		staleTime: 60_000,
 	});
 }
 
-export function useAnalyticsOperatorPerformance(days: number) {
+export function useAnalyticsOperatorPerformance(range: AnalyticsRangeParams) {
 	return useQuery({
-		queryKey: analyticsKeys.operatorPerformance(days),
-		queryFn: () => fetchOperatorPerformance(days),
+		queryKey: analyticsKeys.operatorPerformance(range),
+		queryFn: () => fetchOperatorPerformance(range),
 		staleTime: 60_000,
 	});
 }
@@ -136,10 +148,10 @@ export function useAnalyticsCapacity() {
 	});
 }
 
-export function useAnalyticsSummary(days: number) {
+export function useAnalyticsSummary(range: AnalyticsRangeParams) {
 	return useQuery({
-		queryKey: analyticsKeys.summary(days),
-		queryFn: () => fetchSummary(days),
+		queryKey: analyticsKeys.summary(range),
+		queryFn: () => fetchSummary(range),
 		staleTime: 60_000,
 	});
 }
