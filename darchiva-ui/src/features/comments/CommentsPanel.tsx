@@ -37,6 +37,7 @@ import {
   useUpdateComment,
 } from './api';
 import type { CommentReaction, DocumentComment, MentionUser } from './types';
+import { toast } from 'sonner';
 
 export interface CommentsPanelProps {
   documentId: string;
@@ -140,14 +141,31 @@ function CommentRow({ comment, documentId, currentPage, isReply = false }: Comme
   const edited = comment.updated_at && comment.updated_at !== comment.created_at;
 
   function handleToggleResolve() {
-    updateComment.mutate({
-      commentId: comment.id,
-      is_resolved: !comment.is_resolved,
-    });
+    const nextResolved = !comment.is_resolved;
+    updateComment.mutate(
+      {
+        commentId: comment.id,
+        is_resolved: nextResolved,
+      },
+      {
+        onSuccess: () => toast.success(nextResolved ? 'Comment resolved' : 'Comment reopened'),
+        onError: () => toast.error(nextResolved ? 'Failed to resolve comment' : 'Failed to reopen comment'),
+      },
+    );
   }
 
   function handleDelete() {
-    setConfirmDialog({ message: 'Delete this comment?', onConfirm: () => deleteComment.mutate(comment.id) });
+    setConfirmDialog({
+      message: 'Delete this comment?',
+      onConfirm: () =>
+        deleteComment.mutate(comment.id, {
+          onSuccess: () => {
+            toast.success('Comment deleted');
+            setConfirmDialog(null);
+          },
+          onError: () => toast.error('Failed to delete comment'),
+        }),
+    });
   }
 
   function handleReplySubmit() {
@@ -163,7 +181,9 @@ function CommentRow({ comment, documentId, currentPage, isReply = false }: Comme
           setReplyContent('');
           setPinReply(false);
           setReplyOpen(false);
+          toast.success('Reply added');
         },
+        onError: () => toast.error('Failed to add reply'),
       },
     );
   }
@@ -250,7 +270,15 @@ function CommentRow({ comment, documentId, currentPage, isReply = false }: Comme
                 <button
                   key={reaction.emoji}
                   type="button"
-                  onClick={() => reactToComment.mutate({ commentId: comment.id, emoji: reaction.emoji })}
+                  onClick={() =>
+                    reactToComment.mutate(
+                      { commentId: comment.id, emoji: reaction.emoji },
+                      {
+                        onSuccess: () => toast.success('Reaction updated'),
+                        onError: () => toast.error('Failed to update reaction'),
+                      },
+                    )
+                  }
                   disabled={reactToComment.isPending}
                   className="inline-flex h-6 items-center gap-1 rounded-full px-1.5 text-xs hover:bg-accent disabled:opacity-50"
                   aria-label={`React ${reaction.emoji}`}
@@ -346,18 +374,28 @@ function CommentRow({ comment, documentId, currentPage, isReply = false }: Comme
           </div>
         </div>
       )}
-      <AlertDialog open={!!confirmDialog} onOpenChange={() => setConfirmDialog(null)}>
+      <AlertDialog
+        open={!!confirmDialog}
+        onOpenChange={(open) => {
+          if (!open && !deleteComment.isPending) setConfirmDialog(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm</AlertDialogTitle>
             <AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteComment.isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => { confirmDialog?.onConfirm(); setConfirmDialog(null); }}
+              onClick={(event) => {
+                event.preventDefault();
+                confirmDialog?.onConfirm();
+              }}
+              disabled={deleteComment.isPending}
               className="bg-red-600 hover:bg-red-700"
             >
+              {deleteComment.isPending && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
               Confirm
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -398,7 +436,9 @@ export function CommentsPanel({ documentId, currentPage }: CommentsPanelProps) {
         onSuccess: () => {
           setNewContent('');
           setPinNew(false);
+          toast.success('Comment added');
         },
+        onError: () => toast.error('Failed to add comment'),
       },
     );
   }
@@ -446,7 +486,7 @@ export function CommentsPanel({ documentId, currentPage }: CommentsPanelProps) {
           </div>
         ) : topLevel.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">
-            No comments yet. Be the first to comment.
+            {pageFilter != null ? 'No comments on this page' : 'No comments yet. Be the first to comment.'}
           </p>
         ) : (
           topLevel.map((comment) => (

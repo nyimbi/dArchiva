@@ -9,7 +9,7 @@ import type { DocumentComment, CreateCommentPayload, MentionUser, UpdateCommentP
 
 export const commentKeys = {
   all: ['document-comments'] as const,
-  byDocument: (documentId: string) => ['document-comments', documentId] as const,
+  byDocument: (documentId: string, pageNumber?: number) => ['document-comments', documentId, pageNumber] as const,
   mentionUsers: (query: string) => ['comment-mention-users', query] as const,
 };
 
@@ -19,7 +19,7 @@ export const commentKeys = {
 
 export function useDocumentComments(documentId: string, pageNumber?: number) {
   return useQuery({
-    queryKey: commentKeys.byDocument(documentId),
+    queryKey: commentKeys.byDocument(documentId, pageNumber),
     queryFn: async () => {
       const params: Record<string, unknown> = {};
       if (pageNumber != null) params.page_number = pageNumber;

@@ -127,17 +127,20 @@ function FullTenantExportCard() {
 			</CardHeader>
 			<CardContent className="space-y-4">
 				{!activeJobId && (
-					<Button
-						onClick={handleStart}
-						disabled={startExport.isPending}
-						className="w-full sm:w-auto"
-					>
-						{startExport.isPending ? (
-							<><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Starting…</>
-						) : (
-							<><Download className="mr-2 h-4 w-4" /> Start Export</>
-						)}
-					</Button>
+					<div>
+						<Button
+							onClick={handleStart}
+							disabled={startExport.isPending}
+							className="w-full sm:w-auto"
+						>
+							{startExport.isPending ? (
+								<><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Starting…</>
+							) : (
+								<><Download className="mr-2 h-4 w-4" /> Start Export</>
+							)}
+						</Button>
+						{startExport.isError && <p className="text-sm text-destructive mt-2">Export failed. Please try again.</p>}
+					</div>
 				)}
 
 				{activeJobId && job && (
@@ -254,6 +257,7 @@ function GdprSubjectCard() {
 function RecentJobsTable() {
 	const jobsQuery = useDataExportJobs(20);
 	const downloadExport = useDownloadExport();
+	const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
 	if (jobsQuery.isLoading) {
 		return (
@@ -264,6 +268,15 @@ function RecentJobsTable() {
 	}
 
 	const jobs: ExportJob[] = jobsQuery.data ?? [];
+
+	async function handleDownload(job: ExportJob) {
+		setDownloadingId(job.id);
+		try {
+			await downloadExport.mutateAsync({ jobId: job.id });
+		} finally {
+			setDownloadingId(null);
+		}
+	}
 
 	return (
 		<div className="space-y-3">
@@ -279,6 +292,13 @@ function RecentJobsTable() {
 					Refresh
 				</Button>
 			</div>
+
+			{jobsQuery.isError && (
+				<div className="flex items-center gap-2 text-sm text-destructive">
+					<AlertCircle className="h-4 w-4" />
+					Failed to load export jobs.
+				</div>
+			)}
 
 			{jobs.length === 0 ? (
 				<p className="text-sm text-muted-foreground py-4 text-center">No export jobs yet.</p>
@@ -308,11 +328,14 @@ function RecentJobsTable() {
 											<Button
 												size="sm"
 												variant="outline"
-												onClick={() => downloadExport.mutate({ jobId: job.id })}
-												disabled={downloadExport.isPending}
+												onClick={() => handleDownload(job)}
+												disabled={downloadingId === job.id}
 											>
-												<Download className="h-3 w-3 mr-1" />
-												Download
+												{downloadingId === job.id ? (
+													<><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Downloading…</>
+												) : (
+													<><Download className="h-3 w-3 mr-1" /> Download</>
+												)}
 											</Button>
 										)}
 										{job.status === 'failed' && job.error_message && (
