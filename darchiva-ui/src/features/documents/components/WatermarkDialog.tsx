@@ -1,10 +1,11 @@
 // (c) Copyright Datacraft, 2026
 // WatermarkDialog — apply a text watermark to a document PDF
 import { useState } from 'react';
-import { Loader2, Stamp, X, CheckCircle, ExternalLink } from 'lucide-react';
+import { AlertCircle, CheckCircle, ExternalLink, Loader2, Stamp, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useApplyWatermark, type WatermarkPosition } from '../api/watermark';
+import { toast } from 'sonner';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -69,21 +70,31 @@ export function WatermarkDialog({ documentId, open, onClose }: Props) {
 	const { mutateAsync: applyWatermark, isPending, error } = useApplyWatermark();
 
 	const effectiveColor = customColor.match(/^#[0-9a-fA-F]{6}$/) ? customColor : color;
+	const errorMessage = error
+		? (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+			?? (error instanceof Error ? error.message : 'Failed to apply watermark')
+		: null;
 
 	const handleApply = async () => {
 		const pages = allPages ? 'all' : parsePageRange(pageRange);
-		const res = await applyWatermark({
-			documentId,
-			params: {
-				text: text.trim() || 'WATERMARK',
-				position,
-				opacity,
-				pages,
-				font_size: fontSize,
-				color: effectiveColor,
-			},
-		});
-		setResult({ taskId: res.task_id });
+		try {
+			await applyWatermark({
+				documentId,
+				params: {
+					text: text.trim() || 'WATERMARK',
+					position,
+					opacity,
+					pages,
+					font_size: fontSize,
+					color: effectiveColor,
+				},
+			});
+			toast.success('Watermark applied');
+			setResult(null);
+			onClose();
+		} catch {
+			toast.error('Failed to apply watermark');
+		}
 	};
 
 	const handleClose = () => {
@@ -338,11 +349,10 @@ export function WatermarkDialog({ documentId, open, onClose }: Props) {
 							</div>
 
 							{/* Error */}
-							{error && (
-								<div className="doc-warning-box-sm">
-									<span className="text-sm text-red-600 dark:text-red-400">
-										{(error as any)?.response?.data?.detail ?? (error as Error).message}
-									</span>
+							{errorMessage && (
+								<div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-2 text-sm text-destructive">
+									<AlertCircle className="h-4 w-4 shrink-0" />
+									<span>{errorMessage}</span>
 								</div>
 							)}
 

@@ -43,6 +43,7 @@ import {
   Sun,
 } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { usePreferences,useResetPreferences,useUpdatePreferences } from '../api';
 import type { DateFormat,Language,SortOrder,ThemeMode,UserPreferences,ViewMode } from '../types';
 import { PREFERENCE_SECTIONS } from '../types';
@@ -72,8 +73,13 @@ export function PreferencesPanel() {
 	};
 
 	const handleReset = async () => {
-		await resetPrefs.mutateAsync();
-		setShowResetDialog(false);
+		try {
+			await resetPrefs.mutateAsync();
+			toast.success('Preferences reset to defaults');
+			setShowResetDialog(false);
+		} catch {
+			toast.error('Failed to reset preferences');
+		}
 	};
 
 	if (isLoading) {
