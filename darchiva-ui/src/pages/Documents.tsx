@@ -492,6 +492,7 @@ export function Documents() {
 
   const { selectedNodeIds, clearNodeSelection, selectNodes, toggleNodeSelection, currentFolderId, setCurrentFolderId, openModal } = useStore();
   const navigate = useNavigate();
+  const [folderSearch, setFolderSearch] = useState('');
 
   const { data: folderTree, isLoading: treeLoading } = useFolderTree();
   const {
@@ -500,7 +501,7 @@ export function Documents() {
     hasNextPage,
     isFetchingNextPage,
     fetchNextPage,
-  } = useInfiniteDocuments(currentFolderId || undefined);
+  } = useInfiniteDocuments(currentFolderId || undefined, folderSearch || undefined);
 
   const handleOpenDocument = useCallback((doc: APIDocument) => {
     navigate(`/document/${doc.id}`);
@@ -659,7 +660,13 @@ export function Documents() {
           <div className="flex items-center gap-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-              <input type="text" placeholder="Search in folder..." className="input-field pl-9 w-64" />
+              <input
+                type="text"
+                placeholder="Search in folder..."
+                className="input-field pl-9 w-64"
+                value={folderSearch}
+                onChange={(e) => setFolderSearch(e.target.value)}
+              />
             </div>
             <button onClick={() => openModal('filter-documents')} className="btn-ghost">
               <Filter className="w-4 h-4" /> Filter

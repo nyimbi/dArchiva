@@ -1,5 +1,7 @@
 // (c) Copyright Datacraft, 2026
 import { useCallback, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import {
 	AreaChart,
 	Area,
@@ -171,6 +173,8 @@ function ExportPanel({ days }: { days: number }) {
 			a.download = `${report}.${fmt}`;
 			a.click();
 			URL.revokeObjectURL(href);
+		} catch {
+			toast.error('Export failed — please try again');
 		} finally {
 			setBusy(false);
 		}
@@ -287,35 +291,52 @@ function ExportPanel({ days }: { days: number }) {
 
 // ── document type distribution (horizontal bars) ──────────────────────────────
 
-const DOC_TYPES = [
-	{ label: 'PDF', pct: 52, color: 'bg-indigo-500' },
-	{ label: 'TIFF / Image', pct: 23, color: 'bg-cyan-500' },
-	{ label: 'DOCX', pct: 13, color: 'bg-emerald-500' },
-	{ label: 'XLSX', pct: 7, color: 'bg-amber-500' },
-	{ label: 'Other', pct: 5, color: 'bg-slate-500' },
-];
+const TYPE_COLORS = ['bg-indigo-500', 'bg-cyan-500', 'bg-emerald-500', 'bg-amber-500', 'bg-violet-500', 'bg-slate-500'];
 
 function DocTypeDistribution() {
+	const { data, isLoading } = useQuery({
+		queryKey: ['search-facets-doc-types'],
+		queryFn: async () => {
+			const { data } = await apiClient.get<{ document_types?: { value: string; count: number }[] }>('/search/facets');
+			return data.document_types ?? [];
+		},
+		staleTime: 5 * 60 * 1000,
+	});
+
+	const total = data?.reduce((s, d) => s + d.count, 0) ?? 1;
+	const items = data?.slice(0, 6) ?? [];
+
 	return (
 		<div className="rounded-xl border border-slate-700/50 bg-slate-900/60 p-5 flex flex-col gap-4">
 			<h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
 				Document Type Distribution
 			</h2>
 			<div className="flex flex-col gap-3">
-				{DOC_TYPES.map(({ label, pct, color }) => (
-					<div key={label} className="flex flex-col gap-1">
-						<div className="flex items-center justify-between text-xs">
-							<span className="text-slate-300">{label}</span>
-							<span className="text-slate-500 tabular-nums">{pct}%</span>
-						</div>
-						<div className="h-2 rounded-full bg-slate-800 overflow-hidden">
-							<div
-								className={cn('h-full rounded-full transition-all duration-500', color)}
-								style={{ width: `${pct}%` }}
-							/>
-						</div>
-					</div>
-				))}
+				{isLoading ? (
+					Array.from({ length: 5 }).map((_, i) => (
+						<div key={i} className="h-6 bg-slate-800 rounded animate-pulse" />
+					))
+				) : items.length === 0 ? (
+					<p className="text-xs text-slate-500">No data available</p>
+				) : (
+					items.map(({ value, count }, i) => {
+						const pct = Math.round((count / total) * 100);
+						return (
+							<div key={value} className="flex flex-col gap-1">
+								<div className="flex items-center justify-between text-xs">
+									<span className="text-slate-300">{value}</span>
+									<span className="text-slate-500 tabular-nums">{pct}% ({count.toLocaleString()})</span>
+								</div>
+								<div className="h-2 rounded-full bg-slate-800 overflow-hidden">
+									<div
+										className={cn('h-full rounded-full transition-all duration-500', TYPE_COLORS[i % TYPE_COLORS.length])}
+										style={{ width: `${pct}%` }}
+									/>
+								</div>
+							</div>
+						);
+					})
+				)}
 			</div>
 		</div>
 	);
