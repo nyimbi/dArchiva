@@ -6,7 +6,8 @@ import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { FilePlus2, FolderPlus, Plus, ScanLine, Search, Upload } from 'lucide-react';
 import { Suspense, useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { Outlet, useNavigate, useParams } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { DropZoneOverlay } from './DropZoneOverlay';
 import { ErrorBoundary } from './ErrorBoundary';
 import { Header } from './Header';
@@ -14,10 +15,72 @@ import { ModalManager } from './ModalManager';
 import { PageSkeleton } from './PageSkeleton';
 import { Sidebar } from './Sidebar';
 
+const ROUTE_TITLES: Record<string, string> = {
+	'/': 'Home',
+	'/inbox': 'Inbox',
+	'/shared': 'Shared Documents',
+	'/documents': 'Documents',
+	'/workflows': 'Workflows',
+	'/forms': 'Forms',
+	'/cases': 'Cases',
+	'/portfolios': 'Portfolios',
+	'/search': 'Search',
+	'/analytics': 'Analytics',
+	'/dashboard': 'Dashboard',
+	'/ingestion': 'Ingestion',
+	'/ingestion/dashboard': 'Ingestion Dashboard',
+	'/routing': 'Routing Rules',
+	'/auto-routing': 'Auto-Routing',
+	'/audit': 'Audit Logs',
+	'/retention': 'Retention Policies',
+	'/settings': 'Settings',
+	'/encryption': 'Encryption',
+	'/security': 'Security',
+	'/tags': 'Tag Management',
+	'/templates': 'Templates',
+	'/connectors': 'Connectors',
+	'/entity-graph': 'Entity Graph',
+	'/billing': 'Billing',
+	'/quality': 'Quality Dashboard',
+	'/iam': 'Identity & Access',
+	'/compliance': 'Compliance',
+	'/automation': 'Automation Rules',
+	'/reports/scheduled': 'Scheduled Reports',
+	'/notifications': 'Notifications',
+	'/agents': 'Fleet Management',
+	'/supervisor': 'Supervisor Dashboard',
+	'/exception-queue': 'Exception Queue',
+	'/system': 'System Health',
+	'/api-keys': 'API Keys',
+	'/admin/users': 'User Management',
+	'/admin/roles': 'Role Management',
+	'/admin/tenants': 'Tenants',
+	'/admin/data-export': 'Data Export',
+	'/webhooks': 'Webhooks',
+	'/compare': 'Document Compare',
+	'/hierarchy': 'Hierarchy',
+	'/inventory': 'Inventory',
+	'/serial-numbers': 'Serial Numbers',
+	'/segmentation': 'Segmentation',
+	'/scanning-projects': 'Scanning Projects',
+	'/profile': 'Profile',
+	'/superadmin': 'Super Admin',
+};
+
+function useRouteTitle() {
+	const { pathname } = useLocation();
+	const base = pathname.replace(/\/$/, '') || '/';
+	if (ROUTE_TITLES[base]) return ROUTE_TITLES[base];
+	// dynamic segments: /documents/:id → 'Documents', /scanning-projects/:id → 'Scanning Projects'
+	const parent = base.split('/').slice(0, 2).join('/') || '/';
+	return ROUTE_TITLES[parent] ?? undefined;
+}
+
 export function Layout() {
 	const { sidebarCollapsed } = useStore();
 	const navigate = useNavigate();
 	const { folderId } = useParams<{ folderId: string }>();
+	usePageTitle(useRouteTitle());
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 	const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 	const [speedDialOpen, setSpeedDialOpen] = useState(false);
