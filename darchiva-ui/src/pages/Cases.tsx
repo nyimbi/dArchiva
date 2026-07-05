@@ -1,8 +1,19 @@
 // (c) Copyright Datacraft, 2026
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { apiClient } from '@/lib/api-client';
+import {
   useBundles,
   useCases,
-  useCreateCase,
   type Bundle,
   type Case,
   type CaseStatus,
@@ -44,16 +55,19 @@ import {
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { formatDate } from '@/lib/utils';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
   Briefcase,
   Calendar,
+  Pencil,
   FileText,
   Filter,
   FolderOpen,
   Loader2,
   Plus,
   Search,
+  Trash2,
   User,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -67,6 +81,58 @@ const STATUS_CONFIG: Record<
   closed: { label: 'Closed', variant: 'outline' },
   on_hold: { label: 'On Hold', variant: 'secondary' },
 };
+
+const CASE_STATUSES: CaseStatus[] = ['open', 'pending', 'closed', 'on_hold'];
+
+type CreateCasePayload = {
+  title: string;
+  description?: string;
+  type: string;
+  priority: string;
+};
+
+function useCreateCaseMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: CreateCasePayload) => {
+      const { data: createdCase } = await apiClient.post<Case>('/cases', data);
+      return createdCase;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cases'] });
+    },
+  });
+}
+
+function useUpdateCaseMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { title: string; status: CaseStatus } }) => {
+      const { data: updatedCase } = await apiClient.patch<Case>(`/cases/${id}`, data);
+      return updatedCase;
+    },
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['cases'] });
+      queryClient.invalidateQueries({ queryKey: ['cases', 'detail', id] });
+    },
+  });
+}
+
+function useDeleteCaseMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(`/cases/${id}`);
+      return id;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cases'] });
+    },
+  });
+}
 
 function BundleRow({ bundle }: { bundle: Bundle }) {
   return (
@@ -92,13 +158,17 @@ function CreateCaseDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
-  const createCase = useCreateCase();
+  const createCase = useCreateCaseMutation();
   const [title, setTitle] = useState('');
+  const [caseType, setCaseType] = useState('legal');
+  const [priority, setPriority] = useState('medium');
   const [description, setDescription] = useState('');
   const [docIds, setDocIds] = useState('');
 
   const reset = () => {
     setTitle('');
+    setCaseType('legal');
+    setPriority('medium');
     setDescription('');
     setDocIds('');
   };
@@ -109,6 +179,8 @@ function CreateCaseDialog({
     await createCase.mutateAsync({
       title: title.trim(),
       description: description.trim() || undefined,
+      type: caseType,
+      priority,
     });
     reset();
     onOpenChange(false);
@@ -141,7 +213,7 @@ function CreateCaseDialog({
           </div>
           <div className="space-y-2">
             <Label htmlFor="case-type">Type</Label>
-            <Select>
+            <Select value={caseType} onValueChange={setCaseType}>
               <SelectTrigger id="case-type">
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
@@ -155,7 +227,7 @@ function CreateCaseDialog({
           </div>
           <div className="space-y-2">
             <Label htmlFor="case-priority">Priority</Label>
-            <Select>
+            <Select value={priority} onValueChange={setPriority}>
               <SelectTrigger id="case-priority">
                 <SelectValue placeholder="Select priority" />
               </SelectTrigger>
@@ -207,6 +279,134 @@ function CreateCaseDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function EditCaseDialog({
+  caseData,
+  open,
+  onOpenChange,
+  onUpdated,
+}: {
+  caseData: Case | null;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onUpdated: (caseData: Case) => void;
+}) {
+  const updateCase = useUpdateCaseMutation();
+  const [title, setTitle] = useState('');
+  const [status, setStatus] = useState<CaseStatus>('open');
+
+  useEffect(() => {
+    if (!caseData) return;
+    setTitle(caseData.title);
+    setStatus(caseData.status);
+  }, [caseData]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!caseData || !title.trim()) return;
+
+    const updatedCase = await updateCase.mutateAsync({
+      id: caseData.id,
+      data: { title: title.trim(), status },
+    });
+    onUpdated(updatedCase);
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[460px]">
+        <DialogHeader>
+          <DialogTitle>Edit Case</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          <div className="space-y-2">
+            <Label htmlFor="edit-case-title">
+              Title <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="edit-case-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-case-status">Status</Label>
+            <Select value={status} onValueChange={(value) => setStatus(value as CaseStatus)}>
+              <SelectTrigger id="edit-case-status">
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                {CASE_STATUSES.map((caseStatus) => (
+                  <SelectItem key={caseStatus} value={caseStatus}>
+                    {STATUS_CONFIG[caseStatus].label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={updateCase.isPending || !title.trim()}>
+              {updateCase.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CaseActions({
+  caseData,
+  onEdit,
+  onDeleted,
+}: {
+  caseData: Case;
+  onEdit: (caseData: Case) => void;
+  onDeleted: (caseId: string) => void;
+}) {
+  const deleteCase = useDeleteCaseMutation();
+
+  const handleDelete = async () => {
+    await deleteCase.mutateAsync(caseData.id);
+    onDeleted(caseData.id);
+  };
+
+  return (
+    <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+      <Button variant="ghost" size="icon" onClick={() => onEdit(caseData)} aria-label="Edit case">
+        <Pencil className="w-4 h-4" />
+      </Button>
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label="Delete case">
+            <Trash2 className="w-4 h-4 text-destructive" />
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete case?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{caseData.title}". This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteCase.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={deleteCase.isPending}>
+              {deleteCase.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 }
 
@@ -365,6 +565,8 @@ export function Cases() {
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedCase, setSelectedCase] = useState<Case | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [editCase, setEditCase] = useState<Case | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchQuery), 300);
@@ -390,6 +592,26 @@ export function Cases() {
   const handleRowClick = (c: Case) => {
     setSelectedCase(c);
     setDetailOpen(true);
+  };
+
+  const handleEdit = (c: Case) => {
+    setEditCase(c);
+    setEditOpen(true);
+  };
+
+  const handleUpdated = (updatedCase: Case) => {
+    setSelectedCase((current) => (current?.id === updatedCase.id ? updatedCase : current));
+  };
+
+  const handleDeleted = (caseId: string) => {
+    if (selectedCase?.id === caseId) {
+      setSelectedCase(null);
+      setDetailOpen(false);
+    }
+    if (editCase?.id === caseId) {
+      setEditCase(null);
+      setEditOpen(false);
+    }
   };
 
   return (
@@ -458,13 +680,14 @@ export function Cases() {
               <TableHead className="w-24 text-right">Bundles</TableHead>
               <TableHead className="w-36">Created By</TableHead>
               <TableHead className="w-32">Created</TableHead>
+              <TableHead className="w-24 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 7 }).map((__, j) => (
+                  {Array.from({ length: 8 }).map((__, j) => (
                     <TableCell key={j}>
                       <Skeleton className="h-4 w-full" />
                     </TableCell>
@@ -473,7 +696,7 @@ export function Cases() {
               ))
             ) : isError ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-16">
+                <TableCell colSpan={8} className="text-center py-16">
                   <div className="flex flex-col items-center gap-3">
                     <AlertCircle className="w-8 h-8 text-destructive" />
                     <p className="text-sm text-muted-foreground">Could not load cases</p>
@@ -485,7 +708,7 @@ export function Cases() {
               </TableRow>
             ) : cases.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-16">
+                <TableCell colSpan={8} className="text-center py-16">
                   <EmptyState
                     icon={Briefcase}
                     title={hasFilters ? 'No cases match your filters' : 'No cases yet'}
@@ -535,6 +758,9 @@ export function Cases() {
                     <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                       {formatDate(c.createdAt)}
                     </TableCell>
+                    <TableCell className="text-right">
+                      <CaseActions caseData={c} onEdit={handleEdit} onDeleted={handleDeleted} />
+                    </TableCell>
                   </TableRow>
                 );
               })
@@ -544,6 +770,15 @@ export function Cases() {
       </div>
 
       <CreateCaseDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <EditCaseDialog
+        caseData={editCase}
+        open={editOpen}
+        onOpenChange={(open) => {
+          if (!open) setEditCase(null);
+          setEditOpen(open);
+        }}
+        onUpdated={handleUpdated}
+      />
       <CaseDetailSheet
         caseData={selectedCase}
         open={detailOpen}
