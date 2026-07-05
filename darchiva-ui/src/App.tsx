@@ -1,5 +1,6 @@
 // (c) Copyright Datacraft, 2026
 import { lazy,Suspense,useState } from 'react';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { QueryClient,QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter,Route,Routes } from 'react-router-dom';
 import { Toaster } from 'sonner';
@@ -151,6 +152,7 @@ export default function App() {
 				<BrowserRouter>
 				<ShortcutsProvider>
 				<AppInner />
+				<ErrorBoundary>
 				<Suspense fallback={<RouteFallback />}>
 					<Routes>
 						{/* Public route */}
@@ -234,6 +236,7 @@ export default function App() {
 
 					</Routes>
 				</Suspense>
+				</ErrorBoundary>
 				</ShortcutsProvider>
 				</BrowserRouter>
 			</AuthProvider>
