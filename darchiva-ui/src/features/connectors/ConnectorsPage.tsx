@@ -1,6 +1,7 @@
 // (c) Copyright Datacraft, 2026.
 import { useState } from 'react';
 import {
+	AlertCircle,
 	Cloud,
 	FileStack,
 	FolderOpen,
@@ -536,7 +537,7 @@ function TypeCard({ type, onConnect }: TypeCardProps) {
 // ---------------------------------------------------------------------------
 
 export function ConnectorsPage() {
-	const { data: connectors = [], isLoading } = useConnectors();
+	const { data: connectors = [], isLoading, isError } = useConnectors();
 	const deleteMutation = useDeleteConnector();
 
 	const [showAdd, setShowAdd] = useState(false);
@@ -574,11 +575,16 @@ export function ConnectorsPage() {
 				<StatsCards connectors={connectors} />
 			)}
 
-			{/* Loading */}
+			{/* Loading / Error */}
 			{isLoading ? (
 				<div className="flex items-center justify-center gap-2 py-16 text-muted-foreground">
 					<Loader2 className="h-5 w-5 animate-spin" />
 					Loading connectors…
+				</div>
+			) : isError ? (
+				<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+					<AlertCircle className="h-4 w-4 shrink-0" />
+					Failed to load connectors. Check your connection and try refreshing.
 				</div>
 			) : (
 				<>

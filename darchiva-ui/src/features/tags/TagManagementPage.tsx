@@ -38,7 +38,7 @@ import {
 	TableRow,
 } from '@/components/ui/table';
 import { cn, formatDateTime } from '@/lib/utils';
-import { Edit2, GitMerge, Loader2, Plus, Tag as TagIcon, Trash2 } from 'lucide-react';
+import { AlertCircle, Edit2, GitMerge, Loader2, Plus, Tag as TagIcon, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useCreateTag, useDeleteTag, useMergeTags, useTags, useUpdateTag } from './api';
 import type { Tag } from './types';
@@ -212,7 +212,7 @@ function MergeTagsPanel({ tags }: { tags: Tag[] }) {
 }
 
 export function TagManagementPage() {
-	const { data, isLoading } = useTags();
+	const { data, isLoading, isError } = useTags();
 	const deleteTag = useDeleteTag();
 	const [dialogState, setDialogState] = useState<TagDialogState | null>(null);
 	const [deleteTarget, setDeleteTarget] = useState<Tag | null>(null);
@@ -286,6 +286,15 @@ export function TagManagementPage() {
 								<TableCell colSpan={5} className="py-10 text-center text-slate-500">
 									<Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" />
 									Loading tags
+								</TableCell>
+							</TableRow>
+						) : isError ? (
+							<TableRow>
+								<TableCell colSpan={5} className="py-10 text-center">
+									<div className="flex items-center justify-center gap-2 text-red-400 text-sm">
+										<AlertCircle className="h-4 w-4" />
+										Failed to load tags. Try refreshing.
+									</div>
 								</TableCell>
 							</TableRow>
 						) : tags.length === 0 ? (
