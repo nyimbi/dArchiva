@@ -298,9 +298,9 @@ export function useCreateQCSample() {
 			projectId: string;
 			input: api.CreateQCSampleInput;
 		}) => api.createQCSample(projectId, input),
-		onSuccess: (data) => {
+		onSuccess: (_, variables) => {
 			queryClient.invalidateQueries({
-				queryKey: scanningProjectKeys.qcSamples(data.batchId),
+				queryKey: scanningProjectKeys.qcSamples(variables.projectId),
 			});
 		},
 	});
