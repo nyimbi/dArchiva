@@ -169,6 +169,7 @@
   .nav-item {
     @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium;
     @apply text-slate-400 hover:text-slate-200 hover:bg-slate-800/50;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500;
     @apply transition-all duration-150;
   }
 
@@ -180,6 +181,7 @@
   .tree-node {
     @apply flex items-center gap-2 px-2 py-1.5 rounded text-sm;
     @apply text-slate-400 hover:text-slate-200 hover:bg-slate-800/50;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500;
     @apply transition-colors duration-100 cursor-pointer;
   }
 

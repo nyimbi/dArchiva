@@ -578,7 +578,7 @@ export function Inbox() {
   return (
     <div className="space-y-4">
       {/* Page header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-display font-semibold text-slate-100">Inbox</h1>
           <p className="mt-1 text-sm text-slate-500">
@@ -599,9 +599,9 @@ export function Inbox() {
       </div>
 
       {/* Main split panel */}
-      <div className="glass-card overflow-hidden flex h-[calc(100vh-13rem)]">
+      <div className="glass-card overflow-hidden flex min-h-[calc(100vh-13rem)] flex-col lg:h-[calc(100vh-13rem)] lg:min-h-0 lg:flex-row">
         {/* ── Left panel ──────────────────────────────────────────────────── */}
-        <div className="w-80 shrink-0 flex flex-col border-r border-slate-800/50">
+        <div className="w-full shrink-0 flex flex-col border-b border-slate-800/50 lg:w-80 lg:border-b-0 lg:border-r">
           {/* Search */}
           <div className="px-3 py-3 border-b border-slate-800/50">
             <div className="relative">
@@ -685,7 +685,7 @@ export function Inbox() {
           )}
 
           {/* Message list */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="max-h-[22rem] flex-1 overflow-y-auto lg:max-h-none">
             {isLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <div
@@ -722,7 +722,7 @@ export function Inbox() {
         </div>
 
         {/* ── Right panel ─────────────────────────────────────────────────── */}
-        <div className="flex-1 min-w-0">
+        <div className="min-h-[24rem] flex-1 min-w-0 lg:min-h-0">
           {activeMessage ? (
             <MessageDetail
               msg={activeMessage}

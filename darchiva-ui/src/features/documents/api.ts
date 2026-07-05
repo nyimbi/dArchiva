@@ -3,7 +3,7 @@
  * Documents API hooks.
  */
 import { apiClient } from '@/lib/api-client';
-import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
+import { useMutation,useQuery,useQueryClient,type QueryClient,type QueryKey } from '@tanstack/react-query';
 
 export interface TreeNode {
 	id: string;
@@ -46,6 +46,53 @@ export const documentKeys = {
 	list: (folderId?: string, page?: number) => [...documentKeys.lists(), folderId, page] as const,
 	detail: (id: string) => [...documentKeys.all, 'detail', id] as const,
 };
+
+type DocumentsSnapshot = Array<[QueryKey, unknown]>;
+
+interface DocumentMutationContext {
+	previousDocuments: DocumentsSnapshot;
+}
+
+export interface UpdateDocumentInput {
+	id: string;
+	title?: string;
+	tags?: Document['tags'];
+}
+
+function removeNodeFromTree(nodes: TreeNode[], id: string): TreeNode[] {
+	return nodes
+		.filter((node) => node.id !== id)
+		.map((node) => ({
+			...node,
+			children: node.children ? removeNodeFromTree(node.children, id) : undefined,
+		}));
+}
+
+function updateNodeInTree(nodes: TreeNode[], id: string, updates: Pick<UpdateDocumentInput, 'title'>): TreeNode[] {
+	return nodes.map((node) => ({
+		...node,
+		title: node.id === id && updates.title !== undefined ? updates.title : node.title,
+		children: node.children ? updateNodeInTree(node.children, id, updates) : undefined,
+	}));
+}
+
+function updateDocumentValue(document: Document, updates: UpdateDocumentInput): Document {
+	return {
+		...document,
+		...(updates.title !== undefined ? { title: updates.title } : {}),
+		...(updates.tags !== undefined ? { tags: updates.tags } : {}),
+	};
+}
+
+function snapshotDocuments(queryClient: QueryClient): DocumentsSnapshot {
+	return queryClient.getQueriesData({ queryKey: documentKeys.all });
+}
+
+function restoreDocuments(queryClient: QueryClient, snapshot?: DocumentsSnapshot) {
+	snapshot?.forEach(([queryKey, data]) => {
+		queryClient.setQueryData(queryKey, data);
+	});
+}
 
 export function useFolderTree() {
 	return useQuery({
@@ -134,11 +181,80 @@ export function useUploadDocument() {
 
 export function useDeleteDocument() {
 	const queryClient = useQueryClient();
-	return useMutation({
+	return useMutation<void, Error, string, DocumentMutationContext>({
 		mutationFn: async (id: string) => {
 			await apiClient.delete(`/nodes/${id}`);
 		},
-		onSuccess: () => {
+		onMutate: async (id) => {
+			await queryClient.cancelQueries({ queryKey: documentKeys.all });
+			const previousDocuments = snapshotDocuments(queryClient);
+
+			queryClient.setQueriesData<DocumentListResponse>(
+				{ queryKey: documentKeys.lists() },
+				(old) => old
+					? {
+						...old,
+						items: old.items.filter((document) => document.id !== id),
+						total: Math.max(0, old.total - (old.items.some((document) => document.id === id) ? 1 : 0)),
+					}
+					: old,
+			);
+			queryClient.setQueryData<TreeNode[]>(documentKeys.tree(), (old) =>
+				old ? removeNodeFromTree(old, id) : old
+			);
+			queryClient.removeQueries({ queryKey: documentKeys.detail(id), exact: true });
+
+			return { previousDocuments };
+		},
+		onError: (_error, _id, context) => {
+			restoreDocuments(queryClient, context?.previousDocuments);
+		},
+		onSettled: () => {
+			queryClient.invalidateQueries({ queryKey: documentKeys.all });
+		},
+	});
+}
+
+export function useUpdateDocument() {
+	const queryClient = useQueryClient();
+	return useMutation<Document, Error, UpdateDocumentInput, DocumentMutationContext>({
+		mutationFn: async ({ id, ...payload }) => {
+			const { data: result } = await apiClient.patch<Document>(`/nodes/${id}`, payload);
+			return result;
+		},
+		onMutate: async (updates) => {
+			await queryClient.cancelQueries({ queryKey: documentKeys.all });
+			const previousDocuments = snapshotDocuments(queryClient);
+
+			queryClient.setQueriesData<DocumentListResponse>(
+				{ queryKey: documentKeys.lists() },
+				(old) => old
+					? {
+						...old,
+						items: old.items.map((document) =>
+							document.id === updates.id ? updateDocumentValue(document, updates) : document
+						),
+					}
+					: old,
+			);
+			queryClient.setQueryData<Document>(documentKeys.detail(updates.id), (old) =>
+				old ? updateDocumentValue(old, updates) : old
+			);
+			if (updates.title !== undefined) {
+				queryClient.setQueryData<TreeNode[]>(documentKeys.tree(), (old) =>
+					old ? updateNodeInTree(old, updates.id, updates) : old
+				);
+			}
+
+			return { previousDocuments };
+		},
+		onError: (_error, _updates, context) => {
+			restoreDocuments(queryClient, context?.previousDocuments);
+		},
+		onSuccess: (updatedDocument) => {
+			queryClient.setQueryData(documentKeys.detail(updatedDocument.id), updatedDocument);
+		},
+		onSettled: () => {
 			queryClient.invalidateQueries({ queryKey: documentKeys.all });
 		},
 	});

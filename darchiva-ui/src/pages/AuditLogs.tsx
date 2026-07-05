@@ -39,7 +39,7 @@ export function AuditLogs() {
                     <h1 className="text-2xl font-display font-semibold text-slate-100">
                         Audit Logs
                     </h1>
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-1 text-sm text-slate-400">
                         Track system activity and document changes
                     </p>
                 </div>

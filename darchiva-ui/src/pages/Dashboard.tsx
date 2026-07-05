@@ -69,7 +69,7 @@ function RetryButton({ onRetry }: { onRetry: () => void }) {
 	return (
 		<button
 			onClick={onRetry}
-			className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-slate-100 transition-colors"
+			className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500"
 		>
 			<RefreshCw className="w-3 h-3" />
 			Retry
@@ -79,7 +79,7 @@ function RetryButton({ onRetry }: { onRetry: () => void }) {
 
 function ErrorState({ message, onRetry }: { message?: string; onRetry: () => void }) {
 	return (
-		<div className="p-8 flex flex-col items-center gap-3 text-slate-500">
+		<div className="p-8 flex flex-col items-center gap-3 text-slate-400">
 			<AlertCircle className="w-6 h-6 text-red-400" />
 			<p className="text-sm">{message ?? 'Failed to load'}</p>
 			<RetryButton onRetry={onRetry} />
@@ -151,12 +151,12 @@ export function Dashboard() {
 			className="space-y-6"
 		>
 			{/* Page header */}
-			<div className="flex items-center justify-between">
+			<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 				<div>
 					<h1 className="text-2xl font-display font-semibold text-slate-100">
 						Dashboard
 					</h1>
-					<p className="mt-1 text-sm text-slate-500">
+					<p className="mt-1 text-sm text-slate-400">
 						Welcome back. Here's your document management overview.
 					</p>
 				</div>
@@ -171,13 +171,13 @@ export function Dashboard() {
 				<div className="stat-card group">
 					<div className="flex items-start justify-between">
 						<div className="flex-1">
-							<p className="text-sm text-slate-500">Total Documents</p>
+							<p className="text-sm text-slate-400">Total Documents</p>
 							{statsLoading ? (
-								<Loader2 className="w-6 h-6 animate-spin text-slate-500 mt-2" />
+								<Loader2 className="w-6 h-6 animate-spin text-slate-400 mt-2" />
 							) : statsError ? (
 								<div className="mt-2 flex items-center gap-1.5 text-xs text-red-400">
 									<AlertCircle className="w-3.5 h-3.5" />
-									<button onClick={() => void refetchStats()} className="hover:underline">Retry</button>
+									<button onClick={() => void refetchStats()} className="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500 rounded">Retry</button>
 								</div>
 							) : (
 								<>
@@ -201,13 +201,13 @@ export function Dashboard() {
 				<div className="stat-card group">
 					<div className="flex items-start justify-between">
 						<div className="flex-1">
-							<p className="text-sm text-slate-500">Active Workflows</p>
+							<p className="text-sm text-slate-400">Active Workflows</p>
 							{statsLoading ? (
-								<Loader2 className="w-6 h-6 animate-spin text-slate-500 mt-2" />
+								<Loader2 className="w-6 h-6 animate-spin text-slate-400 mt-2" />
 							) : statsError ? (
 								<div className="mt-2 flex items-center gap-1.5 text-xs text-red-400">
 									<AlertCircle className="w-3.5 h-3.5" />
-									<button onClick={() => void refetchStats()} className="hover:underline">Retry</button>
+									<button onClick={() => void refetchStats()} className="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500 rounded">Retry</button>
 								</div>
 							) : (
 								<>
@@ -231,20 +231,20 @@ export function Dashboard() {
 				<div className="stat-card group">
 					<div className="flex items-start justify-between">
 						<div className="flex-1">
-							<p className="text-sm text-slate-500">OCR Processed</p>
+							<p className="text-sm text-slate-400">OCR Processed</p>
 							{statsLoading ? (
-								<Loader2 className="w-6 h-6 animate-spin text-slate-500 mt-2" />
+								<Loader2 className="w-6 h-6 animate-spin text-slate-400 mt-2" />
 							) : statsError ? (
 								<div className="mt-2 flex items-center gap-1.5 text-xs text-red-400">
 									<AlertCircle className="w-3.5 h-3.5" />
-									<button onClick={() => void refetchStats()} className="hover:underline">Retry</button>
+									<button onClick={() => void refetchStats()} className="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500 rounded">Retry</button>
 								</div>
 							) : (
 								<>
 									<p className="mt-2 text-3xl font-display font-semibold text-slate-100">
 										{displayStats.ocrProcessed.toLocaleString()}
 									</p>
-									<p className="mt-1 text-xs text-slate-500">Documents this month</p>
+									<p className="mt-1 text-xs text-slate-400">Documents this month</p>
 								</>
 							)}
 						</div>
@@ -258,13 +258,13 @@ export function Dashboard() {
 				<div className="stat-card group">
 					<div className="flex items-start justify-between">
 						<div className="flex-1">
-							<p className="text-sm text-slate-500">Storage Used</p>
+							<p className="text-sm text-slate-400">Storage Used</p>
 							{statsLoading ? (
-								<Loader2 className="w-6 h-6 animate-spin text-slate-500 mt-2" />
+								<Loader2 className="w-6 h-6 animate-spin text-slate-400 mt-2" />
 							) : statsError ? (
 								<div className="mt-2 flex items-center gap-1.5 text-xs text-red-400">
 									<AlertCircle className="w-3.5 h-3.5" />
-									<button onClick={() => void refetchStats()} className="hover:underline">Retry</button>
+									<button onClick={() => void refetchStats()} className="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500 rounded">Retry</button>
 								</div>
 							) : (
 								<>
@@ -278,7 +278,7 @@ export function Dashboard() {
 												style={{ width: `${storagePercentage}%` }}
 											/>
 										</div>
-										<p className="mt-1 text-xs text-slate-500">
+										<p className="mt-1 text-xs text-slate-400">
 											{storagePercentage.toFixed(1)}% of {formatBytes(displayStats.storageQuotaBytes)}
 										</p>
 									</div>
@@ -296,21 +296,21 @@ export function Dashboard() {
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 				{/* Pending Tasks */}
 				<motion.div variants={itemVariants} className="lg:col-span-2 glass-card">
-					<div className="p-4 border-b border-slate-700/50 flex items-center justify-between">
+					<div className="p-4 border-b border-slate-700/50 flex items-center justify-between gap-3">
 						<h2 className="font-display font-semibold text-slate-100">Pending Tasks</h2>
-						<a href="/workflows" className="flex items-center gap-1 text-sm text-brass-400 hover:text-brass-300">
+						<a href="/workflows" className="flex items-center gap-1 text-sm text-brass-400 hover:text-brass-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500 rounded">
 							View all <ArrowUpRight className="w-4 h-4" />
 						</a>
 					</div>
 					<div className="divide-y divide-slate-800/50">
 						{tasksLoading ? (
 							<div className="p-8 flex items-center justify-center">
-								<Loader2 className="w-6 h-6 animate-spin text-slate-500" />
+								<Loader2 className="w-6 h-6 animate-spin text-slate-400" />
 							</div>
 						) : tasksError ? (
 							<ErrorState message="Failed to load tasks" onRetry={() => void refetchTasks()} />
 						) : pendingTasks.length === 0 ? (
-							<div className="p-8 text-center text-slate-500">No pending tasks</div>
+							<div className="p-8 text-center text-slate-400">No pending tasks</div>
 						) : (
 							pendingTasks.slice(0, 3).map((task, idx) => (
 								<motion.div
@@ -333,7 +333,7 @@ export function Dashboard() {
 											<p className="text-sm font-medium text-slate-200 truncate">
 												{task.documentTitle}
 											</p>
-											<p className="mt-1 text-xs text-slate-500">
+											<p className="mt-1 text-xs text-slate-400">
 												{task.workflowName} • {task.stepName}
 											</p>
 										</div>
@@ -343,11 +343,12 @@ export function Dashboard() {
 												task.priority === 'high'   ? 'badge-red' :
 												task.priority === 'urgent' ? 'badge-brass' :
 												'badge-gray'
-											)}>
+											)}
+											aria-label={`Priority: ${task.priority}`}>
 												{task.priority}
 											</span>
 											{task.deadline && (
-												<p className="mt-1 text-xs text-slate-500">
+												<p className="mt-1 text-xs text-slate-400">
 													Due {formatRelativeTime(task.deadline)}
 												</p>
 											)}
@@ -378,7 +379,7 @@ export function Dashboard() {
 							</div>
 							<span className={cn(
 								'text-xs font-medium',
-								healthLoading ? 'text-slate-500' :
+								healthLoading ? 'text-slate-400' :
 								healthError   ? 'text-red-400' :
 								apiOnline     ? 'text-emerald-400' : 'text-red-400'
 							)}>
@@ -402,7 +403,7 @@ export function Dashboard() {
 						</div>
 
 						<div className="pt-2 border-t border-slate-700/50">
-							<p className="text-xs text-slate-600">
+							<p className="text-xs text-slate-400">
 								Refreshes every 30 s
 							</p>
 						</div>
@@ -412,21 +413,21 @@ export function Dashboard() {
 
 			{/* Activity Feed */}
 			<motion.div variants={itemVariants} className="glass-card">
-				<div className="p-4 border-b border-slate-700/50 flex items-center justify-between">
+				<div className="p-4 border-b border-slate-700/50 flex items-center justify-between gap-3">
 					<h2 className="font-display font-semibold text-slate-100">Recent Activity</h2>
-					<a href="/audit" className="flex items-center gap-1 text-sm text-brass-400 hover:text-brass-300">
+					<a href="/audit" className="flex items-center gap-1 text-sm text-brass-400 hover:text-brass-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500 rounded">
 						View all <ArrowUpRight className="w-4 h-4" />
 					</a>
 				</div>
 				<div className="divide-y divide-slate-800/50">
 					{feedLoading ? (
 						<div className="p-8 flex items-center justify-center">
-							<Loader2 className="w-5 h-5 animate-spin text-slate-500" />
+							<Loader2 className="w-5 h-5 animate-spin text-slate-400" />
 						</div>
 					) : feedError ? (
 						<ErrorState message="Failed to load activity" onRetry={() => void refetchFeed()} />
 					) : !feedEvents || feedEvents.length === 0 ? (
-						<div className="p-8 text-center text-sm text-slate-500">No activity yet</div>
+						<div className="p-8 text-center text-sm text-slate-400">No activity yet</div>
 					) : (
 						feedEvents.map((event, idx) => (
 							<motion.div
@@ -434,7 +435,7 @@ export function Dashboard() {
 								initial={{ opacity: 0 }}
 								animate={{ opacity: 1 }}
 								transition={{ delay: 0.04 * idx }}
-								className="flex items-start gap-3 py-3 px-4 hover:bg-slate-800/30 transition-colors"
+								className="flex flex-col gap-2 py-3 px-4 hover:bg-slate-800/30 transition-colors sm:flex-row sm:items-start sm:gap-3"
 							>
 								<div className={cn('mt-0.5 p-1 rounded-md shrink-0', feedIconBg(event.event_type))}>
 									{feedEventIcon(event.event_type)}
@@ -444,7 +445,7 @@ export function Dashboard() {
 									{Boolean(event.data?.record_id) && (
 										<a
 											href={`/documents/${event.data!.record_id as string}`}
-											className="mt-0.5 text-xs text-brass-400 hover:text-brass-300 truncate block"
+											className="mt-0.5 text-xs text-brass-400 hover:text-brass-300 truncate block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500 rounded"
 										>
 											View document
 										</a>
@@ -452,7 +453,7 @@ export function Dashboard() {
 								</div>
 								{event.timestamp && (
 									<time
-										className="shrink-0 text-xs text-slate-500 mt-0.5"
+										className="shrink-0 text-xs text-slate-400 mt-0.5"
 										dateTime={event.timestamp}
 										title={new Date(event.timestamp).toLocaleString()}
 									>
@@ -468,12 +469,12 @@ export function Dashboard() {
 			{/* Quick Actions */}
 			<motion.div variants={itemVariants} className="glass-card p-4">
 				<h2 className="font-display font-semibold text-slate-100 mb-4">Quick Actions</h2>
-				<div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+				<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
 					{quickActions.map((action) => (
 						<button
 							key={action.label}
 							onClick={action.action}
-							className="flex flex-col items-center gap-2 p-4 rounded-xl bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/30 hover:border-brass-500/30 transition-all group"
+							className="flex flex-col items-center gap-2 p-4 rounded-xl bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/30 hover:border-brass-500/30 transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500"
 						>
 							<action.icon className="w-6 h-6 text-slate-400 group-hover:text-brass-400 transition-colors" />
 							<span className="text-sm text-slate-400 group-hover:text-slate-200 transition-colors">

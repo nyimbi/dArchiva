@@ -26,6 +26,14 @@ export interface VirtualDocumentListProps {
 const ROW_HEIGHT_LIST = 80;
 const ROW_HEIGHT_CARD = 220;
 
+function getCardsPerRow() {
+	if (typeof window === 'undefined') return 4;
+	if (window.innerWidth < 768) return 1;
+	if (window.innerWidth < 1024) return 2;
+	if (window.innerWidth < 1280) return 3;
+	return 4;
+}
+
 // ---------------------------------------------------------------------------
 // Loading skeleton
 // ---------------------------------------------------------------------------
@@ -70,11 +78,21 @@ function VirtualCard({
 }) {
 	return (
 		<div
+			role="button"
+			tabIndex={0}
+			aria-label={`Select ${doc.title}`}
+			aria-pressed={isSelected}
 			className={cn(
-				'doc-card cursor-pointer group relative h-full',
+				'doc-card cursor-pointer group relative h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500',
 				isSelected && 'border-brass-500 bg-brass-500/5',
 			)}
 			onClick={() => onToggleSelect?.(doc.id)}
+			onKeyDown={(e) => {
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault();
+					onToggleSelect?.(doc.id);
+				}
+			}}
 		>
 			{/* Selection checkbox */}
 			<div
@@ -95,7 +113,7 @@ function VirtualCard({
 			</div>
 
 			<div className="aspect-[4/3] bg-slate-800/50 rounded-lg mb-3 flex items-center justify-center">
-				<FileText className="w-12 h-12 text-slate-600" />
+				<FileText className="w-12 h-12 text-slate-400" />
 				{doc.ocr_status === 'processing' && (
 					<div className="absolute inset-0 bg-slate-900/80 flex items-center justify-center rounded-lg">
 						<div className="flex flex-col items-center gap-2">
@@ -109,12 +127,12 @@ function VirtualCard({
 				<h3 className="text-sm font-medium text-slate-200 truncate group-hover:text-brass-400 transition-colors">
 					{doc.title}
 				</h3>
-				<div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
+				<div className="mt-1 flex items-center gap-2 text-xs text-slate-400">
 					<span>{doc.file_size ? formatBytes(doc.file_size) : '—'}</span>
 					<span>•</span>
 					<span>{doc.page_count || 0} pages</span>
 				</div>
-				<p className="mt-1 text-xs text-slate-600">{formatRelativeTime(doc.updated_at)}</p>
+				<p className="mt-1 text-xs text-slate-400">{formatRelativeTime(doc.updated_at)}</p>
 			</div>
 			{doc.tags.length > 0 && (
 				<div className="mt-2 flex flex-wrap gap-1">
@@ -122,7 +140,7 @@ function VirtualCard({
 						<span key={tag.id} className="badge badge-gray text-2xs">{tag.name}</span>
 					))}
 					{doc.tags.length > 2 && (
-						<span className="text-2xs text-slate-500">+{doc.tags.length - 2}</span>
+						<span className="text-2xs text-slate-400" aria-label={`${doc.tags.length - 2} more tags`}>+{doc.tags.length - 2}</span>
 					)}
 				</div>
 			)}
@@ -154,17 +172,21 @@ function VirtualRow({
 			onClick={() => onToggleSelect?.(doc.id)}
 		>
 			{/* Checkbox */}
+			<label htmlFor={`virtual-select-document-${doc.id}`} className="sr-only">
+				Select {doc.title}
+			</label>
 			<input
+				id={`virtual-select-document-${doc.id}`}
 				type="checkbox"
 				checked={isSelected}
 				onChange={() => onToggleSelect?.(doc.id)}
 				onClick={(e) => e.stopPropagation()}
-				className="rounded border-slate-600 bg-slate-800 text-brass-500 focus:ring-brass-500/50 flex-shrink-0"
+				className="rounded border-slate-600 bg-slate-800 text-brass-500 focus:ring-brass-500/50 focus-visible:ring-2 focus-visible:ring-brass-500 flex-shrink-0"
 			/>
 
 			{/* Icon */}
 			<div className="w-8 h-8 rounded bg-slate-800 flex items-center justify-center flex-shrink-0">
-				<FileText className="w-4 h-4 text-slate-500" />
+				<FileText className="w-4 h-4 text-slate-400" />
 			</div>
 
 			{/* Name + tags */}
@@ -200,7 +222,8 @@ function VirtualRow({
 				statusLabel === 'ready' ? 'badge-green'
 					: statusLabel === 'processing' ? 'badge-brass'
 					: 'badge-gray',
-			)}>
+			)}
+			aria-label={`OCR status: ${statusLabel}`}>
 				{statusLabel}
 			</span>
 		</div>
@@ -223,14 +246,22 @@ export function VirtualDocumentList({
 }: VirtualDocumentListProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [showJumpTop, setShowJumpTop] = useState(false);
+	const [cardsPerRow, setCardsPerRow] = useState(getCardsPerRow);
 
 	const isCard = viewMode === 'card';
-	// Card mode: 4 cards per row (approximation; actual row count derived below)
-	const CARDS_PER_ROW = 4;
 
-	// For card mode, virtualise rows of CARDS_PER_ROW items
+	useEffect(() => {
+		if (!isCard) return;
+
+		const updateCardsPerRow = () => setCardsPerRow(getCardsPerRow());
+		updateCardsPerRow();
+		window.addEventListener('resize', updateCardsPerRow);
+		return () => window.removeEventListener('resize', updateCardsPerRow);
+	}, [isCard]);
+
+	// For card mode, virtualise rows of cardsPerRow items
 	const virtualItems = isCard
-		? Math.ceil(documents.length / CARDS_PER_ROW)
+		? Math.ceil(documents.length / cardsPerRow)
 		: documents.length;
 
 	const virtualizer = useVirtualizer({
@@ -276,7 +307,7 @@ export function VirtualDocumentList({
 		return (
 			<div className={cn('flex-1 overflow-y-auto', isCard && 'p-2')}>
 				{isCard ? (
-					<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-2">
+					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-2">
 						{Array.from({ length: 5 }).map((_, i) => (
 							<SkeletonRow key={i} isCard />
 						))}
@@ -297,7 +328,7 @@ export function VirtualDocumentList({
 	// ---------------------------------------------------------------------------
 	if (documents.length === 0) {
 		return (
-			<div className="flex flex-col items-center justify-center py-16 text-slate-500">
+			<div className="flex flex-col items-center justify-center py-16 text-slate-400">
 				<FileText className="w-12 h-12 mb-4 opacity-40" />
 				<p className="text-sm">No documents found</p>
 			</div>
@@ -319,9 +350,9 @@ export function VirtualDocumentList({
 				>
 					{virtualizer.getVirtualItems().map((virtualRow) => {
 						if (isCard) {
-							// Card grid: each virtual row maps to CARDS_PER_ROW documents
-							const startIdx = virtualRow.index * CARDS_PER_ROW;
-							const rowDocs = documents.slice(startIdx, startIdx + CARDS_PER_ROW);
+							// Card grid: each virtual row maps to cardsPerRow documents.
+							const startIdx = virtualRow.index * cardsPerRow;
+							const rowDocs = documents.slice(startIdx, startIdx + cardsPerRow);
 
 							return (
 								<div
@@ -335,7 +366,7 @@ export function VirtualDocumentList({
 										width: '100%',
 										transform: `translateY(${virtualRow.start}px)`,
 									}}
-									className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 px-1 pb-4"
+									className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 px-1 pb-4"
 								>
 									{rowDocs.map((doc) => (
 										<VirtualCard
@@ -386,7 +417,7 @@ export function VirtualDocumentList({
 
 				{/* End of list indicator */}
 				{!hasNextPage && documents.length > 0 && (
-					<div className="text-center py-4 text-xs text-slate-600">
+					<div className="text-center py-4 text-xs text-slate-400">
 						{documents.length} document{documents.length !== 1 ? 's' : ''} total
 					</div>
 				)}
@@ -396,8 +427,9 @@ export function VirtualDocumentList({
 			{showJumpTop && (
 				<button
 					onClick={scrollToTop}
-					className="fixed bottom-20 right-6 z-30 p-2.5 rounded-full bg-slate-800 border border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-brass-400 shadow-lg transition-all"
+					className="fixed bottom-20 right-6 z-30 p-2.5 rounded-full bg-slate-800 border border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-brass-400 shadow-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500"
 					title="Jump to top"
+					aria-label="Jump to top"
 				>
 					<ChevronUp className="w-4 h-4" />
 				</button>

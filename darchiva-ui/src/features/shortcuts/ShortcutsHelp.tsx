@@ -22,8 +22,10 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
 		title: 'Navigation',
 		entries: [
 			{ keys: ['⌘K', 'Ctrl+K'], label: 'Open command palette' },
+			{ keys: ['G', 'H'],        label: 'Go Home' },
+			{ keys: ['G', 'I'],        label: 'Go to Inbox' },
 			{ keys: ['G', 'D'],        label: 'Go to Documents' },
-			{ keys: ['G', 'S'],        label: 'Go to Scanning Projects' },
+			{ keys: ['G', 'S'],        label: 'Go to Search' },
 			{ keys: ['G', 'A'],        label: 'Go to Analytics' },
 		],
 	},

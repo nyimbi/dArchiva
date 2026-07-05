@@ -178,10 +178,11 @@ export function AuditLog({ recordId, userId, hideUserFilter = false }: AuditLogP
         {/* User search */}
         {!hideUserFilter && (
           <div className="flex flex-col gap-1">
-            <span className="text-xs text-muted-foreground">User</span>
+            <label htmlFor="audit-user-filter" className="text-xs text-muted-foreground">User</label>
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
               <Input
+                id="audit-user-filter"
                 type="text"
                 className="pl-7 w-44 h-8 text-xs"
                 placeholder="email or user ID"
@@ -194,9 +195,9 @@ export function AuditLog({ recordId, userId, hideUserFilter = false }: AuditLogP
 
         {/* Operation select */}
         <div className="flex flex-col gap-1">
-          <span className="text-xs text-muted-foreground">Operation</span>
+          <label htmlFor="audit-operation-filter" className="text-xs text-muted-foreground">Operation</label>
           <Select value={operationFilter} onValueChange={(v) => { setOperationFilter(v); setPage(1); }}>
-            <SelectTrigger className="w-36 h-8 text-xs">
+            <SelectTrigger id="audit-operation-filter" className="w-36 h-8 text-xs">
               <SelectValue placeholder="All operations" />
             </SelectTrigger>
             <SelectContent>
@@ -210,8 +211,9 @@ export function AuditLog({ recordId, userId, hideUserFilter = false }: AuditLogP
 
         {/* Date from */}
         <div className="flex flex-col gap-1">
-          <span className="text-xs text-muted-foreground">From</span>
+          <label htmlFor="audit-date-from" className="text-xs text-muted-foreground">From</label>
           <Input
+            id="audit-date-from"
             type="date"
             className="w-36 h-8 text-xs"
             value={dateFrom}
@@ -221,8 +223,9 @@ export function AuditLog({ recordId, userId, hideUserFilter = false }: AuditLogP
 
         {/* Date to */}
         <div className="flex flex-col gap-1">
-          <span className="text-xs text-muted-foreground">To</span>
+          <label htmlFor="audit-date-to" className="text-xs text-muted-foreground">To</label>
           <Input
+            id="audit-date-to"
             type="date"
             className="w-36 h-8 text-xs"
             value={dateTo}
@@ -233,10 +236,11 @@ export function AuditLog({ recordId, userId, hideUserFilter = false }: AuditLogP
         {/* Document / record search */}
         {!recordId && (
           <div className="flex flex-col gap-1">
-            <span className="text-xs text-muted-foreground">Document ID</span>
+            <label htmlFor="audit-document-filter" className="text-xs text-muted-foreground">Document ID</label>
             <div className="relative">
               <FileText className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
               <Input
+                id="audit-document-filter"
                 type="text"
                 className="pl-7 w-44 h-8 text-xs"
                 placeholder="record UUID"
@@ -267,6 +271,7 @@ export function AuditLog({ recordId, userId, hideUserFilter = false }: AuditLogP
             className="h-8 w-8"
             onClick={() => refetch()}
             title="Refresh"
+            aria-label="Refresh audit logs"
             disabled={isFetching}
           >
             <RefreshCw className={cn('h-4 w-4', isFetching && 'animate-spin')} />
@@ -437,8 +442,16 @@ function AuditEntryRow({
 
   return (
     <div
-      className="flex items-start gap-3 px-3 py-2.5 rounded-lg border border-border/40 hover:bg-accent/20 transition-colors group cursor-pointer"
+      role="button"
+      tabIndex={0}
+      className="flex items-start gap-3 px-3 py-2.5 rounded-lg border border-border/40 hover:bg-accent/20 transition-colors group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500"
       onClick={() => onSelect(entry)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect(entry);
+        }
+      }}
     >
       {/* User initials avatar */}
       <div
@@ -470,7 +483,7 @@ function AuditEntryRow({
           {/* Document link — only show for document-related tables */}
           {isDocumentTable && entry.recordId && (
             <button
-              className="text-xs text-blue-400 hover:text-blue-300 hover:underline truncate max-w-[180px] font-mono"
+              className="text-xs text-blue-400 hover:text-blue-300 hover:underline truncate max-w-[180px] font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500 rounded"
               onClick={(e) => { e.stopPropagation(); onNavigate(entry.recordId); }}
               title={`Open record ${entry.recordId}`}
             >

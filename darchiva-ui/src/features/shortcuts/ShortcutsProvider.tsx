@@ -3,15 +3,15 @@
  * ShortcutsProvider — context + global keyboard shortcut registrations.
  *
  * Exposes:
- *   commandPaletteOpen / setCommandPaletteOpen
  *   shortcutsHelpOpen  / setShortcutsHelpOpen
  *
  * Global shortcuts registered here:
- *   Cmd+K / Ctrl+K  → open command palette
  *   ?               → open shortcuts help
  *   Escape          → close whichever is open
+ *   g → h           → navigate /
+ *   g → i           → navigate /inbox
  *   g → d           → navigate /documents
- *   g → s           → navigate /scanning-projects
+ *   g → s           → navigate /search
  *   g → a           → navigate /analytics
  *
  * Usage (wiring agent adds this in App.tsx):
@@ -20,13 +20,12 @@
  *   </ShortcutsProvider>
  *
  * Note: sequence shortcuts (g+d etc.) require BrowserRouter to be an ancestor
- * so that useNavigate() works. The provider renders CommandPalette and
- * ShortcutsHelp as portals at the root of the tree.
+ * so that useNavigate() works. The provider renders ShortcutsHelp as a portal
+ * at the root of the tree.
  */
 import { createContext, useCallback, useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
-import { CommandPalette } from '@/features/search/CommandPalette';
 import { ShortcutsHelp } from './ShortcutsHelp';
 
 // ---------------------------------------------------------------------------
@@ -34,8 +33,6 @@ import { ShortcutsHelp } from './ShortcutsHelp';
 // ---------------------------------------------------------------------------
 
 interface ShortcutsContextValue {
-	commandPaletteOpen: boolean;
-	setCommandPaletteOpen: (open: boolean) => void;
 	shortcutsHelpOpen: boolean;
 	setShortcutsHelpOpen: (open: boolean) => void;
 }
@@ -57,24 +54,13 @@ interface ShortcutsProviderProps {
 }
 
 export function ShortcutsProvider({ children }: ShortcutsProviderProps) {
-	const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 	const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
 	const navigate = useNavigate();
-
-	// Cmd+K / Ctrl+K → command palette
-	useKeyboardShortcut(
-		['Meta+k', 'Control+k'],
-		useCallback(() => {
-			setShortcutsHelpOpen(false);
-			setCommandPaletteOpen(open => !open);
-		}, []),
-	);
 
 	// ? → shortcuts help (only when no input focused — handled inside hook)
 	useKeyboardShortcut(
 		['?'],
 		useCallback(() => {
-			setCommandPaletteOpen(false);
 			setShortcutsHelpOpen(open => !open);
 		}, []),
 	);
@@ -83,28 +69,43 @@ export function ShortcutsProvider({ children }: ShortcutsProviderProps) {
 	useKeyboardShortcut(
 		['Escape'],
 		useCallback(() => {
-			setCommandPaletteOpen(false);
 			setShortcutsHelpOpen(false);
 		}, []),
+	);
+
+	// g → h : home
+	useKeyboardShortcut(
+		['g', 'h'],
+		useCallback(() => {
+			setShortcutsHelpOpen(false);
+			navigate('/');
+		}, [navigate]),
+	);
+
+	// g → i : inbox
+	useKeyboardShortcut(
+		['g', 'i'],
+		useCallback(() => {
+			setShortcutsHelpOpen(false);
+			navigate('/inbox');
+		}, [navigate]),
 	);
 
 	// g → d : documents
 	useKeyboardShortcut(
 		['g', 'd'],
 		useCallback(() => {
-			setCommandPaletteOpen(false);
 			setShortcutsHelpOpen(false);
 			navigate('/documents');
 		}, [navigate]),
 	);
 
-	// g → s : scanning-projects
+	// g → s : search
 	useKeyboardShortcut(
 		['g', 's'],
 		useCallback(() => {
-			setCommandPaletteOpen(false);
 			setShortcutsHelpOpen(false);
-			navigate('/scanning-projects');
+			navigate('/search');
 		}, [navigate]),
 	);
 
@@ -112,7 +113,6 @@ export function ShortcutsProvider({ children }: ShortcutsProviderProps) {
 	useKeyboardShortcut(
 		['g', 'a'],
 		useCallback(() => {
-			setCommandPaletteOpen(false);
 			setShortcutsHelpOpen(false);
 			navigate('/analytics');
 		}, [navigate]),
@@ -120,13 +120,9 @@ export function ShortcutsProvider({ children }: ShortcutsProviderProps) {
 
 	return (
 		<ShortcutsContext.Provider
-			value={{ commandPaletteOpen, setCommandPaletteOpen, shortcutsHelpOpen, setShortcutsHelpOpen }}
+			value={{ shortcutsHelpOpen, setShortcutsHelpOpen }}
 		>
 			{children}
-			<CommandPalette
-				open={commandPaletteOpen}
-				onClose={() => setCommandPaletteOpen(false)}
-			/>
 			<ShortcutsHelp
 				open={shortcutsHelpOpen}
 				onClose={() => setShortcutsHelpOpen(false)}

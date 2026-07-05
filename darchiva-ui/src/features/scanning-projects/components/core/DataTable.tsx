@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 import { ChevronDownIcon,ChevronsUpDownIcon,ChevronUpIcon } from 'lucide-react';
-import { useMemo,useState,type ReactNode } from 'react';
+import { useId,useMemo,useState,type ReactNode } from 'react';
 
 export interface Column<T> {
   key: string;
@@ -14,6 +14,7 @@ export interface Column<T> {
 interface DataTableProps<T extends { id: string }> {
   columns: Column<T>[];
   data: T[];
+  caption?: string;
   loading?: boolean;
   emptyMessage?: string;
   selectable?: boolean;
@@ -30,6 +31,7 @@ type SortDirection = 'asc' | 'desc' | null;
 export function DataTable<T extends { id: string }>({
   columns,
   data,
+  caption = 'Data table',
   loading = false,
   emptyMessage = 'No data available',
   selectable = false,
@@ -40,6 +42,7 @@ export function DataTable<T extends { id: string }>({
   compact = false,
   className,
 }: DataTableProps<T>) {
+  const tableId = useId();
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
 
@@ -90,16 +93,21 @@ export function DataTable<T extends { id: string }>({
   return (
     <div className={cn('relative overflow-auto', className)}>
       <table className="w-full border-collapse font-mono text-sm">
+        <caption className="sr-only">{caption}</caption>
         <thead className={cn(stickyHeader && 'sticky top-0 z-10')}>
           <tr className="bg-white/[0.02] border-b border-white/10">
             {selectable && (
-              <th className={cn('w-10', cellPadding)}>
+              <th scope="col" className={cn('w-10', cellPadding)}>
+                <label htmlFor={`${tableId}-select-all-table-rows`} className="sr-only">
+                  Select all rows
+                </label>
                 <input
+                  id={`${tableId}-select-all-table-rows`}
                   type="checkbox"
                   checked={allSelected}
                   ref={el => { if (el) el.indeterminate = someSelected; }}
                   onChange={toggleAll}
-                  className="w-4 h-4 rounded border-white/20 bg-transparent accent-cyan-400"
+                  className="w-4 h-4 rounded border-white/20 bg-transparent accent-cyan-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500"
                 />
               </th>
             )}
@@ -111,10 +119,30 @@ export function DataTable<T extends { id: string }>({
                   'text-xs font-semibold text-white/50 uppercase tracking-wider',
                   col.align === 'center' && 'text-center',
                   col.align === 'right' && 'text-right',
-                  col.sortable && 'cursor-pointer select-none hover:text-white/70'
+                  col.sortable && 'cursor-pointer select-none hover:text-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500'
                 )}
                 style={{ width: col.width }}
                 onClick={() => col.sortable && handleSort(col.key)}
+                onKeyDown={(e) => {
+                  if (!col.sortable) return;
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleSort(col.key);
+                  }
+                }}
+                tabIndex={col.sortable ? 0 : undefined}
+                scope="col"
+                aria-sort={
+                  col.sortable && sortKey === col.key
+                    ? sortDirection === 'asc'
+                      ? 'ascending'
+                      : sortDirection === 'desc'
+                        ? 'descending'
+                        : 'none'
+                    : col.sortable
+                      ? 'none'
+                      : undefined
+                }
               >
                 <span className="inline-flex items-center gap-1">
                   {col.header}
@@ -161,11 +189,15 @@ export function DataTable<T extends { id: string }>({
               >
                 {selectable && (
                   <td className={cellPadding} onClick={e => e.stopPropagation()}>
+                    <label htmlFor={`${tableId}-select-table-row-${row.id}`} className="sr-only">
+                      Select row
+                    </label>
                     <input
+                      id={`${tableId}-select-table-row-${row.id}`}
                       type="checkbox"
                       checked={selectedIds.has(row.id)}
                       onChange={() => toggleRow(row.id)}
-                      className="w-4 h-4 rounded border-white/20 bg-transparent accent-cyan-400"
+                      className="w-4 h-4 rounded border-white/20 bg-transparent accent-cyan-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500"
                     />
                   </td>
                 )}

@@ -7,6 +7,7 @@ import {
   FileText,
   FolderPlus,
   LogOut,
+  Menu,
   Plus,
   Search,
   Settings,
@@ -18,7 +19,12 @@ import { ThemeToggle } from '@/features/theme/ThemeToggle';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-export function Header() {
+interface HeaderProps {
+	onOpenCommandPalette?: () => void;
+	onMenuClick?: () => void;
+}
+
+export function Header({ onOpenCommandPalette, onMenuClick }: HeaderProps) {
 	const navigate = useNavigate();
 	const { user, pendingTasks, openModal, setUser } = useStore();
 	const { logout } = useAuth();
@@ -34,9 +40,21 @@ export function Header() {
 	};
 
 	return (
-		<header className="h-16 flex items-center justify-between px-6 border-b border-slate-800/50 bg-slate-925/80 backdrop-blur-lg">
+		<header className="h-16 flex items-center justify-between gap-3 px-4 md:px-6 border-b border-slate-800/50 bg-slate-925/80 backdrop-blur-lg">
+			<div className="flex items-center gap-3 md:hidden">
+				<button
+					type="button"
+					onClick={onMenuClick}
+					className="p-2 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition-colors"
+					aria-label="Open navigation menu"
+				>
+					<Menu className="w-5 h-5" aria-hidden="true" />
+				</button>
+				<span className="font-display text-lg font-semibold text-slate-100">dArchiva</span>
+			</div>
+
 			{/* Search */}
-			<div className="flex-1 max-w-md">
+			<div className="hidden md:block flex-1 max-w-md">
 				<div className="relative">
 					<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
 					<input
@@ -79,7 +97,18 @@ export function Header() {
 			{/* Actions */}
 			<div className="flex items-center gap-2">
 				{/* Create button */}
-				<div className="relative">
+				<button
+					type="button"
+					onClick={onOpenCommandPalette}
+					className="hidden h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800/50 hover:text-slate-200 md:flex"
+					aria-label="Open command palette"
+					title="Open command palette"
+				>
+					<Search className="h-4 w-4" aria-hidden="true" />
+				</button>
+
+				{/* Create button */}
+				<div className="relative hidden md:block">
 					<button
 						onClick={() => setCreateMenuOpen(!createMenuOpen)}
 						className="btn-primary"
@@ -143,7 +172,9 @@ export function Header() {
 				</div>
 
 				{/* Theme toggle */}
-				<ThemeToggle />
+				<div className="hidden md:block">
+					<ThemeToggle />
+				</div>
 
 				{/* Notifications */}
 				<NotificationCenter />
@@ -152,7 +183,7 @@ export function Header() {
 				<div className="relative ml-2">
 					<button
 						onClick={() => setUserMenuOpen(!userMenuOpen)}
-						className="flex items-center gap-2 p-1 pr-2 rounded-lg hover:bg-slate-800/50 transition-colors"
+						className="flex items-center gap-2 p-1 md:pr-2 rounded-lg hover:bg-slate-800/50 transition-colors"
 						aria-haspopup="true"
 						aria-expanded={userMenuOpen}
 						aria-label="User menu"
@@ -165,7 +196,7 @@ export function Header() {
 								{user?.firstName?.[0] || 'U'}
 							</span>
 						</div>
-						<ChevronDown className="w-4 h-4 text-slate-400" aria-hidden="true" />
+						<ChevronDown className="hidden md:block w-4 h-4 text-slate-400" aria-hidden="true" />
 					</button>
 
 					<AnimatePresence>

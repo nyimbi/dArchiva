@@ -1,5 +1,5 @@
 // (c) Copyright Datacraft, 2026
-import { useState } from 'react';
+import { lazy,Suspense,useState } from 'react';
 import { QueryClient,QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter,Route,Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
@@ -18,6 +18,7 @@ import {
   Inbox,
   Ingestion,
   IngestionDashboard,
+  NotFound,
   Portfolios,
   RetentionPolicies,
   Routing,
@@ -46,33 +47,62 @@ import {
 
 import { AutoRoutingRules } from './features/auto-routing/AutoRoutingRules';
 import { TemplatesPage } from './features/templates/TemplatesPage';
-import { FleetManagement } from './features/agents';
 import { UserManagement } from './features/admin/UserManagement';
 import { RoleManagement } from './features/admin/RoleManagement';
 import { EmailIngestConfigs } from './features/email-ingest/EmailIngestConfigs';
 import { ConnectorsPage } from './features/connectors/ConnectorsPage';
 import { NotificationToaster } from './components/NotificationToaster';
-import { DocumentComparison } from './pages/DocumentComparison';
 import { ShortcutsProvider } from './features/shortcuts/ShortcutsProvider';
-import DataExportPage from './features/data-export/DataExportPage';
-import { SuperAdminPage } from './features/superadmin/SuperAdminPage';
 import { AutomationRulesPage } from './features/automation/AutomationRulesPage';
 import { ScheduledReportsPage } from './features/reports/ScheduledReportsPage';
 import { ThemeProvider } from './features/theme/ThemeProvider';
-import { EntityGraphPage } from './features/entity-graph/EntityGraphPage';
 import { CostDashboard } from './features/billing';
 import { QualityDashboard } from './features/quality';
-import { IAMDashboard } from './features/iam';
-import { ComplianceDashboard } from './features/compliance';
 import { SerialNumbersPage } from './features/serial-numbers';
 import { InventoryManager } from './features/inventory';
-import { SegmentationPage } from './features/segmentation';
 
 import { ScanningLayout } from './features/scanning-ops/layouts/ScanningLayout';
 import { OperatorDashboard } from './features/scanning-ops/pages/OperatorDashboard';
 import { ScanningInterface } from './features/scanning-ops/pages/ScanningInterface';
 import { StationHome } from './features/scanning-ops/pages/StationHome';
 import { WarehouseDashboard } from './features/scanning-ops/pages/WarehouseDashboard';
+
+const FleetManagement = lazy(() =>
+	import('./features/agents/components/FleetManagement').then((module) => ({
+		default: module.FleetManagement,
+	})),
+);
+const DocumentComparison = lazy(() =>
+	import('./pages/DocumentComparison').then((module) => ({
+		default: module.DocumentComparison,
+	})),
+);
+const DataExportPage = lazy(() => import('./features/data-export/DataExportPage'));
+const SuperAdminPage = lazy(() =>
+	import('./features/superadmin/SuperAdminPage').then((module) => ({
+		default: module.SuperAdminPage,
+	})),
+);
+const EntityGraphPage = lazy(() =>
+	import('./features/entity-graph/EntityGraphPage').then((module) => ({
+		default: module.EntityGraphPage,
+	})),
+);
+const IAMDashboard = lazy(() =>
+	import('./features/iam/components/IAMDashboard').then((module) => ({
+		default: module.IAMDashboard,
+	})),
+);
+const ComplianceDashboard = lazy(() =>
+	import('./features/compliance/ComplianceDashboard').then((module) => ({
+		default: module.ComplianceDashboard,
+	})),
+);
+const SegmentationPage = lazy(() =>
+	import('./features/segmentation/SegmentationPage').then((module) => ({
+		default: module.SegmentationPage,
+	})),
+);
 
 const queryClient = new QueryClient({
 	defaultOptions: {
@@ -82,6 +112,14 @@ const queryClient = new QueryClient({
 		},
 	},
 });
+
+function RouteFallback() {
+	return (
+		<div className="flex min-h-48 items-center justify-center">
+			<div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-700 border-t-brass-500" />
+		</div>
+	);
+}
 
 function AppInner() {
 	const { logoUrl } = useBranding();
@@ -101,9 +139,10 @@ export default function App() {
 		<QueryClientProvider client={queryClient}>
 			<ThemeProvider>
 			<AuthProvider>
+				<BrowserRouter>
 				<ShortcutsProvider>
 				<AppInner />
-				<BrowserRouter>
+				<Suspense fallback={<RouteFallback />}>
 					<Routes>
 						{/* Public route */}
 						<Route path="/login" element={<LoginPage />} />
@@ -167,6 +206,7 @@ export default function App() {
 								<Route path="onboarding" element={<OnboardingWizard onDone={() => window.history.back()} />} />
 								<Route path="inventory" element={<InventoryManager />} />
 								<Route path="segmentation" element={<SegmentationPage />} />
+								<Route path="*" element={<NotFound />} />
 							</Route>
 						</Route>
 
@@ -181,8 +221,9 @@ export default function App() {
 						</Route>
 
 					</Routes>
-				</BrowserRouter>
+				</Suspense>
 				</ShortcutsProvider>
+				</BrowserRouter>
 			</AuthProvider>
 			</ThemeProvider>
 		</QueryClientProvider>

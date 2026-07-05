@@ -56,6 +56,28 @@ interface ContextMenuState {
   node: APITreeNode;
 }
 
+const FOCUSABLE_SELECTOR = [
+  'button:not([disabled])',
+  'a[href]',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',');
+
+function useDialogFocus(dialogRef: React.RefObject<HTMLDivElement>, isOpen = true) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const returnTarget = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const firstFocusable = dialogRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+    firstFocusable?.focus();
+
+    return () => {
+      if (returnTarget?.isConnected) returnTarget.focus();
+    };
+  }, [dialogRef, isOpen]);
+}
+
 // ---------------------------------------------------------------------------
 // Delete folder modal
 // ---------------------------------------------------------------------------
@@ -70,10 +92,17 @@ function DeleteFolderModal({
   onConfirm: () => void;
   isDeleting: boolean;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <motion.div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-folder-title"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
@@ -84,8 +113,8 @@ function DeleteFolderModal({
             <AlertTriangle className="w-5 h-5 text-red-400" />
           </div>
           <div>
-            <h3 className="font-display font-semibold text-slate-100">Delete Folder</h3>
-            <p className="text-sm text-slate-500">This action cannot be undone</p>
+            <h3 id="delete-folder-title" className="font-display font-semibold text-slate-100">Delete Folder</h3>
+            <p className="text-sm text-slate-400">This action cannot be undone</p>
           </div>
         </div>
         <p className="text-slate-300 mb-6">
@@ -156,14 +185,14 @@ function FolderContextMenu({
     >
       <button
         onClick={() => { onNewSubfolder(); onClose(); }}
-        className="w-full px-3 py-2 text-left text-sm text-slate-300 hover:bg-brass-500/20 hover:text-brass-400 flex items-center gap-2 transition-colors"
+        className="w-full px-3 py-2 text-left text-sm text-slate-300 hover:bg-brass-500/20 hover:text-brass-400 flex items-center gap-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500"
       >
         <FolderPlus className="w-4 h-4" />
         New Subfolder
       </button>
       <button
         onClick={() => { onRename(); onClose(); }}
-        className="w-full px-3 py-2 text-left text-sm text-slate-300 hover:bg-brass-500/20 hover:text-brass-400 flex items-center gap-2 transition-colors"
+        className="w-full px-3 py-2 text-left text-sm text-slate-300 hover:bg-brass-500/20 hover:text-brass-400 flex items-center gap-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500"
       >
         <Pencil className="w-4 h-4" />
         Rename
@@ -171,7 +200,7 @@ function FolderContextMenu({
       <div className="my-1 border-t border-slate-700" />
       <button
         onClick={() => { onDelete(); onClose(); }}
-        className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-red-500/20 flex items-center gap-2 transition-colors"
+        className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-red-500/20 flex items-center gap-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500"
       >
         <Trash2 className="w-4 h-4" />
         Delete
@@ -239,7 +268,9 @@ function FolderTreeItem({
         {hasChildren ? (
           <button
             onClick={(e) => { e.stopPropagation(); toggleFolder(node.id); }}
-            className="p-0.5 hover:bg-slate-700/50 rounded"
+            className="p-0.5 hover:bg-slate-700/50 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500"
+            aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${node.title}`}
+            aria-expanded={isExpanded}
           >
             {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
           </button>
@@ -250,20 +281,26 @@ function FolderTreeItem({
         {isExpanded || isSelected ? (
           <FolderOpen className="w-4 h-4 text-brass-400 flex-shrink-0" />
         ) : (
-          <Folder className="w-4 h-4 text-slate-500 group-hover:text-slate-400 flex-shrink-0" />
+          <Folder className="w-4 h-4 text-slate-400 flex-shrink-0" />
         )}
 
         {isEditing ? (
-          <input
-            ref={inputRef}
-            type="text"
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onBlur={() => onFinishEdit(node.id, editValue)}
-            onClick={(e) => e.stopPropagation()}
-            className="flex-1 bg-slate-800 border border-brass-500/50 rounded px-1.5 py-0.5 text-sm text-slate-200 focus:outline-none focus:border-brass-400"
-          />
+          <>
+            <label htmlFor={`folder-name-${node.id}`} className="sr-only">
+              Rename {node.title}
+            </label>
+            <input
+              id={`folder-name-${node.id}`}
+              ref={inputRef}
+              type="text"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onBlur={() => onFinishEdit(node.id, editValue)}
+              onClick={(e) => e.stopPropagation()}
+              className="flex-1 bg-slate-800 border border-brass-500/50 rounded px-1.5 py-0.5 text-sm text-slate-200 focus:outline-none focus:border-brass-400 focus-visible:ring-2 focus-visible:ring-brass-500"
+            />
+          </>
         ) : (
           <span className="truncate flex-1">{node.title}</span>
         )}
@@ -271,7 +308,8 @@ function FolderTreeItem({
         {!isEditing && (
           <button
             onClick={(e) => { e.stopPropagation(); onContextMenu(e, node); }}
-            className="p-0.5 opacity-0 group-hover:opacity-100 hover:bg-slate-700/50 rounded transition-opacity"
+            className="p-0.5 opacity-0 group-hover:opacity-100 hover:bg-slate-700/50 rounded transition-opacity focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500"
+            aria-label={`Open options for ${node.title}`}
           >
             <MoreVertical className="w-3 h-3" />
           </button>
@@ -352,7 +390,7 @@ function DocumentCard({
       </div>
 
       <div className="aspect-[4/3] bg-slate-800/50 rounded-lg mb-3 flex items-center justify-center relative overflow-hidden">
-        <FileIcon className="w-12 h-12 text-slate-600" />
+        <FileIcon className="w-12 h-12 text-slate-400" />
         {doc.ocr_status === 'processing' && (
           <div className="absolute inset-0 bg-slate-900/80 flex items-center justify-center">
             <div className="flex flex-col items-center gap-2">
@@ -366,12 +404,12 @@ function DocumentCard({
         <h3 className="text-sm font-medium text-slate-200 truncate group-hover:text-brass-400 transition-colors">
           {doc.title}
         </h3>
-        <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
+        <div className="mt-1 flex items-center gap-2 text-xs text-slate-400">
           <span>{doc.file_size ? formatBytes(doc.file_size) : '—'}</span>
           <span>•</span>
           <span>{doc.page_count || 0} pages</span>
         </div>
-        <p className="mt-1 text-xs text-slate-600">{formatRelativeTime(doc.updated_at)}</p>
+        <p className="mt-1 text-xs text-slate-400">{formatRelativeTime(doc.updated_at)}</p>
       </div>
       {doc.tags.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
@@ -379,19 +417,23 @@ function DocumentCard({
             <span key={tag.id} className="badge badge-gray text-2xs">{tag.name}</span>
           ))}
           {doc.tags.length > 2 && (
-            <span className="text-2xs text-slate-500">+{doc.tags.length - 2}</span>
+            <span className="text-2xs text-slate-400" aria-label={`${doc.tags.length - 2} more tags`}>+{doc.tags.length - 2}</span>
           )}
         </div>
       )}
       {!selectionMode && (
         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
           <button
-            className="p-1.5 rounded-lg bg-slate-900/90 text-slate-400 hover:text-brass-400 transition-colors"
+            className="p-1.5 rounded-lg bg-slate-900/90 text-slate-400 hover:text-brass-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500"
             onClick={(e) => { e.stopPropagation(); onShare(doc); }}
+            aria-label={`Share ${doc.title}`}
           >
             <Share2 className="w-4 h-4" />
           </button>
-          <button className="p-1.5 rounded-lg bg-slate-900/90 text-slate-400 hover:text-slate-200">
+          <button
+            className="p-1.5 rounded-lg bg-slate-900/90 text-slate-400 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500"
+            aria-label={`Open options for ${doc.title}`}
+          >
             <MoreVertical className="w-4 h-4" />
           </button>
         </div>
@@ -426,7 +468,11 @@ function DocumentRow({
       onDoubleClick={() => onOpen(doc)}
     >
       <td className="w-10">
+        <label htmlFor={`select-document-${doc.id}`} className="sr-only">
+          Select {doc.title}
+        </label>
         <input
+          id={`select-document-${doc.id}`}
           type="checkbox"
           checked={isSelected}
           onChange={() => toggleNodeSelection(doc.id)}
@@ -437,7 +483,7 @@ function DocumentRow({
       <td>
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded bg-slate-800 flex items-center justify-center">
-            <FileIcon className="w-4 h-4 text-slate-500" />
+            <FileIcon className="w-4 h-4 text-slate-400" />
           </div>
           <div>
             <p className="text-sm font-medium text-slate-200">{doc.title}</p>
@@ -458,19 +504,24 @@ function DocumentRow({
           statusLabel === 'ready' ? 'badge-green'
             : statusLabel === 'processing' ? 'badge-brass'
             : 'badge-gray',
-        )}>
+        )}
+        aria-label={`OCR status: ${statusLabel}`}>
           {statusLabel}
         </span>
       </td>
       <td>
         <div className="flex items-center gap-1">
           <button
-            className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded"
+            className="p-1.5 text-slate-400 hover:text-slate-300 hover:bg-slate-800 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500"
             onClick={(e) => { e.stopPropagation(); onShare(doc); }}
+            aria-label={`Share ${doc.title}`}
           >
             <Share2 className="w-4 h-4" />
           </button>
-          <button className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded">
+          <button
+            className="p-1.5 text-slate-400 hover:text-slate-300 hover:bg-slate-800 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500"
+            aria-label={`View versions for ${doc.title}`}
+          >
             <GitBranch className="w-4 h-4" />
           </button>
         </div>
@@ -525,6 +576,8 @@ export function Documents() {
   const [deletingFolder, setDeletingFolder] = useState<APITreeNode | null>(null);
   const [newSubfolderParent, setNewSubfolderParent] = useState<string | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
+  const newSubfolderDialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(newSubfolderDialogRef, !!newSubfolderParent);
 
   // Clear selection when leaving selection mode
   useEffect(() => {
@@ -575,27 +628,28 @@ export function Documents() {
   const selectedIds = Array.from(selectedNodeIds);
 
   return (
-    <div className="flex gap-6 h-[calc(100vh-8rem)]">
+    <div className="flex flex-col gap-4 min-h-[calc(100vh-8rem)] lg:h-[calc(100vh-8rem)] lg:flex-row lg:gap-6">
       {/* Folder tree sidebar */}
       <motion.div
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
-        className="w-64 flex-shrink-0 glass-card flex flex-col"
+        className="w-full flex-shrink-0 glass-card flex flex-col lg:w-64"
       >
         <div className="p-3 border-b border-slate-700/50 flex items-center justify-between">
           <h2 className="font-display font-semibold text-slate-200">Folders</h2>
           <button
             onClick={() => openModal('create-folder')}
-            className="p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded"
+            className="p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500"
             title="New Folder"
+            aria-label="New folder"
           >
             <FolderPlus className="w-4 h-4" />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto py-2">
+        <div className="max-h-64 flex-1 overflow-y-auto py-2 lg:max-h-none">
           {treeLoading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-5 h-5 animate-spin text-slate-500" />
+              <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
             </div>
           ) : folderTree && folderTree.length > 0 ? (
             <>
@@ -611,10 +665,10 @@ export function Documents() {
               ))}
             </>
           ) : (
-            <p className="text-sm text-slate-500 text-center py-8">No folders</p>
+            <p className="text-sm text-slate-400 text-center py-8">No folders</p>
           )}
         </div>
-        <div className="p-2 border-t border-slate-700/50 text-xs text-slate-600">
+        <div className="p-2 border-t border-slate-700/50 text-xs text-slate-400">
           Right-click for options
         </div>
       </motion.div>
@@ -624,25 +678,25 @@ export function Documents() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.1 }}
-        className="flex-1 flex flex-col"
+        className="min-w-0 flex-1 flex flex-col"
       >
         {/* Breadcrumb */}
         {breadcrumb.length > 0 && (
-          <nav className="flex items-center gap-1 text-sm mb-3 flex-wrap">
+          <nav className="flex items-center gap-1 text-sm mb-3 flex-wrap" aria-label="Folder breadcrumb">
             <button
               onClick={() => setCurrentFolderId(null)}
-              className="text-slate-400 hover:text-slate-200 transition-colors"
+              className="text-slate-400 hover:text-slate-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500 rounded"
             >
               Home
             </button>
             {breadcrumb.map((node, i) => (
               <span key={node.id} className="flex items-center gap-1">
-                <ChevronRight className="w-3.5 h-3.5 text-slate-600 flex-shrink-0" />
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
                 <button
                   onClick={() => setCurrentFolderId(node.id)}
                   disabled={i === breadcrumb.length - 1}
                   className={cn(
-                    'transition-colors',
+                    'transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500 rounded',
                     i === breadcrumb.length - 1
                       ? 'text-slate-200 font-medium cursor-default'
                       : 'text-slate-400 hover:text-slate-200',
@@ -656,14 +710,18 @@ export function Documents() {
         )}
 
         {/* Toolbar */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+        <div className="flex flex-col gap-3 mb-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+            <div className="relative w-full sm:w-auto">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <label htmlFor="folder-search" className="sr-only">
+                Search in folder
+              </label>
               <input
+                id="folder-search"
                 type="text"
                 placeholder="Search in folder..."
-                className="input-field pl-9 w-64"
+                className="input-field pl-9 w-full sm:w-64"
                 value={folderSearch}
                 onChange={(e) => setFolderSearch(e.target.value)}
               />
@@ -675,12 +733,12 @@ export function Documents() {
               <SortAsc className="w-4 h-4" /> Sort
             </button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {/* Selection mode badge when not in selection mode but items are selected */}
             {selectedNodeIds.size > 0 && !selectionMode && (
               <div className="flex items-center gap-2 mr-2">
                 <span className="text-sm text-slate-400">{selectedNodeIds.size} selected</span>
-                <button onClick={clearNodeSelection} className="text-xs text-brass-400 hover:text-brass-300">
+                <button onClick={clearNodeSelection} className="text-xs text-brass-400 hover:text-brass-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500 rounded">
                   Clear
                 </button>
               </div>
@@ -693,6 +751,7 @@ export function Documents() {
                 selectionMode && 'bg-brass-500/20 text-brass-400 border-brass-500/40',
               )}
               title="Toggle selection mode"
+              aria-pressed={selectionMode}
             >
               {selectionMode ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
               <span className="text-sm">Select</span>
@@ -703,22 +762,28 @@ export function Documents() {
             <div className="flex border border-slate-700 rounded-lg overflow-hidden">
               <button
                 onClick={() => setAndPersistViewMode('list')}
-                className={cn('p-2 transition-colors', viewMode === 'list' ? 'bg-slate-700 text-slate-200' : 'text-slate-500 hover:text-slate-300')}
+                className={cn('p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500', viewMode === 'list' ? 'bg-slate-700 text-slate-200' : 'text-slate-400 hover:text-slate-300')}
                 title="List view"
+                aria-label="List view"
+                aria-pressed={viewMode === 'list'}
               >
                 <LayoutList className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setAndPersistViewMode('card')}
-                className={cn('p-2 transition-colors', viewMode === 'card' ? 'bg-slate-700 text-slate-200' : 'text-slate-500 hover:text-slate-300')}
+                className={cn('p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500', viewMode === 'card' ? 'bg-slate-700 text-slate-200' : 'text-slate-400 hover:text-slate-300')}
                 title="Grid view"
+                aria-label="Grid view"
+                aria-pressed={viewMode === 'card'}
               >
                 <LayoutGrid className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setAndPersistViewMode('thumbnail')}
-                className={cn('p-2 transition-colors', viewMode === 'thumbnail' ? 'bg-slate-700 text-slate-200' : 'text-slate-500 hover:text-slate-300')}
+                className={cn('p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500', viewMode === 'thumbnail' ? 'bg-slate-700 text-slate-200' : 'text-slate-400 hover:text-slate-300')}
                 title="Thumbnail view"
+                aria-label="Thumbnail view"
+                aria-pressed={viewMode === 'thumbnail'}
               >
                 <LayoutDashboard className="w-4 h-4" />
               </button>
@@ -730,14 +795,15 @@ export function Documents() {
         {selectionMode && documents.length > 0 && (
           <div className="flex items-center gap-3 mb-2 px-1">
             <input
+              id="select-all-documents"
               type="checkbox"
               checked={documents.every((d) => selectedNodeIds.has(d.id))}
               onChange={(e) =>
                 e.target.checked ? selectNodes(documents.map((d) => d.id)) : clearNodeSelection()
               }
-              className="rounded border-slate-600 bg-slate-800 text-brass-500 focus:ring-brass-500/50"
+              className="rounded border-slate-600 bg-slate-800 text-brass-500 focus:ring-brass-500/50 focus-visible:ring-2 focus-visible:ring-brass-500"
             />
-            <span className="text-sm text-slate-400">Select all ({documents.length})</span>
+            <label htmlFor="select-all-documents" className="text-sm text-slate-400">Select all ({documents.length})</label>
           </div>
         )}
 
@@ -745,10 +811,10 @@ export function Documents() {
         <div className="flex-1 overflow-y-auto">
           {docsLoading ? (
             <div className="flex items-center justify-center py-16">
-              <Loader2 className="w-8 h-8 animate-spin text-slate-500" />
+              <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
             </div>
           ) : documents.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-slate-500">
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400">
               <FileText className="w-12 h-12 mb-4" />
               <p>No documents in this folder</p>
             </div>
@@ -825,6 +891,10 @@ export function Documents() {
               onClick={() => setNewSubfolderParent(null)}
             />
             <motion.div
+              ref={newSubfolderDialogRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="new-subfolder-title"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -835,11 +905,15 @@ export function Documents() {
                   <FolderPlus className="w-5 h-5 text-brass-400" />
                 </div>
                 <div>
-                  <h3 className="font-display font-semibold text-slate-100">New Subfolder</h3>
-                  <p className="text-sm text-slate-500">Create a folder inside the selected folder</p>
+                  <h3 id="new-subfolder-title" className="font-display font-semibold text-slate-100">New Subfolder</h3>
+                  <p className="text-sm text-slate-400">Create a folder inside the selected folder</p>
                 </div>
               </div>
+              <label htmlFor="new-subfolder-name" className="sr-only">
+                Folder name
+              </label>
               <input
+                id="new-subfolder-name"
                 type="text"
                 value={newFolderName}
                 onChange={(e) => setNewFolderName(e.target.value)}
