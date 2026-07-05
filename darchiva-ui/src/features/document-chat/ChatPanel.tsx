@@ -1,6 +1,6 @@
 // Document Q&A — Chat panel component
 import { useRef, useEffect, useState, KeyboardEvent } from 'react';
-import { MessageCircle, Send, Loader2, Plus } from 'lucide-react';
+import { AlertCircle, MessageCircle, Send, Loader2, Plus } from 'lucide-react';
 import { useChatWithDocument, useConversationHistory } from './api';
 
 interface ChatPanelProps {
@@ -122,6 +122,16 @@ export function ChatPanel({ documentId }: ChatPanelProps) {
 							<div className="flex justify-start">
 								<div className="bg-slate-800 rounded-lg px-3 py-2">
 									<Loader2 className="w-3.5 h-3.5 animate-spin text-brass-400" />
+								</div>
+							</div>
+						)}
+
+						{/* Error bubble */}
+						{chatMutation.isError && (
+							<div className="flex justify-start">
+								<div className="flex items-center gap-1.5 bg-red-950/60 border border-red-800/50 rounded-lg px-3 py-2 text-xs text-red-400 max-w-[85%]">
+									<AlertCircle className="w-3.5 h-3.5 shrink-0" />
+									Failed to get a response. Check your connection and try again.
 								</div>
 							</div>
 						)}
