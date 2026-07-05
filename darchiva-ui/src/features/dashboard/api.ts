@@ -11,7 +11,30 @@ export const dashboardKeys = {
 	stats: () => [...dashboardKeys.all, 'stats'] as const,
 	activity: (limit?: number) => [...dashboardKeys.all, 'activity', limit] as const,
 	pendingTasks: () => [...dashboardKeys.all, 'pending-tasks'] as const,
+	slaBreachesCount: () => [...dashboardKeys.all, 'sla-breaches-count'] as const,
+	ocrStats: () => [...dashboardKeys.all, 'ocr-stats'] as const,
+	activeOperators: () => [...dashboardKeys.all, 'active-operators'] as const,
 };
+
+export interface CountResponse {
+	count: number;
+	[key: string]: unknown;
+}
+
+export interface OcrStatsResponse {
+	accuracy?: number;
+	accuracyPercent?: number;
+	ocrAccuracy?: number;
+	averageAccuracy?: number;
+	[key: string]: unknown;
+}
+
+export interface ActiveOperatorsResponse {
+	count?: number;
+	active?: number;
+	total?: number;
+	[key: string]: unknown;
+}
 
 export function useDashboardStats() {
 	return useQuery({
@@ -45,5 +68,41 @@ export function useDashboardPendingTasks() {
 			return data;
 		},
 		refetchInterval: 30000,
+	});
+}
+
+export function useSLABreachesCount() {
+	return useQuery({
+		queryKey: dashboardKeys.slaBreachesCount(),
+		queryFn: async () => {
+			const { data } = await apiClient.get<CountResponse>('/sla/breaches/count');
+			return data;
+		},
+		refetchInterval: 60000,
+		retry: 1,
+	});
+}
+
+export function useOcrStats() {
+	return useQuery({
+		queryKey: dashboardKeys.ocrStats(),
+		queryFn: async () => {
+			const { data } = await apiClient.get<OcrStatsResponse>('/system/ocr-stats');
+			return data;
+		},
+		refetchInterval: 60000,
+		retry: 1,
+	});
+}
+
+export function useActiveOperators() {
+	return useQuery({
+		queryKey: dashboardKeys.activeOperators(),
+		queryFn: async () => {
+			const { data } = await apiClient.get<ActiveOperatorsResponse>('/operators/active');
+			return data;
+		},
+		refetchInterval: 30000,
+		retry: 1,
 	});
 }

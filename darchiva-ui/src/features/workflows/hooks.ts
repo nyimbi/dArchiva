@@ -355,6 +355,29 @@ export function useCreateSLAConfig() {
 	});
 }
 
+export function useUpdateSLAConfig() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({ configId, input }: { configId: string; input: api.SLAConfigUpdate }) =>
+			api.updateSLAConfig(configId, input),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: slaKeys.configs() });
+		},
+	});
+}
+
+export function useDeleteSLAConfig() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: api.deleteSLAConfig,
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: slaKeys.configs() });
+		},
+	});
+}
+
 export function useDelegateApproval() {
 	const queryClient = useQueryClient();
 

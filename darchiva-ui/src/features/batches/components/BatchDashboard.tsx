@@ -19,6 +19,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useBatchStats,useBatches,useCompleteBatch,usePauseBatch,useStartBatch } from '../api';
 import type { BatchStatus,ScanBatchSummary } from '../types';
 
@@ -130,11 +131,13 @@ function BatchRow({
 	onStart,
 	onPause,
 	onComplete,
+	onView,
 }: {
 	batch: ScanBatchSummary;
 	onStart: () => void;
 	onPause: () => void;
 	onComplete: () => void;
+	onView: () => void;
 }) {
 	const config = statusConfig[batch.status];
 	const StatusIcon = config.icon;
@@ -149,7 +152,8 @@ function BatchRow({
 			initial={{ opacity: 0 }}
 			animate={{ opacity: 1 }}
 			exit={{ opacity: 0 }}
-			className="bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors"
+			onClick={onView}
+			className="bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors cursor-pointer"
 		>
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-4">
@@ -214,7 +218,10 @@ function BatchRow({
 					<div className="flex items-center gap-2">
 						{batch.status === 'created' && (
 							<button
-								onClick={onStart}
+								onClick={(event) => {
+									event.stopPropagation();
+									onStart();
+								}}
 								className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
 								title="Start batch"
 							>
@@ -224,14 +231,20 @@ function BatchRow({
 						{batch.status === 'in_progress' && (
 							<>
 								<button
-									onClick={onPause}
+									onClick={(event) => {
+										event.stopPropagation();
+										onPause();
+									}}
 									className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
 									title="Pause batch"
 								>
 									<Pause className="w-4 h-4" />
 								</button>
 								<button
-									onClick={onComplete}
+									onClick={(event) => {
+										event.stopPropagation();
+										onComplete();
+									}}
 									className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
 									title="Complete batch"
 								>
@@ -241,14 +254,23 @@ function BatchRow({
 						)}
 						{batch.status === 'paused' && (
 							<button
-								onClick={onStart}
+								onClick={(event) => {
+									event.stopPropagation();
+									onStart();
+								}}
 								className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
 								title="Resume batch"
 							>
 								<Play className="w-4 h-4" />
 							</button>
 						)}
-						<button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+						<button
+							onClick={(event) => {
+								event.stopPropagation();
+								onView();
+							}}
+							className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+						>
 							<ChevronRight className="w-4 h-4" />
 						</button>
 					</div>
@@ -260,6 +282,7 @@ function BatchRow({
 
 export function BatchDashboard() {
 	const [statusFilter, setStatusFilter] = useState<BatchStatus | undefined>();
+	const navigate = useNavigate();
 
 	const {
 		data: stats,
@@ -303,7 +326,10 @@ export function BatchDashboard() {
 					>
 						<RefreshCw className="w-5 h-5" />
 					</button>
-					<button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+					<button
+						onClick={() => navigate('/ingestion')}
+						className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+					>
 						<Plus className="w-4 h-4" />
 						New Batch
 					</button>
@@ -319,7 +345,7 @@ export function BatchDashboard() {
 
 			{/* Stats Grid */}
 			{statsLoading ? (
-				<div className="grid grid-cols-4 gap-4">
+				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 					{[...Array(4)].map((_, i) => (
 						<div
 							key={i}
@@ -328,7 +354,7 @@ export function BatchDashboard() {
 					))}
 				</div>
 			) : stats ? (
-				<div className="grid grid-cols-4 gap-4">
+				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 					<StatCard
 						label="Total Batches"
 						value={stats.totalBatches}
@@ -423,6 +449,7 @@ export function BatchDashboard() {
 								onStart={() => startMutation.mutate(batch.id)}
 								onPause={() => pauseMutation.mutate(batch.id)}
 								onComplete={() => completeMutation.mutate(batch.id)}
+								onView={() => navigate(`/batches/${batch.id}`)}
 							/>
 						))}
 					</AnimatePresence>

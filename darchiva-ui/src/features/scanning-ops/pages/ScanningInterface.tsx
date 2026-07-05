@@ -1,7 +1,7 @@
 import { BrowserScannerConfig,type ScanMode } from '@/features/scanning-projects/components/BrowserScannerConfig';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { useRecordPageEvent } from '@/features/scanning-projects/api/hooks';
-import { useBrowserScanner } from '@/features/scanning-projects/hooks';
+import { useBrowserScanner,useCompleteBatchScan } from '@/features/scanning-projects/hooks';
 import { AnimatePresence,motion,Reorder } from 'framer-motion';
 import {
   AlertTriangle,
@@ -11,6 +11,7 @@ import {
   ChevronRight,
   FileText,
   Keyboard,
+  Loader2,
   Maximize2,
   Mic,
   MicOff,
@@ -41,6 +42,7 @@ export function ScanningInterface() {
     const { user } = useAuth();
     const { data: activeSession } = useMyActiveSession();
     const scanPage = useScanPage();
+    const completeBatchScan = useCompleteBatchScan();
     const recordPageEvent = useRecordPageEvent();
     const [currentStep, setCurrentStep] = useState<Step>('receive');
     const [pages, setPages] = useState<ScannedPage[]>([]);
@@ -145,6 +147,25 @@ export function ScanningInterface() {
 
     const handleStop = () => {
         // Pause logic
+    };
+
+    const handleFinishBatch = async () => {
+        if (!projectId || !batchId) {
+            toast.error('Missing project or batch identifier');
+            return;
+        }
+
+        try {
+            await completeBatchScan.mutateAsync({
+                projectId,
+                batchId,
+                actualPages: pages.length,
+            });
+            toast.success('Batch completed');
+            navigate('/scanning/operator');
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Failed to complete batch');
+        }
     };
 
     const handleRetake = () => {
@@ -450,10 +471,20 @@ export function ScanningInterface() {
                                 {pages.length > 0 && (
                                     <div className="absolute bottom-6 right-6">
                                         <button
-                                            onClick={() => setCurrentStep('repack')}
-                                            className="px-6 py-3 bg-green-600 hover:bg-green-500 text-white rounded-xl font-bold transition-colors shadow-lg shadow-green-900/20 flex items-center gap-2"
+                                            onClick={handleFinishBatch}
+                                            disabled={completeBatchScan.isPending}
+                                            className="px-6 py-3 bg-green-600 hover:bg-green-500 disabled:bg-green-700 disabled:cursor-not-allowed text-white rounded-xl font-bold transition-colors shadow-lg shadow-green-900/20 flex items-center gap-2"
                                         >
-                                            Finish Batch <ChevronRight className="w-5 h-5" />
+                                            {completeBatchScan.isPending ? (
+                                                <>
+                                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                                    Finishing...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    Finish Batch <ChevronRight className="w-5 h-5" />
+                                                </>
+                                            )}
                                         </button>
                                     </div>
                                 )}

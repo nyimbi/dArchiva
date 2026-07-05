@@ -11,7 +11,13 @@ import {
 } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
 import { useActivityFeed } from '@/features/activity';
-import { useDashboardPendingTasks, useDashboardStats } from '@/features/dashboard';
+import {
+	useActiveOperators,
+	useDashboardPendingTasks,
+	useDashboardStats,
+	useOcrStats,
+	useSLABreachesCount,
+} from '@/features/dashboard';
 import { PerformanceChart } from '@/features/scanning-ops/components/PerformanceChart';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { apiClient } from '@/lib/api-client';
@@ -21,9 +27,11 @@ import { motion } from 'framer-motion';
 import {
 	Activity,
 	AlertCircle,
+	AlertTriangle,
 	ArrowDown,
 	ArrowUp,
 	ArrowUpRight,
+	CheckCircle,
 	CheckSquare,
 	Clock,
 	Cpu,
@@ -43,6 +51,7 @@ import {
 	SlidersHorizontal,
 	Tag,
 	TrendingUp,
+	Users,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -102,9 +111,10 @@ interface TrendData {
 interface StatCardProps {
 	label: string;
 	value: string;
-	trend: TrendData;
+	trend?: TrendData;
 	icon: LucideIcon;
 	isLoading: boolean;
+	iconClassName?: string;
 	error?: JSX.Element | null;
 	children?: ReactNode;
 }
@@ -255,7 +265,7 @@ function TrendIndicator({ trend }: { trend: TrendData }) {
 	);
 }
 
-function StatCard({ label, value, trend, icon: Icon, isLoading, error, children }: StatCardProps) {
+function StatCard({ label, value, trend, icon: Icon, isLoading, iconClassName, error, children }: StatCardProps) {
 	return (
 		<div className="stat-card group">
 			<div className="flex items-start justify-between">
@@ -268,12 +278,15 @@ function StatCard({ label, value, trend, icon: Icon, isLoading, error, children 
 							<p className="mt-2 text-3xl font-display font-semibold text-slate-100">
 								{value}
 							</p>
-							<TrendIndicator trend={trend} />
+							{trend && <TrendIndicator trend={trend} />}
 							{children}
 						</>
 					)}
 				</div>
-				<div className="p-2 rounded-lg bg-brass-500/10 text-brass-400 group-hover:bg-brass-500/20 transition-colors">
+				<div className={cn(
+					'p-2 rounded-lg bg-brass-500/10 text-brass-400 group-hover:bg-brass-500/20 transition-colors',
+					iconClassName,
+				)}>
 					<Icon className="w-5 h-5" />
 				</div>
 			</div>
@@ -315,6 +328,9 @@ export function Dashboard() {
 	const { data: stats, isLoading: statsLoading, isError: statsError, refetch: refetchStats } = useDashboardStats();
 	const { data: tasksData, isLoading: tasksLoading, isError: tasksError, refetch: refetchTasks } = useDashboardPendingTasks();
 	const { data: feedEvents, isLoading: feedLoading, isError: feedError, refetch: refetchFeed } = useActivityFeed(10);
+	const { data: slaBreachesData, isLoading: slaBreachesLoading, isError: slaBreachesError, refetch: refetchSlaBreaches } = useSLABreachesCount();
+	const { data: systemOcrStatsData, isLoading: systemOcrStatsLoading, isError: systemOcrStatsError, refetch: refetchSystemOcrStats } = useOcrStats();
+	const { data: activeOperatorsData, isLoading: activeOperatorsLoading, isError: activeOperatorsError, refetch: refetchActiveOperators } = useActiveOperators();
 
 	const { data: healthData, isLoading: healthLoading, isError: healthError } = useQuery({
 		queryKey: ['system', 'health'],
@@ -326,7 +342,7 @@ export function Dashboard() {
 		retry: 1,
 	});
 
-	const { data: workersData, isLoading: workersLoading } = useQuery({
+	const { data: workersData, isLoading: workersLoading, isError: workersError, refetch: refetchWorkers } = useQuery({
 		queryKey: ['system', 'workers'],
 		queryFn: async () => {
 			const { data } = await apiClient.get<WorkersResponse>('/system/workers');
@@ -378,7 +394,33 @@ export function Dashboard() {
 	const statsRecord = stats as Record<string, unknown> | undefined;
 	const tasksRecord = tasksData as Record<string, unknown> | undefined;
 	const ocrStatsRecord = ocrStatsData as Record<string, unknown> | undefined;
+	const systemOcrStatsRecord = systemOcrStatsData as Record<string, unknown> | undefined;
+	const slaBreachesRecord = slaBreachesData as Record<string, unknown> | undefined;
+	const activeOperatorsRecord = activeOperatorsData as Record<string, unknown> | undefined;
 	const capacityRecord = capacityData as Record<string, unknown> | undefined;
+	const slaBreachesFromStats = pickNumber(statsRecord, [
+		'slaBreachesToday',
+		'slaBreaches',
+		'slaBreached',
+		'breached',
+	]);
+	const slaBreachesRaw = pickNumber(slaBreachesRecord, [
+		'count',
+		'today',
+		'breaches',
+		'breached',
+	]) ?? slaBreachesFromStats;
+	const ocrAccuracyRaw = pickNumber(systemOcrStatsRecord, [
+		'accuracy',
+		'accuracyPercent',
+		'ocrAccuracy',
+		'averageAccuracy',
+	]) ?? pickNumber(ocrStatsRecord, [
+		'accuracy',
+		'accuracyPercent',
+		'ocrAccuracy',
+		'averageAccuracy',
+	]);
 	const failedOcrJobs = pickNumber(ocrStatsRecord, [
 		'failedJobs',
 		'failedOcrJobs',
@@ -441,6 +483,21 @@ export function Dashboard() {
 
 	const apiOnline = !healthError && (healthData?.status === 'ok' || healthData?.status === 'healthy' || healthData != null);
 	const activeWorkers = workersData?.active ?? 0;
+	const activeOperatorsRaw = pickNumber(activeOperatorsRecord, [
+		'count',
+		'active',
+		'total',
+	]) ?? activeWorkers;
+	const slaBreachesCount = slaBreachesRaw ?? 0;
+	const ocrAccuracy = ocrAccuracyRaw ?? 0;
+	const ocrAccuracyPercent = ocrAccuracy > 0 && ocrAccuracy <= 1 ? ocrAccuracy * 100 : ocrAccuracy;
+	const activeOperatorsCount = activeOperatorsRaw ?? 0;
+	const slaBreachesCardLoading = slaBreachesLoading && slaBreachesFromStats === undefined;
+	const ocrAccuracyCardLoading = systemOcrStatsLoading && ocrAccuracyRaw === undefined;
+	const activeOperatorsCardLoading = activeOperatorsLoading && workersLoading;
+	const slaBreachesCardError = slaBreachesError && slaBreachesFromStats === undefined;
+	const ocrAccuracyCardError = systemOcrStatsError && ocrAccuracyRaw === undefined;
+	const activeOperatorsCardError = activeOperatorsError && workersError;
 
 	const quickActions = [
 		{ icon: ScanLine, label: 'New Scan Project', action: () => navigate('/scanning-projects') },
@@ -486,6 +543,35 @@ export function Dashboard() {
 		<div className="mt-2 flex items-center gap-1.5 text-xs text-red-400">
 			<AlertCircle className="w-3.5 h-3.5" />
 			<button onClick={() => void refetchStats()} className="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500 rounded">Retry</button>
+		</div>
+	);
+
+	const slaBreachesStatError = (
+		<div className="mt-2 flex items-center gap-1.5 text-xs text-red-400">
+			<AlertCircle className="w-3.5 h-3.5" />
+			<button onClick={() => void refetchSlaBreaches()} className="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500 rounded">Retry</button>
+		</div>
+	);
+
+	const ocrAccuracyStatError = (
+		<div className="mt-2 flex items-center gap-1.5 text-xs text-red-400">
+			<AlertCircle className="w-3.5 h-3.5" />
+			<button onClick={() => void refetchSystemOcrStats()} className="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500 rounded">Retry</button>
+		</div>
+	);
+
+	const activeOperatorsStatError = (
+		<div className="mt-2 flex items-center gap-1.5 text-xs text-red-400">
+			<AlertCircle className="w-3.5 h-3.5" />
+			<button
+				onClick={() => {
+					void refetchActiveOperators();
+					void refetchWorkers();
+				}}
+				className="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500 rounded"
+			>
+				Retry
+			</button>
 		</div>
 	);
 
@@ -550,6 +636,35 @@ export function Dashboard() {
 					</p>
 				</div>
 			</StatCard>
+
+			<StatCard
+				label="SLA Breaches"
+				value={slaBreachesCount.toLocaleString()}
+				icon={AlertTriangle}
+				isLoading={slaBreachesCardLoading}
+				iconClassName="bg-red-500/10 text-red-400 group-hover:bg-red-500/20"
+				error={slaBreachesCardError ? slaBreachesStatError : null}
+			>
+				<p className="mt-1 text-xs text-slate-400">today</p>
+			</StatCard>
+
+			<StatCard
+				label="OCR Accuracy"
+				value={`${ocrAccuracyPercent.toFixed(1)}%`}
+				icon={CheckCircle}
+				isLoading={ocrAccuracyCardLoading}
+				iconClassName="bg-green-500/10 text-green-400 group-hover:bg-green-500/20"
+				error={ocrAccuracyCardError ? ocrAccuracyStatError : null}
+			/>
+
+			<StatCard
+				label="Active Operators"
+				value={activeOperatorsCount.toLocaleString()}
+				icon={Users}
+				isLoading={activeOperatorsCardLoading}
+				iconClassName="bg-blue-500/10 text-blue-400 group-hover:bg-blue-500/20"
+				error={activeOperatorsCardError ? activeOperatorsStatError : null}
+			/>
 
 			<StatCard
 				label="Failed OCR Jobs"

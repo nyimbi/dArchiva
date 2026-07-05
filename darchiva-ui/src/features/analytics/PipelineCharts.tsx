@@ -33,6 +33,14 @@ function ChartSkeleton() {
 	);
 }
 
+function EmptyChartState() {
+	return (
+		<div className="flex h-[240px] items-center justify-center text-sm text-muted-foreground">
+			No data available
+		</div>
+	);
+}
+
 // ─────────────────────────── Ingest Rate ─────────────────────
 
 function IngestRateChart() {
@@ -51,8 +59,8 @@ function IngestRateChart() {
 						<AlertCircle className="h-4 w-4 shrink-0" />
 						Failed to load ingest metrics. Check your connection and try refreshing.
 					</div>
-				) : !data ? (
-					<ChartSkeleton />
+				) : !data || data.length === 0 ? (
+					<EmptyChartState />
 				) : (
 					<ResponsiveContainer width="100%" height={240}>
 						<BarChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
@@ -94,8 +102,8 @@ function ClassificationAccuracyChart() {
 						<AlertCircle className="h-4 w-4 shrink-0" />
 						Failed to load classification accuracy. Check your connection and try refreshing.
 					</div>
-				) : !data ? (
-					<ChartSkeleton />
+				) : !data || data.length === 0 ? (
+					<EmptyChartState />
 				) : (
 					<ResponsiveContainer width="100%" height={240}>
 						<LineChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
@@ -106,9 +114,16 @@ function ClassificationAccuracyChart() {
 								tickFormatter={(v: string) => v.slice(5)}
 							/>
 							<YAxis
+								yAxisId="left"
 								tick={{ fontSize: 11 }}
 								domain={[0, 100]}
 								tickFormatter={(v: number) => `${v}%`}
+							/>
+							<YAxis
+								yAxisId="right"
+								orientation="right"
+								tick={{ fontSize: 11 }}
+								allowDecimals={false}
 							/>
 							<Tooltip
 								labelFormatter={(label: string) => `Date: ${label}`}
@@ -117,6 +132,7 @@ function ClassificationAccuracyChart() {
 								}
 							/>
 							<Line
+								yAxisId="left"
 								type="monotone"
 								dataKey="accuracy"
 								stroke="hsl(var(--primary))"
@@ -125,13 +141,13 @@ function ClassificationAccuracyChart() {
 								activeDot={{ r: 4 }}
 							/>
 							<Line
+								yAxisId="right"
 								type="monotone"
 								dataKey="total"
 								stroke="hsl(var(--muted-foreground))"
 								strokeWidth={1}
 								strokeDasharray="4 2"
 								dot={false}
-								yAxisId={0}
 							/>
 						</LineChart>
 					</ResponsiveContainer>
@@ -165,8 +181,8 @@ function StorageByTypeChart() {
 						<AlertCircle className="h-4 w-4 shrink-0" />
 						Failed to load storage data. Check your connection and try refreshing.
 					</div>
-				) : !chartData ? (
-					<ChartSkeleton />
+				) : !chartData || chartData.length === 0 ? (
+					<EmptyChartState />
 				) : (
 					<ResponsiveContainer width="100%" height={240}>
 						<BarChart

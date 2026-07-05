@@ -7,6 +7,16 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, Clock, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
@@ -14,8 +24,10 @@ import { useCallback, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import {
   createSLAConfig,
+  deleteSLAConfig,
   getSLAConfigs,
   listWorkflows,
+  updateSLAConfig,
   type SLAConfig,
   type SLAConfigCreate,
 } from '../api';
@@ -37,6 +49,8 @@ export function SLAConfigManager({ workflowId, className }: SLAConfigManagerProp
 	const effectiveWorkflowId = normalizeWorkflowId(workflowId);
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [expandedId, setExpandedId] = useState<string | null>(null);
+	const [editingConfig, setEditingConfig] = useState<SLAConfig | null>(null);
+	const [configToDelete, setConfigToDelete] = useState<SLAConfig | null>(null);
 	const queryClient = useQueryClient();
 
 	const { data: configs, isLoading, isError } = useQuery({
@@ -49,6 +63,7 @@ export function SLAConfigManager({ workflowId, className }: SLAConfigManagerProp
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['sla-configs'] });
 			setIsModalOpen(false);
+			setEditingConfig(null);
 			toast.success('SLA configuration created');
 		},
 		onError: () => {
@@ -56,9 +71,53 @@ export function SLAConfigManager({ workflowId, className }: SLAConfigManagerProp
 		},
 	});
 
+	const updateMutation = useMutation({
+		mutationFn: ({ configId, data }: { configId: string; data: SLAConfigCreate }) =>
+			updateSLAConfig(configId, data),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['sla-configs'] });
+			setIsModalOpen(false);
+			setEditingConfig(null);
+			toast.success('SLA configuration updated');
+		},
+		onError: () => {
+			toast.error('Failed to update SLA configuration');
+		},
+	});
+
+	const deleteMutation = useMutation({
+		mutationFn: deleteSLAConfig,
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['sla-configs'] });
+			setConfigToDelete(null);
+			toast.success('SLA configuration deleted');
+		},
+		onError: () => {
+			toast.error('Failed to delete SLA configuration');
+		},
+	});
+
 	const handleToggleExpand = useCallback((id: string) => {
 		setExpandedId(prev => prev === id ? null : id);
 	}, []);
+
+	const handleNewConfig = () => {
+		setEditingConfig(null);
+		setIsModalOpen(true);
+	};
+
+	const handleCloseModal = () => {
+		setIsModalOpen(false);
+		setEditingConfig(null);
+	};
+
+	const handleSaveConfig = (data: SLAConfigCreate) => {
+		if (editingConfig) {
+			updateMutation.mutate({ configId: editingConfig.id, data });
+		} else {
+			createMutation.mutate(data);
+		}
+	};
 
 	return (
 		<Card className={cn('border-slate-800 bg-slate-900/80 text-slate-200 shadow-none', className)}>
@@ -72,7 +131,7 @@ export function SLAConfigManager({ workflowId, className }: SLAConfigManagerProp
 				<Button
 					size="sm"
 					className="bg-cyan-500 text-slate-950 hover:bg-cyan-400"
-					onClick={() => setIsModalOpen(true)}
+					onClick={handleNewConfig}
 				>
 					<Plus className="h-4 w-4" />
 					New Config
@@ -94,6 +153,8 @@ export function SLAConfigManager({ workflowId, className }: SLAConfigManagerProp
 								config={config}
 								isExpanded={expandedId === config.id}
 								onToggle={() => handleToggleExpand(config.id)}
+								onEdit={() => { setEditingConfig(config); setIsModalOpen(true); }}
+								onDelete={() => setConfigToDelete(config)}
 							/>
 						))}
 					</div>
@@ -102,12 +163,36 @@ export function SLAConfigManager({ workflowId, className }: SLAConfigManagerProp
 
 			{isModalOpen && (
 				<ConfigModal
-					onClose={() => setIsModalOpen(false)}
-					onSave={createMutation.mutate}
-					isSaving={createMutation.isPending}
+					config={editingConfig}
+					onClose={handleCloseModal}
+					onSave={handleSaveConfig}
+					isSaving={createMutation.isPending || updateMutation.isPending}
 					workflowId={effectiveWorkflowId}
 				/>
 			)}
+
+			<AlertDialog open={!!configToDelete} onOpenChange={open => { if (!open) setConfigToDelete(null); }}>
+				<AlertDialogContent className="border-slate-700 bg-slate-900 text-slate-200">
+					<AlertDialogHeader>
+						<AlertDialogTitle className="text-slate-100">Delete SLA configuration?</AlertDialogTitle>
+						<AlertDialogDescription className="text-slate-400">
+							This will remove {configToDelete?.name ?? 'this configuration'} from SLA monitoring.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel className="border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800 hover:text-slate-100">
+							Cancel
+						</AlertDialogCancel>
+						<AlertDialogAction
+							className="bg-red-500 text-white hover:bg-red-400"
+							onClick={() => { if (configToDelete) deleteMutation.mutate(configToDelete.id); }}
+							disabled={deleteMutation.isPending}
+						>
+							{deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</Card>
 	);
 }
@@ -143,9 +228,11 @@ interface ConfigCardProps {
 	config: SLAConfig;
 	isExpanded: boolean;
 	onToggle: () => void;
+	onEdit: () => void;
+	onDelete: () => void;
 }
 
-function ConfigCard({ config, isExpanded, onToggle }: ConfigCardProps) {
+function ConfigCard({ config, isExpanded, onToggle, onEdit, onDelete }: ConfigCardProps) {
 	return (
 		<Card className="border-slate-800 bg-slate-950/70 shadow-none">
 			<button
@@ -182,7 +269,7 @@ function ConfigCard({ config, isExpanded, onToggle }: ConfigCardProps) {
 						variant="ghost"
 						size="icon"
 						className="h-8 w-8 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
-						onClick={event => event.stopPropagation()}
+						onClick={event => { event.stopPropagation(); onEdit(); }}
 					>
 						<Pencil className="h-4 w-4" />
 					</Button>
@@ -191,7 +278,7 @@ function ConfigCard({ config, isExpanded, onToggle }: ConfigCardProps) {
 						variant="ghost"
 						size="icon"
 						className="h-8 w-8 text-slate-400 hover:bg-red-500/10 hover:text-red-300"
-						onClick={event => event.stopPropagation()}
+						onClick={event => { event.stopPropagation(); onDelete(); }}
 					>
 						<Trash2 className="h-4 w-4" />
 					</Button>
@@ -235,21 +322,24 @@ function DetailItem({ label, children }: { label: string; children: ReactNode })
 }
 
 interface ConfigModalProps {
+	config?: SLAConfig | null;
 	onClose: () => void;
 	onSave: (data: SLAConfigCreate) => void;
 	isSaving: boolean;
 	workflowId?: string;
 }
 
-function ConfigModal({ onClose, onSave, isSaving, workflowId }: ConfigModalProps) {
+function ConfigModal({ config, onClose, onSave, isSaving, workflowId }: ConfigModalProps) {
 	const [formData, setFormData] = useState<SLAConfigCreate>({
-		name: '',
-		workflow_id: workflowId,
-		target_hours: 24,
-		warning_threshold_percent: 75,
-		critical_threshold_percent: 90,
-		reminder_enabled: true,
-		reminder_thresholds: [50, 75, 90],
+		name: config?.name ?? '',
+		workflow_id: config?.workflow_id ?? workflowId,
+		step_id: config?.step_id,
+		target_hours: config?.target_hours ?? 24,
+		warning_threshold_percent: config?.warning_threshold_percent ?? 75,
+		critical_threshold_percent: config?.critical_threshold_percent ?? 90,
+		reminder_enabled: config?.reminder_enabled ?? true,
+		reminder_thresholds: config?.reminder_thresholds ?? [50, 75, 90],
+		escalation_chain_id: config?.escalation_chain_id,
 	});
 
 	const { data: workflows, isError: isWorkflowsError } = useQuery({
@@ -279,7 +369,9 @@ function ConfigModal({ onClose, onSave, isSaving, workflowId }: ConfigModalProps
 				onClick={event => event.stopPropagation()}
 			>
 				<CardHeader className="flex-row items-center justify-between space-y-0 border-b border-slate-800 p-4">
-					<CardTitle className="text-base text-slate-100">New SLA Configuration</CardTitle>
+					<CardTitle className="text-base text-slate-100">
+						{config ? 'Edit SLA Configuration' : 'New SLA Configuration'}
+					</CardTitle>
 					<Button
 						type="button"
 						variant="ghost"
@@ -410,7 +502,7 @@ function ConfigModal({ onClose, onSave, isSaving, workflowId }: ConfigModalProps
 						disabled={isSaving || !formData.name}
 					>
 						{isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
-						{isSaving ? 'Saving...' : 'Create Configuration'}
+						{isSaving ? 'Saving...' : config ? 'Update Configuration' : 'Create Configuration'}
 					</Button>
 				</div>
 			</Card>

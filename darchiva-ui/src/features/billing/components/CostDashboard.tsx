@@ -103,7 +103,11 @@ export function CostDashboard() {
 		isError,
 		refetch,
 	} = useBillingDashboard();
-	const { data: invoices } = useInvoices();
+	const {
+		data: invoices,
+		isLoading: invoicesLoading,
+		isError: invoicesError,
+	} = useInvoices();
 
 	return (
 		<div className="space-y-6 p-6">
@@ -172,7 +176,11 @@ export function CostDashboard() {
 			) : null}
 
 			{/* Billing history */}
-			<BillingHistoryTable invoices={invoices ?? []} />
+			<BillingHistoryTable
+				invoices={invoices ?? []}
+				isLoading={invoicesLoading}
+				isError={invoicesError}
+			/>
 		</div>
 	);
 }
@@ -461,8 +469,12 @@ function UsageTable({ dashboard }: { dashboard: BillingDashboard }) {
 /* ── Billing History ───────────────────────────────────────────────────── */
 function BillingHistoryTable({
 	invoices,
+	isLoading,
+	isError,
 }: {
 	invoices: InvoiceSummary[];
+	isLoading: boolean;
+	isError: boolean;
 }) {
 	return (
 		<Card>
@@ -481,7 +493,29 @@ function BillingHistoryTable({
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						{invoices.length === 0 ? (
+						{isLoading ? (
+							Array.from({ length: 5 }).map((_, index) => (
+								<TableRow key={index}>
+									{Array.from({ length: 5 }).map((__, cellIndex) => (
+										<TableCell key={cellIndex}>
+											<div className="h-4 w-full rounded bg-muted animate-pulse" />
+										</TableCell>
+									))}
+								</TableRow>
+							))
+						) : isError ? (
+							<TableRow>
+								<TableCell
+									colSpan={5}
+									className="py-4"
+								>
+									<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+										<AlertCircle className="h-4 w-4 shrink-0" />
+										Failed to load invoices. Check your connection and try refreshing.
+									</div>
+								</TableCell>
+							</TableRow>
+						) : invoices.length === 0 ? (
 							<TableRow>
 								<TableCell
 									colSpan={5}

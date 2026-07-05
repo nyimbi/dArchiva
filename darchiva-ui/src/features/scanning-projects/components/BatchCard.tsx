@@ -3,20 +3,26 @@ import { cn } from '@/lib/utils';
 import type { ScanningBatch } from '@/types';
 import { AlertCircle,Barcode,CheckCircle,Clock,FileText,Loader2,MapPin,Package,ScanLine,User } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import type { BatchStatus } from '../types';
 
 interface BatchCardProps {
 	batch: ScanningBatch;
 	projectId: string;
 }
 
-const statusConfig: Record<ScanningBatch['status'], { label: string; className: string; icon: typeof Clock }> = {
+type BatchCardStatus = ScanningBatch['status'] | BatchStatus;
+
+const statusConfig: Record<BatchCardStatus, { label: string; className: string; icon: typeof Clock }> = {
 	pending: { label: 'Pending', className: 'bg-slate-500/10 text-slate-400', icon: Clock },
+	in_progress: { label: 'Scanning', className: 'bg-blue-500/10 text-blue-400', icon: Loader2 },
 	scanning: { label: 'Scanning', className: 'bg-blue-500/10 text-blue-400', icon: Loader2 },
 	ocr_processing: { label: 'OCR Processing', className: 'bg-purple-500/10 text-purple-400', icon: Loader2 },
 	qc_pending: { label: 'QC Pending', className: 'bg-amber-500/10 text-amber-400', icon: AlertCircle },
 	qc_passed: { label: 'QC Passed', className: 'bg-emerald-500/10 text-emerald-400', icon: CheckCircle },
 	qc_failed: { label: 'QC Failed', className: 'bg-rose-500/10 text-rose-400', icon: AlertCircle },
 	completed: { label: 'Completed', className: 'bg-emerald-500/10 text-emerald-400', icon: CheckCircle },
+	failed: { label: 'Failed', className: 'bg-rose-500/10 text-rose-400', icon: AlertCircle },
+	on_hold: { label: 'On Hold', className: 'bg-slate-500/10 text-slate-400', icon: Clock },
 };
 
 const typeIcons: Record<ScanningBatch['type'], typeof Package> = {
@@ -26,14 +32,16 @@ const typeIcons: Record<ScanningBatch['type'], typeof Package> = {
 };
 
 export function BatchCard({ batch, projectId }: BatchCardProps) {
-	const status = statusConfig[batch.status];
+	const batchStatus = batch.status as BatchCardStatus;
+	const status = statusConfig[batchStatus];
 	const StatusIcon = status.icon;
 	const TypeIcon = typeIcons[batch.type];
 	const progress = batch.estimatedPages > 0
 		? Math.round((batch.scannedPages / batch.estimatedPages) * 100)
 		: 0;
 
-	const canScan = batch.status === 'pending' || batch.status === 'scanning';
+	const isScanningStatus = batchStatus === 'scanning' || batchStatus === 'in_progress';
+	const canScan = batchStatus === 'pending' || isScanningStatus;
 
 	return (
 		<div className="bg-slate-900 border border-slate-800 rounded-lg p-4 hover:border-slate-700 transition-colors">
@@ -87,7 +95,7 @@ export function BatchCard({ batch, projectId }: BatchCardProps) {
 					className="mt-3 flex items-center justify-center gap-2 w-full py-2 bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 rounded-lg text-sm font-medium hover:bg-cyan-500/20 hover:border-cyan-400/50 transition-colors"
 				>
 					<ScanLine className="w-4 h-4" />
-					{batch.status === 'scanning' ? 'Continue Scanning' : 'Start Scanning'}
+					{isScanningStatus ? 'Continue Scanning' : 'Start Scanning'}
 				</Link>
 			)}
 		</div>

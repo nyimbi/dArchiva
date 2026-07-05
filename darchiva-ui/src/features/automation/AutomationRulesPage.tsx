@@ -66,6 +66,9 @@ const TRIGGER_LABELS: Record<TriggerEvent, string> = {
 	'document.uploaded': 'Document Uploaded',
 	'document.expiring': 'Document Expiring',
 	'scan.batch_complete': 'Scan Batch Complete',
+	email_received: 'Email Received',
+	webhook_received: 'Inbound Webhook',
+	schedule: 'Scheduled (cron)',
 };
 
 const CONDITION_FIELDS: { value: ConditionField | string; label: string }[] = [
@@ -189,6 +192,7 @@ function RuleBuilderDialog({ open, onClose, existing }: RuleBuilderDialogProps) 
 	const [trigger, setTrigger] = useState<TriggerEvent>(
 		existing?.trigger_event ?? 'document.uploaded',
 	);
+	const [cronExpression, setCronExpression] = useState('');
 	const [conditions, setConditions] = useState<Condition[]>(existing?.conditions ?? []);
 	const [actions, setActions] = useState<Action[]>(existing?.actions ?? []);
 	const [isActive, setIsActive] = useState(existing?.is_active ?? true);
@@ -295,6 +299,19 @@ function RuleBuilderDialog({ open, onClose, existing }: RuleBuilderDialogProps) 
 								</SelectContent>
 							</Select>
 						</div>
+
+						{trigger === 'schedule' && (
+							<div className="flex flex-col gap-2">
+								<span className="text-sm font-medium">Cron Expression</span>
+								<Input
+									placeholder="0 9 * * *"
+									value={cronExpression}
+									onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+										setCronExpression(e.target.value)
+									}
+								/>
+							</div>
+						)}
 
 						{/* Conditions */}
 						<div className="flex flex-col gap-2">

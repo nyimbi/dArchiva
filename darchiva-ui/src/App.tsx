@@ -1,100 +1,44 @@
 // (c) Copyright Datacraft, 2026
-import { lazy,Suspense,useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { QueryClient,QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter,Route,Routes } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { Layout } from './components/Layout';
-import { AuthProvider,LoginPage,ProtectedRoute } from './features/auth';
-import {
-  Analytics,
-  ApiKeys,
-  AuditLogs,
-  Cases,
-  Dashboard,
-  DocumentDetail,
-  Documents,
-  Encryption,
-  ExceptionQueue,
-  Forms,
-  HierarchyPage,
-  Inbox,
-  Ingestion,
-  IngestionDashboard,
-  NotFound,
-  Portfolios,
-  RetentionPolicies,
-  Routing,
-  SearchPage,
-  Security,
-  SharedDocuments,
-  SystemHealth,
-  UnauthorizedPage,
-  UserHomePage,
-  UserProfile,
-  Workflows,
-} from './pages';
+import { AuthProvider, ProtectedRoute } from './features/auth';
 import { OnboardingWizard } from './features/onboarding/OnboardingWizard';
 import { useBranding } from './hooks/useBranding';
-import { SupervisorDashboard } from './pages/SupervisorDashboard';
-import { Webhooks } from './pages/Webhooks';
-
-import {
-  ProjectDetails,
-  QCReview,
-  Resources,
-  ScanningProjects,
-  ScanningStation,
-} from './features/scanning-projects/pages';
-
-import { AutoRoutingRules } from './features/auto-routing/AutoRoutingRules';
-import { TemplatesPage } from './features/templates/TemplatesPage';
-import { UserManagement } from './features/admin/UserManagement';
-import { RoleManagement } from './features/admin/RoleManagement';
-import { EmailIngestConfigs } from './features/email-ingest/EmailIngestConfigs';
-import { ConnectorsPage } from './features/connectors/ConnectorsPage';
-import { TenantsPage } from './features/tenants';
-import { SettingsPage } from './features/settings';
 import { NotificationToaster } from './components/NotificationToaster';
 import { ShortcutsProvider } from './features/shortcuts/ShortcutsProvider';
-import { AutomationRulesPage } from './features/automation/AutomationRulesPage';
-import { ScheduledReportsPage } from './features/reports/ScheduledReportsPage';
 import { ThemeProvider } from './features/theme/ThemeProvider';
-import { CostDashboard } from './features/billing';
-import { QualityDashboard } from './features/quality';
-import { SerialNumbersPage } from './features/serial-numbers';
-import { InventoryManager } from './features/inventory';
 
 import { ScanningLayout } from './features/scanning-ops/layouts/ScanningLayout';
-import { OperatorDashboard } from './features/scanning-ops/pages/OperatorDashboard';
-import { ScanningInterface } from './features/scanning-ops/pages/ScanningInterface';
-import { StationHome } from './features/scanning-ops/pages/StationHome';
-import { WarehouseDashboard } from './features/scanning-ops/pages/WarehouseDashboard';
 
-const FleetManagement = lazy(() =>
-	import('./features/agents/components/FleetManagement').then((module) => ({
-		default: module.FleetManagement,
+const Analytics = lazy(() =>
+	import('./pages/Analytics').then((module) => ({ default: module.Analytics })),
+);
+const ApiKeys = lazy(() =>
+	import('./pages/ApiKeys').then((module) => ({ default: module.ApiKeys })),
+);
+const AuditLogs = lazy(() =>
+	import('./pages/AuditLogs').then((module) => ({ default: module.AuditLogs })),
+);
+const AutoRoutingRules = lazy(() =>
+	import('./features/auto-routing/AutoRoutingRules').then((module) => ({
+		default: module.AutoRoutingRules,
 	})),
 );
-const DocumentComparison = lazy(() =>
-	import('./pages/DocumentComparison').then((module) => ({
-		default: module.DocumentComparison,
+const AutomationRulesPage = lazy(() =>
+	import('./features/automation/AutomationRulesPage').then((module) => ({
+		default: module.AutomationRulesPage,
 	})),
 );
-const DataExportPage = lazy(() => import('./features/data-export/DataExportPage'));
-const SuperAdminPage = lazy(() =>
-	import('./features/superadmin/SuperAdminPage').then((module) => ({
-		default: module.SuperAdminPage,
-	})),
+const Cases = lazy(() =>
+	import('./pages/Cases').then((module) => ({ default: module.Cases })),
 );
-const EntityGraphPage = lazy(() =>
-	import('./features/entity-graph/EntityGraphPage').then((module) => ({
-		default: module.EntityGraphPage,
-	})),
-);
-const IAMDashboard = lazy(() =>
-	import('./features/iam/components/IAMDashboard').then((module) => ({
-		default: module.IAMDashboard,
+const ConnectorsPage = lazy(() =>
+	import('./features/connectors/ConnectorsPage').then((module) => ({
+		default: module.ConnectorsPage,
 	})),
 );
 const ComplianceDashboard = lazy(() =>
@@ -102,17 +46,232 @@ const ComplianceDashboard = lazy(() =>
 		default: module.ComplianceDashboard,
 	})),
 );
+const CostDashboard = lazy(() =>
+	import('./features/billing/components/CostDashboard').then((module) => ({
+		default: module.CostDashboard,
+	})),
+);
+const Dashboard = lazy(() =>
+	import('./pages/Dashboard').then((module) => ({ default: module.Dashboard })),
+);
+const DataExportPage = lazy(() => import('./features/data-export/DataExportPage'));
+const DocumentComparison = lazy(() =>
+	import('./pages/DocumentComparison').then((module) => ({
+		default: module.DocumentComparison,
+	})),
+);
+const DocumentDetail = lazy(() =>
+	import('./pages/DocumentDetail').then((module) => ({ default: module.DocumentDetail })),
+);
+const Documents = lazy(() =>
+	import('./pages/Documents').then((module) => ({ default: module.Documents })),
+);
+const EmailIngestConfigs = lazy(() =>
+	import('./features/email-ingest/EmailIngestConfigs').then((module) => ({
+		default: module.EmailIngestConfigs,
+	})),
+);
+const Encryption = lazy(() =>
+	import('./pages/Encryption').then((module) => ({ default: module.Encryption })),
+);
+const EntityGraphPage = lazy(() =>
+	import('./features/entity-graph/EntityGraphPage').then((module) => ({
+		default: module.EntityGraphPage,
+	})),
+);
+const ExceptionQueue = lazy(() =>
+	import('./pages/ExceptionQueue').then((module) => ({ default: module.ExceptionQueue })),
+);
+const FleetManagement = lazy(() =>
+	import('./features/agents/components/FleetManagement').then((module) => ({
+		default: module.FleetManagement,
+	})),
+);
+const Forms = lazy(() =>
+	import('./pages/Forms').then((module) => ({ default: module.Forms })),
+);
+const HierarchyPage = lazy(() =>
+	import('./pages/Hierarchy').then((module) => ({ default: module.HierarchyPage })),
+);
+const IAMDashboard = lazy(() =>
+	import('./features/iam/components/IAMDashboard').then((module) => ({
+		default: module.IAMDashboard,
+	})),
+);
+const Inbox = lazy(() =>
+	import('./pages/Inbox').then((module) => ({ default: module.Inbox })),
+);
+const Ingestion = lazy(() =>
+	import('./pages/Ingestion').then((module) => ({ default: module.Ingestion })),
+);
+const IngestionDashboard = lazy(() =>
+	import('./pages/IngestionDashboard').then((module) => ({
+		default: module.IngestionDashboard,
+	})),
+);
+const InventoryManager = lazy(() =>
+	import('./features/inventory/components/InventoryManager').then((module) => ({
+		default: module.InventoryManager,
+	})),
+);
+const LoginPage = lazy(() =>
+	import('./features/auth/components/LoginPage').then((module) => ({
+		default: module.LoginPage,
+	})),
+);
+const NotFound = lazy(() =>
+	import('./pages/NotFound').then((module) => ({ default: module.NotFound })),
+);
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
+const OperatorDashboard = lazy(() =>
+	import('./features/scanning-ops/pages/OperatorDashboard').then((module) => ({
+		default: module.OperatorDashboard,
+	})),
+);
+const Portfolios = lazy(() =>
+	import('./pages/Portfolios').then((module) => ({ default: module.Portfolios })),
+);
+const ProjectDetails = lazy(() =>
+	import('./features/scanning-projects/pages/ProjectDetails').then((module) => ({
+		default: module.ProjectDetails,
+	})),
+);
+const QCReview = lazy(() =>
+	import('./features/scanning-projects/pages/QCReview').then((module) => ({
+		default: module.QCReview,
+	})),
+);
+const QualityDashboard = lazy(() =>
+	import('./features/quality/components/QualityDashboard').then((module) => ({
+		default: module.QualityDashboard,
+	})),
+);
+const Resources = lazy(() =>
+	import('./features/scanning-projects/pages/Resources').then((module) => ({
+		default: module.Resources,
+	})),
+);
+const RetentionPolicies = lazy(() =>
+	import('./pages/RetentionPolicies').then((module) => ({
+		default: module.RetentionPolicies,
+	})),
+);
+const RoleManagement = lazy(() =>
+	import('./features/admin/RoleManagement').then((module) => ({
+		default: module.RoleManagement,
+	})),
+);
+const Routing = lazy(() =>
+	import('./pages/Routing').then((module) => ({ default: module.Routing })),
+);
+const ScheduledReportsPage = lazy(() =>
+	import('./features/reports/ScheduledReportsPage').then((module) => ({
+		default: module.ScheduledReportsPage,
+	})),
+);
+const ScanningInterface = lazy(() =>
+	import('./features/scanning-ops/pages/ScanningInterface').then((module) => ({
+		default: module.ScanningInterface,
+	})),
+);
+const ScanningProjects = lazy(() =>
+	import('./features/scanning-projects/pages/ScanningProjects').then((module) => ({
+		default: module.ScanningProjects,
+	})),
+);
+const ScanningStation = lazy(() =>
+	import('./features/scanning-projects/pages/ScanningStation').then((module) => ({
+		default: module.ScanningStation,
+	})),
+);
+const SearchPage = lazy(() =>
+	import('./pages/SearchPage').then((module) => ({ default: module.SearchPage })),
+);
+const Security = lazy(() =>
+	import('./pages/Security').then((module) => ({ default: module.Security })),
+);
 const SegmentationPage = lazy(() =>
 	import('./features/segmentation/SegmentationPage').then((module) => ({
 		default: module.SegmentationPage,
 	})),
+);
+const SerialNumbersPage = lazy(() =>
+	import('./features/serial-numbers/SerialNumbersPage').then((module) => ({
+		default: module.SerialNumbersPage,
+	})),
+);
+const SettingsPage = lazy(() =>
+	import('./features/settings/components/SettingsPage').then((module) => ({
+		default: module.SettingsPage,
+	})),
+);
+const SharedDocuments = lazy(() =>
+	import('./pages/SharedDocuments').then((module) => ({
+		default: module.SharedDocuments,
+	})),
+);
+const StationHome = lazy(() =>
+	import('./features/scanning-ops/pages/StationHome').then((module) => ({
+		default: module.StationHome,
+	})),
+);
+const SuperAdminPage = lazy(() =>
+	import('./features/superadmin/SuperAdminPage').then((module) => ({
+		default: module.SuperAdminPage,
+	})),
+);
+const SupervisorDashboard = lazy(() =>
+	import('./pages/SupervisorDashboard').then((module) => ({
+		default: module.SupervisorDashboard,
+	})),
+);
+const SystemHealth = lazy(() =>
+	import('./pages/SystemHealth').then((module) => ({ default: module.SystemHealth })),
 );
 const TagManagementPage = lazy(() =>
 	import('./features/tags/TagManagementPage').then((module) => ({
 		default: module.TagManagementPage,
 	})),
 );
-const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
+const TemplatesPage = lazy(() =>
+	import('./features/templates/TemplatesPage').then((module) => ({
+		default: module.TemplatesPage,
+	})),
+);
+const TenantsPage = lazy(() =>
+	import('./features/tenants/components/TenantsPage').then((module) => ({
+		default: module.TenantsPage,
+	})),
+);
+const UnauthorizedPage = lazy(() =>
+	import('./pages/UnauthorizedPage').then((module) => ({
+		default: module.UnauthorizedPage,
+	})),
+);
+const UserHomePage = lazy(() =>
+	import('./features/home/components/UserHomePage').then((module) => ({
+		default: module.UserHomePage,
+	})),
+);
+const UserManagement = lazy(() =>
+	import('./features/admin/UserManagement').then((module) => ({
+		default: module.UserManagement,
+	})),
+);
+const UserProfile = lazy(() =>
+	import('./pages/UserProfile').then((module) => ({ default: module.UserProfile })),
+);
+const WarehouseDashboard = lazy(() =>
+	import('./features/scanning-ops/pages/WarehouseDashboard').then((module) => ({
+		default: module.WarehouseDashboard,
+	})),
+);
+const Webhooks = lazy(() =>
+	import('./pages/Webhooks').then((module) => ({ default: module.Webhooks })),
+);
+const Workflows = lazy(() =>
+	import('./pages/Workflows').then((module) => ({ default: module.Workflows })),
+);
 
 const queryClient = new QueryClient({
 	defaultOptions: {
@@ -124,11 +283,7 @@ const queryClient = new QueryClient({
 });
 
 function RouteFallback() {
-	return (
-		<div className="flex min-h-48 items-center justify-center">
-			<div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-700 border-t-brass-500" />
-		</div>
-	);
+	return <div className="h-screen w-full animate-pulse bg-gray-100" />;
 }
 
 function AppInner() {

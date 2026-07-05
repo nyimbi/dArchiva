@@ -27,7 +27,7 @@ import {
   Search,
   X,
 } from 'lucide-react';
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Dialog,
@@ -154,6 +154,7 @@ export function AuditLog({ recordId, userId, hideUserFilter = false }: AuditLogP
       filterOperation:     operationFilter !== 'all' ? operationFilter : undefined,
       filterUsername:      userSearch && !isUuid(userSearch) ? userSearch : undefined,
       filterUserId:        userSearch &&  isUuid(userSearch) ? userSearch : undefined,
+      filterRecordId:      documentSearch || undefined,
       filterTimestampFrom: dateFrom ? `${dateFrom}T00:00:00Z` : undefined,
       filterTimestampTo:   dateTo   ? `${dateTo}T23:59:59Z`   : undefined,
     };

@@ -8,7 +8,10 @@ export type TriggerEvent =
 	| 'document.classified'
 	| 'document.uploaded'
 	| 'document.expiring'
-	| 'scan.batch_complete';
+	| 'scan.batch_complete'
+	| 'email_received'
+	| 'webhook_received'
+	| 'schedule';
 
 export type ConditionOperator =
 	| 'equals'

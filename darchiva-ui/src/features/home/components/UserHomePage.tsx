@@ -111,7 +111,7 @@ export function UserHomePage() {
 				</header>
 
 				{/* ─── Stats Row ─── */}
-				<div className="grid grid-cols-4 gap-5 mb-10">
+				<div className="grid grid-cols-2 sm:grid-cols-4 gap-5 mb-10">
 					{[
 						{ value: stats?.pending_tasks || 0, label: 'Pending Tasks', icon: Inbox, trend: stats?.pending_tasks && stats.pending_tasks > 5 ? 'warning' : undefined },
 						{ value: stats?.documents_this_week || 0, label: 'Documents This Week', icon: FileText },
@@ -139,7 +139,7 @@ export function UserHomePage() {
 				{/* ─── Main Grid ─── */}
 				<div className="grid grid-cols-12 gap-6">
 					{/* Left Column */}
-					<div className="col-span-8 space-y-6">
+					<div className="col-span-12 lg:col-span-8 space-y-6">
 						{/* Search */}
 						<div className="home-animate-in home-stagger-3">
 							<SearchBar
@@ -166,7 +166,7 @@ export function UserHomePage() {
 					</div>
 
 					{/* Right Column */}
-					<div className="col-span-4 space-y-6">
+					<div className="col-span-12 lg:col-span-4 space-y-6">
 						{/* Favorites */}
 						<div className="home-animate-in home-stagger-3">
 							<FavoritesPanel favorites={homeData?.favorites || []} />
@@ -951,7 +951,7 @@ function HomePageSkeleton() {
 				</div>
 
 				{/* Stats */}
-				<div className="grid grid-cols-4 gap-5 mb-10">
+				<div className="grid grid-cols-2 sm:grid-cols-4 gap-5 mb-10">
 					{[1, 2, 3, 4].map(i => (
 						<div key={i} className="home-card p-5 h-[88px]">
 							<div className="flex items-center gap-5">
@@ -967,12 +967,12 @@ function HomePageSkeleton() {
 
 				{/* Content */}
 				<div className="grid grid-cols-12 gap-6">
-					<div className="col-span-8 space-y-6">
+					<div className="col-span-12 lg:col-span-8 space-y-6">
 						<div className="h-14 home-skeleton rounded-xl" />
 						<div className="home-card h-80" />
 						<div className="home-card h-64" />
 					</div>
-					<div className="col-span-4 space-y-6">
+					<div className="col-span-12 lg:col-span-4 space-y-6">
 						<div className="home-card h-56" />
 						<div className="home-card h-72" />
 						<div className="home-card h-64" />

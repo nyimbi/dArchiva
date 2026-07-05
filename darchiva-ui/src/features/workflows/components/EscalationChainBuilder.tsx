@@ -12,6 +12,8 @@ import { cn } from '@/lib/utils';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
 	AlertCircle,
+	ArrowDown,
+	ArrowUp,
 	Clock,
 	GripVertical,
 	Layers,
@@ -30,7 +32,7 @@ import { toast } from 'sonner';
 interface EscalationLevel {
 	id: string;
 	level_order: number;
-	target_type: 'user' | 'role' | 'manager';
+	target_type: 'user' | 'group' | 'role' | 'manager';
 	target_id?: string;
 	target_name?: string;
 	wait_hours: number;
@@ -52,6 +54,20 @@ interface EscalationChainBuilderProps {
 
 const inputClassName =
 	'w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500';
+
+const editableTargetTypes = ['user', 'group', 'role'] as const;
+
+type EditableTargetType = (typeof editableTargetTypes)[number];
+
+function createDefaultLevel(levelOrder: number): EscalationLevel {
+	return {
+		id: `new-${Date.now()}-${levelOrder}`,
+		level_order: levelOrder,
+		target_type: 'user',
+		wait_hours: 24,
+		notify_on_escalation: true,
+	};
+}
 
 async function getEscalationChains(): Promise<EscalationChain[]> {
 	const response = await apiClient.get<EscalationChain[]>('/workflows/escalation-chains');
@@ -164,6 +180,8 @@ interface ChainCardProps {
 }
 
 function ChainCard({ chain, isExpanded, onToggle }: ChainCardProps) {
+	const levels = chain.levels ?? [];
+
 	return (
 		<Card className="border-slate-800 bg-slate-950/70 shadow-none">
 			<button
@@ -173,7 +191,7 @@ function ChainCard({ chain, isExpanded, onToggle }: ChainCardProps) {
 			>
 				<div className="min-w-0 space-y-1">
 					<span className="block truncate font-medium text-slate-100">{chain.name}</span>
-					<span className="text-sm text-slate-400">{chain.levels.length} levels</span>
+					<span className="text-sm text-slate-400">{levels.length} levels</span>
 				</div>
 				<Badge
 					variant="outline"
@@ -191,7 +209,7 @@ function ChainCard({ chain, isExpanded, onToggle }: ChainCardProps) {
 			{isExpanded && (
 				<div className="space-y-3 border-t border-slate-800 p-4">
 					<div className="space-y-2">
-						{chain.levels.map((level, index) => (
+						{levels.map((level, index) => (
 							<LevelCard key={level.id} level={level} index={index} />
 						))}
 					</div>
@@ -218,6 +236,7 @@ interface LevelCardProps {
 function LevelCard({ level, index }: LevelCardProps) {
 	const targetIcons: Record<EscalationLevel['target_type'], ReactNode> = {
 		user: <User className="h-4 w-4" />,
+		group: <Users className="h-4 w-4" />,
 		role: <Layers className="h-4 w-4" />,
 		manager: <SquareUser className="h-4 w-4" />,
 	};
@@ -286,17 +305,61 @@ function ChainModal({ chain, onClose, onSave, isSaving }: ChainModalProps) {
 	const [name, setName] = useState(chain?.name || '');
 	const [description, setDescription] = useState(chain?.description || '');
 	const [isActive, setIsActive] = useState(chain?.is_active ?? true);
+	const [levels, setLevels] = useState<EscalationLevel[]>(
+		chain?.levels?.map((level, index) => ({
+			...level,
+			level_order: index,
+		})) ?? [],
+	);
+
+	const handleAddLevel = () => {
+		setLevels(prev => [...prev, createDefaultLevel(prev.length)]);
+	};
+
+	const handleRemoveLevel = (index: number) => {
+		setLevels(prev => prev.filter((_, levelIndex) => levelIndex !== index));
+	};
+
+	const handleMoveLevel = (index: number, direction: -1 | 1) => {
+		setLevels(prev => {
+			const nextIndex = index + direction;
+			if (nextIndex < 0 || nextIndex >= prev.length) {
+				return prev;
+			}
+			const next = [...prev];
+			[next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+			return next;
+		});
+	};
+
+	const handleLevelChange = <K extends keyof EscalationLevel>(
+		index: number,
+		key: K,
+		value: EscalationLevel[K],
+	) => {
+		setLevels(prev => prev.map((level, levelIndex) => (
+			levelIndex === index ? { ...level, [key]: value } : level
+		)));
+	};
 
 	const handleSubmit = () => {
 		if (name) {
-			onSave({ name, description, is_active: isActive, levels: chain?.levels || [] });
+			onSave({
+				name,
+				description,
+				is_active: isActive,
+				levels: levels.map((level, index) => ({
+					...level,
+					level_order: index,
+				})),
+			});
 		}
 	};
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4" onClick={onClose}>
 			<Card
-				className="w-full max-w-lg border-slate-700 bg-slate-900 text-slate-200 shadow-xl"
+				className="w-full max-w-2xl border-slate-700 bg-slate-900 text-slate-200 shadow-xl"
 				onClick={event => event.stopPropagation()}
 			>
 				<CardHeader className="flex-row items-center justify-between space-y-0 border-b border-slate-800 p-4">
@@ -312,7 +375,7 @@ function ChainModal({ chain, onClose, onSave, isSaving }: ChainModalProps) {
 					</Button>
 				</CardHeader>
 
-				<CardContent className="space-y-4 p-4">
+				<CardContent className="max-h-[75vh] space-y-4 overflow-y-auto p-4">
 					<div className="space-y-2">
 						<label className="text-sm font-medium text-slate-300">Chain Name</label>
 						<input
@@ -342,6 +405,105 @@ function ChainModal({ chain, onClose, onSave, isSaving }: ChainModalProps) {
 							onCheckedChange={setIsActive}
 							className="data-[state=checked]:bg-cyan-500 data-[state=unchecked]:bg-slate-700"
 						/>
+					</div>
+
+					<div className="space-y-3">
+						<div className="flex items-center justify-between gap-3">
+							<label className="text-sm font-medium text-slate-300">Escalation Levels</label>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								className="border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800 hover:text-slate-100"
+								onClick={handleAddLevel}
+							>
+								<Plus className="h-4 w-4" />
+								Add Level
+							</Button>
+						</div>
+
+						{levels.length === 0 ? (
+							<div className="rounded-md border border-dashed border-slate-700 px-3 py-6 text-center text-sm text-slate-500">
+								No levels configured
+							</div>
+						) : (
+							<div className="space-y-2">
+								{levels.map((level, index) => (
+									<div
+										key={level.id}
+										className="grid gap-3 rounded-md border border-slate-800 bg-slate-950/70 p-3 md:grid-cols-[auto_minmax(0,1fr)_120px_auto_auto]"
+									>
+										<span className="flex h-8 w-8 items-center justify-center rounded-full bg-cyan-500/10 text-sm font-semibold text-cyan-300">
+											{index + 1}
+										</span>
+										<div className="space-y-1">
+											<label className="text-xs font-medium text-slate-500">Target Type</label>
+											<select
+												value={editableTargetTypes.includes(level.target_type as EditableTargetType) ? level.target_type : 'user'}
+												onChange={event => handleLevelChange(index, 'target_type', event.target.value as EditableTargetType)}
+												className={inputClassName}
+											>
+												{editableTargetTypes.map(targetType => (
+													<option key={targetType} value={targetType}>
+														{targetType.charAt(0).toUpperCase() + targetType.slice(1)}
+													</option>
+												))}
+											</select>
+										</div>
+										<div className="space-y-1">
+											<label className="text-xs font-medium text-slate-500">Wait Hours</label>
+											<input
+												type="number"
+												min="0"
+												value={level.wait_hours}
+												onChange={event => handleLevelChange(index, 'wait_hours', parseInt(event.target.value, 10) || 0)}
+												className={inputClassName}
+											/>
+										</div>
+										<label className="flex items-center gap-2 self-end rounded-md border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-300">
+											<input
+												type="checkbox"
+												checked={level.notify_on_escalation}
+												onChange={event => handleLevelChange(index, 'notify_on_escalation', event.target.checked)}
+												className="h-4 w-4 rounded border-slate-700 bg-slate-950 text-cyan-500"
+											/>
+											Notify
+										</label>
+										<div className="flex items-end gap-1">
+											<Button
+												type="button"
+												variant="ghost"
+												size="icon"
+												className="h-8 w-8 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+												onClick={() => handleMoveLevel(index, -1)}
+												disabled={index === 0}
+											>
+												<ArrowUp className="h-4 w-4" />
+											</Button>
+											<Button
+												type="button"
+												variant="ghost"
+												size="icon"
+												className="h-8 w-8 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+												onClick={() => handleMoveLevel(index, 1)}
+												disabled={index === levels.length - 1}
+											>
+												<ArrowDown className="h-4 w-4" />
+											</Button>
+											<Button
+												type="button"
+												variant="ghost"
+												size="icon"
+												className="h-8 w-8 text-slate-400 hover:bg-red-500/10 hover:text-red-300"
+												onClick={() => handleRemoveLevel(index)}
+											>
+												<Trash2 className="h-4 w-4" />
+											</Button>
+										</div>
+									</div>
+								))}
+							</div>
+						)}
 					</div>
 				</CardContent>
 

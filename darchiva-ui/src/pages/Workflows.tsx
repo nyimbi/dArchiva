@@ -10,6 +10,7 @@ import {
   usePendingTasks,
   useProcessWorkflowAction,
   useRunWorkflow,
+  useUpdateWorkflow,
   useWorkflows,
 } from '@/features/workflows';
 import {
@@ -835,6 +836,7 @@ export function Workflows() {
   const { data: pendingTasksData, isLoading: tasksLoading, isError: tasksError, refetch: refetchTasks } = usePendingTasks();
 
   const createWorkflowMutation   = useCreateWorkflow();
+  const updateWorkflowMutation   = useUpdateWorkflow();
   const activateWorkflowMutation = useActivateWorkflow();
   const deactivateWorkflowMutation = useDeactivateWorkflow();
   const deleteWorkflowMutation   = useDeleteWorkflow();
@@ -850,15 +852,29 @@ export function Workflows() {
 
   const handleSaveWorkflow = async (nodes: WorkflowNode[], edges: WorkflowEdge[]) => {
     try {
-      await createWorkflowMutation.mutateAsync({
-        name: 'New Workflow',
-        description: 'Created from visual designer',
-        nodes,
-        edges,
-      });
+      if (selectedWorkflow?.id) {
+        const updatedWorkflow = await updateWorkflowMutation.mutateAsync({
+          id: selectedWorkflow.id,
+          data: {
+            name: selectedWorkflow.name,
+            description: selectedWorkflow.description,
+            nodes,
+            edges,
+            trigger: selectedWorkflow.trigger,
+          },
+        });
+        setSelectedWorkflow(updatedWorkflow);
+      } else {
+        await createWorkflowMutation.mutateAsync({
+          name: 'New Workflow',
+          description: 'Created from visual designer',
+          nodes,
+          edges,
+        });
+      }
       toast.success('Workflow saved successfully');
       setShowDesigner(false);
-      refetchWorkflows();
+      await refetchWorkflows();
     } catch {
       toast.error('Failed to save workflow');
     }

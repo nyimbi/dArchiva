@@ -196,12 +196,38 @@ function ThroughputChart() {
 	);
 }
 
+function LoadingRows({ className = '' }: { className?: string }) {
+	return (
+		<div className={`space-y-2 ${className}`}>
+			{Array.from({ length: 5 }).map((_, index) => (
+				<div
+					key={index}
+					className="h-10 rounded-lg bg-slate-700/40 animate-pulse"
+				/>
+			))}
+		</div>
+	);
+}
+
+function ErrorBanner({ message }: { message: string }) {
+	return (
+		<div className="flex items-center gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+			<AlertCircle className="h-4 w-4 shrink-0" />
+			{message}
+		</div>
+	);
+}
+
 function AlertPanel({
 	slaAlerts,
 	operators,
+	isLoading,
+	isError,
 }: {
 	slaAlerts: SLAAlert[];
 	operators: OperatorLiveStatus[];
+	isLoading: boolean;
+	isError: boolean;
 }) {
 	const active = slaAlerts.filter((a) => !a.acknowledged_at);
 
@@ -230,7 +256,11 @@ function AlertPanel({
 				)}
 			</div>
 
-			{total === 0 ? (
+			{isLoading ? (
+				<LoadingRows />
+			) : isError ? (
+				<ErrorBanner message="Failed to load SLA alerts." />
+			) : total === 0 ? (
 				<div className="flex items-center justify-center h-28 text-xs text-slate-500">
 					No active alerts
 				</div>
@@ -727,12 +757,33 @@ export function SupervisorDashboard() {
 	const [selectedDays, setSelectedDays] = useState<number>(30);
 	const [msgTarget, setMsgTarget] = useState<OperatorLiveStatus | null>(null);
 
-	const { data: liveOps, dataUpdatedAt: liveUpdated } = useLiveOps();
-	const { data: kpis } = useOperatorKpis(selectedDays);
-	const { data: teamSummary } = useTeamSummary(selectedProjectId || undefined);
-	const { data: projects } = useProjects({});
+	const {
+		data: liveOps,
+		dataUpdatedAt: liveUpdated,
+		isLoading: liveOpsLoading,
+		isError: liveOpsError,
+	} = useLiveOps();
+	const {
+		data: kpis,
+		isLoading: kpisLoading,
+		isError: kpisError,
+	} = useOperatorKpis(selectedDays);
+	const {
+		data: teamSummary,
+		isLoading: teamSummaryLoading,
+		isError: teamSummaryError,
+	} = useTeamSummary(selectedProjectId || undefined);
+	const {
+		data: projects,
+		isLoading: projectsLoading,
+		isError: projectsError,
+	} = useProjects({});
 	const { mutate: exportKpis, isPending: isExporting } = useExportKpis();
-	const { data: slaAlerts } = useSLAAlerts(selectedProjectId);
+	const {
+		data: slaAlerts,
+		isLoading: slaAlertsLoading,
+		isError: slaAlertsError,
+	} = useSLAAlerts(selectedProjectId || '.');
 
 	// operator_id → KPI for quality score lookup in operator cards
 	const kpiMap = useMemo(
@@ -785,6 +836,7 @@ export function SupervisorDashboard() {
 						<select
 							value={selectedProjectId}
 							onChange={(e) => setSelectedProjectId(e.target.value)}
+							disabled={projectsLoading}
 							className="appearance-none bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg px-3 py-2 pr-8 focus:outline-none focus:ring-1 focus:ring-brass-500 cursor-pointer"
 						>
 							<option value="">All projects</option>
@@ -805,36 +857,53 @@ export function SupervisorDashboard() {
 				</div>
 			</div>
 
+			{projectsError && (
+				<ErrorBanner message="Failed to load projects." />
+			)}
+
 			{/* Stat bar: Active Operators | Scans Today | Error Rate | Avg Quality */}
-			<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-				<StatCard
-					icon={Users}
-					label="Active Operators"
-					value={liveOps?.operators.filter((o) => o.status !== 'offline').length ?? '—'}
-					sub={`${liveOps?.operators.length ?? 0} total`}
-				/>
-				<StatCard
-					icon={FileStack}
-					label="Scans Today"
-					value={liveOps?.pages_scanned_today ?? '—'}
-				/>
-				<StatCard
-					icon={AlertTriangle}
-					label="Error Rate"
-					value={teamSummary ? fmtPct(teamSummary.team_rescan_rate) : '—'}
-					sub="rescan rate"
-				/>
-				<StatCard
-					icon={Trophy}
-					label="Avg Quality"
-					value={
-						teamSummary
-							? `${(teamSummary.team_first_pass_yield * 100).toFixed(0)}%`
-							: '—'
-					}
-					sub="first pass yield"
-				/>
-			</div>
+			{liveOpsLoading || teamSummaryLoading ? (
+				<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+					{Array.from({ length: 4 }).map((_, index) => (
+						<div
+							key={index}
+							className="glass-card h-24 animate-pulse"
+						/>
+					))}
+				</div>
+			) : liveOpsError || teamSummaryError ? (
+				<ErrorBanner message="Failed to load supervisor summary." />
+			) : (
+				<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+					<StatCard
+						icon={Users}
+						label="Active Operators"
+						value={liveOps?.operators.filter((o) => o.status !== 'offline').length ?? '—'}
+						sub={`${liveOps?.operators.length ?? 0} total`}
+					/>
+					<StatCard
+						icon={FileStack}
+						label="Scans Today"
+						value={liveOps?.pages_scanned_today ?? '—'}
+					/>
+					<StatCard
+						icon={AlertTriangle}
+						label="Error Rate"
+						value={teamSummary ? fmtPct(teamSummary.team_rescan_rate) : '—'}
+						sub="rescan rate"
+					/>
+					<StatCard
+						icon={Trophy}
+						label="Avg Quality"
+						value={
+							teamSummary
+								? `${(teamSummary.team_first_pass_yield * 100).toFixed(0)}%`
+								: '—'
+						}
+						sub="first pass yield"
+					/>
+				</div>
+			)}
 
 			{/* Tab navigation */}
 			<div className="flex gap-1 bg-slate-800/50 p-1 rounded-xl w-fit">
@@ -890,7 +959,13 @@ export function SupervisorDashboard() {
 									</div>
 								</div>
 
-								{!liveOps || liveOps.operators.length === 0 ? (
+								{liveOpsLoading ? (
+									<div className="glass-card p-4">
+										<LoadingRows />
+									</div>
+								) : liveOpsError ? (
+									<ErrorBanner message="Failed to load operator status." />
+								) : !liveOps || liveOps.operators.length === 0 ? (
 									<div className="glass-card flex items-center justify-center h-48 text-slate-500">
 										No operator data available.
 									</div>
@@ -916,6 +991,8 @@ export function SupervisorDashboard() {
 							<AlertPanel
 								slaAlerts={slaAlerts ?? []}
 								operators={liveOps?.operators ?? []}
+								isLoading={slaAlertsLoading}
+								isError={slaAlertsError}
 							/>
 						</div>
 					</div>
@@ -954,7 +1031,17 @@ export function SupervisorDashboard() {
 								<span className="text-xs text-slate-500">Refreshes every 30s</span>
 							</div>
 						</div>
-						<KpiTable kpis={kpis ?? []} />
+						{kpisLoading ? (
+							<div className="p-4">
+								<LoadingRows />
+							</div>
+						) : kpisError ? (
+							<div className="p-4">
+								<ErrorBanner message="Failed to load operator KPIs." />
+							</div>
+						) : (
+							<KpiTable kpis={kpis ?? []} />
+						)}
 					</div>
 				)}
 
@@ -964,7 +1051,11 @@ export function SupervisorDashboard() {
 							<h2 className="text-sm font-semibold text-slate-300">Batch Pipeline</h2>
 							<span className="text-xs text-slate-500">Refreshes every 15s</span>
 						</div>
-						{selectedProjectId ? (
+						{slaAlertsLoading ? (
+							<LoadingRows />
+						) : slaAlertsError ? (
+							<ErrorBanner message="Failed to load SLA alerts." />
+						) : selectedProjectId ? (
 							<BatchPipelineTab
 								projectId={selectedProjectId}
 								slaAlerts={slaAlerts ?? []}

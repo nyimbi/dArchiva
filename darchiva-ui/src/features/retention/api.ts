@@ -45,6 +45,29 @@ export interface UpdateRetentionPolicyInput {
 	is_active?: boolean;
 }
 
+export interface RetentionDryRunDocument {
+	id?: string;
+	title?: string;
+	name?: string;
+	documentTitle?: string;
+	path?: string;
+	fullPath?: string;
+	folderPath?: string;
+	[key: string]: unknown;
+}
+
+export interface RetentionDryRunResult {
+	policyId?: string;
+	count?: number;
+	affectedCount?: number;
+	docsProcessed?: number;
+	documents?: RetentionDryRunDocument[];
+	affectedDocuments?: RetentionDryRunDocument[];
+	affectedDocs?: RetentionDryRunDocument[];
+	dryRun?: boolean;
+	[key: string]: unknown;
+}
+
 // ---------------------------------------------------------------------------
 // Query keys
 // ---------------------------------------------------------------------------
@@ -110,5 +133,16 @@ export function useRunPolicy() {
 			return data;
 		},
 		onSuccess: () => qc.invalidateQueries({ queryKey: POLICIES_KEY }),
+	});
+}
+
+export function useDryRunRetentionPolicy() {
+	return useMutation({
+		mutationFn: async (id: string) => {
+			const { data } = await apiClient.post<RetentionDryRunResult>(
+				`/retention-policies/${id}/dry-run`,
+			);
+			return data;
+		},
 	});
 }

@@ -5,6 +5,7 @@ import {
 	CheckCircle2,
 	Clock,
 	Edit2,
+	Eye,
 	Loader2,
 	Play,
 	Plus,
@@ -19,8 +20,11 @@ import {
 	useUpdatePolicy,
 	useDeletePolicy,
 	useRunPolicy,
+	useDryRunRetentionPolicy,
 	type RetentionPolicy,
 	type CreateRetentionPolicyInput,
+	type RetentionDryRunDocument,
+	type RetentionDryRunResult,
 } from '@/features/retention/api';
 
 // ---------------------------------------------------------------------------
@@ -52,6 +56,37 @@ function formatDate(iso: string | null): string {
 	});
 }
 
+function actionVerb(type: RetentionPolicy['policy_type']): string {
+	switch (type) {
+		case 'archive':
+			return 'archived';
+		case 'delete':
+			return 'deleted';
+		case 'move':
+			return 'moved';
+		default:
+			return 'processed';
+	}
+}
+
+function dryRunCount(result: RetentionDryRunResult | null): number {
+	if (!result) return 0;
+	return result.count ?? result.affectedCount ?? result.docsProcessed ?? dryRunDocuments(result).length;
+}
+
+function dryRunDocuments(result: RetentionDryRunResult | null): RetentionDryRunDocument[] {
+	if (!result) return [];
+	return result.affectedDocuments ?? result.affectedDocs ?? result.documents ?? [];
+}
+
+function dryRunDocumentTitle(doc: RetentionDryRunDocument): string {
+	return doc.title ?? doc.documentTitle ?? doc.name ?? doc.id ?? 'Untitled document';
+}
+
+function dryRunDocumentPath(doc: RetentionDryRunDocument): string {
+	return doc.path ?? doc.fullPath ?? doc.folderPath ?? 'No path available';
+}
+
 function PolicyTypeBadge({ type }: { type: string }) {
 	return (
 		<span
@@ -78,6 +113,105 @@ function StatusBadge({ active }: { active: boolean }) {
 			{active ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
 			{active ? 'Active' : 'Inactive'}
 		</span>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Preview dialog
+// ---------------------------------------------------------------------------
+
+function PreviewDialog({
+	policy,
+	result,
+	isLoading,
+	error,
+	isRunning,
+	onRunNow,
+	onClose,
+}: {
+	policy: RetentionPolicy;
+	result: RetentionDryRunResult | null;
+	isLoading: boolean;
+	error: string | null;
+	isRunning: boolean;
+	onRunNow: () => void;
+	onClose: () => void;
+}) {
+	const count = dryRunCount(result);
+	const documents = dryRunDocuments(result).slice(0, 10);
+
+	return (
+		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+			<div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-lg">
+				<div className="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
+					<h2 className="text-base font-semibold text-white">Preview: {policy.name}</h2>
+					<button
+						onClick={onClose}
+						className="text-slate-400 hover:text-white transition-colors"
+					>
+						<XCircle className="w-5 h-5" />
+					</button>
+				</div>
+
+				<div className="px-6 py-5 space-y-4">
+					{isLoading ? (
+						<div className="flex items-center justify-center py-10 text-slate-400 gap-2">
+							<Loader2 className="w-5 h-5 animate-spin" />
+							<span>Loading preview…</span>
+						</div>
+					) : error ? (
+						<div className="flex items-center gap-2 text-red-400 text-sm">
+							<AlertCircle className="w-4 h-4 flex-shrink-0" />
+							{error}
+						</div>
+					) : count === 0 ? (
+						<p className="text-sm text-slate-300">No documents affected</p>
+					) : (
+						<>
+							<p className="text-sm text-slate-300">
+								<span className="font-semibold text-white">{count.toLocaleString()}</span>{' '}
+								document{count === 1 ? '' : 's'} would be {actionVerb(policy.policy_type)}.
+							</p>
+							{documents.length > 0 && (
+								<div className="border border-slate-700 rounded-lg overflow-hidden">
+									<ul className="divide-y divide-slate-800">
+										{documents.map((doc, index) => (
+											<li key={doc.id ?? `${dryRunDocumentTitle(doc)}-${index}`} className="px-3 py-2">
+												<p className="text-sm font-medium text-slate-100 truncate">
+													{dryRunDocumentTitle(doc)}
+												</p>
+												<p className="text-xs text-slate-500 truncate">
+													{dryRunDocumentPath(doc)}
+												</p>
+											</li>
+										))}
+									</ul>
+								</div>
+							)}
+						</>
+					)}
+
+					<div className="flex justify-end gap-3 pt-2">
+						<button
+							type="button"
+							onClick={onClose}
+							className="px-4 py-2 text-sm text-slate-300 hover:text-white transition-colors"
+						>
+							Close
+						</button>
+						<button
+							type="button"
+							onClick={onRunNow}
+							disabled={isLoading || isRunning}
+							className="flex items-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+						>
+							{isRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+							Run Now
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
 	);
 }
 
@@ -464,10 +598,14 @@ export function RetentionPolicies() {
 	const { data: policies, isLoading, isError } = useRetentionPolicies();
 	const deletePolicy = useDeletePolicy();
 	const runPolicy = useRunPolicy();
+	const dryRunPolicy = useDryRunRetentionPolicy();
 
 	const [showDialog, setShowDialog] = useState(false);
 	const [editingPolicy, setEditingPolicy] = useState<RetentionPolicy | null>(null);
 	const [deletingPolicy, setDeletingPolicy] = useState<RetentionPolicy | null>(null);
+	const [previewPolicy, setPreviewPolicy] = useState<RetentionPolicy | null>(null);
+	const [previewResult, setPreviewResult] = useState<RetentionDryRunResult | null>(null);
+	const [previewError, setPreviewError] = useState<string | null>(null);
 	const [runningId, setRunningId] = useState<string | null>(null);
 	const [runFeedback, setRunFeedback] = useState<Record<string, string>>({});
 
@@ -503,6 +641,24 @@ export function RetentionPolicies() {
 		} finally {
 			setRunningId(null);
 		}
+	}
+
+	async function handlePreview(p: RetentionPolicy) {
+		setPreviewPolicy(p);
+		setPreviewResult(null);
+		setPreviewError(null);
+		try {
+			const result = await dryRunPolicy.mutateAsync(p.id);
+			setPreviewResult(result);
+		} catch (err: unknown) {
+			const msg = err instanceof Error ? err.message : 'Unknown error';
+			setPreviewError(msg);
+		}
+	}
+
+	async function handlePreviewRunNow(p: RetentionPolicy) {
+		await handleRunNow(p);
+		setPreviewPolicy(null);
 	}
 
 	return (
@@ -650,6 +806,18 @@ export function RetentionPolicies() {
 												</span>
 											)}
 											<button
+												title="Preview"
+												onClick={() => handlePreview(p)}
+												disabled={dryRunPolicy.isPending && previewPolicy?.id === p.id}
+												className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-40"
+											>
+												{dryRunPolicy.isPending && previewPolicy?.id === p.id ? (
+													<Loader2 className="w-4 h-4 animate-spin" />
+												) : (
+													<Eye className="w-4 h-4" />
+												)}
+											</button>
+											<button
 												title="Run now"
 												onClick={() => handleRunNow(p)}
 												disabled={runningId === p.id}
@@ -694,6 +862,18 @@ export function RetentionPolicies() {
 					policy={deletingPolicy}
 					onConfirm={() => handleDelete(deletingPolicy)}
 					onCancel={() => setDeletingPolicy(null)}
+				/>
+			)}
+
+			{previewPolicy && (
+				<PreviewDialog
+					policy={previewPolicy}
+					result={previewResult}
+					isLoading={dryRunPolicy.isPending}
+					error={previewError}
+					isRunning={runningId === previewPolicy.id}
+					onRunNow={() => handlePreviewRunNow(previewPolicy)}
+					onClose={() => setPreviewPolicy(null)}
 				/>
 			)}
 		</div>
