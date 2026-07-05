@@ -3,6 +3,7 @@
  * Billing cost dashboard — stats, cost breakdown chart, usage table, billing history, plan card.
  */
 import {
+	AlertCircle,
 	ArrowUpDown,
 	Bell,
 	Download,
@@ -99,6 +100,7 @@ export function CostDashboard() {
 	const {
 		data: dashboard,
 		isLoading,
+		isError,
 		refetch,
 	} = useBillingDashboard();
 	const { data: invoices } = useInvoices();
@@ -124,6 +126,14 @@ export function CostDashboard() {
 					Refresh
 				</Button>
 			</div>
+
+			{/* Error */}
+			{isError && !isLoading && (
+				<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+					<AlertCircle className="h-4 w-4 shrink-0" />
+					Failed to load billing data. Click Refresh to try again.
+				</div>
+			)}
 
 			{/* Stats row */}
 			{isLoading ? (
