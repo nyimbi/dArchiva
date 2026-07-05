@@ -11,6 +11,7 @@ import {
 import { useInfiniteDocuments } from '@/features/documents/api/infiniteDocuments';
 import { VirtualDocumentList } from '@/features/documents/components/VirtualDocumentList';
 import { ThumbnailGrid } from '@/features/documents/components/ThumbnailGrid';
+import { useAddFavorite, useFavorites, useRemoveFavorite } from '@/features/home/api/hooks';
 import { ShareDialog } from '@/features/shared-nodes/components/ShareDialog';
 import { useStore } from '@/hooks/useStore';
 import { cn, formatBytes, formatRelativeTime } from '@/lib/utils';
@@ -40,6 +41,7 @@ import {
   Share2,
   SortAsc,
   Square,
+  Star,
   Table,
   Trash2,
   Upload,
@@ -361,14 +363,19 @@ function DocumentCard({
   onShare,
   onOpen,
   selectionMode,
+  isFavorited,
+  toggleFavorite,
 }: {
   doc: APIDocument;
   onShare: (doc: APIDocument) => void;
   onOpen: (doc: APIDocument) => void;
   selectionMode: boolean;
+  isFavorited: (docId: string) => unknown;
+  toggleFavorite: (e: React.MouseEvent, doc: { id: string; title: string }) => void;
 }) {
   const { selectedNodeIds, toggleNodeSelection } = useStore();
   const isSelected = selectedNodeIds.has(doc.id);
+  const favorited = isFavorited(doc.id);
   const FileIcon = doc.title.toLowerCase().includes('image') ? Image
     : doc.title.toLowerCase().match(/\.xlsx?$/) ? Table
     : FileText;
@@ -435,6 +442,16 @@ function DocumentCard({
       {!selectionMode && (
         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
           <button
+            onClick={(e) => toggleFavorite(e, { id: doc.id, title: doc.title })}
+            aria-label={favorited ? 'Remove from favorites' : 'Add to favorites'}
+            className={cn(
+              'p-1 rounded transition-colors opacity-0 group-hover:opacity-100',
+              favorited ? 'opacity-100 text-amber-400 hover:text-amber-300' : 'text-slate-600 hover:text-slate-400'
+            )}
+          >
+            <Star className={cn('w-3.5 h-3.5', favorited ? 'fill-current' : '')} />
+          </button>
+          <button
             className="p-1.5 rounded-lg bg-slate-900/90 text-slate-400 hover:text-brass-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500"
             onClick={(e) => { e.stopPropagation(); onShare(doc); }}
             aria-label={`Share ${doc.title}`}
@@ -460,13 +477,18 @@ function DocumentRow({
   doc,
   onShare,
   onOpen,
+  isFavorited,
+  toggleFavorite,
 }: {
   doc: APIDocument;
   onShare: (doc: APIDocument) => void;
   onOpen: (doc: APIDocument) => void;
+  isFavorited: (docId: string) => unknown;
+  toggleFavorite: (e: React.MouseEvent, doc: { id: string; title: string }) => void;
 }) {
   const { selectedNodeIds, toggleNodeSelection } = useStore();
   const isSelected = selectedNodeIds.has(doc.id);
+  const favorited = isFavorited(doc.id);
   const FileIcon = doc.title.toLowerCase().includes('image') ? Image
     : doc.title.toLowerCase().match(/\.xlsx?$/) ? Table
     : FileText;
@@ -474,7 +496,7 @@ function DocumentRow({
 
   return (
     <tr
-      className={cn('cursor-pointer transition-colors', isSelected && 'bg-brass-500/10')}
+      className={cn('group cursor-pointer transition-colors', isSelected && 'bg-brass-500/10')}
       onClick={() => toggleNodeSelection(doc.id)}
       onDoubleClick={() => onOpen(doc)}
     >
@@ -523,6 +545,16 @@ function DocumentRow({
       <td>
         <div className="flex items-center gap-1">
           <button
+            onClick={(e) => toggleFavorite(e, { id: doc.id, title: doc.title })}
+            aria-label={favorited ? 'Remove from favorites' : 'Add to favorites'}
+            className={cn(
+              'p-1 rounded transition-colors opacity-0 group-hover:opacity-100',
+              favorited ? 'opacity-100 text-amber-400 hover:text-amber-300' : 'text-slate-600 hover:text-slate-400'
+            )}
+          >
+            <Star className={cn('w-3.5 h-3.5', favorited ? 'fill-current' : '')} />
+          </button>
+          <button
             className="p-1.5 text-slate-400 hover:text-slate-300 hover:bg-slate-800 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500"
             onClick={(e) => { e.stopPropagation(); onShare(doc); }}
             aria-label={`Share ${doc.title}`}
@@ -547,6 +579,9 @@ function DocumentRow({
 export function Documents() {
   const [viewMode, setViewMode] = useState<ViewMode>(getStoredViewMode);
   const [selectionMode, setSelectionMode] = useState(false);
+  const { data: favorites = [] } = useFavorites();
+  const addFavorite = useAddFavorite();
+  const removeFavorite = useRemoveFavorite();
 
   const { selectedNodeIds, clearNodeSelection, selectNodes, toggleNodeSelection, currentFolderId, setCurrentFolderId, openModal } = useStore();
   const navigate = useNavigate();
@@ -576,6 +611,17 @@ export function Documents() {
 
   const documents = infiniteDocs as APIDocument[];
   const [sharingNode, setSharingNode] = useState<APIDocument | null>(null);
+
+  const isFavorited = (docId: string) => favorites.find(f => f.item_id === docId && f.item_type === 'document');
+  const toggleFavorite = (e: React.MouseEvent, doc: { id: string; title: string }) => {
+    e.stopPropagation();
+    const fav = isFavorited(doc.id);
+    if (fav) {
+      removeFavorite.mutate(fav.id);
+    } else {
+      addFavorite.mutate({ item_type: 'document', item_id: doc.id, title: doc.title });
+    }
+  };
 
   // Folder tree UI state
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
@@ -849,6 +895,8 @@ export function Documents() {
               selectedIds={selectedNodeIds}
               onToggleSelect={toggleNodeSelection}
               isSelectMode={selectionMode}
+              isFavorited={isFavorited}
+              toggleFavorite={toggleFavorite}
             />
           )}
         </div>

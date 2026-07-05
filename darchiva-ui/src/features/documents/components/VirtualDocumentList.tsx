@@ -1,8 +1,9 @@
 // (c) Copyright Datacraft, 2026
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { cn, formatBytes, formatRelativeTime } from '@/lib/utils';
-import { Check, ChevronUp, FileText, Loader2 } from 'lucide-react';
+import { Check, ChevronUp, FileText, Loader2, Star } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { FavoriteItem } from '@/features/home/types';
 import type { DocumentListItem } from '../api/infiniteDocuments';
 
 // ---------------------------------------------------------------------------
@@ -18,6 +19,8 @@ export interface VirtualDocumentListProps {
 	selectedIds?: Set<string>;
 	onToggleSelect?: (id: string) => void;
 	isSelectMode?: boolean;
+	isFavorited?: (docId: string) => FavoriteItem | undefined;
+	toggleFavorite?: (e: React.MouseEvent, doc: { id: string; title: string }) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -70,12 +73,18 @@ function VirtualCard({
 	isSelected,
 	onToggleSelect,
 	isSelectMode,
+	isFavorited,
+	toggleFavorite,
 }: {
 	doc: DocumentListItem;
 	isSelected: boolean;
 	onToggleSelect?: (id: string) => void;
 	isSelectMode?: boolean;
+	isFavorited?: (docId: string) => FavoriteItem | undefined;
+	toggleFavorite?: (e: React.MouseEvent, doc: { id: string; title: string }) => void;
 }) {
+	const favorited = isFavorited?.(doc.id);
+
 	return (
 		<div
 			role="button"
@@ -144,6 +153,20 @@ function VirtualCard({
 					)}
 				</div>
 			)}
+			{toggleFavorite && isFavorited && (
+				<div className="absolute top-2 right-2 flex gap-1">
+					<button
+						onClick={(e) => toggleFavorite(e, { id: doc.id, title: doc.title })}
+						aria-label={favorited ? 'Remove from favorites' : 'Add to favorites'}
+						className={cn(
+							'p-1 rounded transition-colors opacity-0 group-hover:opacity-100',
+							favorited ? 'opacity-100 text-amber-400 hover:text-amber-300' : 'text-slate-600 hover:text-slate-400',
+						)}
+					>
+						<Star className={cn('w-3.5 h-3.5', favorited ? 'fill-current' : '')} />
+					</button>
+				</div>
+			)}
 		</div>
 	);
 }
@@ -155,18 +178,23 @@ function VirtualRow({
 	doc,
 	isSelected,
 	onToggleSelect,
+	isFavorited,
+	toggleFavorite,
 }: {
 	doc: DocumentListItem;
 	isSelected: boolean;
 	onToggleSelect?: (id: string) => void;
+	isFavorited?: (docId: string) => FavoriteItem | undefined;
+	toggleFavorite?: (e: React.MouseEvent, doc: { id: string; title: string }) => void;
 }) {
 	const statusLabel =
 		doc.ocr_status === 'completed' ? 'ready' : doc.ocr_status || 'pending';
+	const favorited = isFavorited?.(doc.id);
 
 	return (
 		<div
 			className={cn(
-				'flex items-center gap-4 px-4 py-3 border-b border-slate-700/30 cursor-pointer hover:bg-slate-800/40 transition-colors',
+				'group flex items-center gap-4 px-4 py-3 border-b border-slate-700/30 cursor-pointer hover:bg-slate-800/40 transition-colors',
 				isSelected && 'bg-brass-500/10',
 			)}
 			onClick={() => onToggleSelect?.(doc.id)}
@@ -226,6 +254,19 @@ function VirtualRow({
 			aria-label={`OCR status: ${statusLabel}`}>
 				{statusLabel}
 			</span>
+
+			{toggleFavorite && isFavorited && (
+				<button
+					onClick={(e) => toggleFavorite(e, { id: doc.id, title: doc.title })}
+					aria-label={favorited ? 'Remove from favorites' : 'Add to favorites'}
+					className={cn(
+						'p-1 rounded transition-colors opacity-0 group-hover:opacity-100',
+						favorited ? 'opacity-100 text-amber-400 hover:text-amber-300' : 'text-slate-600 hover:text-slate-400',
+					)}
+				>
+					<Star className={cn('w-3.5 h-3.5', favorited ? 'fill-current' : '')} />
+				</button>
+			)}
 		</div>
 	);
 }
@@ -243,6 +284,8 @@ export function VirtualDocumentList({
 	selectedIds,
 	onToggleSelect,
 	isSelectMode,
+	isFavorited,
+	toggleFavorite,
 }: VirtualDocumentListProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [showJumpTop, setShowJumpTop] = useState(false);
@@ -375,6 +418,8 @@ export function VirtualDocumentList({
 											isSelected={selectedIds?.has(doc.id) ?? false}
 											onToggleSelect={onToggleSelect}
 											isSelectMode={isSelectMode}
+											isFavorited={isFavorited}
+											toggleFavorite={toggleFavorite}
 										/>
 									))}
 								</div>
@@ -401,6 +446,8 @@ export function VirtualDocumentList({
 									doc={doc}
 									isSelected={selectedIds?.has(doc.id) ?? false}
 									onToggleSelect={onToggleSelect}
+									isFavorited={isFavorited}
+									toggleFavorite={toggleFavorite}
 								/>
 							</div>
 						);
