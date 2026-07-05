@@ -20,6 +20,7 @@ import { PageEditor } from '@/features/documents/components/PageEditor';
 import { FilingSuggestionsPanel } from '@/features/documents/components/FilingSuggestionsPanel';
 import { LegalHoldPanel } from '@/features/legal-hold/LegalHoldPanel';
 import { ActivityPanel } from '@/features/activity/ActivityPanel';
+import { ProvenancePanel } from '@/features/provenance';
 import { ChatPanel } from '@/features/document-chat';
 import { ACLPanel } from '@/features/acl/ACLPanel';
 import { CommentsPanel } from '@/features/comments/CommentsPanel';
@@ -44,7 +45,7 @@ import { cn, formatRelativeTime } from '@/lib/utils';
 import type { ViewerPage } from '@/types';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Activity,ArrowLeft,Bell,Calendar,CheckSquare,Copy,Download,Edit2,FileText,FolderInput,GitCompare,Hash,History,Layers,Lightbulb,Link2,Loader2,Lock,MessageCircle,MessageSquare,MoreHorizontal,PenTool,Printer,QrCode,ScanLine,ScanText,Scissors,Share2,Shield,Stamp,Star,Tag,Tags,Trash2,Users } from 'lucide-react';
+import { Activity,ArrowLeft,Bell,Calendar,CheckSquare,Copy,Download,Edit2,FileText,FolderInput,GitFork,GitCompare,Hash,History,Layers,Lightbulb,Link2,Loader2,Lock,MessageCircle,MessageSquare,MoreHorizontal,PenTool,Printer,QrCode,ScanLine,ScanText,Scissors,Share2,Shield,Stamp,Star,Tag,Tags,Trash2,Users } from 'lucide-react';
 import { useMemo,useState } from 'react';
 import { useNavigate,useParams } from 'react-router-dom';
 
@@ -122,7 +123,7 @@ export function DocumentDetail() {
 	const [showVersionHistory, setShowVersionHistory] = useState(false);
 	const [previewVersion, setPreviewVersion] = useState<DocumentVersion | null>(null);
 	// Right-panel tab: null = closed, or one of the named panels
-	type SidePanel = 'custom-fields' | 'related' | 'similar' | 'entities' | 'expiry' | 'annotations' | 'ocr-quality' | 'ocr-correction' | 'signatures' | 'approvals' | 'duplicates' | 'classification' | 'filing' | 'legal-hold' | 'activity' | 'chat' | 'acl' | 'comments' | 'page-management' | 'serial';
+	type SidePanel = 'custom-fields' | 'related' | 'similar' | 'entities' | 'expiry' | 'annotations' | 'ocr-quality' | 'ocr-correction' | 'signatures' | 'approvals' | 'duplicates' | 'classification' | 'filing' | 'legal-hold' | 'activity' | 'chat' | 'acl' | 'comments' | 'page-management' | 'serial' | 'provenance';
 	const [sidePanel, setSidePanel] = useState<SidePanel | null>(null);
 	const [showPageEditor, setShowPageEditor] = useState(false);
 	const [showSplitDialog, setShowSplitDialog] = useState(false);
@@ -427,6 +428,9 @@ export function DocumentDetail() {
 					<Button type="button" variant="outline" size="sm" onClick={() => togglePanel('activity')} className={panelButtonClass(sidePanel === 'activity')}>
 						<Activity className="w-3.5 h-3.5" /> Activity
 					</Button>
+					<Button type="button" variant="outline" size="sm" onClick={() => togglePanel('provenance')} className={panelButtonClass(sidePanel === 'provenance')}>
+						<GitFork className="w-3.5 h-3.5" /> Provenance
+					</Button>
 					<Button type="button" variant="outline" size="sm" onClick={() => togglePanel('chat')} className={panelButtonClass(sidePanel === 'chat')}>
 						<MessageCircle className="w-3.5 h-3.5" /> Q&amp;A
 					</Button>
@@ -566,6 +570,13 @@ export function DocumentDetail() {
 				{sidePanel === 'activity' && (
 					<div className="w-80 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto">
 						<ActivityPanel documentId={id!} />
+					</div>
+				)}
+
+				{/* Provenance chain-of-custody panel */}
+				{sidePanel === 'provenance' && (
+					<div className="w-80 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto">
+						<ProvenancePanel documentId={id!} />
 					</div>
 				)}
 
