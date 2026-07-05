@@ -43,6 +43,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import {
+	AlertCircle,
 	CheckCircle,
 	Mail,
 	MoreHorizontal,
@@ -232,7 +233,7 @@ export function UserManagement() {
 	const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
 
 	const PAGE_SIZE = 20;
-	const { data, isLoading } = useAdminUsers({
+	const { data, isLoading, isError } = useAdminUsers({
 		page,
 		pageSize: PAGE_SIZE,
 		search: search || undefined,
@@ -293,6 +294,11 @@ export function UserManagement() {
 					{Array.from({ length: 8 }).map((_, i) => (
 						<Skeleton key={i} className="h-16 rounded-lg" />
 					))}
+				</div>
+			) : isError ? (
+				<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+					<AlertCircle className="h-4 w-4 shrink-0" />
+					Failed to load users. Check your connection and try refreshing.
 				</div>
 			) : users.length === 0 ? (
 				<div className="text-center py-16 text-muted-foreground border rounded-lg">

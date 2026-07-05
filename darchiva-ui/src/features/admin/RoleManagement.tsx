@@ -37,6 +37,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
 	Edit,
 	MoreHorizontal,
+	AlertCircle,
 	Search,
 	Shield,
 	ShieldPlus,
@@ -143,7 +144,7 @@ export function RoleManagement() {
 	const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
 
 	const PAGE_SIZE = 20;
-	const { data, isLoading } = useRoles({
+	const { data, isLoading, isError } = useRoles({
 		page,
 		pageSize: PAGE_SIZE,
 		search: search || undefined,
@@ -186,6 +187,11 @@ export function RoleManagement() {
 					{Array.from({ length: 6 }).map((_, i) => (
 						<Skeleton key={i} className="h-16 rounded-lg" />
 					))}
+				</div>
+			) : isError ? (
+				<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+					<AlertCircle className="h-4 w-4 shrink-0" />
+					Failed to load roles. Check your connection and try refreshing.
 				</div>
 			) : roles.length === 0 ? (
 				<div className="text-center py-16 text-muted-foreground border rounded-lg">
