@@ -28,6 +28,8 @@ import {
 	YAxis,
 } from 'recharts';
 import { toast } from 'sonner';
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api-client';
 import {
 	useBatchPipeline,
 	useExportKpis,
@@ -98,6 +100,8 @@ function kpiCell(value: number, kind: 'higher-good' | 'lower-good', warn: number
 	}
 }
 
+type ThroughputHour = { hour: string; pages: number };
+
 // ── sub-components ────────────────────────────────────────────────────────────
 
 function StatCard({
@@ -126,8 +130,19 @@ function StatCard({
 }
 
 function ThroughputChart({ pagesToday }: { pagesToday: number }) {
-	// Approximate hourly distribution across last 8 hours of a workday
-	const data = useMemo(() => {
+	const {
+		data: hourlyThroughput,
+		isError: throughputError,
+		isLoading: throughputLoading,
+	} = useQuery({
+		queryKey: ['scanning-projects', 'throughput', 'hourly'],
+		queryFn: async () => {
+			const { data } = await apiClient.get<ThroughputHour[]>('/scanning-projects/throughput/hourly');
+			return data;
+		},
+	});
+
+	const syntheticData = useMemo(() => {
 		const now = new Date();
 		const weights = [0.06, 0.09, 0.14, 0.17, 0.19, 0.15, 0.12, 0.08];
 		return Array.from({ length: 8 }, (_, i) => {
@@ -139,6 +154,8 @@ function ThroughputChart({ pagesToday }: { pagesToday: number }) {
 			};
 		});
 	}, [pagesToday]);
+
+	const data = throughputLoading || throughputError ? syntheticData : hourlyThroughput ?? [];
 
 	return (
 		<div className="glass-card p-5">
@@ -263,11 +280,19 @@ function SendMessageDialog({
 	async function handleSend() {
 		if (!message.trim()) return;
 		setSending(true);
-		// TODO: POST /scanning-projects/supervisor/messages
-		await new Promise<void>((r) => setTimeout(r, 600));
-		toast.success(`Message sent to ${op.operator_name}`);
-		setSending(false);
-		onClose();
+		try {
+			const operatorId = op.operator_id;
+			const { data } = await apiClient.post<{ message?: string }>(
+				'/scanning-projects/supervisor/messages',
+				{ operatorId, message },
+			);
+			toast.success(data?.message ?? `Message sent to ${op.operator_name}`);
+			onClose();
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : 'Failed to send message');
+		} finally {
+			setSending(false);
+		}
 	}
 
 	return (

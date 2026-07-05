@@ -138,9 +138,7 @@ export function UserProfile() {
 		try {
 			const formData = new FormData();
 			formData.append('avatar', file);
-			const { data } = await apiClient.post<{ avatarUrl: string }>('/users/me/avatar', formData, {
-				headers: { 'Content-Type': 'multipart/form-data' },
-			});
+			const { data } = await apiClient.post<{ avatarUrl: string }>('/users/me/avatar', formData);
 			setProfile((current) => ({ ...current, avatarUrl: data.avatarUrl }));
 			setStatus('Avatar updated.');
 		} catch {
