@@ -1,6 +1,7 @@
 // Settings API Hooks
 import { apiClient } from '@/lib/api-client';
 import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
+import { toast } from "sonner";
 import type {
   EmailSettings,
   IntegrationSettings,
@@ -49,7 +50,11 @@ export function useUpdateTenantSettings() {
 	return useMutation({
 		mutationFn: (data: Partial<TenantSettings>) =>
 			fetchApi<TenantSettings>(`${API_BASE}/tenant`, { method: 'PATCH', body: JSON.stringify(data) }),
-		onSuccess: () => qc.invalidateQueries({ queryKey: ['settings', 'tenant'] }),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ['settings', 'tenant'] });
+			toast.success('Settings saved');
+		},
+		onError: () => toast.error('Failed to save settings'),
 	});
 }
 
@@ -67,7 +72,11 @@ export function useUpdateStorageSettings() {
 	return useMutation({
 		mutationFn: (data: Partial<StorageSettings>) =>
 			fetchApi<StorageSettings>(`${API_BASE}/storage`, { method: 'PATCH', body: JSON.stringify(data) }),
-		onSuccess: () => qc.invalidateQueries({ queryKey: ['settings', 'storage'] }),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ['settings', 'storage'] });
+			toast.success('Settings saved');
+		},
+		onError: () => toast.error('Failed to save settings'),
 	});
 }
 
@@ -85,7 +94,11 @@ export function useUpdateOCRSettings() {
 	return useMutation({
 		mutationFn: (data: Partial<OCRSettings>) =>
 			fetchApi<OCRSettings>(`${API_BASE}/ocr`, { method: 'PATCH', body: JSON.stringify(data) }),
-		onSuccess: () => qc.invalidateQueries({ queryKey: ['settings', 'ocr'] }),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ['settings', 'ocr'] });
+			toast.success('Settings saved');
+		},
+		onError: () => toast.error('Failed to save settings'),
 	});
 }
 
@@ -103,7 +116,11 @@ export function useUpdateSearchSettings() {
 	return useMutation({
 		mutationFn: (data: Partial<SearchSettings>) =>
 			fetchApi<SearchSettings>(`${API_BASE}/search`, { method: 'PATCH', body: JSON.stringify(data) }),
-		onSuccess: () => qc.invalidateQueries({ queryKey: ['settings', 'search'] }),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ['settings', 'search'] });
+			toast.success('Settings saved');
+		},
+		onError: () => toast.error('Failed to save settings'),
 	});
 }
 
@@ -121,7 +138,11 @@ export function useUpdateWorkflowSettings() {
 	return useMutation({
 		mutationFn: (data: Partial<WorkflowSettings>) =>
 			fetchApi<WorkflowSettings>(`${API_BASE}/workflow`, { method: 'PATCH', body: JSON.stringify(data) }),
-		onSuccess: () => qc.invalidateQueries({ queryKey: ['settings', 'workflow'] }),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ['settings', 'workflow'] });
+			toast.success('Settings saved');
+		},
+		onError: () => toast.error('Failed to save settings'),
 	});
 }
 
@@ -139,16 +160,26 @@ export function useUpdateEmailSettings() {
 	return useMutation({
 		mutationFn: (data: Partial<EmailSettings>) =>
 			fetchApi<EmailSettings>(`${API_BASE}/email`, { method: 'PATCH', body: JSON.stringify(data) }),
-		onSuccess: () => qc.invalidateQueries({ queryKey: ['settings', 'email'] }),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ['settings', 'email'] });
+			toast.success('Settings saved');
+		},
+		onError: () => toast.error('Failed to save settings'),
 	});
 }
 
 export function useTestEmailSettings() {
+	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: (recipient: string) =>
 			fetchApi<{ success: boolean; error?: string }>(`${API_BASE}/email/test`, {
 				method: 'POST', body: JSON.stringify({ recipient })
 			}),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ['settings', 'email'] });
+			toast.success('Test email sent');
+		},
+		onError: () => toast.error('Failed to send test email'),
 	});
 }
 
@@ -166,7 +197,11 @@ export function useUpdateSecuritySettings() {
 	return useMutation({
 		mutationFn: (data: Partial<SecuritySettings>) =>
 			fetchApi<SecuritySettings>(`${API_BASE}/security`, { method: 'PATCH', body: JSON.stringify(data) }),
-		onSuccess: () => qc.invalidateQueries({ queryKey: ['settings', 'security'] }),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ['settings', 'security'] });
+			toast.success('Settings saved');
+		},
+		onError: () => toast.error('Failed to save settings'),
 	});
 }
 
@@ -184,7 +219,11 @@ export function useUpdateOAuthProvider() {
 	return useMutation({
 		mutationFn: ({ id, data }: { id: string; data: Partial<OAuthProvider> }) =>
 			fetchApi<OAuthProvider>(`${API_BASE}/integrations/oauth/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-		onSuccess: () => qc.invalidateQueries({ queryKey: ['settings', 'integrations'] }),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ['settings', 'integrations'] });
+			toast.success('Settings saved');
+		},
+		onError: () => toast.error('Failed to save settings'),
 	});
 }
 
@@ -200,7 +239,11 @@ export function useCreateWebhook() {
 	return useMutation({
 		mutationFn: (data: Omit<WebhookConfig, 'id' | 'created_at'>) =>
 			fetchApi<WebhookConfig>(`${API_BASE}/webhooks`, { method: 'POST', body: JSON.stringify(data) }),
-		onSuccess: () => qc.invalidateQueries({ queryKey: ['settings', 'webhooks'] }),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ['settings', 'webhooks'] });
+			toast.success('Webhook created');
+		},
+		onError: () => toast.error('Failed to create webhook'),
 	});
 }
 
@@ -209,7 +252,11 @@ export function useUpdateWebhook() {
 	return useMutation({
 		mutationFn: ({ id, data }: { id: string; data: Partial<WebhookConfig> }) =>
 			fetchApi<WebhookConfig>(`${API_BASE}/webhooks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-		onSuccess: () => qc.invalidateQueries({ queryKey: ['settings', 'webhooks'] }),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ['settings', 'webhooks'] });
+			toast.success('Settings saved');
+		},
+		onError: () => toast.error('Failed to save settings'),
 	});
 }
 
@@ -217,7 +264,11 @@ export function useDeleteWebhook() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: (id: string) => apiClient.delete(`${API_BASE}/webhooks/${id}`),
-		onSuccess: () => qc.invalidateQueries({ queryKey: ['settings', 'webhooks'] }),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ['settings', 'webhooks'] });
+			toast.success('Deleted successfully');
+		},
+		onError: () => toast.error('Failed to delete'),
 	});
 }
 
@@ -244,7 +295,11 @@ export function useServiceAction() {
 	return useMutation({
 		mutationFn: ({ id, action }: { id: string; action: 'start' | 'stop' | 'restart' }) =>
 			fetchApi<ServiceInfo>(`/system/services/${id}/${action}`, { method: 'POST' }),
-		onSuccess: () => qc.invalidateQueries({ queryKey: ['system', 'services'] }),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ['system', 'services'] });
+			toast.success('Service action sent');
+		},
+		onError: () => toast.error('Failed to update service'),
 	});
 }
 
@@ -253,7 +308,11 @@ export function useUpdateServiceConfig() {
 	return useMutation({
 		mutationFn: ({ id, data }: { id: string; data: Partial<ServiceConfig> }) =>
 			fetchApi<ServiceConfig>(`/system/services/${id}/config`, { method: 'PATCH', body: JSON.stringify(data) }),
-		onSuccess: () => qc.invalidateQueries({ queryKey: ['system', 'services'] }),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ['system', 'services'] });
+			toast.success('Settings saved');
+		},
+		onError: () => toast.error('Failed to save settings'),
 	});
 }
 
@@ -272,7 +331,11 @@ export function useWorkerAction() {
 	return useMutation({
 		mutationFn: ({ id, action }: { id: string; action: 'start' | 'stop' | 'restart' | 'pause' | 'resume' }) =>
 			fetchApi<WorkerInfo>(`/system/workers/${id}/${action}`, { method: 'POST' }),
-		onSuccess: () => qc.invalidateQueries({ queryKey: ['system', 'workers'] }),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ['system', 'workers'] });
+			toast.success('Worker action sent');
+		},
+		onError: () => toast.error('Failed to update worker'),
 	});
 }
 
@@ -281,7 +344,11 @@ export function useUpdateWorkerConfig() {
 	return useMutation({
 		mutationFn: ({ id, data }: { id: string; data: Partial<WorkerConfig> }) =>
 			fetchApi<WorkerConfig>(`/system/workers/${id}/config`, { method: 'PATCH', body: JSON.stringify(data) }),
-		onSuccess: () => qc.invalidateQueries({ queryKey: ['system', 'workers'] }),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ['system', 'workers'] });
+			toast.success('Settings saved');
+		},
+		onError: () => toast.error('Failed to save settings'),
 	});
 }
 
@@ -300,7 +367,11 @@ export function usePurgeQueue() {
 	return useMutation({
 		mutationFn: ({ name, status }: { name: string; status?: 'pending' | 'failed' | 'delayed' }) =>
 			fetchApi<{ purged: number }>(`/system/queues/${name}/purge`, { method: 'POST', body: JSON.stringify({ status }) }),
-		onSuccess: () => qc.invalidateQueries({ queryKey: ['system', 'queues'] }),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ['system', 'queues'] });
+			toast.success('Queue purged');
+		},
+		onError: () => toast.error('Failed to purge queue'),
 	});
 }
 
@@ -309,7 +380,11 @@ export function useRetryFailedJobs() {
 	return useMutation({
 		mutationFn: (queueName: string) =>
 			fetchApi<{ retried: number }>(`/system/queues/${queueName}/retry-failed`, { method: 'POST' }),
-		onSuccess: () => qc.invalidateQueries({ queryKey: ['system', 'queues'] }),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ['system', 'queues'] });
+			toast.success('Failed jobs retried');
+		},
+		onError: () => toast.error('Failed to retry jobs'),
 	});
 }
 
@@ -327,7 +402,11 @@ export function useUpdateScheduledTask() {
 	return useMutation({
 		mutationFn: ({ id, data }: { id: string; data: Partial<ScheduledTask> }) =>
 			fetchApi<ScheduledTask>(`/system/scheduler/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-		onSuccess: () => qc.invalidateQueries({ queryKey: ['system', 'scheduler'] }),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ['system', 'scheduler'] });
+			toast.success('Settings saved');
+		},
+		onError: () => toast.error('Failed to save settings'),
 	});
 }
 
@@ -336,7 +415,11 @@ export function useRunScheduledTask() {
 	return useMutation({
 		mutationFn: (id: string) =>
 			fetchApi<{ success: boolean }>(`/system/scheduler/tasks/${id}/run`, { method: 'POST' }),
-		onSuccess: () => qc.invalidateQueries({ queryKey: ['system', 'scheduler'] }),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ['system', 'scheduler'] });
+			toast.success('Task started');
+		},
+		onError: () => toast.error('Failed to start task'),
 	});
 }
 
@@ -374,7 +457,11 @@ export function useUpdateNotificationPreferences() {
 	return useMutation({
 		mutationFn: (data: Partial<NotificationPreferences>) =>
 			fetchApi<NotificationPreferences>(`${API_BASE}/notifications`, { method: 'PATCH', body: JSON.stringify(data) }),
-		onSuccess: () => qc.invalidateQueries({ queryKey: ['settings', 'notifications'] }),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ['settings', 'notifications'] });
+			toast.success('Settings saved');
+		},
+		onError: () => toast.error('Failed to save settings'),
 	});
 }
 
