@@ -2,6 +2,7 @@
 import { AuditLog } from '@/features/audit/components/AuditLog';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
+import { toast } from 'sonner';
 
 /**
  * AuditLogs page.
@@ -28,8 +29,9 @@ export function AuditLogs() {
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
+                toast.success('Audit log exported');
             })
-            .catch(console.error);
+            .catch(() => toast.error('Export failed. Please try again.'));
     }
 
     return (

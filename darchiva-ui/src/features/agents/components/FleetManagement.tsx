@@ -842,9 +842,17 @@ export function FleetManagement() {
         <Card>
           <CardContent className="p-0">
             {isLoading ? (
-              <div className="p-8 text-center text-muted-foreground">
-                <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2" />
-                Loading scanners…
+              <div className="p-4 space-y-2">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-4 px-4 py-3">
+                    <div className="h-8 w-8 rounded-full bg-muted animate-pulse shrink-0" />
+                    <div className="flex-1 space-y-1.5">
+                      <div className="h-4 w-40 rounded bg-muted animate-pulse" />
+                      <div className="h-3 w-24 rounded bg-muted animate-pulse" />
+                    </div>
+                    <div className="h-5 w-16 rounded-full bg-muted animate-pulse" />
+                  </div>
+                ))}
               </div>
             ) : agents.length === 0 ? (
               <div className="p-12 text-center text-muted-foreground">

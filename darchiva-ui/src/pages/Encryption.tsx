@@ -18,10 +18,12 @@ import {
   Eye,
   FileText,
   Key,
+  KeyRound,
   Loader2,
   Lock,
   RefreshCw,
   Shield,
+  ShieldOff,
   UserCheck,
   X,
 } from 'lucide-react';
@@ -373,7 +375,11 @@ export function Encryption() {
               </tbody>
             </table>
           ) : (
-            <p className="text-slate-500 text-center py-12">No encryption keys</p>
+            <div className="text-center py-16 text-muted-foreground border rounded-lg">
+              <ShieldOff className="h-12 w-12 mx-auto mb-3 opacity-40" />
+              <p className="font-medium">No encryption keys</p>
+              <p className="text-sm mt-1">Initialize encryption to protect your documents.</p>
+            </div>
           )}
         </div>
       )}
@@ -458,7 +464,10 @@ export function Encryption() {
               </motion.div>
             ))
           ) : (
-            <p className="text-slate-500 text-center py-12">No access requests</p>
+            <div className="text-center py-16 text-muted-foreground border rounded-lg">
+              <KeyRound className="h-12 w-12 mx-auto mb-3 opacity-40" />
+              <p className="font-medium">No pending access requests</p>
+            </div>
           )}
         </div>
       )}

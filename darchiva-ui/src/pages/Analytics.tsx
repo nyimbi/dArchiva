@@ -324,7 +324,10 @@ function DocTypeDistribution() {
 						<div key={i} className="h-6 bg-slate-800 rounded animate-pulse" />
 					))
 				) : items.length === 0 ? (
-					<p className="text-xs text-slate-500">No data available</p>
+					<div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
+						<BarChart2 className="h-8 w-8 mb-2 opacity-30" />
+						<p className="text-sm">No data for this period</p>
+					</div>
 				) : (
 					items.map(({ value, count }, i) => {
 						const pct = Math.round((count / total) * 100);
@@ -545,8 +548,9 @@ export function Analytics() {
 					errorMsg="Failed to load throughput data"
 				>
 					{throughputChartData.length === 0 ? (
-						<div className="flex items-center justify-center h-56 text-sm text-slate-500">
-							No data for this period
+						<div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
+							<BarChart2 className="h-8 w-8 mb-2 opacity-30" />
+							<p className="text-sm">No data for this period</p>
 						</div>
 					) : (
 						<ResponsiveContainer width="100%" height={220}>
@@ -569,8 +573,9 @@ export function Analytics() {
 					errorMsg="Failed to load quality data"
 				>
 					{qualityChartData.length === 0 ? (
-						<div className="flex items-center justify-center h-56 text-sm text-slate-500">
-							No data for this period
+						<div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
+							<BarChart2 className="h-8 w-8 mb-2 opacity-30" />
+							<p className="text-sm">No data for this period</p>
 						</div>
 					) : (
 						<ResponsiveContainer width="100%" height={220}>
@@ -624,8 +629,9 @@ export function Analytics() {
 					errorMsg="Failed to load page count data"
 				>
 					{pageCountGrowthData.length === 0 ? (
-						<div className="flex items-center justify-center h-56 text-sm text-slate-500">
-							No data for this period
+						<div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
+							<BarChart2 className="h-8 w-8 mb-2 opacity-30" />
+							<p className="text-sm">No data for this period</p>
 						</div>
 					) : (
 						<ResponsiveContainer width="100%" height={220}>
@@ -725,7 +731,10 @@ export function Analytics() {
 									{!operators.data?.operators.length && (
 										<tr>
 											<td colSpan={6} className="px-3 py-10 text-center text-slate-500 text-sm">
-												No data for this period
+												<div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
+													<BarChart2 className="h-8 w-8 mb-2 opacity-30" />
+													<p className="text-sm">No data for this period</p>
+												</div>
 											</td>
 										</tr>
 									)}

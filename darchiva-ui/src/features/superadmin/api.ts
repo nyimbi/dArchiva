@@ -5,6 +5,7 @@
  */
 import { apiClient } from '@/lib/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -249,6 +250,8 @@ export function useRebuildSearchIndex() {
 		mutationFn: async () => {
 			await apiClient.post('/superadmin/actions/rebuild-search-index');
 		},
+		onSuccess: () => toast.success('Search index rebuild started'),
+		onError: () => toast.error('Failed to start rebuild'),
 	});
 }
 
@@ -257,5 +260,7 @@ export function useClearCaches() {
 		mutationFn: async () => {
 			await apiClient.post('/superadmin/actions/clear-caches');
 		},
+		onSuccess: () => toast.success('Caches cleared'),
+		onError: () => toast.error('Failed to clear caches'),
 	});
 }

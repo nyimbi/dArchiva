@@ -554,12 +554,12 @@ export function BatchActionsBar({ selectedIds, selectedDocuments, onClear, onCom
     mutationFn: () => bulkDownload.mutateAsync(selectedIds),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: documentKeys.all });
-      toast.success(`Downloaded ${count} document${count !== 1 ? 's' : ''}`);
+      toast.success('Download started');
       onComplete();
     },
     onError: (err) => {
       console.error('Bulk download failed:', err);
-      toast.error('Failed to download documents');
+      toast.error('Download failed');
     },
   });
 
