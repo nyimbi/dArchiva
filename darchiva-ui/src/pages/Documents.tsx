@@ -1,9 +1,5 @@
 // (c) Copyright Datacraft, 2026
 import {
-  useBulkAssignType,
-  useBulkDelete,
-  useBulkMove,
-  useBulkTag,
   useCreateFolder,
   useDeleteFolder,
   useFolderTree,
@@ -15,10 +11,6 @@ import {
 import { useInfiniteDocuments } from '@/features/documents/api/infiniteDocuments';
 import { VirtualDocumentList } from '@/features/documents/components/VirtualDocumentList';
 import { ThumbnailGrid } from '@/features/documents/components/ThumbnailGrid';
-import { useDocumentTypes } from '@/features/document-types/api';
-import { useTags } from '@/features/tags/api';
-import type { DocumentType } from '@/features/document-types/types';
-import type { Tag as TagType } from '@/features/tags/types';
 import { ShareDialog } from '@/features/shared-nodes/components/ShareDialog';
 import { useStore } from '@/hooks/useStore';
 import { cn, formatBytes, formatRelativeTime } from '@/lib/utils';
@@ -49,11 +41,8 @@ import {
   SortAsc,
   Square,
   Table,
-  Tag,
   Trash2,
   Upload,
-  FileType,
-  Move,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -491,367 +480,6 @@ function DocumentRow({
 }
 
 // ---------------------------------------------------------------------------
-// Folder picker modal (used by bulk move)
-// ---------------------------------------------------------------------------
-function FolderPickerModal({
-  tree,
-  onSelect,
-  onClose,
-  isPending,
-}: {
-  tree: APITreeNode[];
-  onSelect: (folderId: string) => void;
-  onClose: () => void;
-  isPending: boolean;
-}) {
-  const [selected, setSelected] = useState<string | null>(null);
-
-  function renderNodes(nodes: APITreeNode[], depth = 0): React.ReactNode {
-    return nodes.map((n) => (
-      <div key={n.id}>
-        <button
-          onClick={() => setSelected(n.id)}
-          className={cn(
-            'w-full text-left px-3 py-1.5 text-sm flex items-center gap-2 rounded transition-colors',
-            selected === n.id
-              ? 'bg-brass-500/20 text-brass-400'
-              : 'text-slate-300 hover:bg-slate-700/50',
-          )}
-          style={{ paddingLeft: `${depth * 12 + 12}px` }}
-        >
-          <Folder className="w-4 h-4 flex-shrink-0 text-slate-500" />
-          {n.title}
-        </button>
-        {n.children && renderNodes(n.children, depth + 1)}
-      </div>
-    ));
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="relative z-10 w-full max-w-md glass-card p-6"
-      >
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-full bg-brass-500/20 flex items-center justify-center">
-            <Move className="w-5 h-5 text-brass-400" />
-          </div>
-          <div>
-            <h3 className="font-display font-semibold text-slate-100">Move to Folder</h3>
-            <p className="text-sm text-slate-500">Select destination folder</p>
-          </div>
-        </div>
-        <div className="max-h-64 overflow-y-auto border border-slate-700 rounded-lg py-1 mb-4 bg-slate-800/50">
-          {tree.length === 0
-            ? <p className="text-sm text-slate-500 text-center py-4">No folders</p>
-            : renderNodes(tree)
-          }
-        </div>
-        <div className="flex justify-end gap-3">
-          <button onClick={onClose} className="btn-secondary">Cancel</button>
-          <button
-            onClick={() => selected && onSelect(selected)}
-            disabled={!selected || isPending}
-            className="btn-primary"
-          >
-            {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Move className="w-4 h-4" />}
-            Move Here
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Tag picker modal (used by bulk tag)
-// ---------------------------------------------------------------------------
-function TagPickerModal({
-  onApply,
-  onClose,
-  isPending,
-}: {
-  onApply: (tagIds: string[], action: 'add' | 'remove' | 'replace') => void;
-  onClose: () => void;
-  isPending: boolean;
-}) {
-  const { data: tagsData } = useTags();
-  const tags: TagType[] = tagsData?.items ?? (tagsData as unknown as TagType[]) ?? [];
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [action, setAction] = useState<'add' | 'remove' | 'replace'>('add');
-
-  const toggle = (id: string) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="relative z-10 w-full max-w-md glass-card p-6"
-      >
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-full bg-brass-500/20 flex items-center justify-center">
-            <Tag className="w-5 h-5 text-brass-400" />
-          </div>
-          <div>
-            <h3 className="font-display font-semibold text-slate-100">Bulk Tag</h3>
-            <p className="text-sm text-slate-500">Apply tags to selected documents</p>
-          </div>
-        </div>
-
-        {/* Action selector */}
-        <div className="flex gap-2 mb-3">
-          {(['add', 'remove', 'replace'] as const).map((a) => (
-            <button
-              key={a}
-              onClick={() => setAction(a)}
-              className={cn(
-                'flex-1 py-1.5 text-xs rounded-lg border transition-colors capitalize',
-                action === a
-                  ? 'bg-brass-500/20 border-brass-500 text-brass-400'
-                  : 'border-slate-700 text-slate-400 hover:border-slate-600',
-              )}
-            >
-              {a}
-            </button>
-          ))}
-        </div>
-
-        <div className="max-h-48 overflow-y-auto border border-slate-700 rounded-lg py-1 mb-4 bg-slate-800/50">
-          {!tags || tags.length === 0
-            ? <p className="text-sm text-slate-500 text-center py-4">No tags available</p>
-            : tags.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => toggle(t.id)}
-                className={cn(
-                  'w-full text-left px-3 py-1.5 text-sm flex items-center gap-2 rounded transition-colors',
-                  selected.has(t.id)
-                    ? 'bg-brass-500/20 text-brass-400'
-                    : 'text-slate-300 hover:bg-slate-700/50',
-                )}
-              >
-                <div
-                  className="w-3 h-3 rounded-full flex-shrink-0"
-                  style={{ background: t.color ?? '#c41fff' }}
-                />
-                {t.name}
-                {selected.has(t.id) && <Check className="w-3 h-3 ml-auto" />}
-              </button>
-            ))
-          }
-        </div>
-
-        <div className="flex justify-end gap-3">
-          <button onClick={onClose} className="btn-secondary">Cancel</button>
-          <button
-            onClick={() => onApply(Array.from(selected), action)}
-            disabled={selected.size === 0 || isPending}
-            className="btn-primary"
-          >
-            {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Tag className="w-4 h-4" />}
-            Apply Tags
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Document type picker modal (used by bulk assign-type)
-// ---------------------------------------------------------------------------
-function DocTypePickerModal({
-  onApply,
-  onClose,
-  isPending,
-}: {
-  onApply: (typeId: string) => void;
-  onClose: () => void;
-  isPending: boolean;
-}) {
-  const { data: typesData } = useDocumentTypes();
-  const types: DocumentType[] = typesData?.items ?? (typesData as unknown as DocumentType[]) ?? [];
-  const [selected, setSelected] = useState<string | null>(null);
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="relative z-10 w-full max-w-md glass-card p-6"
-      >
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-full bg-brass-500/20 flex items-center justify-center">
-            <FileType className="w-5 h-5 text-brass-400" />
-          </div>
-          <div>
-            <h3 className="font-display font-semibold text-slate-100">Assign Document Type</h3>
-            <p className="text-sm text-slate-500">Set type on selected documents</p>
-          </div>
-        </div>
-
-        <div className="max-h-64 overflow-y-auto border border-slate-700 rounded-lg py-1 mb-4 bg-slate-800/50">
-          {!types || types.length === 0
-            ? <p className="text-sm text-slate-500 text-center py-4">No document types defined</p>
-            : types.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setSelected(t.id)}
-                className={cn(
-                  'w-full text-left px-3 py-1.5 text-sm flex items-center gap-2 rounded transition-colors',
-                  selected === t.id
-                    ? 'bg-brass-500/20 text-brass-400'
-                    : 'text-slate-300 hover:bg-slate-700/50',
-                )}
-              >
-                <FileType className="w-4 h-4 flex-shrink-0 text-slate-500" />
-                {t.name}
-                {selected === t.id && <Check className="w-3 h-3 ml-auto text-brass-400" />}
-              </button>
-            ))
-          }
-        </div>
-
-        <div className="flex justify-end gap-3">
-          <button onClick={onClose} className="btn-secondary">Cancel</button>
-          <button
-            onClick={() => selected && onApply(selected)}
-            disabled={!selected || isPending}
-            className="btn-primary"
-          >
-            {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileType className="w-4 h-4" />}
-            Assign Type
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Bulk delete confirm dialog
-// ---------------------------------------------------------------------------
-function BulkDeleteModal({
-  count,
-  onConfirm,
-  onClose,
-  isPending,
-}: {
-  count: number;
-  onConfirm: () => void;
-  onClose: () => void;
-  isPending: boolean;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="relative z-10 w-full max-w-md glass-card p-6"
-      >
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
-            <AlertTriangle className="w-5 h-5 text-red-400" />
-          </div>
-          <div>
-            <h3 className="font-display font-semibold text-slate-100">Delete {count} items</h3>
-            <p className="text-sm text-slate-500">This action cannot be undone</p>
-          </div>
-        </div>
-        <p className="text-slate-300 mb-6">
-          Permanently delete{' '}
-          <span className="font-semibold text-red-400">{count} selected item{count !== 1 ? 's' : ''}</span>?
-          All contents will be removed.
-        </p>
-        <div className="flex justify-end gap-3">
-          <button onClick={onClose} disabled={isPending} className="btn-secondary">Cancel</button>
-          <button
-            onClick={onConfirm}
-            disabled={isPending}
-            className="btn-primary bg-red-600 hover:bg-red-500 border-red-500"
-          >
-            {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-            Delete All
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Floating bulk action bar
-// ---------------------------------------------------------------------------
-type BulkModal = 'move' | 'tag' | 'delete' | 'assign-type' | null;
-
-function BulkActionBar({
-  count,
-  onClear,
-  onAction,
-}: {
-  count: number;
-  onClear: () => void;
-  onAction: (action: Exclude<BulkModal, null>) => void;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 24 }}
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-5 py-3 glass-card border border-brass-500/30 shadow-2xl shadow-brass-500/10"
-    >
-      <div className="flex items-center gap-2 pr-3 border-r border-slate-700">
-        <span className="text-sm font-semibold text-brass-400">{count}</span>
-        <span className="text-sm text-slate-400">selected</span>
-        <button onClick={onClear} className="ml-1 text-xs text-slate-500 hover:text-slate-300 underline">
-          Clear
-        </button>
-      </div>
-      <button
-        onClick={() => onAction('move')}
-        className="btn-ghost text-sm py-1.5 px-3 flex items-center gap-1.5"
-      >
-        <Move className="w-4 h-4" /> Move
-      </button>
-      <button
-        onClick={() => onAction('tag')}
-        className="btn-ghost text-sm py-1.5 px-3 flex items-center gap-1.5"
-      >
-        <Tag className="w-4 h-4" /> Tag
-      </button>
-      <button
-        onClick={() => onAction('assign-type')}
-        className="btn-ghost text-sm py-1.5 px-3 flex items-center gap-1.5"
-      >
-        <FileType className="w-4 h-4" /> Assign Type
-      </button>
-      <button
-        onClick={() => onAction('delete')}
-        className="btn-ghost text-sm py-1.5 px-3 flex items-center gap-1.5 text-red-400 hover:text-red-300"
-      >
-        <Trash2 className="w-4 h-4" /> Delete
-      </button>
-    </motion.div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Main Documents page
 // ---------------------------------------------------------------------------
 export function Documents() {
@@ -861,7 +489,6 @@ export function Documents() {
     return 'card';
   });
   const [selectionMode, setSelectionMode] = useState(false);
-  const [activeBulkModal, setActiveBulkModal] = useState<BulkModal>(null);
 
   const { selectedNodeIds, clearNodeSelection, selectNodes, toggleNodeSelection, currentFolderId, openModal } = useStore();
   const navigate = useNavigate();
@@ -874,11 +501,6 @@ export function Documents() {
     isFetchingNextPage,
     fetchNextPage,
   } = useInfiniteDocuments(currentFolderId || undefined);
-
-  const bulkMove = useBulkMove();
-  const bulkDelete = useBulkDelete();
-  const bulkTag = useBulkTag();
-  const bulkAssignType = useBulkAssignType();
 
   const handleOpenDocument = useCallback((doc: APIDocument) => {
     navigate(`/document/${doc.id}`);
@@ -942,36 +564,8 @@ export function Documents() {
     }
   }, [newSubfolderParent, newFolderName, createFolder]);
 
-  // Bulk action handlers
+  // Selected ids passed to BatchActionsBar
   const selectedIds = Array.from(selectedNodeIds);
-
-  const handleBulkMove = useCallback((targetFolderId: string) => {
-    bulkMove.mutate(
-      { node_ids: selectedIds, target_folder_id: targetFolderId },
-      { onSuccess: () => { setActiveBulkModal(null); clearNodeSelection(); } },
-    );
-  }, [selectedIds, bulkMove, clearNodeSelection]);
-
-  const handleBulkTag = useCallback((tagIds: string[], action: 'add' | 'remove' | 'replace') => {
-    bulkTag.mutate(
-      { node_ids: selectedIds, tag_ids: tagIds, action },
-      { onSuccess: () => { setActiveBulkModal(null); clearNodeSelection(); } },
-    );
-  }, [selectedIds, bulkTag, clearNodeSelection]);
-
-  const handleBulkDelete = useCallback(() => {
-    bulkDelete.mutate(
-      { node_ids: selectedIds },
-      { onSuccess: () => { setActiveBulkModal(null); clearNodeSelection(); setSelectionMode(false); } },
-    );
-  }, [selectedIds, bulkDelete, clearNodeSelection]);
-
-  const handleBulkAssignType = useCallback((typeId: string) => {
-    bulkAssignType.mutate(
-      { node_ids: selectedIds, document_type_id: typeId },
-      { onSuccess: () => { setActiveBulkModal(null); clearNodeSelection(); } },
-    );
-  }, [selectedIds, bulkAssignType, clearNodeSelection]);
 
   return (
     <div className="flex gap-6 h-[calc(100vh-8rem)]">
