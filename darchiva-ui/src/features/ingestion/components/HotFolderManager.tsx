@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { FolderOpen, Loader2, Plus, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface IngestionSource {
   id: string;
@@ -56,11 +57,13 @@ export function HotFolderManager() {
       });
     },
     onSuccess: () => {
+      toast.success('Hot folder added');
       qc.invalidateQueries({ queryKey: ['ingestion-sources', 'hot_folder'] });
       setName('');
       setWatchPath('');
       setShowForm(false);
     },
+    onError: () => toast.error('Failed to add hot folder'),
   });
 
   const removeMutation = useMutation({
@@ -68,8 +71,10 @@ export function HotFolderManager() {
       await apiClient.post(`/ingestion/sources/${id}/stop`);
     },
     onSuccess: () => {
+      toast.success('Hot folder removed');
       qc.invalidateQueries({ queryKey: ['ingestion-sources', 'hot_folder'] });
     },
+    onError: () => toast.error('Failed to remove hot folder'),
   });
 
   return (

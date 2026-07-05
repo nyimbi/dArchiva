@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Zap, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface AutoFixableException {
   id: string;
@@ -50,9 +51,11 @@ export function AutoFixPanel() {
       return data;
     },
     onSuccess: () => {
+      toast.success('Auto-fix applied successfully');
       qc.invalidateQueries({ queryKey: ['auto-fixable-exceptions'] });
       qc.invalidateQueries({ queryKey: ['exceptions'] });
     },
+    onError: () => toast.error('Auto-fix failed. Please try again.'),
   });
 
   const count = fixable?.length ?? 0;

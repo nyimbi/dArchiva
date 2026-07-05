@@ -5,6 +5,7 @@
  */
 import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import { useCallback,useState } from 'react';
+import { toast } from 'sonner';
 import {
   createSLAConfig,
   getSLAConfigs,
@@ -34,9 +35,11 @@ export function SLAConfigManager({ workflowId, className }: SLAConfigManagerProp
 	const createMutation = useMutation({
 		mutationFn: createSLAConfig,
 		onSuccess: () => {
+			toast.success('SLA config saved');
 			queryClient.invalidateQueries({ queryKey: ['sla-configs'] });
 			setIsModalOpen(false);
 		},
+		onError: () => toast.error('Failed to save SLA config'),
 	});
 
 	const handleToggleExpand = useCallback((id: string) => {

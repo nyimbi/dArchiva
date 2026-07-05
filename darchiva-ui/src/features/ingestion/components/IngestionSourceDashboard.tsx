@@ -22,6 +22,7 @@ import {
   FileText,
   Loader2,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 type SourceType = 'email' | 'webhook' | 'hot_folder' | 'api_push';
 type SourceStatus = 'active' | 'inactive' | 'error' | 'syncing';
@@ -101,13 +102,21 @@ export function IngestionSourceDashboard() {
   const syncMutation = useMutation({
     mutationFn: (sourceId: string) =>
       apiClient.post(`/ingestion/sources/${sourceId}/trigger`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['ingestion-sources'] }),
+    onSuccess: () => {
+      toast.success('Sync triggered');
+      qc.invalidateQueries({ queryKey: ['ingestion-sources'] });
+    },
+    onError: () => toast.error('Sync failed'),
   });
 
   const toggleMutation = useMutation({
     mutationFn: ({ id, active }: { id: string; active: boolean }) =>
       apiClient.post(`/ingestion/sources/${id}/${active ? 'stop' : 'start'}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['ingestion-sources'] }),
+    onSuccess: () => {
+      toast.success('Source updated');
+      qc.invalidateQueries({ queryKey: ['ingestion-sources'] });
+    },
+    onError: () => toast.error('Failed to update source'),
   });
 
   if (isLoading) {
