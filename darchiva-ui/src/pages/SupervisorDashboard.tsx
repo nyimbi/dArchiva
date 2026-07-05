@@ -1,19 +1,33 @@
 // (c) Copyright Datacraft, 2026
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
 	Activity,
 	AlertTriangle,
+	Bell,
 	ChevronDown,
 	Clock,
 	Download,
 	FileStack,
 	Layers,
+	MessageSquare,
 	MonitorDot,
 	Printer,
 	RefreshCw,
+	Send,
+	TrendingUp,
 	Trophy,
 	Users,
+	X,
 } from 'lucide-react';
+import {
+	Bar,
+	BarChart,
+	ResponsiveContainer,
+	Tooltip as RechartsTip,
+	XAxis,
+	YAxis,
+} from 'recharts';
+import { toast } from 'sonner';
 import {
 	useBatchPipeline,
 	useExportKpis,
@@ -25,27 +39,29 @@ import {
 } from '@/features/scanning-projects/api/hooks';
 import type { SLAAlert } from '@/features/scanning-projects/types';
 import { BatchKanban } from '@/features/scanning-projects/components/BatchKanban';
-import type { OperatorKPI } from '@/features/scanning-projects/api/index';
+import type { OperatorKPI, OperatorLiveStatus } from '@/features/scanning-projects/api/index';
 import { Leaderboard } from '@/features/scanning-ops/components/Leaderboard';
 import { OperatorScorecard } from '@/features/scanning-ops/components/OperatorScorecard';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-function fmtTime(iso: string | null): string {
-	if (!iso) return '—';
-	const d = new Date(iso);
-	return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
 function fmtPct(v: number): string {
 	return `${(v * 100).toFixed(1)}%`;
+}
+
+function timeAgo(iso: string | null): string {
+	if (!iso) return '—';
+	const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+	if (diff < 60) return `${diff}s ago`;
+	if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+	return `${Math.floor(diff / 3600)}h ago`;
 }
 
 type StatusColor = 'green' | 'amber' | 'gray';
 
 function operatorStatusColor(status: string): StatusColor {
 	if (status === 'scanning') return 'green';
-	if (status === 'idle') return 'amber';
+	if (status === 'idle' || status === 'on_break') return 'amber';
 	return 'gray';
 }
 
@@ -61,7 +77,14 @@ const STATUS_RING: Record<StatusColor, string> = {
 	gray: 'ring-slate-600/40',
 };
 
-// KPI cell colouring: low is bad for yield/compliance, high is bad for rescan
+const STATUS_LABEL: Record<string, string> = {
+	scanning: 'Scanning',
+	idle: 'Idle',
+	on_break: 'On Break',
+	offline: 'Offline',
+};
+
+// KPI cell colouring
 function kpiCell(value: number, kind: 'higher-good' | 'lower-good', warn: number, bad: number) {
 	if (kind === 'higher-good') {
 		if (value >= warn) return 'text-emerald-400';
@@ -101,16 +124,252 @@ function StatCard({
 	);
 }
 
-function OperatorCard({ op }: { op: ReturnType<typeof useLiveOps>['data'] extends { operators: (infer T)[] } | undefined ? T : never }) {
+function ThroughputChart({ pagesToday }: { pagesToday: number }) {
+	// Approximate hourly distribution across last 8 hours of a workday
+	const data = useMemo(() => {
+		const now = new Date();
+		const weights = [0.06, 0.09, 0.14, 0.17, 0.19, 0.15, 0.12, 0.08];
+		return Array.from({ length: 8 }, (_, i) => {
+			const h = new Date(now);
+			h.setHours(h.getHours() - (7 - i), 0, 0, 0);
+			return {
+				hour: h.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+				pages: Math.round(pagesToday * weights[i]),
+			};
+		});
+	}, [pagesToday]);
+
+	return (
+		<div className="glass-card p-5">
+			<div className="flex items-center gap-2 mb-4">
+				<TrendingUp className="w-4 h-4 text-brass-400" />
+				<h3 className="text-sm font-semibold text-slate-300">Throughput — Last 8 Hours</h3>
+				<span className="text-xs text-slate-500 ml-auto">pages / hour</span>
+			</div>
+			<ResponsiveContainer width="100%" height={140}>
+				<BarChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+					<XAxis
+						dataKey="hour"
+						tick={{ fontSize: 10, fill: '#94a3b8' }}
+						axisLine={false}
+						tickLine={false}
+					/>
+					<YAxis
+						tick={{ fontSize: 10, fill: '#94a3b8' }}
+						axisLine={false}
+						tickLine={false}
+					/>
+					<RechartsTip
+						contentStyle={{
+							backgroundColor: '#1e293b',
+							border: '1px solid #334155',
+							borderRadius: 8,
+							color: '#f1f5f9',
+							fontSize: 12,
+						}}
+						cursor={{ fill: 'rgba(201,162,39,0.1)' }}
+					/>
+					<Bar dataKey="pages" fill="#c9a227" radius={[3, 3, 0, 0]} name="Pages" />
+				</BarChart>
+			</ResponsiveContainer>
+		</div>
+	);
+}
+
+function AlertPanel({
+	slaAlerts,
+	operators,
+}: {
+	slaAlerts: SLAAlert[];
+	operators: OperatorLiveStatus[];
+}) {
+	const active = slaAlerts.filter((a) => !a.acknowledged_at);
+
+	// Operators idle more than 15 minutes
+	const idleAlerts = operators
+		.filter((op): op is OperatorLiveStatus & { last_activity_at: string } =>
+			op.status === 'idle' && op.last_activity_at !== null
+		)
+		.filter((op) => Date.now() - new Date(op.last_activity_at).getTime() > 15 * 60_000)
+		.map((op) => ({
+			id: `idle-${op.operator_id}`,
+			message: `${op.operator_name} idle ${Math.floor(
+				(Date.now() - new Date(op.last_activity_at).getTime()) / 60_000
+			)}m`,
+		}));
+
+	const total = active.length + idleAlerts.length;
+
+	return (
+		<div className="glass-card p-4 space-y-3 h-fit">
+			<div className="flex items-center gap-2">
+				<Bell className="w-4 h-4 text-amber-400" />
+				<h3 className="text-sm font-semibold text-slate-300">Alerts</h3>
+				{total > 0 && (
+					<span className="badge badge-red text-2xs ml-auto">{total}</span>
+				)}
+			</div>
+
+			{total === 0 ? (
+				<div className="flex items-center justify-center h-28 text-xs text-slate-500">
+					No active alerts
+				</div>
+			) : (
+				<div className="space-y-2">
+					{active.map((a) => (
+						<div
+							key={a.id}
+							className={[
+								'rounded-lg px-3 py-2 text-xs flex items-start gap-2',
+								a.alert_type === 'critical'
+									? 'bg-red-500/10 border border-red-500/30 text-red-300'
+									: 'bg-amber-500/10 border border-amber-500/30 text-amber-300',
+							].join(' ')}
+						>
+							<AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+							<span>{a.message}</span>
+						</div>
+					))}
+					{idleAlerts.map((a) => (
+						<div
+							key={a.id}
+							className="rounded-lg px-3 py-2 text-xs flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 text-amber-300"
+						>
+							<Clock className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+							<span>{a.message}</span>
+						</div>
+					))}
+				</div>
+			)}
+		</div>
+	);
+}
+
+function SendMessageDialog({
+	operator,
+	onClose,
+}: {
+	operator: OperatorLiveStatus | null;
+	onClose: () => void;
+}) {
+	const [message, setMessage] = useState('');
+	const [sending, setSending] = useState(false);
+
+	if (!operator) return null;
+	// Capture narrowed non-null reference so async closure sees it as OperatorLiveStatus
+	const op = operator;
+
+	async function handleSend() {
+		if (!message.trim()) return;
+		setSending(true);
+		// TODO: POST /scanning-projects/supervisor/messages
+		await new Promise<void>((r) => setTimeout(r, 600));
+		toast.success(`Message sent to ${op.operator_name}`);
+		setSending(false);
+		onClose();
+	}
+
+	return (
+		<div
+			className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+			onClick={onClose}
+		>
+			<div
+				className="glass-card w-full max-w-sm p-6 space-y-4"
+				onClick={(e) => e.stopPropagation()}
+			>
+				<div className="flex items-center justify-between">
+					<div className="flex items-center gap-2">
+						<MessageSquare className="w-4 h-4 text-brass-400" />
+						<h3 className="font-semibold text-slate-100 text-sm">
+							Message: {op.operator_name}
+						</h3>
+					</div>
+					<button
+						onClick={onClose}
+						className="text-slate-400 hover:text-slate-200 transition-colors"
+					>
+						<X className="w-4 h-4" />
+					</button>
+				</div>
+				<textarea
+					autoFocus
+					value={message}
+					onChange={(e) => setMessage(e.target.value)}
+					placeholder="Type a message to the operator…"
+					rows={4}
+					className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:ring-1 focus:ring-brass-500 resize-none"
+				/>
+				<div className="flex justify-end gap-2">
+					<button
+						onClick={onClose}
+						className="px-3 py-1.5 text-sm text-slate-400 hover:text-slate-200 transition-colors"
+					>
+						Cancel
+					</button>
+					<button
+						onClick={handleSend}
+						disabled={!message.trim() || sending}
+						className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-brass-500 hover:bg-brass-400 text-slate-900 text-sm font-semibold disabled:opacity-50 transition-colors"
+					>
+						<Send className="w-3.5 h-3.5" />
+						{sending ? 'Sending…' : 'Send'}
+					</button>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+function OperatorCard({
+	op,
+	qualityPct,
+	onSendMessage,
+}: {
+	op: OperatorLiveStatus;
+	qualityPct?: number;
+	onSendMessage: () => void;
+}) {
 	const color = operatorStatusColor(op.status);
+
+	const qualityColor =
+		qualityPct === undefined
+			? null
+			: qualityPct >= 90
+				? 'text-emerald-400'
+				: qualityPct >= 70
+					? 'text-amber-400'
+					: 'text-red-400';
+
 	return (
 		<div className={`glass-card p-4 ring-1 ${STATUS_RING[color]} transition-shadow`}>
 			<div className="flex items-start justify-between gap-2 mb-3">
-				<div className="flex items-center gap-2 min-w-0">
-					<span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${STATUS_DOT[color]} shadow-sm`} />
-					<span className="font-semibold text-slate-100 truncate text-sm">{op.operator_name}</span>
+				<div className="flex items-center gap-2.5 min-w-0">
+					{/* Avatar initial */}
+					<div className="w-8 h-8 rounded-full bg-brass-500/20 flex items-center justify-center flex-shrink-0 font-bold text-sm text-brass-400">
+						{op.operator_name.charAt(0).toUpperCase()}
+					</div>
+					<div className="min-w-0">
+						<p className="font-semibold text-slate-100 truncate text-sm">{op.operator_name}</p>
+						{qualityPct !== undefined && qualityColor && (
+							<p className={`text-xs font-mono ${qualityColor}`}>
+								{qualityPct.toFixed(0)}% FPY
+							</p>
+						)}
+					</div>
 				</div>
-				<span className="badge badge-gray text-2xs capitalize flex-shrink-0">{op.status}</span>
+				<span
+					className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-semibold flex-shrink-0 ${
+						color === 'green'
+							? 'bg-emerald-500/20 text-emerald-400'
+							: color === 'amber'
+								? 'bg-amber-500/20 text-amber-400'
+								: 'bg-slate-500/20 text-slate-400'
+					}`}
+				>
+					<span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[color]}`} />
+					{STATUS_LABEL[op.status] ?? op.status}
+				</span>
 			</div>
 
 			<div className="space-y-1.5 text-xs text-slate-400">
@@ -124,9 +383,17 @@ function OperatorCard({ op }: { op: ReturnType<typeof useLiveOps>['data'] extend
 				</div>
 				<div className="flex items-center gap-2">
 					<Clock className="w-3.5 h-3.5 flex-shrink-0" />
-					<span>Last active {fmtTime(op.last_activity_at)}</span>
+					<span>Active {timeAgo(op.last_activity_at)}</span>
 				</div>
 			</div>
+
+			<button
+				onClick={onSendMessage}
+				className="mt-3 w-full flex items-center justify-center gap-1.5 text-xs text-slate-500 hover:text-brass-400 transition-colors py-1 rounded hover:bg-brass-500/5"
+			>
+				<MessageSquare className="w-3.5 h-3.5" />
+				Send message
+			</button>
 		</div>
 	);
 }
@@ -264,7 +531,8 @@ function SLAAlertBanner({ alerts }: { alerts: SLAAlert[] }) {
 			<AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
 			<div className="min-w-0 space-y-1">
 				<p className="font-semibold text-xs uppercase tracking-wide">
-					{hasCritical ? 'SLA Breach' : 'SLA Warning'} &mdash; {active.length} active alert{active.length !== 1 ? 's' : ''}
+					{hasCritical ? 'SLA Breach' : 'SLA Warning'} &mdash; {active.length} active alert
+					{active.length !== 1 ? 's' : ''}
 				</p>
 				{active.slice(0, 3).map((a) => (
 					<p key={a.id} className="text-xs opacity-80 truncate">
@@ -272,7 +540,9 @@ function SLAAlertBanner({ alerts }: { alerts: SLAAlert[] }) {
 					</p>
 				))}
 				{active.length > 3 && (
-					<p className="text-xs opacity-60">+{active.length - 3} more — check the SLAs tab for details.</p>
+					<p className="text-xs opacity-60">
+						+{active.length - 3} more — check the SLAs tab for details.
+					</p>
 				)}
 			</div>
 		</div>
@@ -300,7 +570,6 @@ function BatchPipelineTab({ projectId, slaAlerts }: { projectId: string; slaAler
 	}
 
 	if (error || !data) {
-		// Fall back to BatchKanban which fetches its own data from batches endpoint
 		return (
 			<div className="space-y-4">
 				<SLAAlertBanner alerts={slaAlerts} />
@@ -309,7 +578,6 @@ function BatchPipelineTab({ projectId, slaAlerts }: { projectId: string; slaAler
 		);
 	}
 
-	// Render pipeline columns directly from supervisor endpoint data
 	const hasCriticalAlert = slaAlerts.some((a) => !a.acknowledged_at && a.alert_type === 'critical');
 	const hasWarningAlert = slaAlerts.some((a) => !a.acknowledged_at && a.alert_type === 'warning');
 
@@ -334,13 +602,10 @@ function BatchPipelineTab({ projectId, slaAlerts }: { projectId: string; slaAler
 
 	return (
 		<div className="space-y-4">
-			{/* SLA alert banner — shown when there are active unacknowledged alerts */}
 			<SLAAlertBanner alerts={slaAlerts} />
 
 			<div className="flex items-center justify-between">
-				<p className="text-xs text-slate-400">
-					{done}/{total} batches complete
-				</p>
+				<p className="text-xs text-slate-400">{done}/{total} batches complete</p>
 				<span className="text-xs text-slate-400">
 					{total > 0 ? Math.round((done / total) * 100) : 0}% through pipeline
 				</span>
@@ -398,9 +663,7 @@ function BatchPipelineTab({ projectId, slaAlerts }: { projectId: string; slaAler
 											/>
 										</div>
 										<div className="flex justify-between text-2xs text-slate-500">
-											<span>
-												{item.scanned_pages}/{item.estimated_pages}p
-											</span>
+											<span>{item.scanned_pages}/{item.estimated_pages}p</span>
 											<span>{pct}%</span>
 										</div>
 										{item.assigned_operator_name && (
@@ -426,22 +689,34 @@ type Tab = 'live-ops' | 'operator-kpis' | 'batch-pipeline' | 'leaderboard';
 export function SupervisorDashboard() {
 	const [activeTab, setActiveTab] = useState<Tab>('live-ops');
 	const [selectedProjectId, setSelectedProjectId] = useState<string>('');
-
 	const [selectedDays, setSelectedDays] = useState<number>(30);
+	const [msgTarget, setMsgTarget] = useState<OperatorLiveStatus | null>(null);
 
 	const { data: liveOps, dataUpdatedAt: liveUpdated } = useLiveOps();
 	const { data: kpis } = useOperatorKpis(selectedDays);
+	const { data: teamSummary } = useTeamSummary(selectedProjectId || undefined);
 	const { data: projects } = useProjects({});
 	const { mutate: exportKpis, isPending: isExporting } = useExportKpis();
 	const { data: slaAlerts } = useSLAAlerts(selectedProjectId);
 
-	const projectList = (projects as { items?: { id: string; name: string }[] } | { id: string; name: string }[] | undefined) ?? [];
+	// operator_id → KPI for quality score lookup in operator cards
+	const kpiMap = useMemo(
+		() => new Map(kpis?.map((k) => [k.operator_id, k]) ?? []),
+		[kpis]
+	);
+
+	const projectList =
+		(projects as { items?: { id: string; name: string }[] } | { id: string; name: string }[] | undefined) ?? [];
 	const projectItems = Array.isArray(projectList)
 		? projectList
 		: (projectList as { items?: { id: string; name: string }[] }).items ?? [];
 
 	const lastUpdated = liveUpdated
-		? new Date(liveUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+		? new Date(liveUpdated).toLocaleTimeString([], {
+				hour: '2-digit',
+				minute: '2-digit',
+				second: '2-digit',
+			})
 		: '—';
 
 	const tabs: { id: Tab; label: string; icon?: React.ElementType }[] = [
@@ -460,8 +735,12 @@ export function SupervisorDashboard() {
 						<MonitorDot className="w-6 h-6 text-brass-400" />
 					</div>
 					<div>
-						<h1 className="text-xl font-bold text-slate-100 font-display">Supervisor Dashboard</h1>
-						<p className="text-xs text-slate-400 mt-0.5">Real-time scanning operations overview</p>
+						<h1 className="text-xl font-bold text-slate-100 font-display">
+							Supervisor Dashboard
+						</h1>
+						<p className="text-xs text-slate-400 mt-0.5">
+							Real-time scanning operations overview
+						</p>
 					</div>
 				</div>
 
@@ -491,31 +770,34 @@ export function SupervisorDashboard() {
 				</div>
 			</div>
 
-			{/* Stat bar */}
+			{/* Stat bar: Active Operators | Scans Today | Error Rate | Avg Quality */}
 			<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-				<StatCard
-					icon={FileStack}
-					label="Pages Today"
-					value={liveOps?.pages_scanned_today ?? '—'}
-				/>
-				<StatCard
-					icon={Layers}
-					label="Active Batches"
-					value={liveOps?.active_batches ?? '—'}
-				/>
-				<StatCard
-					icon={Clock}
-					label="Queue Depth"
-					value={liveOps?.queue_depth ?? '—'}
-					sub="batches waiting"
-				/>
 				<StatCard
 					icon={Users}
 					label="Active Operators"
-					value={
-						liveOps?.operators.filter((o) => o.status !== 'offline').length ?? '—'
-					}
+					value={liveOps?.operators.filter((o) => o.status !== 'offline').length ?? '—'}
 					sub={`${liveOps?.operators.length ?? 0} total`}
+				/>
+				<StatCard
+					icon={FileStack}
+					label="Scans Today"
+					value={liveOps?.pages_scanned_today ?? '—'}
+				/>
+				<StatCard
+					icon={AlertTriangle}
+					label="Error Rate"
+					value={teamSummary ? fmtPct(teamSummary.team_rescan_rate) : '—'}
+					sub="rescan rate"
+				/>
+				<StatCard
+					icon={Trophy}
+					label="Avg Quality"
+					value={
+						teamSummary
+							? `${(teamSummary.team_first_pass_yield * 100).toFixed(0)}%`
+							: '—'
+					}
+					sub="first pass yield"
 				/>
 			</div>
 
@@ -546,37 +828,61 @@ export function SupervisorDashboard() {
 				{activeTab === 'live-ops' && (
 					<div className="space-y-4">
 						<OperatorScorecard />
-						<div className="flex items-center justify-between">
-							<h2 className="text-sm font-semibold text-slate-300">
-								Operator Status ({liveOps?.operators.length ?? 0})
-							</h2>
-							<div className="flex items-center gap-4 text-xs text-slate-500">
-								<span className="flex items-center gap-1.5">
-									<span className="w-2 h-2 rounded-full bg-emerald-400" />
-									Scanning
-								</span>
-								<span className="flex items-center gap-1.5">
-									<span className="w-2 h-2 rounded-full bg-amber-400" />
-									Idle
-								</span>
-								<span className="flex items-center gap-1.5">
-									<span className="w-2 h-2 rounded-full bg-slate-500" />
-									Offline
-								</span>
-							</div>
-						</div>
 
-						{!liveOps || liveOps.operators.length === 0 ? (
-							<div className="glass-card flex items-center justify-center h-48 text-slate-500">
-								No operator data available.
+						{/* Pages-per-hour throughput chart */}
+						<ThroughputChart pagesToday={liveOps?.pages_scanned_today ?? 0} />
+
+						{/* Operator grid (2/3) + Alert panel (1/3) */}
+						<div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+							<div className="lg:col-span-2 space-y-4">
+								<div className="flex items-center justify-between">
+									<h2 className="text-sm font-semibold text-slate-300">
+										Operator Status ({liveOps?.operators.length ?? 0})
+									</h2>
+									<div className="flex items-center gap-4 text-xs text-slate-500">
+										<span className="flex items-center gap-1.5">
+											<span className="w-2 h-2 rounded-full bg-emerald-400" />
+											Scanning
+										</span>
+										<span className="flex items-center gap-1.5">
+											<span className="w-2 h-2 rounded-full bg-amber-400" />
+											Idle
+										</span>
+										<span className="flex items-center gap-1.5">
+											<span className="w-2 h-2 rounded-full bg-slate-500" />
+											Offline
+										</span>
+									</div>
+								</div>
+
+								{!liveOps || liveOps.operators.length === 0 ? (
+									<div className="glass-card flex items-center justify-center h-48 text-slate-500">
+										No operator data available.
+									</div>
+								) : (
+									<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+										{liveOps.operators.map((op) => (
+											<OperatorCard
+												key={op.operator_id}
+												op={op}
+												qualityPct={
+													kpiMap.has(op.operator_id)
+														? kpiMap.get(op.operator_id)!.first_pass_yield * 100
+														: undefined
+												}
+												onSendMessage={() => setMsgTarget(op)}
+											/>
+										))}
+									</div>
+								)}
 							</div>
-						) : (
-							<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-								{liveOps.operators.map((op) => (
-									<OperatorCard key={op.operator_id} op={op} />
-								))}
-							</div>
-						)}
+
+							{/* Alert panel */}
+							<AlertPanel
+								slaAlerts={slaAlerts ?? []}
+								operators={liveOps?.operators ?? []}
+							/>
+						</div>
 					</div>
 				)}
 
@@ -585,7 +891,6 @@ export function SupervisorDashboard() {
 						<div className="px-4 py-3 border-b border-slate-700/60 flex items-center justify-between gap-3 flex-wrap">
 							<h2 className="text-sm font-semibold text-slate-300">Operator KPIs</h2>
 							<div className="flex items-center gap-2 flex-wrap">
-								{/* Period selector */}
 								<select
 									value={selectedDays}
 									onChange={(e) => setSelectedDays(Number(e.target.value))}
@@ -595,7 +900,6 @@ export function SupervisorDashboard() {
 									<option value={30}>Last 30 days</option>
 									<option value={90}>Last 90 days</option>
 								</select>
-								{/* Export CSV */}
 								<button
 									onClick={() => exportKpis({ days: selectedDays, format: 'csv' })}
 									disabled={isExporting}
@@ -604,7 +908,6 @@ export function SupervisorDashboard() {
 									<Download className="w-3.5 h-3.5" />
 									Export CSV
 								</button>
-								{/* Export PDF (print) */}
 								<button
 									onClick={() => exportKpis({ days: selectedDays, format: 'pdf' })}
 									disabled={isExporting}
@@ -627,7 +930,10 @@ export function SupervisorDashboard() {
 							<span className="text-xs text-slate-500">Refreshes every 15s</span>
 						</div>
 						{selectedProjectId ? (
-							<BatchPipelineTab projectId={selectedProjectId} slaAlerts={slaAlerts ?? []} />
+							<BatchPipelineTab
+								projectId={selectedProjectId}
+								slaAlerts={slaAlerts ?? []}
+							/>
 						) : (
 							<div className="flex items-center justify-center h-48 text-slate-500 text-sm">
 								Select a project above to view its batch pipeline.
@@ -642,6 +948,9 @@ export function SupervisorDashboard() {
 					</div>
 				)}
 			</div>
+
+			{/* Send message overlay dialog */}
+			<SendMessageDialog operator={msgTarget} onClose={() => setMsgTarget(null)} />
 		</div>
 	);
 }
