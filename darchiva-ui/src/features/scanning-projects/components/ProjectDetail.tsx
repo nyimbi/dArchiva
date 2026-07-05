@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import {
+  AlertCircle,
   ArrowLeftIcon,
   BarChart3Icon,
   BoxIcon,
@@ -69,7 +70,7 @@ interface ProjectDetailProps {
 
 export function ProjectDetail({ projectId, onBack }: ProjectDetailProps) {
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
-  const { data: project, isLoading } = useProject(projectId);
+  const { data: project, isLoading, isError } = useProject(projectId);
 
   if (isLoading) {
     return (
@@ -77,6 +78,15 @@ export function ProjectDetail({ projectId, onBack }: ProjectDetailProps) {
         <div className="h-16 bg-white/5 rounded-lg animate-pulse" />
         <div className="h-12 bg-white/5 rounded-lg animate-pulse" />
         <div className="h-96 bg-white/5 rounded-lg animate-pulse" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+        <AlertCircle className="h-4 w-4 shrink-0" />
+        Failed to load project. Try refreshing.
       </div>
     );
   }

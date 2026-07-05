@@ -19,7 +19,7 @@ import {
 	SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CheckCircle2, ChevronDown, Clock, Tag } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ChevronDown, Clock, Tag } from 'lucide-react';
 import { useState } from 'react';
 import {
 	useDocumentClassificationFeedback,
@@ -78,8 +78,8 @@ export function ClassificationPanel({
 	const [submitted, setSubmitted] = useState<string | null>(null);
 	const [historyOpen, setHistoryOpen] = useState(false);
 
-	const { data: docTypes, isLoading: typesLoading } = useDocumentTypes();
-	const { data: history, isLoading: historyLoading } =
+	const { data: docTypes, isLoading: typesLoading, isError: typesError } = useDocumentTypes();
+	const { data: history, isLoading: historyLoading, isError: historyError } =
 		useDocumentClassificationFeedback(documentId);
 	const submitMutation = useSubmitClassificationFeedback(documentId);
 
@@ -146,6 +146,11 @@ export function ClassificationPanel({
 				</p>
 				{typesLoading ? (
 					<Skeleton className="h-9 w-full" />
+				) : typesError ? (
+					<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+						<AlertCircle className="h-4 w-4 shrink-0" />
+						Failed to load document types. Try refreshing.
+					</div>
 				) : (
 					<Select value={selectedType} onValueChange={setSelectedType}>
 						<SelectTrigger className="w-full">
@@ -191,12 +196,18 @@ export function ClassificationPanel({
 								<Skeleton className="h-10 w-full" />
 							</>
 						)}
-						{!historyLoading && (!history || history.length === 0) && (
+						{!historyLoading && historyError && (
+							<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+								<AlertCircle className="h-4 w-4 shrink-0" />
+								Failed to load classification history. Try refreshing.
+							</div>
+						)}
+						{!historyLoading && !historyError && (!history || history.length === 0) && (
 							<p className="text-xs text-muted-foreground py-2">
 								No corrections recorded yet.
 							</p>
 						)}
-						{history?.map((record) => (
+						{!historyError && history?.map((record) => (
 							<div
 								key={record.id}
 								className="rounded-md border bg-muted/30 px-3 py-2 text-xs"

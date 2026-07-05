@@ -482,14 +482,15 @@ export function Inbox() {
   const [selectedIds, setSelectedIds]     = useState<Set<string>>(new Set());
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
 
-  const { data: rawNotifs = [], isLoading: notifsLoading } = useNotifications();
-  const { data: rawTasks  = [], isLoading: tasksLoading  } = useWorkflowTasks();
+  const { data: rawNotifs = [], isLoading: notifsLoading, isError: notifsError } = useNotifications();
+  const { data: rawTasks  = [], isLoading: tasksLoading, isError: tasksError   } = useWorkflowTasks();
   const markAsRead    = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
   const dismiss       = useDismissNotification();
   const taskAction    = useTaskAction();
 
   const isLoading = notifsLoading || tasksLoading;
+  const isError = notifsError || tasksError;
 
   // Merge & sort descending
   const allMessages = useMemo<InboxMessage[]>(() => {
@@ -701,6 +702,12 @@ export function Inbox() {
                   </div>
                 </div>
               ))
+            ) : isError ? (
+              <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+                <AlertTriangle className="h-8 w-8 text-red-400/60" />
+                <p className="text-sm text-red-400">Failed to load inbox.</p>
+                <p className="text-xs text-slate-500">Check your connection and refresh the page.</p>
+              </div>
             ) : filtered.length === 0 ? (
               <EmptyState icon={InboxIcon} title={empty.title} description={empty.desc} />
             ) : (

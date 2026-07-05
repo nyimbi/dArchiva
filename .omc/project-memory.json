@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1781473563941,
+  "lastScanned": 1783248991539,
   "projectRoot": "/Users/nyimbiodero/src/pjs/dArchiva",
   "techStack": {
     "languages": [
@@ -26,7 +26,7 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": null,
+    "buildCommand": "node \"/Users/nyimbiodero/.claude/plugins/cache/openai-codex/codex/1.0.5/scripts/codex-companion.mjs\" task \"Working directory: /Users/nyimbiodero/src/pjs/dArchiva/darchiva-ui\n\nReplace all raw browser confirm() / window.confirm() dialogs with proper shadcn/ui AlertDialog components.\n\n## Files to fix (13 occurrences):\n1. src/features/ingestion/components/IngestionTemplates.tsx — 'Delete this template?'\n2. src/features/automation/AutomationRulesPage.tsx — 'Delete this automation rule?'\n3. src/features/scanner/components/ScanProfilesManager.tsx — 'Delete this profile?'\n4. src/features/comments/CommentsPanel.tsx — 'Delete this comment?'\n5. src/features/security/components/PolicyList.tsx — 'Are you sure you want to delete this policy?'\n6. src/features/security/components/DepartmentAccessMatrix.tsx — 'Revoke this department access?'\n7. src/features/scanning-projects/components/BatchTemplateManager.tsx — 'Delete this template?'\n8. src/features/scanning-projects/components/VirtualRebundler.tsx — merge and split confirms\n9. src/features/scanning-projects/components/ProjectMembersTab.tsx — remove member confirm\n10. src/features/agents/components/FleetManagement.tsx — 'Retire agent? Cannot be undone.'\n11. src/features/email-ingest/EmailIngestConfigs.tsx — 'Delete config? Cannot be undone.'\n12. src/features/tenants/components/TenantUsersList.tsx — remove user from tenant confirm\n13. src/features/reports/ScheduledReportsPage.tsx — 'Delete scheduled report?'\n\n## Pattern to use in each file:\n\nAdd state at the top of the relevant component:\n\\`\\`\\`tsx\nconst [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);\n\\`\\`\\`\n\nReplace:\n\\`\\`\\`tsx\nif (confirm('Delete this X?')) {\n  doDelete(id);\n}\n\\`\\`\\`\nWith:\n\\`\\`\\`tsx\nsetConfirmDialog({ message: 'Delete this X?', onConfirm: () => doDelete(id) });\n\\`\\`\\`\n\nAdd this AlertDialog at the bottom of the component's JSX (before the final closing tag):\n\\`\\`\\`tsx\n<AlertDialog open={!!confirmDialog} onOpenChange={() => setConfirmDialog(null)}>\n  <AlertDialogContent>\n    <AlertDialogHeader>\n      <AlertDialogTitle>Confirm</AlertDialogTitle>\n      <AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>\n    </AlertDialogHeader>\n    <AlertDialogFooter>\n      <AlertDialogCancel>Cancel</AlertDialogCancel>\n      <AlertDialogAction\n        onClick={() => { confirmDialog?.onConfirm(); setConfirmDialog(null); }}\n        className=\\\"bg-red-600 hover:bg-red-700\\\"\n      >\n        Confirm\n      </AlertDialogAction>\n    </AlertDialogFooter>\n  </AlertDialogContent>\n</AlertDialog>\n\\`\\`\\`\n\nImport AlertDialog components from '@/components/ui/alert-dialog':\n\\`\\`\\`tsx\nimport {\n  AlertDialog,\n  AlertDialogAction,\n  AlertDialogCancel,\n  AlertDialogContent,\n  AlertDialogDescription,\n  AlertDialogFooter,\n  AlertDialogHeader,\n  AlertDialogTitle,\n} from '@/components/ui/alert-dialog';\n\\`\\`\\`\n\n## Important notes:\n- useState is always available (already imported in these files, or add it to the import)\n- The alert-dialog component IS available in shadcn — do not create it\n- For components that already return a fragment or div, just append the AlertDialog before the last closing tag\n- For VirtualRebundler.tsx which has two confirms, use the same single confirmDialog state for both\n- Make sure you read each file carefully before editing to understand its structure\n\nAfter all edits:\nnpx tsc --noEmit --skipLibCheck\nFix any TypeScript errors.\nThen: git add -A && git commit -m 'fix: replace all confirm() dialogs with shadcn AlertDialog'\nThen: git push\" --write",
     "testCommand": null,
     "lintCommand": null,
     "devCommand": null,
@@ -42,6 +42,7 @@
     "isMonorepo": false,
     "workspaces": [],
     "mainDirectories": [
+      "docs",
       "scripts",
       "spec"
     ],
@@ -53,7 +54,7 @@
       "path": "darchiva-scan-agent",
       "purpose": null,
       "fileCount": 4,
-      "lastAccessed": 1781473563932,
+      "lastAccessed": 1783248991528,
       "keyFiles": [
         "Makefile",
         "README.md",
@@ -65,7 +66,7 @@
       "path": "darchiva-ui",
       "purpose": null,
       "fileCount": 13,
-      "lastAccessed": 1781473563936,
+      "lastAccessed": 1783248991532,
       "keyFiles": [
         "index.html",
         "package-lock.json",
@@ -78,7 +79,7 @@
       "path": "demo_documents",
       "purpose": null,
       "fileCount": 5,
-      "lastAccessed": 1781473563936,
+      "lastAccessed": 1783248991532,
       "keyFiles": [
         "Data_Protection_Policy.pdf",
         "Employment_Offer_Onyango.pdf",
@@ -87,11 +88,18 @@
         "Service_Agreement_2026.pdf"
       ]
     },
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 0,
+      "lastAccessed": 1783248991533,
+      "keyFiles": []
+    },
     "papermerge-auth-server": {
       "path": "papermerge-auth-server",
       "purpose": null,
       "fileCount": 11,
-      "lastAccessed": 1781473563936,
+      "lastAccessed": 1783248991533,
       "keyFiles": [
         "CHANGELOG.md",
         "LICENSE",
@@ -104,7 +112,7 @@
       "path": "papermerge-core",
       "purpose": null,
       "fileCount": 11,
-      "lastAccessed": 1781473563936,
+      "lastAccessed": 1783248991533,
       "keyFiles": [
         "LICENSE",
         "README.md",
@@ -117,7 +125,7 @@
       "path": "papermerge-ocr-worker",
       "purpose": null,
       "fileCount": 7,
-      "lastAccessed": 1781473563936,
+      "lastAccessed": 1783248991534,
       "keyFiles": [
         "LICENSE",
         "README.md",
@@ -130,7 +138,7 @@
       "path": "papermerge-s3-worker",
       "purpose": null,
       "fileCount": 6,
-      "lastAccessed": 1781473563936,
+      "lastAccessed": 1783248991534,
       "keyFiles": [
         "LICENSE",
         "README.md",
@@ -143,7 +151,7 @@
       "path": "sample_documents",
       "purpose": null,
       "fileCount": 3,
-      "lastAccessed": 1781473563937,
+      "lastAccessed": 1783248991534,
       "keyFiles": [
         "download_samples.py",
         "upload_to_darchiva.py"
@@ -153,7 +161,7 @@
       "path": "scripts",
       "purpose": "Build/utility scripts",
       "fileCount": 9,
-      "lastAccessed": 1781473563937,
+      "lastAccessed": 1783248991535,
       "keyFiles": [
         "deploy.sh",
         "generate_sample_docs.py",
@@ -166,7 +174,7 @@
       "path": "spec",
       "purpose": "Test specifications",
       "fileCount": 4,
-      "lastAccessed": 1781473563937,
+      "lastAccessed": 1783248991535,
       "keyFiles": [
         "implementation-plan.md",
         "spec.md",
@@ -174,18 +182,11 @@
         "workflow.md"
       ]
     },
-    "darchiva-scan-agent/assets": {
-      "path": "darchiva-scan-agent/assets",
-      "purpose": "Static assets",
-      "fileCount": 0,
-      "lastAccessed": 1781473563937,
-      "keyFiles": []
-    },
     "darchiva-scan-agent/docs": {
       "path": "darchiva-scan-agent/docs",
       "purpose": "Documentation",
       "fileCount": 1,
-      "lastAccessed": 1781473563937,
+      "lastAccessed": 1783248991535,
       "keyFiles": [
         "ARCHITECTURE.md"
       ]
@@ -193,25 +194,26 @@
     "darchiva-ui/dist": {
       "path": "darchiva-ui/dist",
       "purpose": "Distribution/build output",
-      "fileCount": 2,
-      "lastAccessed": 1781473563937,
+      "fileCount": 4,
+      "lastAccessed": 1783248991535,
       "keyFiles": [
         "favicon.svg",
-        "index.html"
+        "index.html",
+        "manifest.json"
       ]
     },
     "darchiva-ui/node_modules": {
       "path": "darchiva-ui/node_modules",
       "purpose": "Dependencies",
       "fileCount": 1,
-      "lastAccessed": 1781473563938,
+      "lastAccessed": 1783248991537,
       "keyFiles": []
     },
     "papermerge-s3-worker/tests": {
       "path": "papermerge-s3-worker/tests",
       "purpose": "Test files",
       "fileCount": 4,
-      "lastAccessed": 1781473563939,
+      "lastAccessed": 1783248991539,
       "keyFiles": [
         "__init__.py",
         "conftest.py",
@@ -219,6 +221,223 @@
       ]
     }
   },
-  "hotPaths": [],
+  "hotPaths": [
+    {
+      "path": "darchiva-ui/src/App.tsx",
+      "accessCount": 8,
+      "lastAccessed": 1783251439333,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/pages/Portfolios.tsx",
+      "accessCount": 7,
+      "lastAccessed": 1783252428822,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/pages/Routing.tsx",
+      "accessCount": 6,
+      "lastAccessed": 1783252431595,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/pages/DocumentDetail.tsx",
+      "accessCount": 6,
+      "lastAccessed": 1783253004287,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/features/documents/components/OCRQualityPanel.tsx",
+      "accessCount": 5,
+      "lastAccessed": 1783251755427,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/pages/Ingestion.tsx",
+      "accessCount": 5,
+      "lastAccessed": 1783252567198,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/features/tags/TagManagementPage.tsx",
+      "accessCount": 5,
+      "lastAccessed": 1783252768296,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/features/connectors/ConnectorsPage.tsx",
+      "accessCount": 5,
+      "lastAccessed": 1783252826742,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/features/admin/UserManagement.tsx",
+      "accessCount": 5,
+      "lastAccessed": 1783253084930,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/features/admin/RoleManagement.tsx",
+      "accessCount": 5,
+      "lastAccessed": 1783253093616,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/features/billing/components/CostDashboard.tsx",
+      "accessCount": 5,
+      "lastAccessed": 1783253266234,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/features/automation/AutomationRulesPage.tsx",
+      "accessCount": 4,
+      "lastAccessed": 1783252330292,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/pages/ExceptionQueue.tsx",
+      "accessCount": 4,
+      "lastAccessed": 1783252434223,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/components/Layout.tsx",
+      "accessCount": 4,
+      "lastAccessed": 1783252931401,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/features/quality/components/QualityDashboard.tsx",
+      "accessCount": 4,
+      "lastAccessed": 1783253161854,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/components/Sidebar.tsx",
+      "accessCount": 4,
+      "lastAccessed": 1783253391405,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/pages/Inbox.tsx",
+      "accessCount": 4,
+      "lastAccessed": 1783253495858,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/features/home/components/UserHomePage.tsx",
+      "accessCount": 3,
+      "lastAccessed": 1783252627538,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/pages/Dashboard.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1783249472426,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/features/inbox/components/InboxList.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1783250133224,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/pages/Hierarchy.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1783251732442,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/features/entity-graph/EntityGraphPage.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1783252111761,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/features/activity/ActivityPanel.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1783252128440,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/pages/AuditLogs.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1783252532404,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/features/shortcuts/ShortcutsProvider.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1783252615913,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/features/shortcuts/ShortcutsHelp.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1783252618337,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/features/command-palette/CommandPalette.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1783250969182,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/components/NotificationBell.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1783251024813,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/pages/Documents.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1783251025187,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/components/Header.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1783251163805,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/components/ErrorBoundary.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1783251348415,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/features/reports/ScheduledReportsPage.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1783252335751,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/pages/UserHomePage.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1783252515064,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/features/documents/components/BatchActionsBar.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1783252802480,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/hooks/usePageTitle.ts",
+      "accessCount": 1,
+      "lastAccessed": 1783252907829,
+      "type": "file"
+    },
+    {
+      "path": "darchiva-ui/src/features/scanning-projects/pages/ScanningProjects.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1783253249670,
+      "type": "file"
+    }
+  ],
   "userDirectives": []
 }

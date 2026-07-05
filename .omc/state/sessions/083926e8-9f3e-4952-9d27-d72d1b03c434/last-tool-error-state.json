@@ -1,0 +1,7 @@
+{
+  "tool_name": "Read",
+  "tool_input_preview": "{\"file_path\":\"/Users/nyimbiodero/src/pjs/dArchiva/darchiva-ui/src/hooks\"}",
+  "error": "EISDIR: illegal operation on a directory, read '/Users/nyimbiodero/src/pjs/dArchiva/darchiva-ui/src/hooks'",
+  "timestamp": "2026-07-05T12:01:35.473Z",
+  "retry_count": 1
+}

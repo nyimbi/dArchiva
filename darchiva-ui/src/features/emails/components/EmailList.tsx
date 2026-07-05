@@ -15,7 +15,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
-import { Clock,Mail,Paperclip,RefreshCw,Search } from 'lucide-react';
+import { AlertCircle,Clock,Mail,Paperclip,RefreshCw,Search } from 'lucide-react';
 import { useState } from 'react';
 import { useEmailImports } from '../api';
 import type { EmailImport,EmailSource } from '../types';
@@ -39,7 +39,7 @@ export function EmailList({ onSelect, selectedId, folderId }: EmailListProps) {
 	const [sourceFilter, setSourceFilter] = useState<string>('all');
 	const [page, setPage] = useState(1);
 
-	const { data, isLoading, refetch } = useEmailImports({
+	const { data, isLoading, isError, refetch } = useEmailImports({
 		page,
 		pageSize: 25,
 		folderId,
@@ -100,6 +100,11 @@ export function EmailList({ onSelect, selectedId, folderId }: EmailListProps) {
 								<Skeleton className="h-4 w-1/2" />
 							</div>
 						))}
+					</div>
+				) : isError ? (
+					<div className="m-4 flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+						<AlertCircle className="h-4 w-4 shrink-0" />
+						Failed to load emails. Try refreshing.
 					</div>
 				) : emails.length === 0 ? (
 					<div className="flex flex-col items-center justify-center h-full text-muted-foreground">

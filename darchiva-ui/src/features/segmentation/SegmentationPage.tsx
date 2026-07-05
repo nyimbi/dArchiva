@@ -4,6 +4,7 @@
 import { toast } from 'sonner';
 import { useState } from 'react';
 import {
+  AlertCircle,
   Check,
   FileText,
   Loader2,
@@ -286,17 +287,19 @@ export function SegmentationPage() {
   const {
     data: jobs = [],
     isLoading: isLoadingJobs,
+    isError: isJobsError,
     refetch: refetchJobs,
   } = useSegmentationJobs();
 
   const {
     data: segmentsList,
     isLoading: isLoadingSegments,
+    isError: isSegmentsError,
   } = useJobSegments(selectedJob?.source_document_id);
 
   const segments: Segment[] = segmentsList?.items ?? [];
 
-  const { data: stats, isLoading: isLoadingStats } = useSegmentationStats();
+  const { data: stats, isLoading: isLoadingStats, isError: isStatsError } = useSegmentationStats();
 
   // ── Mutations ──
   const startMutation = useStartSegmentation();
@@ -501,6 +504,15 @@ export function SegmentationPage() {
                       ))}
                     </TableRow>
                   ))
+                ) : isJobsError ? (
+                  <TableRow>
+                    <TableCell colSpan={6}>
+                      <div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                        Failed to load segmentation jobs. Try refreshing.
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 ) : jobs.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
@@ -547,6 +559,11 @@ export function SegmentationPage() {
                   Array.from({ length: 4 }).map((_, i) => (
                     <Skeleton key={i} className="h-36 rounded-lg" />
                   ))
+                ) : isSegmentsError ? (
+                  <div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    Failed to load segments. Try refreshing.
+                  </div>
                 ) : segments.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-2">
                     <Scissors className="h-8 w-8 opacity-25" />
@@ -678,6 +695,11 @@ export function SegmentationPage() {
               {Array.from({ length: 7 }).map((_, i) => (
                 <Skeleton key={i} className="h-28 rounded-lg" />
               ))}
+            </div>
+          ) : isStatsError ? (
+            <div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              Failed to load segmentation statistics. Try refreshing.
             </div>
           ) : !stats ? (
             <p className="text-muted-foreground text-sm">No statistics available.</p>

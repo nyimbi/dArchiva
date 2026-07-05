@@ -38,6 +38,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import {
+  AlertCircle,
   ChevronRight,
   Filter,
   GripVertical,
@@ -80,7 +81,7 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 export function EmailRuleList() {
-	const { data, isLoading } = useEmailRules();
+	const { data, isLoading, isError } = useEmailRules();
 	const [editingRule, setEditingRule] = useState<EmailRule | null>(null);
 
 	if (isLoading) {
@@ -94,6 +95,15 @@ export function EmailRuleList() {
 						</CardHeader>
 					</Card>
 				))}
+			</div>
+		);
+	}
+
+	if (isError) {
+		return (
+			<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+				<AlertCircle className="h-4 w-4 shrink-0" />
+				Failed to load email rules. Try refreshing.
 			</div>
 		);
 	}

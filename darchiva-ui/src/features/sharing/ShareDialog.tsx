@@ -26,6 +26,7 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import {
+	AlertCircle,
 	Check,
 	Clock,
 	Copy,
@@ -194,7 +195,7 @@ export function ShareDialog({
 	const [password, setPassword] = useState('');
 	const [maxViews, setMaxViews] = useState('');
 
-	const { data: links = [], isLoading } = useDocumentShares(documentId);
+	const { data: links = [], isLoading, isError } = useDocumentShares(documentId);
 	const createShare = useCreateShare();
 
 	const activeLinks = links.filter((l) => l.is_active);
@@ -321,7 +322,7 @@ export function ShareDialog({
 				</div>
 
 				{/* ── Active links section ────────────────────────────────── */}
-				{(isLoading || activeLinks.length > 0) && (
+				{(isLoading || isError || activeLinks.length > 0) && (
 					<>
 						<Separator />
 						<div className="space-y-2">
@@ -332,15 +333,25 @@ export function ShareDialog({
 									Loading…
 								</div>
 							) : (
-								<div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-									{activeLinks.map((link) => (
-										<ActiveLinkRow
-											key={link.id}
-											link={link}
-											documentId={documentId}
-										/>
-									))}
-								</div>
+								<>
+									{isError && (
+										<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+											<AlertCircle className="h-4 w-4 shrink-0" />
+											Failed to load share links. Try refreshing.
+										</div>
+									)}
+									{activeLinks.length > 0 && (
+										<div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+											{activeLinks.map((link) => (
+												<ActiveLinkRow
+													key={link.id}
+													link={link}
+													documentId={documentId}
+												/>
+											))}
+										</div>
+									)}
+								</>
 							)}
 						</div>
 					</>

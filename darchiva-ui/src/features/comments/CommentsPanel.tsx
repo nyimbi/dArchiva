@@ -2,6 +2,7 @@
 import { useAuth } from '@/features/auth';
 import { format, formatDistanceToNow } from 'date-fns';
 import {
+  AlertCircle,
   CheckCircle2,
   Circle,
   Loader2,
@@ -372,7 +373,7 @@ export function CommentsPanel({ documentId, currentPage }: CommentsPanelProps) {
   const [pinNew, setPinNew] = useState(false);
 
   const pageFilter = filterPage && currentPage != null ? currentPage : undefined;
-  const { data: allComments, isLoading } = useDocumentComments(documentId, pageFilter);
+  const { data: allComments, isLoading, isError } = useDocumentComments(documentId, pageFilter);
   const createComment = useCreateComment(documentId);
   const comments = allComments ?? [];
   const topLevel = useMemo(() => comments.filter((comment) => comment.parent_id == null), [comments]);
@@ -438,6 +439,11 @@ export function CommentsPanel({ documentId, currentPage }: CommentsPanelProps) {
               </div>
             ))}
           </>
+        ) : isError ? (
+          <div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            Failed to load comments. Try refreshing.
+          </div>
         ) : topLevel.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">
             No comments yet. Be the first to comment.

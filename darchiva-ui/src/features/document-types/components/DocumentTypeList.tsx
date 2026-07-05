@@ -29,7 +29,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Edit,FileText,FileType,Plus,Trash2 } from 'lucide-react';
+import { AlertCircle,Edit,FileText,FileType,Plus,Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useDeleteDocumentType,useDocumentTypes } from '../api';
 import type { DocumentType } from '../types';
@@ -41,7 +41,7 @@ interface DocumentTypeListProps {
 }
 
 export function DocumentTypeList({ onEdit, hideHeader = false }: DocumentTypeListProps) {
-	const { data, isLoading } = useDocumentTypes();
+	const { data, isLoading, isError } = useDocumentTypes();
 	const deleteMutation = useDeleteDocumentType();
 	const [editingType, setEditingType] = useState<DocumentType | null>(null);
 	const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -57,6 +57,15 @@ export function DocumentTypeList({ onEdit, hideHeader = false }: DocumentTypeLis
 						</CardHeader>
 					</Card>
 				))}
+			</div>
+		);
+	}
+
+	if (isError) {
+		return (
+			<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+				<AlertCircle className="h-4 w-4 shrink-0" />
+				Failed to load document types. Try refreshing.
 			</div>
 		);
 	}

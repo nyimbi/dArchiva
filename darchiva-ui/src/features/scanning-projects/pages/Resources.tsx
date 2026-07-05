@@ -1,14 +1,14 @@
 // (c) Copyright Datacraft, 2026
 import type { ScanningResource } from '@/types';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Monitor,Plus,Printer,User } from 'lucide-react';
+import { AlertCircle,Monitor,Plus,Printer,User } from 'lucide-react';
 import { useState } from 'react';
 import type { CreateResourceInput } from '../api';
 import { ResourceCard } from '../components';
 import { useCreateResource,useResources } from '../hooks';
 
 export function Resources() {
-	const { data: resources, isLoading } = useResources();
+	const { data: resources, isLoading, isError } = useResources();
 	const createResource = useCreateResource();
 	const [showCreate, setShowCreate] = useState(false);
 	const [, setSelectedResource] = useState<ScanningResource | null>(null);
@@ -30,6 +30,17 @@ export function Resources() {
 
 	if (isLoading) {
 		return <div className="p-8"><div className="animate-pulse h-48 bg-slate-800 rounded-lg" /></div>;
+	}
+
+	if (isError) {
+		return (
+			<div className="p-8">
+				<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+					<AlertCircle className="h-4 w-4 shrink-0" />
+					Failed to load resources. Try refreshing.
+				</div>
+			</div>
+		);
 	}
 
 	const operators = resources?.filter((r) => r.type === 'operator') || [];

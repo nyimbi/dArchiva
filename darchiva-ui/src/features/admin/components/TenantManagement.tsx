@@ -1,5 +1,6 @@
 // (c) Copyright Datacraft, 2026
 import { AnimatePresence,motion } from 'framer-motion';
+import { AlertCircle } from 'lucide-react';
 import { useMemo,useState } from 'react';
 import {
   Tenant,
@@ -17,7 +18,7 @@ export function TenantManagement() {
 	const [searchQuery, setSearchQuery] = useState('');
 	const [statusFilter, setStatusFilter] = useState<string>('all');
 
-	const { data: tenantsData, isLoading } = useTenants();
+	const { data: tenantsData, isLoading, isError } = useTenants();
 
 	const stats = useMemo(() => {
 		const tenants = tenantsData?.items || [];
@@ -135,6 +136,11 @@ export function TenantManagement() {
 									<div className={styles.loadingState}>
 										<div className={styles.spinner} />
 										<span>Loading tenant data...</span>
+									</div>
+								) : isError ? (
+									<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+										<AlertCircle className="h-4 w-4 shrink-0" />
+										Failed to load tenants. Try refreshing.
 									</div>
 								) : filteredTenants.length === 0 ? (
 									<div className={styles.emptyState}>
