@@ -70,6 +70,9 @@ export function SemanticSearch({
 		}
 	};
 
+	const getPersistedQueryText = (savedQuery: string | SearchQuery) =>
+		typeof savedQuery === 'string' ? savedQuery : savedQuery.query;
+
 	// Close dropdown on click outside
 	useEffect(() => {
 		const handleClickOutside = (e: MouseEvent) => {
@@ -219,7 +222,7 @@ export function SemanticSearch({
 												if (onLoadSavedSearch) {
 													onLoadSavedSearch(search);
 												} else {
-													handleSearch(search.query.query);
+													handleSearch(getPersistedQueryText(search.query));
 												}
 											}}
 											className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-700/50 text-left transition-colors"
@@ -255,11 +258,13 @@ export function SemanticSearch({
 									{recentSearches.slice(0, 5).map((recent, idx) => (
 										<button
 											key={idx}
-											onClick={() => handleSearch(recent.query)}
+											onClick={() => handleSearch(getPersistedQueryText(recent.query))}
 											className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-700/50 text-left transition-colors"
 										>
 											<Search className="w-4 h-4 text-slate-500" />
-											<span className="text-sm text-slate-300 truncate">{recent.query}</span>
+											<span className="text-sm text-slate-300 truncate">
+												{getPersistedQueryText(recent.query)}
+											</span>
 											<span className="text-2xs text-slate-500 ml-auto whitespace-nowrap">
 												{recent.resultCount} results
 											</span>

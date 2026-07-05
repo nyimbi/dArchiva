@@ -170,6 +170,16 @@ export function DocumentDetail() {
 		enabled: !!id && !!previewVersion?.id,
 	});
 
+	const previewPages = useMemo(() => {
+		if (!previewVersion?.id) return [];
+		return (previewPagesData?.pages ?? []).map((page, index) => ({
+			...page,
+			imageUrl:
+				page.imageUrl ??
+				`${API_BASE}/documents/${id}/versions/${previewVersion.id}/pages/${page.pageNumber ?? index + 1}/image`,
+		}));
+	}, [id, previewPagesData?.pages, previewVersion?.id]);
+
 	// Handle saving OCR text
 
 	if (isLoading) {
@@ -197,15 +207,6 @@ export function DocumentDetail() {
 	}
 
 	const pages = pagesData?.pages || [];
-	const previewPages = useMemo(() => {
-		if (!previewVersion?.id) return [];
-		return (previewPagesData?.pages ?? []).map((page, index) => ({
-			...page,
-			imageUrl:
-				page.imageUrl ??
-				`${API_BASE}/documents/${id}/versions/${previewVersion.id}/pages/${page.pageNumber ?? index + 1}/image`,
-		}));
-	}, [id, previewPagesData?.pages, previewVersion?.id]);
 	const viewerPages = previewVersion ? previewPages : pages;
 	const currentVersionNumber = document.versions?.find((version) => version.isCurrent || version.current)?.versionNumber
 		?? document.versions?.find((version) => version.isCurrent || version.current)?.number

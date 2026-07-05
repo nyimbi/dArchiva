@@ -2,44 +2,73 @@
 import '../styles/theme.css';
 import { cn } from '@/lib/utils';
 import {
+	AlertTriangle,
 	Bell,
 	Check,
 	CheckCircle,
 	Clock,
-	Package,
-	Tag,
+	GitBranch,
+	ScanLine,
+	Share2,
 	Trash2,
-	Workflow,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
 	useClearAllNotifications,
 	useDismissNotification,
 	useMarkAllAsRead,
 	useMarkAsRead,
 	useNotifications,
-	useUnreadCount,
 } from '../api/hooks';
+import { useNotificationStore } from '../store';
 import type { Notification, NotificationType } from '../types';
 
 // Domain-specific type icons per spec
 const TYPE_ICONS: Record<string, typeof Bell> = {
-	expiry_reminder: Clock,
-	ocr_complete: CheckCircle,
-	classification_done: Tag,
-	batch_complete: Package,
-	auto_routing: Workflow,
-	system: Bell,
+	ocr_complete: ScanLine,
+	workflow_triggered: GitBranch,
+	approval_needed: CheckCircle,
+	document_shared: Share2,
+	system_alert: AlertTriangle,
 	// legacy generic types
+	error: AlertTriangle,
+	warning: AlertTriangle,
 	success: CheckCircle,
-	error: Bell,
-	warning: Bell,
-	info: Bell,
+};
+
+const TYPE_ICON_CLASSES: Partial<Record<NotificationType, string>> = {
+	ocr_complete: 'notif-icon-green',
+	workflow_triggered: 'notif-icon-blue',
+	approval_needed: 'notif-icon-amber',
+	document_shared: 'notif-icon-purple',
+	system_alert: 'notif-icon-red',
+	error: 'notif-icon-red',
+	warning: 'notif-icon-amber',
 };
 
 function getIcon(type: NotificationType) {
 	return TYPE_ICONS[type] ?? Bell;
+}
+
+function getIconClass(type: NotificationType) {
+	return TYPE_ICON_CLASSES[type] ?? 'notif-icon-slate';
+}
+
+function getNotificationHref(notification: Notification): string | undefined {
+	const documentId = notification.data?.document_id;
+	if (typeof documentId === 'string' && documentId.length > 0) {
+		return `/documents?nodeId=${encodeURIComponent(documentId)}`;
+	}
+	return notification.link;
+}
+
+function isExternalHref(href: string): boolean {
+	return /^https?:\/\//i.test(href);
+}
+
+function isPersistedNotification(notification: Notification): boolean {
+	return !notification.id.startsWith('ws-');
 }
 
 interface Props {
@@ -51,12 +80,23 @@ export function NotificationCenter({ className }: Props) {
 	const ref = useRef<HTMLDivElement>(null);
 	const navigate = useNavigate();
 
-	const { data: notifications = [] } = useNotifications();
-	const { data: unreadCount = 0 } = useUnreadCount();
+	const { data: apiNotifications = [] } = useNotifications();
+	const notifications = useNotificationStore(s => s.notifications);
+	const unreadCount = useNotificationStore(s => s.unreadCount);
+	const setNotifications = useNotificationStore(s => s.setNotifications);
+	const markAsRead = useNotificationStore(s => s.markAsRead);
+	const markAllRead = useNotificationStore(s => s.markAllRead);
+	const removeNotification = useNotificationStore(s => s.removeNotification);
+	const clearAll = useNotificationStore(s => s.clearAll);
 	const markAsReadMutation = useMarkAsRead();
 	const markAllAsReadMutation = useMarkAllAsRead();
 	const dismissMutation = useDismissNotification();
 	const clearAllMutation = useClearAllNotifications();
+	const recentNotifications = notifications.slice(0, 10);
+
+	useEffect(() => {
+		setNotifications(apiNotifications);
+	}, [apiNotifications, setNotifications]);
 
 	useEffect(() => {
 		const handleClickOutside = (e: MouseEvent) => {
@@ -80,17 +120,30 @@ export function NotificationCenter({ className }: Props) {
 	};
 
 	const handleNotificationClick = (notif: Notification) => {
-		if (!notif.read) markAsReadMutation.mutate(notif.id);
-		// Navigate to document if data.document_id present
-		const docId = notif.data?.document_id;
-		if (docId) {
-			navigate(`/document/${docId}`);
+		if (!notif.read) {
+			markAsRead(notif.id);
+			if (isPersistedNotification(notif)) markAsReadMutation.mutate(notif.id);
+		}
+
+		const href = getNotificationHref(notif);
+		if (!href) return;
+		if (isExternalHref(href)) {
+			window.open(href, '_blank', 'noopener,noreferrer');
 			setOpen(false);
 			return;
 		}
-		if (notif.link) {
-			window.open(notif.link, '_blank');
-		}
+		navigate(href);
+		setOpen(false);
+	};
+
+	const handleMarkAllRead = () => {
+		markAllRead();
+		markAllAsReadMutation.mutate();
+	};
+
+	const handleClearAll = () => {
+		clearAll();
+		clearAllMutation.mutate();
 	};
 
 	return (
@@ -103,7 +156,7 @@ export function NotificationCenter({ className }: Props) {
 			>
 				<Bell className="w-5 h-5" />
 				{unreadCount > 0 && (
-					<span className="notif-badge">
+					<span className="notif-badge notif-badge-pulse">
 						{unreadCount > 99 ? '99+' : unreadCount}
 					</span>
 				)}
@@ -123,7 +176,7 @@ export function NotificationCenter({ className }: Props) {
 						<div className="flex gap-2">
 							{unreadCount > 0 && (
 								<button
-									onClick={() => markAllAsReadMutation.mutate()}
+									onClick={handleMarkAllRead}
 									className="notif-mark-all"
 									disabled={markAllAsReadMutation.isPending}
 								>
@@ -133,7 +186,7 @@ export function NotificationCenter({ className }: Props) {
 							)}
 							{notifications.length > 0 && (
 								<button
-									onClick={() => clearAllMutation.mutate()}
+									onClick={handleClearAll}
 									className="notif-mark-all"
 									disabled={clearAllMutation.isPending}
 								>
@@ -146,22 +199,30 @@ export function NotificationCenter({ className }: Props) {
 
 					{/* List */}
 					<div className="notif-list">
-						{notifications.length === 0 ? (
+						{recentNotifications.length === 0 ? (
 							<div className="notif-empty">
 								<Bell className="w-10 h-10 text-[var(--notif-muted)] mb-2" />
 								<p>You're all caught up</p>
 							</div>
 						) : (
-							notifications.map(notif => (
+							recentNotifications.map(notif => (
 								<NotificationItem
 									key={notif.id}
 									notification={notif}
 									onClick={() => handleNotificationClick(notif)}
-									onRemove={() => dismissMutation.mutate(notif.id)}
+									onRemove={() => {
+										removeNotification(notif.id);
+										if (isPersistedNotification(notif)) dismissMutation.mutate(notif.id);
+									}}
 									formatTime={formatTime}
 								/>
 							))
 						)}
+					</div>
+					<div className="notif-footer">
+						<Link to="/inbox" onClick={() => setOpen(false)} className="notif-view-all">
+							View all
+						</Link>
 					</div>
 				</div>
 			)}
@@ -181,6 +242,7 @@ function NotificationItem({
 	formatTime: (ts: string) => string;
 }) {
 	const Icon = getIcon(notification.type);
+	const iconClass = getIconClass(notification.type);
 	const body = notification.body ?? notification.message;
 	const truncatedBody = body.length > 80 ? body.slice(0, 80) + '…' : body;
 	const isClickable = !!(notification.data?.document_id ?? notification.link);
@@ -194,7 +256,7 @@ function NotificationItem({
 				isClickable && 'cursor-pointer'
 			)}
 		>
-			<div className={cn('notif-icon', `notif-icon-${notification.type}`)}>
+			<div className={cn('notif-icon', iconClass)}>
 				<Icon className="w-4 h-4" />
 			</div>
 			<div className="notif-content">

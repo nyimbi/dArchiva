@@ -2,6 +2,7 @@
 import { lazy,Suspense,useState } from 'react';
 import { QueryClient,QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter,Route,Routes } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { Layout } from './components/Layout';
 import { AuthProvider,LoginPage,ProtectedRoute } from './features/auth';
 import {
@@ -133,6 +134,7 @@ function AppInner() {
 
 	return (
 		<>
+			<Toaster richColors position="top-right" visibleToasts={4} />
 			<NotificationToaster />
 			{!wizardDismissed && <OnboardingWizard onDone={() => setWizardDismissed(true)} />}
 		</>

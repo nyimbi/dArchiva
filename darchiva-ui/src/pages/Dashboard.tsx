@@ -668,7 +668,7 @@ export function Dashboard() {
 									</div>
 									<div className="min-w-0 flex-1">
 										<p className="text-sm font-medium text-slate-200">{WIDGET_LABELS[widget.id]}</p>
-										{alwaysOn && <p className="text-xs text-slate-500">Always on</p>}
+										{alwaysOn && <p className="text-xs text-slate-400">Always on</p>}
 									</div>
 									<Switch
 										checked={alwaysOn || widget.enabled}

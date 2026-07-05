@@ -1,4 +1,6 @@
 // (c) Copyright Datacraft, 2026
+import { useNotificationStore } from '@/features/notifications/store';
+import type { NotificationConnectionStatus } from '@/features/notifications/types';
 import { useStore } from '@/hooks/useStore';
 import { apiClient } from '@/lib/api-client';
 import { cn, formatBytes } from '@/lib/utils';
@@ -206,9 +208,22 @@ interface SidebarProps {
 	onClose?: () => void;
 }
 
+const connectionDotClass: Record<NotificationConnectionStatus, string> = {
+	connected: 'bg-emerald-400 shadow-[0_0_0_3px_rgba(52,211,153,0.14)]',
+	reconnecting: 'bg-amber-400 shadow-[0_0_0_3px_rgba(251,191,36,0.14)]',
+	disconnected: 'bg-red-500 shadow-[0_0_0_3px_rgba(239,68,68,0.14)]',
+};
+
+const connectionLabel: Record<NotificationConnectionStatus, string> = {
+	connected: 'Notifications connected',
+	reconnecting: 'Notifications reconnecting',
+	disconnected: 'Notifications disconnected',
+};
+
 export function Sidebar({ onClose }: SidebarProps) {
 	const location = useLocation();
 	const { sidebarCollapsed, toggleSidebar, pendingTasks } = useStore();
+	const connectionStatus = useNotificationStore(s => s.connectionStatus);
 	const isMobileOverlay = Boolean(onClose);
 	const collapsed = isMobileOverlay ? false : sidebarCollapsed;
 	const { data: sidebarStats, isLoading: sidebarStatsLoading } = useQuery({
@@ -373,7 +388,7 @@ export function Sidebar({ onClose }: SidebarProps) {
 							animate={{ opacity: 1 }}
 							exit={{ opacity: 0 }}
 							transition={{ duration: 0.15 }}
-							className="mb-2 rounded-lg bg-slate-900/70 px-3 py-2 text-2xs text-slate-500"
+							className="mb-2 rounded-lg bg-slate-900/70 px-3 py-2 text-2xs text-slate-400"
 						>
 							{sidebarStatsLoading ? (
 								<span>Loading stats...</span>
@@ -398,6 +413,24 @@ export function Sidebar({ onClose }: SidebarProps) {
 						</motion.div>
 					)}
 				</AnimatePresence>
+				<div
+					className={cn(
+						'mb-2 flex items-center gap-2 px-2 text-2xs uppercase text-slate-400',
+						collapsed && 'justify-center px-0'
+					)}
+					title={connectionLabel[connectionStatus]}
+					aria-label={connectionLabel[connectionStatus]}
+				>
+					<span
+						className={cn(
+							'h-2.5 w-2.5 shrink-0 rounded-full',
+							connectionStatus === 'reconnecting' && 'animate-pulse',
+							connectionDotClass[connectionStatus]
+						)}
+						aria-hidden="true"
+					/>
+					{!collapsed && <span className="truncate">Realtime {connectionStatus}</span>}
+				</div>
 				<button
 					onClick={toggleSidebar}
 					className="w-full flex items-center justify-center p-2 rounded-lg text-slate-400 hover:text-slate-300 hover:bg-slate-800/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500"
