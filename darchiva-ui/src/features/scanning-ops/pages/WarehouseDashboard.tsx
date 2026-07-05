@@ -97,13 +97,57 @@ function BundlesPanel({ batches }: { batches: AssignedBatch[] }) {
 
 function FloorPlan({ batches }: { batches: AssignedBatch[] }) {
     const active = batches.filter(b => ['in_progress','scanning'].includes(b.status));
-    const TOTAL_STATIONS = 12;
 
-    const stations = Array.from({ length: TOTAL_STATIONS }, (_, i) => {
-        const num   = String(i + 1).padStart(2, '0');
-        const batch = active[i] ?? null;
-        return { id: `ST-${num}`, label: `Station ${num}`, batch };
-    });
+    type BatchWithStation = AssignedBatch & Partial<Record<
+        'station_id' | 'station_number' | 'station_name' |
+        'workstation_id' | 'workstation_name' |
+        'scanner_id' | 'scanner_name',
+        string | number | null
+    >>;
+
+    const stationFields: (keyof BatchWithStation)[] = [
+        'station_id',
+        'station_number',
+        'station_name',
+        'workstation_id',
+        'workstation_name',
+        'scanner_id',
+        'scanner_name',
+    ];
+
+    const getStationId = (batch: AssignedBatch) => {
+        const batchWithStation = batch as BatchWithStation;
+        for (const field of stationFields) {
+            const value = batchWithStation[field];
+            if (value !== undefined && value !== null && String(value).trim() !== '') {
+                return String(value);
+            }
+        }
+        return null;
+    };
+
+    const activeByStation = new Map<string, AssignedBatch>();
+    for (const batch of active) {
+        const stationId = getStationId(batch);
+        if (stationId && !activeByStation.has(stationId)) {
+            activeByStation.set(stationId, batch);
+        }
+    }
+
+    const stationIds = Array.from(new Set(batches.map(getStationId).filter((id): id is string => Boolean(id))));
+    const stations = stationIds.length > 0
+        ? stationIds.map(stationId => ({
+            id: stationId,
+            label: `Station ${stationId}`,
+            batch: activeByStation.get(stationId) ?? null,
+        }))
+        : batches.map((batch, index) => ({
+            id: batch.id,
+            label: `Batch ${String(index + 1).padStart(2, '0')}`,
+            batch: ['in_progress','scanning'].includes(batch.status) ? batch : null,
+        }));
+
+    const activeStationCount = stations.filter(station => station.batch).length;
 
     return (
         <div className="flex flex-col gap-4">
@@ -128,7 +172,7 @@ function FloorPlan({ batches }: { batches: AssignedBatch[] }) {
                         }`}
                     >
                         <div className={`text-xs font-bold uppercase mb-1 ${station.batch ? 'text-blue-400' : 'text-slate-600'}`}>
-                            {station.id}
+                            {station.label}
                         </div>
                         {station.batch ? (
                             <>
@@ -146,7 +190,7 @@ function FloorPlan({ batches }: { batches: AssignedBatch[] }) {
                 ))}
             </div>
             <div className="text-xs text-slate-600 text-center">
-                {active.length} of {TOTAL_STATIONS} stations active
+                {activeStationCount} of {stations.length} stations active
             </div>
         </div>
     );
