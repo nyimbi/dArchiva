@@ -1,3 +1,14 @@
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { BulkImportDialog } from '@/features/ingestion/components/BulkImportDialog';
 import { cn } from '@/lib/utils';
 import {
   ArrowUpIcon,
@@ -13,6 +24,7 @@ import {
 import { useState } from 'react';
 import { useBatches,useBulkUpdateBatches,usePriorityQueue } from '../../api/hooks';
 import type { BatchFilters,BatchPriorityQueue,BatchStatus,ScanningBatch } from '../../types';
+import { CreateBatchDialog } from '../CreateBatchDialog';
 import { DataTable,type Column } from '../core/DataTable';
 import { StatusBadge } from '../core/StatusBadge';
 
@@ -26,6 +38,9 @@ export function BatchesTab({ projectId }: BatchesTabProps) {
   const [filters, setFilters] = useState<BatchFilters>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showPriorityQueue, setShowPriorityQueue] = useState(false);
+  const [showCreateBatch, setShowCreateBatch] = useState(false);
+  const [showBulkImport, setShowBulkImport] = useState(false);
+  const [confirmStatus, setConfirmStatus] = useState<BatchStatus | null>(null);
 
   const { data: batchesData, isLoading } = useBatches(projectId, filters);
   const { data: priorityQueue } = usePriorityQueue(projectId);
@@ -41,6 +56,14 @@ export function BatchesTab({ projectId }: BatchesTabProps) {
       updates,
     });
     setSelectedIds(new Set());
+  };
+
+  const statusLabel = (status: BatchStatus) => status.replace('_', ' ');
+
+  const confirmBulkStatus = () => {
+    if (!confirmStatus) return;
+    handleBulkAction({ status: confirmStatus });
+    setConfirmStatus(null);
   };
 
   const columns: Column<ScanningBatch>[] = [
@@ -150,11 +173,17 @@ export function BatchesTab({ projectId }: BatchesTabProps) {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/70 border border-white/10 rounded-md text-sm transition-colors">
+          <button
+            onClick={() => setShowBulkImport(true)}
+            className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/70 border border-white/10 rounded-md text-sm transition-colors"
+          >
             <UploadIcon className="w-4 h-4" />
             Bulk Import
           </button>
-          <button className="flex items-center gap-2 px-3 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-md text-sm transition-colors">
+          <button
+            onClick={() => setShowCreateBatch(true)}
+            className="flex items-center gap-2 px-3 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-md text-sm transition-colors"
+          >
             <PlusIcon className="w-4 h-4" />
             Add Batch
           </button>
@@ -204,19 +233,19 @@ export function BatchesTab({ projectId }: BatchesTabProps) {
           </span>
           <div className="flex items-center gap-2 ml-auto">
             <button
-              onClick={() => handleBulkAction({ status: 'in_progress' })}
+              onClick={() => setConfirmStatus('in_progress')}
               className="flex items-center gap-1 px-2 py-1 text-xs bg-white/10 hover:bg-white/20 text-white rounded"
             >
               <PlayIcon className="w-3 h-3" /> Start
             </button>
             <button
-              onClick={() => handleBulkAction({ status: 'on_hold' })}
+              onClick={() => setConfirmStatus('on_hold')}
               className="flex items-center gap-1 px-2 py-1 text-xs bg-white/10 hover:bg-white/20 text-white rounded"
             >
               <PauseIcon className="w-3 h-3" /> Pause
             </button>
             <button
-              onClick={() => handleBulkAction({ status: 'completed' })}
+              onClick={() => setConfirmStatus('completed')}
               className="flex items-center gap-1 px-2 py-1 text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 rounded"
             >
               <CheckIcon className="w-3 h-3" /> Complete
@@ -249,6 +278,33 @@ export function BatchesTab({ projectId }: BatchesTabProps) {
           emptyMessage="No batches yet"
         />
       </div>
+
+      <CreateBatchDialog
+        projectId={projectId}
+        open={showCreateBatch}
+        onOpenChange={setShowCreateBatch}
+      />
+      <BulkImportDialog
+        isOpen={showBulkImport}
+        onClose={() => setShowBulkImport(false)}
+        projectId={projectId}
+      />
+      <AlertDialog open={!!confirmStatus} onOpenChange={(open) => !open && setConfirmStatus(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm bulk status change</AlertDialogTitle>
+            <AlertDialogDescription>
+              Move {selectedIds.size} batches to {confirmStatus ? statusLabel(confirmStatus) : ''}? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmBulkStatus}>
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

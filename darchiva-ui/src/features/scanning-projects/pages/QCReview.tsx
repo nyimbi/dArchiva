@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import {
+	AlertCircle,
 	AlertTriangle,
 	ArrowLeft,
 	CheckCircle,
@@ -273,8 +274,8 @@ function ReviewDialog({
 
 export function QCReview() {
 	const { projectId } = useParams<{ projectId: string }>();
-	const { data: project } = useScanningProject(projectId!);
-	const { data: samples = [], isLoading } = useQCSamples(projectId!);
+	const { data: project, isError: projectError } = useScanningProject(projectId!);
+	const { data: samples = [], isLoading, isError: samplesError } = useQCSamples(projectId!);
 	const updateSample = useUpdateQCSample();
 
 	const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
@@ -370,6 +371,25 @@ export function QCReview() {
 				<Skeleton className="h-8 w-64" />
 				<Skeleton className="h-10 w-full" />
 				<Skeleton className="h-64 w-full" />
+			</div>
+		);
+	}
+
+	if (projectError || samplesError) {
+		return (
+			<div className="p-8 space-y-4">
+				{projectError && (
+					<div className="flex items-center gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+						<AlertCircle className="h-4 w-4 shrink-0" />
+						Failed to load project details. Refresh and try again.
+					</div>
+				)}
+				{samplesError && (
+					<div className="flex items-center gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+						<AlertCircle className="h-4 w-4 shrink-0" />
+						Failed to load QC samples. Refresh and try again.
+					</div>
+				)}
 			</div>
 		);
 	}

@@ -1188,11 +1188,13 @@ export function ScanningStation() {
 		completeBatchScan(projectId, batchId, pages.length)
 			.then(() => {
 				toast.success('Batch marked as completed');
+				queryClient.invalidateQueries({ queryKey: ['batches'] });
+				queryClient.invalidateQueries({ queryKey: ['projects'] });
 			})
 			.catch((error: unknown) => {
 				toast.error(error instanceof Error ? error.message : 'Failed to complete batch');
 			});
-	}, [batchId, pages.length, projectId]);
+	}, [batchId, pages.length, projectId, queryClient]);
 
 	// Stable refs so the keydown handler always sees current values
 	const hotkeysRef = useRef(hotkeys);

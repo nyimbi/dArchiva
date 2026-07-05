@@ -1,5 +1,5 @@
 // (c) Copyright Datacraft, 2026.
-import { useState } from 'react';
+import { useEffect,useState } from 'react';
 import {
 	AlertCircle,
 	Cloud,
@@ -120,7 +120,7 @@ function StatsCards({ connectors }: { connectors: ConnectorConfig[] }) {
 		.map(c => c.last_sync_at)
 		.filter(Boolean)
 		.sort()
-		.at(-1) ?? null;
+		.pop() ?? null;
 
 	// total files synced across all last syncs
 	const totalFiles = connectors.reduce((sum, c) => sum + c.last_file_count, 0);
@@ -155,21 +155,27 @@ function StatsCards({ connectors }: { connectors: ConnectorConfig[] }) {
 interface AddDialogProps {
 	open: boolean;
 	onClose: () => void;
+	initialType?: ConnectorType;
 }
 
-function AddConnectorDialog({ open, onClose }: AddDialogProps) {
+function AddConnectorDialog({ open, onClose, initialType = 'dropbox' }: AddDialogProps) {
 	const createMutation = useCreateConnector();
 
 	const [name, setName] = useState('');
-	const [type, setType] = useState<ConnectorType>('dropbox');
+	const [type, setType] = useState<ConnectorType>(initialType);
 	const [accessToken, setAccessToken] = useState('');
 	const [folderPath, setFolderPath] = useState('');
 	const [destinationFolderId, setDestinationFolderId] = useState('');
 	const [interval, setInterval] = useState(60);
+	const oauthNotConfigured = type === 'google_drive' || type === 'onedrive';
+
+	useEffect(() => {
+		if (open) setType(initialType);
+	}, [initialType, open]);
 
 	function reset() {
 		setName('');
-		setType('dropbox');
+		setType(initialType);
 		setAccessToken('');
 		setFolderPath('');
 		setDestinationFolderId('');
@@ -184,6 +190,7 @@ function AddConnectorDialog({ open, onClose }: AddDialogProps) {
 
 	async function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
+		if (oauthNotConfigured) return;
 		const payload: CreateConnectorInput = {
 			name: name.trim(),
 			connector_type: type,
@@ -263,9 +270,8 @@ function AddConnectorDialog({ open, onClose }: AddDialogProps) {
 					)}
 
 					{(type === 'google_drive' || type === 'onedrive') && (
-						<p className="rounded border bg-muted p-3 text-sm text-muted-foreground">
-							OAuth flow for {CONNECTOR_META[type].label} is not yet configured.
-							Contact your administrator to set up OAuth application credentials.
+						<p className="rounded border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-300">
+							OAuth not configured — contact your administrator
 						</p>
 					)}
 
@@ -295,7 +301,11 @@ function AddConnectorDialog({ open, onClose }: AddDialogProps) {
 						<Button type="button" variant="ghost" onClick={onClose}>
 							Cancel
 						</Button>
-						<Button type="submit" disabled={createMutation.isPending}>
+						<Button
+							type="submit"
+							disabled={createMutation.isPending || oauthNotConfigured}
+							title={oauthNotConfigured ? 'OAuth not configured — contact your administrator' : undefined}
+						>
 							{createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
 							Add Connector
 						</Button>
@@ -508,7 +518,7 @@ function ConnectorCard({ connector, onDelete }: ConnectorCardProps) {
 
 interface TypeCardProps {
 	type: ConnectorType;
-	onConnect: () => void;
+	onConnect: (type: ConnectorType) => void;
 }
 
 function TypeCard({ type, onConnect }: TypeCardProps) {
@@ -523,7 +533,7 @@ function TypeCard({ type, onConnect }: TypeCardProps) {
 				</div>
 			</div>
 			<CardContent className="pb-4 pt-4">
-				<Button size="sm" variant="outline" className="w-full" onClick={onConnect}>
+				<Button size="sm" variant="outline" className="w-full" onClick={() => onConnect(type)}>
 					<Plus className="mr-1.5 h-3.5 w-3.5" />
 					Connect
 				</Button>
@@ -541,6 +551,7 @@ export function ConnectorsPage() {
 	const deleteMutation = useDeleteConnector();
 
 	const [showAdd, setShowAdd] = useState(false);
+	const [addType, setAddType] = useState<ConnectorType>('dropbox');
 	const [deleteId, setDeleteId] = useState<string | null>(null);
 
 	const connectedTypes = new Set(connectors.map(c => c.connector_type));
@@ -554,6 +565,11 @@ export function ConnectorsPage() {
 		setDeleteId(null);
 	}
 
+	function openAddDialog(type: ConnectorType = 'dropbox') {
+		setAddType(type);
+		setShowAdd(true);
+	}
+
 	return (
 		<div className="mx-auto max-w-5xl space-y-8 p-6">
 			{/* Page header */}
@@ -564,7 +580,7 @@ export function ConnectorsPage() {
 						Import documents automatically from cloud storage and local folders.
 					</p>
 				</div>
-				<Button onClick={() => setShowAdd(true)}>
+				<Button onClick={() => openAddDialog()}>
 					<Plus className="mr-2 h-4 w-4" />
 					Add Connector
 				</Button>
@@ -621,7 +637,7 @@ export function ConnectorsPage() {
 							</h2>
 							<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 								{unconnectedTypes.map(t => (
-									<TypeCard key={t} type={t} onConnect={() => setShowAdd(true)} />
+									<TypeCard key={t} type={t} onConnect={openAddDialog} />
 								))}
 							</div>
 						</section>
@@ -636,7 +652,7 @@ export function ConnectorsPage() {
 								Connect Dropbox, Google Drive, OneDrive, or a local folder to start importing
 								documents automatically.
 							</p>
-							<Button className="mt-4" onClick={() => setShowAdd(true)}>
+							<Button className="mt-4" onClick={() => openAddDialog()}>
 								<Plus className="mr-2 h-4 w-4" />
 								Add your first connector
 							</Button>
@@ -646,7 +662,7 @@ export function ConnectorsPage() {
 			)}
 
 			{/* Dialogs */}
-			<AddConnectorDialog open={showAdd} onClose={() => setShowAdd(false)} />
+			<AddConnectorDialog open={showAdd} onClose={() => setShowAdd(false)} initialType={addType} />
 
 			<AlertDialog open={!!deleteId} onOpenChange={v => { if (!v) setDeleteId(null); }}>
 				<AlertDialogContent>

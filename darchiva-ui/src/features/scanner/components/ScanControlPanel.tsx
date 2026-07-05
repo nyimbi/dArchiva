@@ -9,7 +9,7 @@ import {
   PlayIcon,
   StopIcon,
 } from '@heroicons/react/24/outline';
-import { useCallback,useState } from 'react';
+import { useCallback,useEffect,useState } from 'react';
 import { toast } from 'sonner';
 import {
   useCancelScanJob,
@@ -93,10 +93,11 @@ export function ScanControlPanel({
 	};
 
 	// Watch for completion
-	if (activeJob?.status === 'completed') {
+	useEffect(() => {
+		if (activeJob?.status !== 'completed') return;
 		onScanComplete?.(activeJob);
 		setActiveJobId(null);
-	}
+	}, [activeJob, onScanComplete]);
 
 	return (
 		<div className={cn('flex gap-6 h-full', className)}>

@@ -166,6 +166,19 @@ export function useTriggerIngestion() {
 	});
 }
 
+export function useRetryIngestionJob() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: async (jobId: string) => {
+			const { data } = await apiClient.post<IngestionJob>(`${API_BASE}/jobs/${jobId}/retry`);
+			return data;
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ingestionKeys.jobs() });
+		},
+	});
+}
+
 
 // ==================== Batch Types & Hooks ====================
 
