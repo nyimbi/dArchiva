@@ -1,12 +1,15 @@
 // (c) Copyright Datacraft, 2026
 import {
   useConfirmExtraction,
-  useCreateTemplate,
   useExtraction,
   useExtractionQueue,
   useFormTemplates,
   useReExtract,
+  useToggleTemplate,
+  useUpdateTemplate,
   useUpdateFieldValue,
+  formKeys,
+  type Extraction,
   type ExtractionQueueItem,
   type ExtractionStatus,
   type FieldValue,
@@ -15,6 +18,16 @@ import {
 } from '@/features/forms';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Dialog,
   DialogContent,
@@ -32,6 +45,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Slider } from '@/components/ui/slider';
 import {
   Sheet,
   SheetContent,
@@ -39,6 +53,13 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Table,
   TableBody,
@@ -49,7 +70,9 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
+import { apiClient } from '@/lib/api-client';
 import { cn, formatRelativeTime } from '@/lib/utils';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
   AlertTriangle,
@@ -59,15 +82,19 @@ import {
   FileSearch,
   FileText,
   Loader2,
+  MoreHorizontal,
   Pencil,
+  Power,
   Plus,
   RefreshCw,
   RotateCcw,
   Save,
   Settings,
   Signature,
+  Trash2,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 
 // ─── Status badge mapping ────────────────────────────────────────────────────
 
@@ -89,6 +116,84 @@ const STATUS_LABEL: Record<ExtractionStatus, string> = {
   needs_review: 'Needs Review',
   failed: 'Failed',
 };
+
+type FieldExtractionMode = 'auto' | 'manual';
+
+interface TemplateFieldDefinition {
+  name: string;
+  type: string;
+  label: string;
+}
+
+interface TemplateCreatePayload {
+  name: string;
+  category: string;
+  description?: string;
+  fields: TemplateFieldDefinition[];
+  sampleDocument?: {
+    fileName: string;
+    contentType: string;
+    data: string;
+  };
+}
+
+interface RecognitionConfigPayload {
+  confidenceThreshold: number;
+  fieldExtractionMode: FieldExtractionMode;
+  pageRange?: string;
+}
+
+const FIELD_TYPES = new Set(['text', 'date', 'number', 'currency', 'checkbox']);
+
+function parseFieldDefinitions(value: string): TemplateFieldDefinition[] {
+  return value
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [rawName, rawType] = line.split(':');
+      const name = rawName.trim();
+      const type = rawType?.trim().toLowerCase() || 'text';
+
+      return {
+        name,
+        type: FIELD_TYPES.has(type) ? type : 'text',
+        label: name
+          .replace(/[_-]+/g, ' ')
+          .replace(/\b\w/g, (char) => char.toUpperCase()),
+      };
+    })
+    .filter((field) => field.name.length > 0);
+}
+
+async function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== 'string') {
+        reject(new Error('Unable to read sample document'));
+        return;
+      }
+      resolve(result.split(',')[1] ?? result);
+    };
+    reader.onerror = () => reject(reader.error ?? new Error('Unable to read sample document'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function downloadJsonFile(fileName: string, data: unknown) {
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 function QueryErrorBanner({
   message,
@@ -122,29 +227,56 @@ function AddTemplateDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
-  const createTemplate = useCreateTemplate();
+  const queryClient = useQueryClient();
+  const createTemplate = useMutation({
+    mutationFn: async (payload: TemplateCreatePayload) => {
+      const { data } = await apiClient.post<FormTemplate>('/forms/templates', payload);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: formKeys.templates() });
+    },
+  });
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
   const [fields, setFields] = useState('');
+  const [sampleFile, setSampleFile] = useState<File | null>(null);
 
   const reset = () => {
     setName('');
     setCategory('');
     setDescription('');
     setFields('');
+    setSampleFile(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !category) return;
-    await createTemplate.mutateAsync({
+    const payload: TemplateCreatePayload = {
       name: name.trim(),
       category,
       description: description.trim() || undefined,
-    });
-    reset();
-    onOpenChange(false);
+      fields: parseFieldDefinitions(fields),
+    };
+
+    if (sampleFile) {
+      payload.sampleDocument = {
+        fileName: sampleFile.name,
+        contentType: sampleFile.type || 'application/octet-stream',
+        data: await fileToBase64(sampleFile),
+      };
+    }
+
+    try {
+      await createTemplate.mutateAsync(payload);
+      toast.success('Form template created');
+      reset();
+      onOpenChange(false);
+    } catch {
+      toast.error('Failed to create form template');
+    }
   };
 
   return (
@@ -218,7 +350,12 @@ function AddTemplateDialog({
           </div>
           <div className="space-y-2">
             <Label htmlFor="tpl-sample">Sample Document</Label>
-            <Input id="tpl-sample" type="file" accept=".pdf,.jpg,.jpeg,.png,.tiff" />
+            <Input
+              id="tpl-sample"
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png,.tiff"
+              onChange={(e) => setSampleFile(e.target.files?.[0] ?? null)}
+            />
             <p className="text-xs text-muted-foreground">
               Upload a sample to help train the extractor (PDF or image)
             </p>
@@ -237,6 +374,193 @@ function AddTemplateDialog({
             <Button type="submit" disabled={createTemplate.isPending || !name.trim() || !category}>
               {createTemplate.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Create Template
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditTemplateDialog({
+  template,
+  open,
+  onOpenChange,
+}: {
+  template: FormTemplate | null;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const updateTemplate = useUpdateTemplate();
+  const [name, setName] = useState('');
+  const [category, setCategory] = useState('');
+  const [description, setDescription] = useState('');
+
+  useEffect(() => {
+    if (!template) return;
+    setName(template.name);
+    setCategory(template.category);
+    setDescription(template.description ?? '');
+  }, [template]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!template || !name.trim() || !category) return;
+
+    try {
+      await updateTemplate.mutateAsync({
+        id: template.id,
+        data: {
+          name: name.trim(),
+          category,
+          description: description.trim() || undefined,
+        },
+      });
+      toast.success('Template updated');
+      onOpenChange(false);
+    } catch {
+      toast.error('Failed to update template');
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[520px]">
+        <DialogHeader>
+          <DialogTitle>Edit Form Template</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          <div className="space-y-2">
+            <Label htmlFor="edit-tpl-name">Template Name</Label>
+            <Input
+              id="edit-tpl-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-tpl-category">Category</Label>
+            <Select value={category} onValueChange={setCategory} required>
+              <SelectTrigger id="edit-tpl-category">
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Tax Form">Tax Form</SelectItem>
+                <SelectItem value="Invoice">Invoice</SelectItem>
+                <SelectItem value="Contract">Contract</SelectItem>
+                <SelectItem value="HR Form">HR Form</SelectItem>
+                <SelectItem value="Financial">Financial</SelectItem>
+                <SelectItem value="Compliance">Compliance</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-tpl-desc">Description</Label>
+            <Textarea
+              id="edit-tpl-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={updateTemplate.isPending || !name.trim() || !category}>
+              {updateTemplate.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RecognitionConfigDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const [confidenceThreshold, setConfidenceThreshold] = useState(75);
+  const [fieldExtractionMode, setFieldExtractionMode] = useState<FieldExtractionMode>('auto');
+  const [pageRange, setPageRange] = useState('');
+  const saveConfig = useMutation({
+    mutationFn: async (payload: RecognitionConfigPayload) => {
+      // TODO: Align with backend once the form-recognition config route is finalized.
+      const { data } = await apiClient.patch('/forms/config', payload);
+      return data;
+    },
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await saveConfig.mutateAsync({
+        confidenceThreshold,
+        fieldExtractionMode,
+        pageRange: pageRange.trim() || undefined,
+      });
+      toast.success('Recognition configuration saved');
+      onOpenChange(false);
+    } catch {
+      toast.error('Failed to save recognition configuration');
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[480px]">
+        <DialogHeader>
+          <DialogTitle>Recognition Configuration</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-5 pt-2">
+          <div className="space-y-3">
+            <Label>Confidence threshold: {confidenceThreshold}%</Label>
+            <Slider
+              min={0}
+              max={100}
+              step={1}
+              value={[confidenceThreshold]}
+              onValueChange={([value]) => setConfidenceThreshold(value ?? 0)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="field-extraction-mode">Field extraction mode</Label>
+            <Select
+              value={fieldExtractionMode}
+              onValueChange={(value) => setFieldExtractionMode(value as FieldExtractionMode)}
+            >
+              <SelectTrigger id="field-extraction-mode">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">Auto</SelectItem>
+                <SelectItem value="manual">Manual</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="page-range">Page range</Label>
+            <Input
+              id="page-range"
+              placeholder="e.g. 1-3,5 or all"
+              value={pageRange}
+              onChange={(e) => setPageRange(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saveConfig.isPending}>
+              {saveConfig.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Save
             </Button>
           </DialogFooter>
         </form>
@@ -557,6 +881,11 @@ function ReviewSheet({
 // ─── Templates Tab ────────────────────────────────────────────────────────────
 
 function TemplatesTab({ onAddTemplate }: { onAddTemplate: () => void }) {
+  const queryClient = useQueryClient();
+  const updateTemplate = useToggleTemplate();
+  const [editTemplate, setEditTemplate] = useState<FormTemplate | null>(null);
+  const [deleteTemplate, setDeleteTemplate] = useState<FormTemplate | null>(null);
+  const [actionTemplateId, setActionTemplateId] = useState<string | null>(null);
   const {
     data: templatesData,
     isLoading,
@@ -565,75 +894,177 @@ function TemplatesTab({ onAddTemplate }: { onAddTemplate: () => void }) {
     refetch,
   } = useFormTemplates();
   const templates = templatesData?.items || [];
+  const deleteTemplateMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(`/forms/templates/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: formKeys.templates() });
+    },
+  });
+
+  const handleToggleTemplate = async (template: FormTemplate) => {
+    setActionTemplateId(template.id);
+    try {
+      await updateTemplate.mutateAsync({
+        id: template.id,
+        isActive: !template.isActive,
+      });
+      toast.success(`Template ${template.isActive ? 'deactivated' : 'activated'}`);
+    } catch {
+      toast.error('Failed to update template status');
+    } finally {
+      setActionTemplateId(null);
+    }
+  };
+
+  const handleDeleteTemplate = async () => {
+    if (!deleteTemplate) return;
+    setActionTemplateId(deleteTemplate.id);
+    try {
+      await deleteTemplateMutation.mutateAsync(deleteTemplate.id);
+      toast.success('Template deleted');
+      setDeleteTemplate(null);
+    } catch {
+      toast.error('Failed to delete template');
+    } finally {
+      setActionTemplateId(null);
+    }
+  };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {/* Add card */}
-      <button
-        onClick={onAddTemplate}
-        className="flex flex-col items-center justify-center gap-3 min-h-[160px] rounded-lg border-2 border-dashed border-border hover:border-primary/50 hover:bg-muted/20 transition-colors"
-      >
-        <div className="p-3 rounded-full bg-muted">
-          <Plus className="w-6 h-6 text-muted-foreground" />
-        </div>
-        <span className="text-sm text-muted-foreground">Add Form Template</span>
-      </button>
-
-      {isLoading ? (
-        Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-lg border p-4 space-y-3">
-            <Skeleton className="h-6 w-3/4" />
-            <Skeleton className="h-4 w-1/2" />
-            <Skeleton className="h-8 w-full" />
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Add card */}
+        <button
+          onClick={onAddTemplate}
+          className="flex flex-col items-center justify-center gap-3 min-h-[160px] rounded-lg border-2 border-dashed border-border hover:border-primary/50 hover:bg-muted/20 transition-colors"
+        >
+          <div className="p-3 rounded-full bg-muted">
+            <Plus className="w-6 h-6 text-muted-foreground" />
           </div>
-        ))
-      ) : isError ? (
-        <div className="col-span-full">
-          <QueryErrorBanner
-            message="Failed to load form templates."
-            onRetry={() => void refetch()}
-            isRetrying={isFetching}
-          />
-        </div>
-      ) : templates.length === 0 ? (
-        <div className="col-span-full text-center py-12 text-muted-foreground">
-          <FileText className="w-10 h-10 mx-auto mb-3 opacity-40" />
-          <p className="text-sm">No templates configured yet</p>
-        </div>
-      ) : (
-        templates.map((template: FormTemplate) => (
-          <div key={template.id} className="rounded-lg border p-4 flex flex-col gap-3">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-3 min-w-0">
-                <div
-                  className={cn(
-                    'p-2 rounded-lg shrink-0',
-                    template.isActive
-                      ? 'bg-primary/10 text-primary'
-                      : 'bg-muted text-muted-foreground',
-                  )}
-                >
-                  <FileText className="w-5 h-5" />
+          <span className="text-sm text-muted-foreground">Add Form Template</span>
+        </button>
+
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="rounded-lg border p-4 space-y-3">
+              <Skeleton className="h-6 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-8 w-full" />
+            </div>
+          ))
+        ) : isError ? (
+          <div className="col-span-full">
+            <QueryErrorBanner
+              message="Failed to load form templates."
+              onRetry={() => void refetch()}
+              isRetrying={isFetching}
+            />
+          </div>
+        ) : templates.length === 0 ? (
+          <div className="col-span-full text-center py-12 text-muted-foreground">
+            <FileText className="w-10 h-10 mx-auto mb-3 opacity-40" />
+            <p className="text-sm">No templates configured yet</p>
+          </div>
+        ) : (
+          templates.map((template: FormTemplate) => (
+            <div key={template.id} className="rounded-lg border p-4 flex flex-col gap-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className={cn(
+                      'p-2 rounded-lg shrink-0',
+                      template.isActive
+                        ? 'bg-primary/10 text-primary'
+                        : 'bg-muted text-muted-foreground',
+                    )}
+                  >
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-medium truncate">{template.name}</h3>
+                    <p className="text-sm text-muted-foreground">{template.category}</p>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <h3 className="font-medium truncate">{template.name}</h3>
-                  <p className="text-sm text-muted-foreground">{template.category}</p>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Badge variant={template.isActive ? 'default' : 'outline'}>
+                    {template.isActive ? 'Active' : 'Inactive'}
+                  </Badge>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Template actions">
+                        <MoreHorizontal className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-44">
+                      <DropdownMenuItem onClick={() => setEditTemplate(template)}>
+                        <Pencil className="w-4 h-4 mr-2" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => void handleToggleTemplate(template)}
+                        disabled={actionTemplateId === template.id && updateTemplate.isPending}
+                      >
+                        <Power className="w-4 h-4 mr-2" />
+                        {template.isActive ? 'Set Inactive' : 'Set Active'}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => setDeleteTemplate(template)}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
-              <Badge variant={template.isActive ? 'default' : 'outline'} className="shrink-0">
-                {template.isActive ? 'Active' : 'Inactive'}
-              </Badge>
+              {template.description && (
+                <p className="text-sm text-muted-foreground line-clamp-2">{template.description}</p>
+              )}
+              <div className="mt-auto flex items-center justify-between pt-2 border-t text-sm text-muted-foreground">
+                <span>{template.fieldCount} fields</span>
+              </div>
             </div>
-            {template.description && (
-              <p className="text-sm text-muted-foreground line-clamp-2">{template.description}</p>
-            )}
-            <div className="mt-auto flex items-center justify-between pt-2 border-t text-sm text-muted-foreground">
-              <span>{template.fieldCount} fields</span>
-            </div>
-          </div>
-        ))
-      )}
-    </div>
+          ))
+        )}
+      </div>
+      <EditTemplateDialog
+        template={editTemplate}
+        open={!!editTemplate}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setEditTemplate(null);
+        }}
+      />
+      <AlertDialog
+        open={!!deleteTemplate}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setDeleteTemplate(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete template?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will delete {deleteTemplate?.name ?? 'this template'} and its field definitions.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteTemplateMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => void handleDeleteTemplate()}
+              disabled={deleteTemplateMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteTemplateMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -652,17 +1083,19 @@ function QueueTable({
   onReview: (id: string) => void;
   showDownload?: boolean;
 }) {
-  const handleDownload = (item: ExtractionQueueItem) => {
-    const json = JSON.stringify(item, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `extraction-${item.id}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const handleDownload = async (item: ExtractionQueueItem) => {
+    setDownloadingId(item.id);
+    try {
+      const { data } = await apiClient.get<Extraction>(`/forms/extractions/${item.id}/result`);
+      downloadJsonFile(`extraction-${item.id}.json`, data);
+      toast.success('Extraction JSON downloaded');
+    } catch {
+      toast.error('Failed to download extraction JSON');
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   return (
@@ -697,7 +1130,10 @@ function QueueTable({
               </TableCell>
             </TableRow>
           ) : (
-            items.map((item: ExtractionQueueItem) => (
+            items.map((item: ExtractionQueueItem) => {
+              const isDownloading = downloadingId === item.id;
+
+              return (
               <TableRow key={item.id}>
                 <TableCell>
                   <div className="flex items-center gap-2">
@@ -744,10 +1180,15 @@ function QueueTable({
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
-                        onClick={() => handleDownload(item)}
+                        onClick={() => void handleDownload(item)}
+                        disabled={isDownloading}
                         aria-label="Download JSON"
                       >
-                        <Download className="w-4 h-4" />
+                        {isDownloading ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Download className="w-4 h-4" />
+                        )}
                       </Button>
                     )}
                     <Button
@@ -761,7 +1202,8 @@ function QueueTable({
                   </div>
                 </TableCell>
               </TableRow>
-            ))
+              );
+            })
           )}
         </TableBody>
       </Table>
@@ -772,9 +1214,28 @@ function QueueTable({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function Forms() {
+  const queryClient = useQueryClient();
   const [addTemplateOpen, setAddTemplateOpen] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
   const [reviewId, setReviewId] = useState<string | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const extractInputRef = useRef<HTMLInputElement>(null);
+  const startExtraction = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      // TODO: Backend currently documents documentId-based extraction; keep this upload endpoint aligned with API support.
+      const { data } = await apiClient.post('/forms/extract', formData);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['forms', 'queue'] });
+      toast.success('Extraction queued');
+    },
+    onError: () => {
+      toast.error('Failed to start extraction');
+    },
+  });
 
   const {
     data: queueData,
@@ -795,6 +1256,16 @@ export function Forms() {
     setReviewOpen(true);
   };
 
+  const handleExtractNew = () => {
+    extractInputRef.current?.click();
+  };
+
+  const handleExtractFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) startExtraction.mutate(file);
+    event.target.value = '';
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -808,14 +1279,25 @@ export function Forms() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => setConfigOpen(true)}>
             <Settings className="w-4 h-4 mr-2" />
             Configure
           </Button>
-          <Button size="sm">
-            <FileSearch className="w-4 h-4 mr-2" />
+          <Button size="sm" onClick={handleExtractNew} disabled={startExtraction.isPending}>
+            {startExtraction.isPending ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <FileSearch className="w-4 h-4 mr-2" />
+            )}
             Extract New
           </Button>
+          <input
+            ref={extractInputRef}
+            type="file"
+            accept="application/pdf,image/*"
+            className="hidden"
+            onChange={handleExtractFileChange}
+          />
         </div>
       </div>
 
@@ -871,6 +1353,9 @@ export function Forms() {
 
       {/* Add Template Dialog */}
       <AddTemplateDialog open={addTemplateOpen} onOpenChange={setAddTemplateOpen} />
+
+      {/* Recognition Configuration Dialog */}
+      <RecognitionConfigDialog open={configOpen} onOpenChange={setConfigOpen} />
 
       {/* Review Sheet */}
       <ReviewSheet
