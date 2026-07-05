@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowLeft, ArrowRight, BarChart3, History, Layers, Map, Package } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ArrowRight, BarChart3, History, Layers, Map as MapIcon, Package } from 'lucide-react';
 import { useState } from 'react';
 import {
     useAssignedBatches,
@@ -126,7 +126,7 @@ function FloorPlan({ batches }: { batches: AssignedBatch[] }) {
         return null;
     };
 
-    const activeByStation = new globalThis.Map<string, AssignedBatch>();
+    const activeByStation = new Map<string, AssignedBatch>();
     for (const batch of active) {
         const stationId = getStationId(batch);
         if (stationId && !activeByStation.has(stationId)) {
@@ -275,7 +275,7 @@ export function WarehouseDashboard() {
 
     const MAIN_TABS: { id: MainTab; label: string; icon: typeof Layers }[] = [
         { id: 'bundles',    label: 'Bundles',     icon: Layers    },
-        { id: 'floor',      label: 'Floor Plan',  icon: Map       },
+        { id: 'floor',      label: 'Floor Plan',  icon: MapIcon   },
         { id: 'throughput', label: 'Throughput',  icon: BarChart3 },
     ];
 
