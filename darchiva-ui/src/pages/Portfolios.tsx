@@ -1,224 +1,673 @@
 // (c) Copyright Datacraft, 2026
 import {
+  useCreatePortfolio,
+  useDeletePortfolio,
   usePortfolios,
   usePortfolioStats,
+  useUpdatePortfolio,
   type Portfolio,
+  type PortfolioStatus,
 } from '@/features/portfolios';
-import { useStore } from '@/hooks/useStore';
-import { cn,formatDate } from '@/lib/utils';
-import { motion } from 'framer-motion';
+import { useCases, type Case, type CaseStatus } from '@/features/cases';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
+import { formatDate } from '@/lib/utils';
 import {
   Briefcase,
   Calendar,
-  ChevronRight,
+  FileText,
   FolderKanban,
   Loader2,
-  MoreVertical,
+  Pencil,
   Plus,
   Search,
+  Trash2,
   Users,
 } from 'lucide-react';
+import { useState } from 'react';
 
-function PortfolioCard({ portfolio, onOpen, onOptions }: { portfolio: Portfolio; onOpen: (p: Portfolio) => void; onOptions: (p: Portfolio) => void }) {
-	const typeColors: Record<string, string> = {
-		active: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
-		archived: 'bg-slate-500/10 text-slate-400 border-slate-500/30',
-		on_hold: 'bg-brass-500/10 text-brass-400 border-brass-500/30',
-	};
+const STATUS_LABELS: Record<PortfolioStatus, string> = {
+  active: 'Active',
+  archived: 'Archived',
+  on_hold: 'On Hold',
+};
 
-	return (
-		<motion.div
-			initial={{ opacity: 0, scale: 0.95 }}
-			animate={{ opacity: 1, scale: 1 }}
-			whileHover={{ y: -2 }}
-			className="doc-card group cursor-pointer"
-		>
-			<div className="flex items-start justify-between">
-				<div className="flex items-center gap-3">
-					<div className="p-2.5 rounded-xl bg-brass-500/10 text-brass-400">
-						<FolderKanban className="w-6 h-6" />
-					</div>
-					<div>
-						<h3 className="font-display font-semibold text-slate-100 group-hover:text-brass-400 transition-colors">
-							{portfolio.name}
-						</h3>
-						<span className={cn('badge text-2xs mt-1', typeColors[portfolio.status] || typeColors.active)}>
-							{portfolio.status}
-						</span>
-					</div>
-				</div>
-				<button
-					onClick={(e) => { e.stopPropagation(); onOptions(portfolio); }}
-					className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-				>
-					<MoreVertical className="w-4 h-4" />
-				</button>
-			</div>
+const STATUS_VARIANTS: Record<
+  PortfolioStatus,
+  'default' | 'secondary' | 'outline'
+> = {
+  active: 'default',
+  archived: 'outline',
+  on_hold: 'secondary',
+};
 
-			{portfolio.description && (
-				<p className="mt-3 text-sm text-slate-500 line-clamp-2">
-					{portfolio.description}
-				</p>
-			)}
+// ─── Create / Edit Dialog ─────────────────────────────────────────────────────
 
-			<div className="mt-6 grid grid-cols-2 gap-4">
-				<div className="text-center p-3 bg-slate-800/30 rounded-lg">
-					<p className="text-2xl font-display font-semibold text-slate-100">
-						{portfolio.caseCount}
-					</p>
-					<p className="text-xs text-slate-500">Active Cases</p>
-				</div>
-				<div className="text-center p-3 bg-slate-800/30 rounded-lg">
-					<p className="text-2xl font-display font-semibold text-slate-100">
-						{portfolio.documentCount}
-					</p>
-					<p className="text-xs text-slate-500">Documents</p>
-				</div>
-			</div>
-
-			<div className="mt-4 flex items-center justify-between pt-3 border-t border-slate-700/50">
-				<div className="flex items-center gap-2 text-xs text-slate-500">
-					<Calendar className="w-3 h-3" />
-					Created {formatDate(portfolio.createdAt)}
-				</div>
-				<button onClick={(e) => { e.stopPropagation(); onOpen(portfolio); }} className="flex items-center gap-1 text-xs text-brass-400 hover:text-brass-300">
-					Open <ChevronRight className="w-3 h-3" />
-				</button>
-			</div>
-		</motion.div>
-	);
+interface PortfolioFormDialogProps {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  initial?: Portfolio;
 }
 
+function PortfolioFormDialog({ open, onOpenChange, initial }: PortfolioFormDialogProps) {
+  const createPortfolio = useCreatePortfolio();
+  const updatePortfolio = useUpdatePortfolio();
+
+  const [name, setName] = useState(initial?.name ?? '');
+  const [description, setDescription] = useState(initial?.description ?? '');
+  const [tags, setTags] = useState('');
+
+  const isEdit = !!initial;
+  const isPending = createPortfolio.isPending || updatePortfolio.isPending;
+
+  const reset = () => {
+    setName(initial?.name ?? '');
+    setDescription(initial?.description ?? '');
+    setTags('');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+
+    if (isEdit && initial) {
+      await updatePortfolio.mutateAsync({
+        id: initial.id,
+        data: {
+          name: name.trim(),
+          description: description.trim() || undefined,
+        },
+      });
+    } else {
+      await createPortfolio.mutateAsync({
+        name: name.trim(),
+        description: description.trim() || undefined,
+      });
+    }
+    reset();
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) reset();
+        onOpenChange(v);
+      }}
+    >
+      <DialogContent className="sm:max-w-[480px]">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? 'Edit Portfolio' : 'Create Portfolio'}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          <div className="space-y-2">
+            <Label htmlFor="pf-name">
+              Name <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="pf-name"
+              placeholder="e.g. Corporate Legal 2026"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="pf-desc">Description</Label>
+            <Textarea
+              id="pf-desc"
+              placeholder="Optional description…"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="pf-tags">Tags</Label>
+            <Input
+              id="pf-tags"
+              placeholder="legal, compliance, 2026 (comma separated)"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Comma-separated tags for quick filtering
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => {
+                reset();
+                onOpenChange(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isPending || !name.trim()}>
+              {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {isEdit ? 'Save Changes' : 'Create Portfolio'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Delete Confirmation ──────────────────────────────────────────────────────
+
+function DeletePortfolioDialog({
+  portfolio,
+  open,
+  onOpenChange,
+}: {
+  portfolio: Portfolio | null;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const deletePortfolio = useDeletePortfolio();
+
+  const handleConfirm = async () => {
+    if (!portfolio) return;
+    await deletePortfolio.mutateAsync(portfolio.id);
+    onOpenChange(false);
+  };
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Portfolio</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete{' '}
+            <span className="font-semibold">{portfolio?.name}</span>? This action cannot be
+            undone. All cases and documents within this portfolio will be unlinked.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={handleConfirm}
+          >
+            {deletePortfolio.isPending ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : null}
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+// ─── Portfolio Folder Sheet ───────────────────────────────────────────────────
+
+const CASE_STATUS_LABELS: Record<CaseStatus, string> = {
+  open: 'Open',
+  pending: 'Pending',
+  closed: 'Closed',
+  on_hold: 'On Hold',
+};
+
+const CASE_STATUS_VARIANTS: Record<
+  CaseStatus,
+  'default' | 'secondary' | 'outline'
+> = {
+  open: 'default',
+  pending: 'secondary',
+  closed: 'outline',
+  on_hold: 'secondary',
+};
+
+function PortfolioFolderSheet({
+  portfolio,
+  open,
+  onOpenChange,
+}: {
+  portfolio: Portfolio | null;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const { data: casesData, isLoading } = useCases(1, 50, undefined, portfolio?.id);
+  const cases = casesData?.items || [];
+
+  if (!portfolio) return null;
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-[560px] sm:max-w-[560px] overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-3">
+            <FolderKanban className="w-5 h-5 shrink-0" />
+            {portfolio.name}
+          </SheetTitle>
+        </SheetHeader>
+
+        <div className="mt-6 space-y-6">
+          {/* Portfolio meta */}
+          <div className="space-y-2">
+            {portfolio.description && (
+              <p className="text-sm text-muted-foreground">{portfolio.description}</p>
+            )}
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Briefcase className="w-3.5 h-3.5" />
+                {portfolio.caseCount} cases
+              </span>
+              <span className="flex items-center gap-1">
+                <FileText className="w-3.5 h-3.5" />
+                {portfolio.documentCount} documents
+              </span>
+              <span className="flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5" />
+                {formatDate(portfolio.createdAt)}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant={STATUS_VARIANTS[portfolio.status]}>
+                {STATUS_LABELS[portfolio.status]}
+              </Badge>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Cases in this portfolio */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-sm font-medium flex items-center gap-2">
+                <Briefcase className="w-4 h-4" />
+                Cases
+              </h4>
+              <Button size="sm" variant="outline">
+                <Plus className="w-4 h-4 mr-1" />
+                Add Documents
+              </Button>
+            </div>
+
+            {isLoading ? (
+              <div className="space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
+              </div>
+            ) : cases.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Briefcase className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                <p className="text-sm">No cases in this portfolio yet</p>
+              </div>
+            ) : (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Case</TableHead>
+                      <TableHead className="w-24">Status</TableHead>
+                      <TableHead className="w-20 text-right">Docs</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {cases.map((c: Case) => {
+                      const sv = CASE_STATUS_VARIANTS[c.status] ?? 'outline';
+                      const sl = CASE_STATUS_LABELS[c.status] ?? c.status;
+                      return (
+                        <TableRow key={c.id}>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium text-sm">{c.title}</p>
+                              <p className="text-xs text-muted-foreground font-mono">
+                                {c.caseNumber}
+                              </p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={sv}>{sl}</Badge>
+                          </TableCell>
+                          <TableCell className="text-right text-sm text-muted-foreground">
+                            {c.documentCount}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+// ─── Portfolio Card ───────────────────────────────────────────────────────────
+
+function PortfolioCard({
+  portfolio,
+  onOpen,
+  onEdit,
+  onDelete,
+}: {
+  portfolio: Portfolio;
+  onOpen: (p: Portfolio) => void;
+  onEdit: (p: Portfolio) => void;
+  onDelete: (p: Portfolio) => void;
+}) {
+  return (
+    <Card className="flex flex-col group">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0">
+              <FolderKanban className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <h3
+                className="font-semibold text-base leading-snug truncate cursor-pointer hover:underline"
+                onClick={() => onOpen(portfolio)}
+              >
+                {portfolio.name}
+              </h3>
+              <Badge
+                variant={STATUS_VARIANTS[portfolio.status]}
+                className="mt-1 text-xs"
+              >
+                {STATUS_LABELS[portfolio.status]}
+              </Badge>
+            </div>
+          </div>
+          {/* Edit / Delete icon buttons */}
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(portfolio);
+              }}
+              aria-label="Edit portfolio"
+            >
+              <Pencil className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-destructive hover:text-destructive"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(portfolio);
+              }}
+              aria-label="Delete portfolio"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="flex-1 pb-3">
+        {portfolio.description && (
+          <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+            {portfolio.description}
+          </p>
+        )}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="text-center p-3 bg-muted/40 rounded-lg">
+            <p className="text-2xl font-bold">{portfolio.caseCount}</p>
+            <p className="text-xs text-muted-foreground">Cases</p>
+          </div>
+          <div className="text-center p-3 bg-muted/40 rounded-lg">
+            <p className="text-2xl font-bold">{portfolio.documentCount}</p>
+            <p className="text-xs text-muted-foreground">Documents</p>
+          </div>
+        </div>
+      </CardContent>
+
+      <CardFooter className="pt-3 border-t flex items-center justify-between">
+        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+          <Calendar className="w-3.5 h-3.5" />
+          {formatDate(portfolio.createdAt)}
+        </span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-xs h-7"
+          onClick={() => onOpen(portfolio)}
+        >
+          Open
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export function Portfolios() {
-	const { openModal } = useStore();
-	const { data: portfoliosData, isLoading: portfoliosLoading } = usePortfolios();
-	const { data: stats, isLoading: statsLoading } = usePortfolioStats();
+  const { data: portfoliosData, isLoading: portfoliosLoading } = usePortfolios();
+  const { data: stats, isLoading: statsLoading } = usePortfolioStats();
 
-	const portfolios = portfoliosData?.items || [];
+  const [searchQuery, setSearchQuery] = useState('');
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Portfolio | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Portfolio | null>(null);
+  const [folderTarget, setFolderTarget] = useState<Portfolio | null>(null);
+  const [folderOpen, setFolderOpen] = useState(false);
 
-	const handleNewPortfolio = () => openModal('create-portfolio');
-	const handleOpenPortfolio = (p: Portfolio) => openModal('view-portfolio', p);
-	const handlePortfolioOptions = (p: Portfolio) => openModal('portfolio-options', p);
+  const portfolios = (portfoliosData?.items || []).filter((p: Portfolio) =>
+    searchQuery
+      ? p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      : true,
+  );
 
-	return (
-		<div className="space-y-6">
-			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div>
-					<h1 className="text-2xl font-display font-semibold text-slate-100">
-						Portfolios
-					</h1>
-					<p className="mt-1 text-sm text-slate-500">
-						Organize cases and manage access control
-					</p>
-				</div>
-				<button onClick={handleNewPortfolio} className="btn-primary">
-					<Plus className="w-4 h-4" />
-					New Portfolio
-				</button>
-			</div>
+  const handleOpen = (p: Portfolio) => {
+    setFolderTarget(p);
+    setFolderOpen(true);
+  };
 
-			{/* Search */}
-			<div className="flex items-center gap-4">
-				<div className="relative flex-1 max-w-md">
-					<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-					<input
-						type="text"
-						placeholder="Search portfolios..."
-						className="input-field pl-10"
-					/>
-				</div>
-			</div>
+  const handleEdit = (p: Portfolio) => {
+    setEditTarget(p);
+  };
 
-			{/* Stats */}
-			<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-				<div className="stat-card">
-					<div className="flex items-center gap-3">
-						<div className="p-2 rounded-lg bg-brass-500/10 text-brass-400">
-							<FolderKanban className="w-5 h-5" />
-						</div>
-						<div>
-							<p className="text-2xl font-display font-semibold text-slate-100">
-								{statsLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : stats?.total || portfolios.length}
-							</p>
-							<p className="text-sm text-slate-500">Total Portfolios</p>
-						</div>
-					</div>
-				</div>
-				<div className="stat-card">
-					<div className="flex items-center gap-3">
-						<div className="p-2 rounded-lg bg-brass-500/10 text-brass-400">
-							<Briefcase className="w-5 h-5" />
-						</div>
-						<div>
-							<p className="text-2xl font-display font-semibold text-slate-100">
-								{statsLoading ? (
-									<Loader2 className="w-5 h-5 animate-spin" />
-								) : (
-									stats?.totalCases || portfolios.reduce((acc: number, p: Portfolio) => acc + p.caseCount, 0)
-								)}
-							</p>
-							<p className="text-sm text-slate-500">Total Cases</p>
-						</div>
-					</div>
-				</div>
-				<div className="stat-card">
-					<div className="flex items-center gap-3">
-						<div className="p-2 rounded-lg bg-brass-500/10 text-brass-400">
-							<Users className="w-5 h-5" />
-						</div>
-						<div>
-							<p className="text-2xl font-display font-semibold text-slate-100">
-								{statsLoading ? (
-									<Loader2 className="w-5 h-5 animate-spin" />
-								) : (
-									stats?.totalDocuments || portfolios.reduce((acc: number, p: Portfolio) => acc + p.documentCount, 0)
-								)}
-							</p>
-							<p className="text-sm text-slate-500">Total Documents</p>
-						</div>
-					</div>
-				</div>
-			</div>
+  const handleDelete = (p: Portfolio) => {
+    setDeleteTarget(p);
+  };
 
-			{/* Portfolios grid */}
-			{portfoliosLoading ? (
-				<div className="flex justify-center py-16">
-					<Loader2 className="w-8 h-8 animate-spin text-slate-500" />
-				</div>
-			) : portfolios.length === 0 ? (
-				<div className="text-center py-16 text-slate-500">
-					<FolderKanban className="w-12 h-12 mx-auto mb-4" />
-					<p>No portfolios yet</p>
-				</div>
-			) : (
-				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-					{portfolios.map((portfolio: Portfolio, idx: number) => (
-						<motion.div
-							key={portfolio.id}
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							transition={{ delay: idx * 0.05 }}
-						>
-							<PortfolioCard portfolio={portfolio} onOpen={handleOpenPortfolio} onOptions={handlePortfolioOptions} />
-						</motion.div>
-					))}
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-display font-semibold text-slate-100">Portfolios</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Organize cases and manage access control
+          </p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          New Portfolio
+        </Button>
+      </div>
 
-					{/* Add new portfolio card */}
-					<motion.button
-						onClick={handleNewPortfolio}
-						initial={{ opacity: 0, y: 20 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ delay: portfolios.length * 0.05 }}
-						className="doc-card border-dashed border-2 border-slate-700 hover:border-brass-500/50 flex flex-col items-center justify-center gap-3 min-h-[240px]"
-					>
-						<div className="p-3 rounded-full bg-slate-800">
-							<Plus className="w-6 h-6 text-slate-400" />
-						</div>
-						<span className="text-slate-400">Create New Portfolio</span>
-					</motion.button>
-				</div>
-			)}
-		</div>
-	);
+      {/* Search */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search portfolios…"
+            className="pl-9"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* Stats row */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[
+          {
+            icon: FolderKanban,
+            label: 'Total Portfolios',
+            value: statsLoading ? null : (stats?.total ?? portfolios.length),
+          },
+          {
+            icon: Briefcase,
+            label: 'Total Cases',
+            value: statsLoading
+              ? null
+              : (stats?.totalCases ??
+                portfolios.reduce((acc: number, p: Portfolio) => acc + p.caseCount, 0)),
+          },
+          {
+            icon: Users,
+            label: 'Total Documents',
+            value: statsLoading
+              ? null
+              : (stats?.totalDocuments ??
+                portfolios.reduce((acc: number, p: Portfolio) => acc + p.documentCount, 0)),
+          },
+        ].map(({ icon: Icon, label, value }) => (
+          <Card key={label}>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                  <Icon className="w-5 h-5" />
+                </div>
+                <div>
+                  {value === null ? (
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  ) : (
+                    <p className="text-2xl font-bold">{value}</p>
+                  )}
+                  <p className="text-sm text-muted-foreground">{label}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Portfolio grid */}
+      {portfoliosLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="pt-6 space-y-3">
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-4 w-full" />
+                <div className="grid grid-cols-2 gap-3">
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : portfolios.length === 0 ? (
+        <div className="text-center py-16">
+          <FolderKanban className="w-12 h-12 mx-auto mb-4 text-muted-foreground/40" />
+          <p className="text-muted-foreground">
+            {searchQuery ? 'No portfolios match your search' : 'No portfolios yet'}
+          </p>
+          {!searchQuery && (
+            <Button className="mt-4" onClick={() => setCreateOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Create Portfolio
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {portfolios.map((p: Portfolio) => (
+            <PortfolioCard
+              key={p.id}
+              portfolio={p}
+              onOpen={handleOpen}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+          ))}
+
+          {/* Add new card */}
+          <button
+            onClick={() => setCreateOpen(true)}
+            className="flex flex-col items-center justify-center gap-3 min-h-[200px] rounded-lg border-2 border-dashed border-border hover:border-primary/50 hover:bg-muted/20 transition-colors"
+          >
+            <div className="p-3 rounded-full bg-muted">
+              <Plus className="w-6 h-6 text-muted-foreground" />
+            </div>
+            <span className="text-sm text-muted-foreground">Create New Portfolio</span>
+          </button>
+        </div>
+      )}
+
+      {/* Dialogs */}
+      <PortfolioFormDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <PortfolioFormDialog
+        open={!!editTarget}
+        onOpenChange={(v) => { if (!v) setEditTarget(null); }}
+        initial={editTarget ?? undefined}
+      />
+      <DeletePortfolioDialog
+        portfolio={deleteTarget}
+        open={!!deleteTarget}
+        onOpenChange={(v) => { if (!v) setDeleteTarget(null); }}
+      />
+      <PortfolioFolderSheet
+        portfolio={folderTarget}
+        open={folderOpen}
+        onOpenChange={setFolderOpen}
+      />
+    </div>
+  );
 }

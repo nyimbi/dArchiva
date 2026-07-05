@@ -2,358 +2,554 @@
 import {
   useBundles,
   useCases,
+  useCreateCase,
   type Bundle,
   type Case,
   type CaseStatus,
 } from '@/features/cases';
-import { useStore } from '@/hooks/useStore';
-import { cn,formatDate } from '@/lib/utils';
-import { motion } from 'framer-motion';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
-  Archive,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
+import { formatDate } from '@/lib/utils';
+import {
   AlertCircle,
   Briefcase,
   Calendar,
-  ChevronRight,
   FileText,
   Filter,
   FolderOpen,
   Loader2,
-  MoreVertical,
   Plus,
   Search,
-  Tag,
   User,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-function CaseCard({ caseData, onViewCase, onMoreOptions }: { caseData: Case; onViewCase: (c: Case) => void; onMoreOptions: (c: Case) => void }) {
-	const statusConfig: Record<CaseStatus, { label: string; color: string }> = {
-		open: { label: 'Open', color: 'badge-blue' },
-		pending: { label: 'Pending', color: 'badge-brass' },
-		closed: { label: 'Closed', color: 'badge-green' },
-		on_hold: { label: 'On Hold', color: 'badge-gray' },
-	};
-
-	const status = statusConfig[caseData.status] || statusConfig.open;
-
-	return (
-		<motion.div
-			initial={{ opacity: 0, y: 20 }}
-			animate={{ opacity: 1, y: 0 }}
-			className="doc-card group"
-		>
-			<div className="flex items-start justify-between">
-				<div className="flex items-center gap-3">
-					<div className={cn(
-						'p-2 rounded-lg',
-						caseData.status === 'closed' ? 'bg-slate-700/50 text-slate-400' : 'bg-brass-500/10 text-brass-400'
-					)}>
-						{caseData.status === 'closed' ? (
-							<Archive className="w-5 h-5" />
-						) : (
-							<Briefcase className="w-5 h-5" />
-						)}
-					</div>
-					<div>
-						<p className="text-xs text-slate-500 font-mono">{caseData.caseNumber}</p>
-						<h3 className="font-medium text-slate-200 group-hover:text-brass-400 transition-colors">
-							{caseData.title}
-						</h3>
-					</div>
-				</div>
-				<button
-					onClick={(e) => { e.stopPropagation(); onMoreOptions(caseData); }}
-					className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-				>
-					<MoreVertical className="w-4 h-4" />
-				</button>
-			</div>
-
-			{caseData.description && (
-				<p className="mt-3 text-sm text-slate-500 line-clamp-2">
-					{caseData.description}
-				</p>
-			)}
-
-			<div className="mt-4 flex items-center gap-4 text-xs text-slate-500">
-				<span className="flex items-center gap-1">
-					<FileText className="w-3 h-3" />
-					{caseData.documentCount} documents
-				</span>
-				<span className="flex items-center gap-1">
-					<Calendar className="w-3 h-3" />
-					{formatDate(caseData.createdAt)}
-				</span>
-			</div>
-
-			<div className="mt-4 flex items-center justify-between pt-3 border-t border-slate-700/50">
-				<span className={cn('badge', status.color)}>
-					{status.label}
-				</span>
-				<button onClick={(e) => { e.stopPropagation(); onViewCase(caseData); }} className="btn-ghost text-xs">
-					View Case <ChevronRight className="w-3 h-3" />
-				</button>
-			</div>
-		</motion.div>
-	);
-}
+const STATUS_CONFIG: Record<
+  CaseStatus,
+  { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }
+> = {
+  open: { label: 'Open', variant: 'default' },
+  pending: { label: 'Pending', variant: 'secondary' },
+  closed: { label: 'Closed', variant: 'outline' },
+  on_hold: { label: 'On Hold', variant: 'secondary' },
+};
 
 function BundleRow({ bundle }: { bundle: Bundle }) {
-	return (
-		<div className="flex items-center gap-4 p-4 hover:bg-slate-800/30 transition-colors cursor-pointer">
-			<div className="p-2 rounded-lg bg-slate-800">
-				<FolderOpen className="w-5 h-5 text-slate-400" />
-			</div>
-			<div className="flex-1 min-w-0">
-				<h4 className="text-sm font-medium text-slate-200">{bundle.name}</h4>
-				<p className="text-xs text-slate-500">{bundle.description}</p>
-			</div>
-			<div className="text-right">
-				<p className="text-sm text-slate-300">{bundle.documentCount} docs</p>
-				<span className={cn(
-					'badge text-2xs',
-					bundle.status === 'active' ? 'badge-green' :
-					bundle.status === 'locked' ? 'badge-red' :
-					bundle.status === 'archived' ? 'badge-gray' : 'badge-brass'
-				)}>
-					{bundle.status}
-				</span>
-			</div>
-		</div>
-	);
+  return (
+    <div className="flex items-center gap-3 py-2">
+      <FolderOpen className="w-4 h-4 text-muted-foreground shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate">{bundle.name}</p>
+        {bundle.description && (
+          <p className="text-xs text-muted-foreground truncate">{bundle.description}</p>
+        )}
+      </div>
+      <Badge variant="outline" className="text-xs shrink-0">
+        {bundle.documentCount} docs
+      </Badge>
+    </div>
+  );
+}
+
+function CreateCaseDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const createCase = useCreateCase();
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [docIds, setDocIds] = useState('');
+
+  const reset = () => {
+    setTitle('');
+    setDescription('');
+    setDocIds('');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+    await createCase.mutateAsync({
+      title: title.trim(),
+      description: description.trim() || undefined,
+    });
+    reset();
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) reset();
+        onOpenChange(v);
+      }}
+    >
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Create New Case</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          <div className="space-y-2">
+            <Label htmlFor="case-title">
+              Title <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="case-title"
+              placeholder="e.g. Q4 Compliance Review"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="case-type">Type</Label>
+            <Select>
+              <SelectTrigger id="case-type">
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="legal">Legal</SelectItem>
+                <SelectItem value="hr">HR</SelectItem>
+                <SelectItem value="financial">Financial</SelectItem>
+                <SelectItem value="compliance">Compliance</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="case-priority">Priority</Label>
+            <Select>
+              <SelectTrigger id="case-priority">
+                <SelectValue placeholder="Select priority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="low">Low</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="case-desc">Description</Label>
+            <Textarea
+              id="case-desc"
+              placeholder="Brief description of the case…"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="case-docs">Document IDs</Label>
+            <Input
+              id="case-docs"
+              placeholder="doc-abc123, doc-def456 (comma separated)"
+              value={docIds}
+              onChange={(e) => setDocIds(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Optionally link existing document IDs to this case
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => {
+                reset();
+                onOpenChange(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={createCase.isPending || !title.trim()}>
+              {createCase.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Create Case
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CaseDetailSheet({
+  caseData,
+  open,
+  onOpenChange,
+}: {
+  caseData: Case | null;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const { data: bundlesData, isLoading: bundlesLoading, isError: bundlesError, refetch: refetchBundles } =
+    useBundles(caseData?.id);
+  const bundles = bundlesData?.items || [];
+
+  if (!caseData) return null;
+
+  const status = STATUS_CONFIG[caseData.status] || STATUS_CONFIG.open;
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-[480px] sm:max-w-[480px] overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle className="flex items-start gap-3">
+            <Briefcase className="w-5 h-5 mt-0.5 shrink-0" />
+            <span className="text-left leading-snug">{caseData.title}</span>
+          </SheetTitle>
+        </SheetHeader>
+
+        <div className="mt-6 space-y-6">
+          {/* Fields */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Case Number</span>
+              <span className="font-mono text-xs">{caseData.caseNumber}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Status</span>
+              <Badge variant={status.variant}>{status.label}</Badge>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Documents</span>
+              <span className="flex items-center gap-1">
+                <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+                {caseData.documentCount}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Bundles</span>
+              <span className="flex items-center gap-1">
+                <FolderOpen className="w-3.5 h-3.5 text-muted-foreground" />
+                {caseData.bundleCount}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Created By</span>
+              <span className="flex items-center gap-1">
+                <User className="w-3.5 h-3.5 text-muted-foreground" />
+                {caseData.createdBy}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Created</span>
+              <span className="flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                {formatDate(caseData.createdAt)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Last Updated</span>
+              <span>{formatDate(caseData.updatedAt)}</span>
+            </div>
+          </div>
+
+          {caseData.description && (
+            <>
+              <Separator />
+              <div>
+                <h4 className="text-sm font-medium mb-2">Description</h4>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {caseData.description}
+                </p>
+              </div>
+            </>
+          )}
+
+          <Separator />
+
+          {/* Document Bundles */}
+          <div>
+            <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+              <FolderOpen className="w-4 h-4" />
+              Document Bundles
+            </h4>
+            {bundlesLoading ? (
+              <div className="space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-10 w-full" />
+                ))}
+              </div>
+            ) : bundlesError ? (
+              <div className="text-center py-4">
+                <p className="text-sm text-muted-foreground mb-2">Could not load bundles</p>
+                <Button variant="outline" size="sm" onClick={() => refetchBundles()}>
+                  Retry
+                </Button>
+              </div>
+            ) : bundles.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No bundles yet</p>
+            ) : (
+              <div className="divide-y">
+                {bundles.map((b: Bundle) => (
+                  <BundleRow key={b.id} bundle={b} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Activity Timeline */}
+          <div>
+            <h4 className="text-sm font-medium mb-4">Activity Timeline</h4>
+            <ol className="relative border-l border-border ml-3 space-y-4">
+              <li className="ml-4">
+                <div className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full border border-background bg-primary" />
+                <p className="text-sm font-medium">Case created</p>
+                <p className="text-xs text-muted-foreground">{formatDate(caseData.createdAt)}</p>
+              </li>
+              {caseData.updatedAt !== caseData.createdAt && (
+                <li className="ml-4">
+                  <div className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full border border-background bg-muted-foreground" />
+                  <p className="text-sm font-medium">Last updated</p>
+                  <p className="text-xs text-muted-foreground">{formatDate(caseData.updatedAt)}</p>
+                </li>
+              )}
+              {caseData.status === 'closed' && (
+                <li className="ml-4">
+                  <div className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full border border-background bg-muted" />
+                  <p className="text-sm font-medium">Case closed</p>
+                </li>
+              )}
+            </ol>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
 }
 
 export function Cases() {
-	const [selectedCase, setSelectedCase] = useState<Case | null>(null);
-	const [statusFilter, setStatusFilter] = useState<string>('all');
-	const [searchQuery, setSearchQuery] = useState('');
-	const [debouncedSearch, setDebouncedSearch] = useState('');
-	const { openModal } = useStore();
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [createOpen, setCreateOpen] = useState(false);
+  const [selectedCase, setSelectedCase] = useState<Case | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
-	useEffect(() => {
-		const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
-		return () => clearTimeout(timer);
-	}, [searchQuery]);
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
 
-	const {
-		data: casesData,
-		isLoading: casesLoading,
-		isError: casesError,
-		refetch: refetchCases,
-	} = useCases(
-		1,
-		50,
-		statusFilter !== 'all' ? statusFilter as CaseStatus : undefined,
-		undefined,
-		debouncedSearch || undefined,
-	);
-	const {
-		data: bundlesData,
-		isLoading: bundlesLoading,
-		isError: bundlesError,
-		refetch: refetchBundles,
-	} = useBundles(selectedCase?.id);
+  const {
+    data: casesData,
+    isLoading,
+    isError,
+    refetch,
+  } = useCases(
+    1,
+    50,
+    statusFilter !== 'all' ? (statusFilter as CaseStatus) : undefined,
+    undefined,
+    debouncedSearch || undefined,
+  );
 
-	const handleNewCase = () => openModal('create-case');
-	const handleMoreFilters = () => openModal('case-filters');
-	const handleViewCase = (c: Case) => openModal('view-case', c);
-	const handleCaseOptions = (c: Case) => openModal('case-options', c);
-	const handleCreateBundle = () => openModal('create-bundle', selectedCase);
-	const handleAddDocuments = () => openModal('add-documents-to-case', selectedCase);
-	const handleManageAccess = () => openModal('manage-case-access', selectedCase);
-	const handleEditTags = () => openModal('edit-case-tags', selectedCase);
+  const cases = casesData?.items || [];
+  const hasFilters = statusFilter !== 'all' || !!debouncedSearch;
 
-	const cases = casesData?.items || [];
-	const bundles = bundlesData?.items || [];
-	const hasCaseFilters = statusFilter !== 'all' || !!debouncedSearch;
+  const handleRowClick = (c: Case) => {
+    setSelectedCase(c);
+    setDetailOpen(true);
+  };
 
-	return (
-		<div className="space-y-6">
-			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div>
-					<h1 className="text-2xl font-display font-semibold text-slate-100">
-						Cases
-					</h1>
-					<p className="mt-1 text-sm text-slate-500">
-						Manage legal cases and document bundles
-					</p>
-				</div>
-				<button onClick={handleNewCase} className="btn-primary">
-					<Plus className="w-4 h-4" />
-					New Case
-				</button>
-			</div>
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-display font-semibold text-slate-100">Cases</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Manage legal cases and document bundles
+          </p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          New Case
+        </Button>
+      </div>
 
-			{/* Filters */}
-			<div className="flex items-center gap-4">
-				<div className="relative flex-1 max-w-md">
-					<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-					<input
-						type="text"
-						placeholder="Search cases..."
-						className="input-field pl-10"
-						value={searchQuery}
-						onChange={(e) => setSearchQuery(e.target.value)}
-					/>
-				</div>
-				<select
-					value={statusFilter}
-					onChange={(e) => setStatusFilter(e.target.value)}
-					className="input-field w-40"
-				>
-					<option value="all">All Statuses</option>
-					<option value="open">Open</option>
-					<option value="pending">Pending</option>
-					<option value="closed">Closed</option>
-					<option value="on_hold">On Hold</option>
-				</select>
-				<button onClick={handleMoreFilters} className="btn-ghost">
-					<Filter className="w-4 h-4" />
-					More Filters
-				</button>
-			</div>
+      {/* Filter bar */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search cases…"
+            className="pl-9"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-44">
+            <Filter className="w-4 h-4 mr-2" />
+            <SelectValue placeholder="All statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="open">Open</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="closed">Closed</SelectItem>
+            <SelectItem value="on_hold">On Hold</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="All types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            <SelectItem value="legal">Legal</SelectItem>
+            <SelectItem value="hr">HR</SelectItem>
+            <SelectItem value="financial">Financial</SelectItem>
+            <SelectItem value="compliance">Compliance</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
-			{/* Content */}
-			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-				{/* Cases list */}
-				<div className="lg:col-span-2 space-y-4">
-					{casesLoading ? (
-						<div className="flex justify-center py-16">
-							<Loader2 className="w-8 h-8 animate-spin text-slate-500" />
-						</div>
-					) : casesError ? (
-						<div className="glass-card p-8 text-center">
-							<AlertCircle className="mx-auto mb-4 h-10 w-10 text-red-400" />
-							<h3 className="text-lg font-medium text-slate-100">Could not load cases</h3>
-							<p className="mt-2 text-sm text-slate-500">
-								Case records are temporarily unavailable. Retry the request or adjust your filters.
-							</p>
-							<button type="button" onClick={() => refetchCases()} className="btn-primary mt-5">
-								Retry
-							</button>
-						</div>
-					) : cases.length === 0 ? (
-						<div className="glass-card p-8 text-center">
-							<Briefcase className="w-12 h-12 mx-auto mb-4 text-slate-600" />
-							<h3 className="text-lg font-medium text-slate-100">
-								{hasCaseFilters ? 'No cases match your filters' : 'No cases yet'}
-							</h3>
-							<p className="mt-2 text-sm text-slate-500">
-								{hasCaseFilters
-									? 'Try a different search term or status filter.'
-									: 'Create a case to organize legal matters and document bundles.'}
-							</p>
-							{!hasCaseFilters && (
-								<button type="button" onClick={handleNewCase} className="btn-primary mt-5">
-									<Plus className="h-4 w-4" />
-									New Case
-								</button>
-							)}
-						</div>
-					) : (
-						cases.map((caseData: Case, idx: number) => (
-							<motion.div
-								key={caseData.id}
-								initial={{ opacity: 0, y: 20 }}
-								animate={{ opacity: 1, y: 0 }}
-								transition={{ delay: idx * 0.05 }}
-								onClick={() => setSelectedCase(caseData)}
-							>
-								<CaseCard caseData={caseData} onViewCase={handleViewCase} onMoreOptions={handleCaseOptions} />
-							</motion.div>
-						))
-					)}
-				</div>
+      {/* Cases table */}
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-32">Case #</TableHead>
+              <TableHead>Title</TableHead>
+              <TableHead className="w-28">Status</TableHead>
+              <TableHead className="w-24 text-right">Documents</TableHead>
+              <TableHead className="w-24 text-right">Bundles</TableHead>
+              <TableHead className="w-36">Created By</TableHead>
+              <TableHead className="w-32">Created</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <TableRow key={i}>
+                  {Array.from({ length: 7 }).map((__, j) => (
+                    <TableCell key={j}>
+                      <Skeleton className="h-4 w-full" />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : isError ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-16">
+                  <div className="flex flex-col items-center gap-3">
+                    <AlertCircle className="w-8 h-8 text-destructive" />
+                    <p className="text-sm text-muted-foreground">Could not load cases</p>
+                    <Button variant="outline" size="sm" onClick={() => refetch()}>
+                      Retry
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : cases.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-16">
+                  <div className="flex flex-col items-center gap-3">
+                    <Briefcase className="w-10 h-10 text-muted-foreground/40" />
+                    <p className="text-sm text-muted-foreground">
+                      {hasFilters ? 'No cases match your filters' : 'No cases yet'}
+                    </p>
+                    {!hasFilters && (
+                      <Button size="sm" onClick={() => setCreateOpen(true)}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        New Case
+                      </Button>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : (
+              cases.map((c: Case) => {
+                const status = STATUS_CONFIG[c.status] || STATUS_CONFIG.open;
+                return (
+                  <TableRow
+                    key={c.id}
+                    className="cursor-pointer"
+                    onClick={() => handleRowClick(c)}
+                  >
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {c.caseNumber}
+                    </TableCell>
+                    <TableCell className="font-medium">{c.title}</TableCell>
+                    <TableCell>
+                      <Badge variant={status.variant}>{status.label}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <span className="flex items-center justify-end gap-1 text-sm text-muted-foreground">
+                        <FileText className="w-3.5 h-3.5" />
+                        {c.documentCount}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <span className="flex items-center justify-end gap-1 text-sm text-muted-foreground">
+                        <FolderOpen className="w-3.5 h-3.5" />
+                        {c.bundleCount}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="flex items-center gap-1.5 text-sm">
+                        <User className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        <span className="truncate max-w-[120px]">{c.createdBy}</span>
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                      {formatDate(c.createdAt)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
-				{/* Case detail / quick view */}
-				<div className="glass-card">
-					{selectedCase ? (
-						<>
-							<div className="p-4 border-b border-slate-700/50">
-								<div className="flex items-center justify-between">
-									<span className="text-xs font-mono text-slate-500">
-										{selectedCase.caseNumber}
-									</span>
-									<button
-										onClick={() => setSelectedCase(null)}
-										className="text-xs text-slate-500 hover:text-slate-300"
-									>
-										Close
-									</button>
-								</div>
-								<h3 className="mt-2 text-lg font-display font-semibold text-slate-100">
-									{selectedCase.title}
-								</h3>
-								<p className="mt-1 text-sm text-slate-500">
-									{selectedCase.description}
-								</p>
-							</div>
-
-							<div className="p-4 border-b border-slate-700/50">
-								<h4 className="text-sm font-medium text-slate-300 mb-3">
-									Document Bundles
-								</h4>
-								{bundlesLoading ? (
-									<div className="flex justify-center py-8">
-										<Loader2 className="w-6 h-6 animate-spin text-slate-500" />
-									</div>
-								) : bundlesError ? (
-									<div className="rounded-lg border border-red-500/20 bg-red-500/5 p-4 text-center">
-										<AlertCircle className="mx-auto mb-2 h-5 w-5 text-red-400" />
-										<p className="text-sm text-slate-300">Could not load bundles</p>
-										<button type="button" onClick={() => refetchBundles()} className="mt-3 text-xs text-brass-400 hover:text-brass-300">
-											Retry
-										</button>
-									</div>
-								) : bundles.length === 0 ? (
-									<p className="text-sm text-slate-500 text-center py-4">
-										No bundles in this case yet
-									</p>
-								) : (
-									<div className="space-y-1">
-										{bundles.map((bundle: Bundle) => (
-											<BundleRow key={bundle.id} bundle={bundle} />
-										))}
-									</div>
-								)}
-								<button onClick={handleCreateBundle} className="mt-3 w-full btn-ghost border border-dashed border-slate-700 justify-center">
-									<Plus className="w-4 h-4" />
-									Create Bundle
-								</button>
-							</div>
-
-							<div className="p-4">
-								<h4 className="text-sm font-medium text-slate-300 mb-3">
-									Quick Actions
-								</h4>
-								<div className="space-y-2">
-									<button onClick={handleAddDocuments} className="w-full btn-ghost justify-start">
-										<FileText className="w-4 h-4" />
-										Add Documents
-									</button>
-									<button onClick={handleManageAccess} className="w-full btn-ghost justify-start">
-										<User className="w-4 h-4" />
-										Manage Access
-									</button>
-									<button onClick={handleEditTags} className="w-full btn-ghost justify-start">
-										<Tag className="w-4 h-4" />
-										Edit Tags
-									</button>
-								</div>
-							</div>
-						</>
-					) : (
-						<div className="p-8 text-center">
-							<Briefcase className="w-12 h-12 mx-auto text-slate-700 mb-4" />
-							<p className="text-slate-500">
-								Select a case to view details
-							</p>
-						</div>
-					)}
-				</div>
-			</div>
-		</div>
-	);
+      <CreateCaseDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <CaseDetailSheet
+        caseData={selectedCase}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+      />
+    </div>
+  );
 }
