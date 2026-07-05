@@ -1,4 +1,14 @@
 // (c) Copyright Datacraft, 2026
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { Trash2, X } from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
@@ -6,6 +16,7 @@ import {
 	Annotation,
 	AnnotationType,
 	useAnnotations,
+	useApplyRedactions,
 	useCreateAnnotation,
 	useDeleteAnnotation,
 	useUpdateAnnotation,
@@ -17,17 +28,27 @@ import { MODE_CURSORS } from './AnnotationToolbar';
 // Helpers
 // ---------------------------------------------------------------------------
 
-const TYPE_STYLES: Record<AnnotationType, string> = {
+const TYPE_STYLES: Record<Exclude<AnnotationType, 'redaction'>, string> = {
 	highlight: 'bg-yellow-400/40 border border-yellow-400/60',
 	note:      'bg-blue-400/30 border border-blue-400/60',
-	redaction: 'bg-slate-900/90 border border-slate-600',
 };
 
 const DEFAULT_COLORS: Record<AnnotationType, string> = {
 	highlight: '#FFD700',
 	note:      '#60A5FA',
-	redaction: '#1E293B',
+	redaction: '#000000',
 };
+
+/** Returns the CSS classes for a rendered annotation box. */
+function getAnnotationClass(ann: Annotation): string {
+	if (ann.annotationType === 'redaction') {
+		// Applied: solid black, no border — permanent-looking
+		if (ann.applied) return 'bg-black';
+		// Draft: 80 % black + vivid red border so the user knows it isn't permanent yet
+		return 'bg-black/80 border-2 border-red-500';
+	}
+	return TYPE_STYLES[ann.annotationType as Exclude<AnnotationType, 'redaction'>];
+}
 
 interface DragRect {
 	startX: number;
@@ -53,32 +74,27 @@ export function AnnotationLayer({ documentId, pageNumber, mode }: AnnotationLaye
 
 	// API hooks
 	const { data: annotations = [] } = useAnnotations(documentId, pageNumber);
-	const createAnnotation = useCreateAnnotation(documentId);
-	const updateAnnotation = useUpdateAnnotation(documentId);
-	const deleteAnnotation = useDeleteAnnotation(documentId);
+	const createAnnotation  = useCreateAnnotation(documentId);
+	const updateAnnotation  = useUpdateAnnotation(documentId);
+	const deleteAnnotation  = useDeleteAnnotation(documentId);
+	const applyRedactions   = useApplyRedactions(documentId);
 
 	// Draw state
-	const [dragging, setDragging] = useState(false);
-	const [dragRect, setDragRect] = useState<DragRect | null>(null);
+	const [dragging, setDragging]     = useState(false);
+	const [dragRect, setDragRect]     = useState<DragRect | null>(null);
 
 	// Popover state
-	const [selectedId, setSelectedId] = useState<string | null>(null);
-	const [editContent, setEditContent] = useState('');
+	const [selectedId, setSelectedId]     = useState<string | null>(null);
+	const [editContent, setEditContent]   = useState('');
+
+	// Apply-redactions confirmation dialog
+	const [applyConfirmOpen, setApplyConfirmOpen] = useState(false);
 
 	const selectedAnnotation = annotations.find((a) => a.id === selectedId) ?? null;
 
-	// ------------------------------------------------------------------
-	// Coordinate helpers — convert px position to 0-1 fraction
-	// ------------------------------------------------------------------
-	const toFraction = useCallback(
-		(px: number, axis: 'x' | 'y'): number => {
-			const el = containerRef.current;
-			if (!el) return 0;
-			const rect = el.getBoundingClientRect();
-			const size = axis === 'x' ? rect.width : rect.height;
-			return Math.max(0, Math.min(1, px / size));
-		},
-		[],
+	// Draft redactions = redaction annotations that have not been applied yet
+	const draftRedactions = annotations.filter(
+		(a) => a.annotationType === 'redaction' && !a.applied,
 	);
 
 	// ------------------------------------------------------------------
@@ -110,7 +126,7 @@ export function AnnotationLayer({ documentId, pageNumber, mode }: AnnotationLaye
 			const curY = e.clientY - rect.top;
 			const x = Math.min(curX, dragRect.startX);
 			const y = Math.min(curY, dragRect.startY);
-			const width = Math.abs(curX - dragRect.startX);
+			const width  = Math.abs(curX - dragRect.startX);
 			const height = Math.abs(curY - dragRect.startY);
 			setDragRect((prev) => prev ? { ...prev, x, y, width, height } : null);
 		},
@@ -146,7 +162,7 @@ export function AnnotationLayer({ documentId, pageNumber, mode }: AnnotationLaye
 				annotationType: mode as AnnotationType,
 				x: Math.max(0, Math.min(1, x)),
 				y: Math.max(0, Math.min(1, y)),
-				width: Math.max(0, Math.min(1 - x, w)),
+				width:  Math.max(0, Math.min(1 - x, w)),
 				height: Math.max(0, Math.min(1 - y, h)),
 				color: DEFAULT_COLORS[mode as AnnotationType],
 			});
@@ -157,12 +173,14 @@ export function AnnotationLayer({ documentId, pageNumber, mode }: AnnotationLaye
 	}, [dragging, dragRect, mode, pageNumber, createAnnotation]);
 
 	// ------------------------------------------------------------------
-	// Annotation click — open popover
+	// Annotation click — open popover (view mode only)
 	// ------------------------------------------------------------------
 	const handleAnnotationClick = useCallback(
 		(e: React.MouseEvent, annotation: Annotation) => {
 			e.stopPropagation();
 			if (mode !== 'view') return;
+			// Applied redactions are permanent — no interaction
+			if (annotation.annotationType === 'redaction' && annotation.applied) return;
 			setSelectedId(annotation.id);
 			setEditContent(annotation.content ?? '');
 		},
@@ -181,6 +199,22 @@ export function AnnotationLayer({ documentId, pageNumber, mode }: AnnotationLaye
 	};
 
 	// ------------------------------------------------------------------
+	// Redaction actions
+	// ------------------------------------------------------------------
+	const handleClearRedactions = async () => {
+		await Promise.all(draftRedactions.map((a) => deleteAnnotation.mutateAsync(a.id)));
+	};
+
+	const handleApplyRedactions = async () => {
+		try {
+			await applyRedactions.mutateAsync();
+		} catch {
+			// error handling upstream
+		}
+		setApplyConfirmOpen(false);
+	};
+
+	// ------------------------------------------------------------------
 	// Render
 	// ------------------------------------------------------------------
 	const cursorClass = MODE_CURSORS[mode];
@@ -194,24 +228,32 @@ export function AnnotationLayer({ documentId, pageNumber, mode }: AnnotationLaye
 			onMouseUp={handleMouseUp}
 		>
 			{/* Existing annotations */}
-			{annotations.map((ann) => (
-				<div
-					key={ann.id}
-					className={cn(
-						'absolute transition-opacity',
-						TYPE_STYLES[ann.annotationType as AnnotationType],
-						mode === 'view' ? 'hover:opacity-80 cursor-pointer' : 'pointer-events-none',
-						selectedId === ann.id && 'ring-2 ring-white/60',
-					)}
-					style={{
-						left: `${ann.x * 100}%`,
-						top: `${ann.y * 100}%`,
-						width: `${ann.width * 100}%`,
-						height: `${ann.height * 100}%`,
-					}}
-					onClick={(e) => handleAnnotationClick(e, ann)}
-				/>
-			))}
+			{annotations.map((ann) => {
+				const isAppliedRedaction = ann.annotationType === 'redaction' && ann.applied;
+				return (
+					<div
+						key={ann.id}
+						className={cn(
+							'absolute transition-opacity',
+							getAnnotationClass(ann),
+							// Applied redactions: no hover, no pointer — they're burned in
+							isAppliedRedaction
+								? 'pointer-events-none'
+								: mode === 'view'
+									? 'hover:opacity-80 cursor-pointer'
+									: 'pointer-events-none',
+							selectedId === ann.id && 'ring-2 ring-white/60',
+						)}
+						style={{
+							left:   `${ann.x * 100}%`,
+							top:    `${ann.y * 100}%`,
+							width:  `${ann.width * 100}%`,
+							height: `${ann.height * 100}%`,
+						}}
+						onClick={(e) => handleAnnotationClick(e, ann)}
+					/>
+				);
+			})}
 
 			{/* Ghost rect while drawing */}
 			{dragging && dragRect && dragRect.width > 2 && dragRect.height > 2 && (
@@ -219,17 +261,65 @@ export function AnnotationLayer({ documentId, pageNumber, mode }: AnnotationLaye
 					className={cn(
 						'absolute pointer-events-none border-2 border-dashed',
 						mode === 'highlight' && 'bg-yellow-400/20 border-yellow-400',
-						mode === 'note' && 'bg-blue-400/20 border-blue-400',
-						mode === 'redaction' && 'bg-slate-900/50 border-slate-400',
+						mode === 'note'      && 'bg-blue-400/20 border-blue-400',
+						mode === 'redaction' && 'bg-black/50 border-red-500',
 					)}
 					style={{
-						left: dragRect.x,
-						top: dragRect.y,
-						width: dragRect.width,
+						left:   dragRect.x,
+						top:    dragRect.y,
+						width:  dragRect.width,
 						height: dragRect.height,
 					}}
 				/>
 			)}
+
+			{/* Draft-redaction action bar */}
+			{draftRedactions.length > 0 && (
+				<div
+					className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2 bg-slate-900 border border-red-500/50 rounded-lg shadow-xl"
+					onClick={(e) => e.stopPropagation()}
+					onMouseDown={(e) => e.stopPropagation()}
+				>
+					<span className="text-xs text-red-400 font-medium select-none">
+						{draftRedactions.length} draft redaction{draftRedactions.length !== 1 ? 's' : ''}
+					</span>
+					<button
+						onClick={handleClearRedactions}
+						disabled={deleteAnnotation.isPending}
+						className="px-2 py-1 text-xs text-slate-400 hover:text-slate-200 transition-colors border border-slate-600 rounded disabled:opacity-50"
+					>
+						Clear
+					</button>
+					<button
+						onClick={() => setApplyConfirmOpen(true)}
+						className="px-2 py-1 text-xs bg-red-600 hover:bg-red-500 text-white rounded transition-colors"
+					>
+						Apply Redactions
+					</button>
+				</div>
+			)}
+
+			{/* Apply-redactions confirmation dialog */}
+			<AlertDialog open={applyConfirmOpen} onOpenChange={setApplyConfirmOpen}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Apply Redactions Permanently?</AlertDialogTitle>
+						<AlertDialogDescription>
+							This permanently removes content from the document. This cannot be undone.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={handleApplyRedactions}
+							disabled={applyRedactions.isPending}
+							className="bg-red-600 hover:bg-red-500 focus:ring-red-600"
+						>
+							{applyRedactions.isPending ? 'Applying…' : 'Apply Permanently'}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 
 			{/* Popover for selected annotation */}
 			{selectedAnnotation && (
@@ -237,7 +327,7 @@ export function AnnotationLayer({ documentId, pageNumber, mode }: AnnotationLaye
 					className="absolute z-50 bg-slate-800 border border-slate-600 rounded-lg shadow-xl p-3 min-w-[200px] max-w-[280px]"
 					style={{
 						left: `${selectedAnnotation.x * 100}%`,
-						top: `calc(${selectedAnnotation.y * 100}% + ${selectedAnnotation.height * 100}% + 4px)`,
+						top:  `calc(${selectedAnnotation.y * 100}% + ${selectedAnnotation.height * 100}% + 4px)`,
 					}}
 					onClick={(e) => e.stopPropagation()}
 				>

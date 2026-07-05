@@ -20,6 +20,8 @@ export interface Annotation {
 	height: number;
 	content: string | null;
 	color: string;
+	/** True once the redaction has been permanently burned into the document */
+	applied?: boolean;
 	createdById: string;
 	tenantId: string;
 	createdAt: string;
@@ -116,6 +118,25 @@ export function useDeleteAnnotation(documentId: string) {
 	return useMutation({
 		mutationFn: async (annotationId: string) => {
 			await apiClient.delete(`/documents/${documentId}/annotations/${annotationId}`);
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: annotationKeys.byDocument(documentId) });
+		},
+	});
+}
+
+export interface ApplyRedactionsResponse {
+	applied: number;
+}
+
+export function useApplyRedactions(documentId: string) {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: async () => {
+			const { data } = await apiClient.post<ApplyRedactionsResponse>(
+				`/documents/${documentId}/annotations/apply-redactions`,
+			);
+			return data;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: annotationKeys.byDocument(documentId) });
