@@ -37,7 +37,7 @@ import {
 import { useCallback,useEffect,useRef,useState } from 'react';
 import { Link,useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { completeBatchScan,getBatch,getBatchDocuments,getScannerCapabilities,getScanners,quickScan,type BatchDocument,type ScanJobOptions,type ScannerCapabilities } from '../api';
+import { completeBatchScan,deleteBatchPage,getBatch,getBatchDocuments,getScannerCapabilities,getScanningProject,getScanners,quickScan,splitBatchAtPage,updateBatchPage,type BatchDocument,type ScanJobOptions,type ScannerCapabilities } from '../api';
 import type { SeparatorEvent } from '../api';
 import { BrowserScannerConfig,ScanModeIndicator,type ScanMode } from '../components/BrowserScannerConfig';
 import { useSeparatorEvents } from '../hooks';
@@ -224,11 +224,11 @@ interface ScannedPage {
 	thumbnailUrl: string;
 	fullImageUrl: string;
 	scannedAt: string;
-	qualityScore: number;
+	qualityScore?: number;
 	hasBlur: boolean;
 	hasSkew: boolean;
 	skewAngle: number;
-	blurScore: number;
+	blurScore?: number;
 	needsReview: boolean;
 	status: 'pending' | 'accepted' | 'rejected' | 'rescanning';
 	rotation: number;
@@ -254,19 +254,80 @@ interface BatchInfo {
 	status: 'pending' | 'scanning' | 'paused' | 'completed' | 'qc_pending';
 }
 
+type BatchWithProjectName = {
+	project_name?: string;
+	projectName?: string;
+};
+
+type ScanPageMetadata = {
+	id?: string;
+	documentId?: string;
+	document_id?: string;
+	pageId?: string;
+	page_id?: string;
+	qualityScore?: number;
+	quality_score?: number;
+	blurScore?: number;
+	blur_score?: number;
+	hasBlur?: boolean;
+	has_blur?: boolean;
+	hasSkew?: boolean;
+	has_skew?: boolean;
+	skewAngle?: number;
+	skew_angle?: number;
+	needsReview?: boolean;
+	needs_review?: boolean;
+	status?: ScannedPage['status'];
+	scannedAt?: string;
+	scanned_at?: string;
+};
+
+function readNumber(value: unknown): number | undefined {
+	return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function readBoolean(value: unknown): boolean | undefined {
+	return typeof value === 'boolean' ? value : undefined;
+}
+
+function getScanPageMetadata(result: unknown, docId: string, index: number): ScanPageMetadata | undefined {
+	const record = result as Record<string, unknown>;
+	const arrays = [
+		record.pageResults,
+		record.page_results,
+		record.documents,
+		record.batchDocuments,
+		record.batch_documents,
+	].filter(Array.isArray) as ScanPageMetadata[][];
+
+	for (const entries of arrays) {
+		const byId = entries.find((entry) =>
+			[entry.id, entry.documentId, entry.document_id, entry.pageId, entry.page_id].includes(docId),
+		);
+		if (byId) return byId;
+		if (entries[index]) return entries[index];
+	}
+
+	return undefined;
+}
+
 // Transform BatchDocument from API to ScannedPage for UI
 function transformBatchDocumentToScannedPage(doc: BatchDocument, index: number): ScannedPage {
+	const issueDetails = doc.issueDetails ?? (doc as BatchDocument & { issue_details?: Record<string, unknown> }).issue_details;
+	const qualityScore = readNumber(doc.qualityScore ?? (doc as BatchDocument & { quality_score?: number }).quality_score);
+	const blurScore = readNumber(issueDetails?.blurScore ?? issueDetails?.blur_score);
+
 	return {
 		id: doc.id,
 		pageNumber: doc.pageNumber || index + 1,
 		thumbnailUrl: `/api/v1/thumbnails/${doc.documentId}`,
 		fullImageUrl: `/api/v1/thumbnails/${doc.documentId}/full`,
 		scannedAt: doc.scannedAt,
-		qualityScore: doc.qualityScore,
-		hasBlur: doc.hasIssues && doc.issueDetails?.blur === true,
-		hasSkew: doc.hasIssues && doc.issueDetails?.skew === true,
-		skewAngle: (doc.issueDetails?.skewAngle as number) || 0,
-		blurScore: (doc.issueDetails?.blurScore as number) || (doc.qualityScore > 70 ? 85 : 50),
+		...(qualityScore !== undefined ? { qualityScore } : {}),
+		hasBlur: doc.hasIssues && issueDetails?.blur === true,
+		hasSkew: doc.hasIssues && issueDetails?.skew === true,
+		skewAngle: readNumber(issueDetails?.skewAngle ?? issueDetails?.skew_angle) ?? 0,
+		...(blurScore !== undefined ? { blurScore } : {}),
 		needsReview: doc.needsReview,
 		status: doc.status,
 		rotation: 0,
@@ -295,10 +356,11 @@ const FORMAT_OPTIONS = [
 
 function QualityIndicator({ label, value, threshold, icon: Icon }: {
 	label: string;
-	value: number;
+	value: number | undefined;
 	threshold: number;
 	icon: typeof AlertTriangle;
 }) {
+	if (value === undefined) return null;
 	const isGood = value >= threshold;
 	return (
 		<div className={cn(
@@ -630,20 +692,48 @@ function SeparatorEventRow({
 
 function SeparatorEventFeed({
 	projectId,
+	batchId,
+	pages,
 	isScanning,
 }: {
 	projectId: string;
+	batchId?: string;
+	pages: Pick<ScannedPage, 'id' | 'pageNumber'>[];
 	isScanning: boolean;
 }) {
 	const { data: events = [], isLoading } = useSeparatorEvents(projectId, true);
+	const queryClient = useQueryClient();
+	const splitMutation = useMutation({
+		mutationFn: ({ targetBatchId, pageId }: { targetBatchId: string; pageId: string | number }) =>
+			splitBatchAtPage(targetBatchId, pageId),
+		onSuccess: (_result, variables) => {
+			toast.success('Batch split created');
+			queryClient.invalidateQueries({ queryKey: ['batch-documents', projectId, variables.targetBatchId] });
+			queryClient.invalidateQueries({ queryKey: ['scanning-batch', projectId, variables.targetBatchId] });
+			queryClient.invalidateQueries({ queryKey: ['scanning-batch', projectId, batchId] });
+		},
+		onError: (error) => {
+			toast.error(error instanceof Error ? error.message : 'Failed to split batch');
+		},
+	});
 
 	const handleSplitHere = useCallback((event: SeparatorEvent) => {
-		// Placeholder: in a full implementation this would POST a split-confirmation
-		// to the backend. For now, show a toast.
-		// toast.info is not imported here, so we use the browser console log.
-		// Real wiring can be added when the split-confirm endpoint is built.
-		console.info('[ScanningStation] Split confirmed at separator event', event.id);
-	}, []);
+		const targetBatchId = event.batch_id ?? batchId;
+		if (!targetBatchId) {
+			toast.error('Missing batch identifier for split');
+			return;
+		}
+		if (event.page_number == null) {
+			toast.error('Missing page identifier for split');
+			return;
+		}
+		const page = pages.find((item) => item.pageNumber === event.page_number);
+		if (!page) {
+			toast.error('Split page is not loaded in this batch');
+			return;
+		}
+		splitMutation.mutate({ targetBatchId, pageId: page.id });
+	}, [batchId, pages, splitMutation]);
 
 	if (!isScanning && events.length === 0) return null;
 
@@ -717,12 +807,24 @@ export function ScanningStation() {
 		enabled: !!projectId && !!batchId,
 	});
 
+	const { data: projectData } = useQuery({
+		queryKey: ['scanning-project', projectId],
+		queryFn: () => getScanningProject(projectId!),
+		enabled: !!projectId,
+	});
+
 	// Transform batch data to BatchInfo
+	const batchProjectName = batchData
+		? (batchData as typeof batchData & BatchWithProjectName).project_name
+			?? (batchData as typeof batchData & BatchWithProjectName).projectName
+			?? projectData?.name
+			?? 'Loading...'
+		: 'Loading...';
 	const batch: BatchInfo = batchData ? {
 		id: batchData.id,
 		batchNumber: batchData.batchNumber,
 		projectId: batchData.projectId,
-		projectName: 'Scanning Project', // Project name will be fetched separately if needed
+		projectName: batchProjectName,
 		estimatedPages: batchData.estimatedPages,
 		scannedPages: batchData.scannedPages || 0,
 		status: batchData.status as BatchInfo['status'],
@@ -906,21 +1008,28 @@ export function ScanningStation() {
 
 			// Also add to local state immediately for instant feedback
 			if (result.pagesScanned > 0) {
-				const newPages: ScannedPage[] = result.documentIds.map((docId, index) => ({
-					id: docId,
-					pageNumber: pages.length + index + 1,
-					thumbnailUrl: `/api/v1/thumbnails/${docId}`,
-					fullImageUrl: `/api/v1/thumbnails/${docId}/full`,
-					scannedAt: new Date().toISOString(),
-					qualityScore: 90,
-					hasBlur: false,
-					hasSkew: false,
-					skewAngle: 0,
-					blurScore: 95,
-					needsReview: false,
-					status: 'accepted' as const,
-					rotation: 0,
-				}));
+				const newPages: ScannedPage[] = result.documentIds.map((docId, index) => {
+					const metadata = getScanPageMetadata(result, docId, index);
+					const qualityScore = readNumber(metadata?.qualityScore ?? metadata?.quality_score);
+					const blurScore = readNumber(metadata?.blurScore ?? metadata?.blur_score);
+					const hasBlur = readBoolean(metadata?.hasBlur ?? metadata?.has_blur) ?? false;
+					const hasSkew = readBoolean(metadata?.hasSkew ?? metadata?.has_skew) ?? false;
+					return {
+						id: docId,
+						pageNumber: pages.length + index + 1,
+						thumbnailUrl: `/api/v1/thumbnails/${docId}`,
+						fullImageUrl: `/api/v1/thumbnails/${docId}/full`,
+						scannedAt: metadata?.scannedAt ?? metadata?.scanned_at ?? new Date().toISOString(),
+						...(qualityScore !== undefined ? { qualityScore } : {}),
+						hasBlur,
+						hasSkew,
+						skewAngle: readNumber(metadata?.skewAngle ?? metadata?.skew_angle) ?? 0,
+						...(blurScore !== undefined ? { blurScore } : {}),
+						needsReview: readBoolean(metadata?.needsReview ?? metadata?.needs_review) ?? false,
+						status: metadata?.status ?? 'accepted' as const,
+						rotation: 0,
+					};
+				});
 
 				setPages(prev => [...prev, ...newPages]);
 				if (newPages.length > 0) {
@@ -933,6 +1042,39 @@ export function ScanningStation() {
 		onError: (error) => {
 			setScanError(error instanceof Error ? error.message : 'Scan failed');
 			setIsScanning(false);
+		},
+	});
+
+	const invalidateCurrentBatch = useCallback(() => {
+		queryClient.invalidateQueries({ queryKey: ['batch-documents', projectId, batchId] });
+		queryClient.invalidateQueries({ queryKey: ['scanning-batch', projectId, batchId] });
+	}, [batchId, projectId, queryClient]);
+
+	const updatePageMutation = useMutation({
+		mutationFn: ({ pageId, status, rotation }: { pageId: string; status?: 'accepted' | 'rejected'; rotation?: number }) => {
+			if (!batchId) throw new Error('Missing batch identifier');
+			return updateBatchPage(batchId, pageId, { status, rotation });
+		},
+		onSuccess: () => {
+			invalidateCurrentBatch();
+		},
+		onError: (error) => {
+			toast.error(error instanceof Error ? error.message : 'Failed to update page');
+			invalidateCurrentBatch();
+		},
+	});
+
+	const deletePageMutation = useMutation({
+		mutationFn: (pageId: string) => {
+			if (!batchId) throw new Error('Missing batch identifier');
+			return deleteBatchPage(batchId, pageId);
+		},
+		onSuccess: () => {
+			invalidateCurrentBatch();
+		},
+		onError: (error) => {
+			toast.error(error instanceof Error ? error.message : 'Failed to delete page');
+			invalidateCurrentBatch();
 		},
 	});
 
@@ -959,23 +1101,32 @@ export function ScanningStation() {
 	const handleRotate = useCallback((direction: 'cw' | 'ccw') => {
 		if (!selectedPageId) return;
 		const delta = direction === 'cw' ? 90 : -90;
+		const page = pages.find((item) => item.id === selectedPageId);
+		if (!page) return;
+		const rotation = (page.rotation + delta + 360) % 360;
 		setPages((prev) =>
 			prev.map((page) =>
 				page.id === selectedPageId
-					? { ...page, rotation: (page.rotation + delta + 360) % 360 }
+					? { ...page, rotation }
 					: page,
 			),
 		);
-	}, [selectedPageId]);
+		updatePageMutation.mutate({ pageId: selectedPageId, rotation });
+	}, [pages, selectedPageId, updatePageMutation]);
 
 	const handleDelete = useCallback(() => {
 		if (!selectedPageId) return;
-		setPages(prev => prev.filter(p => p.id !== selectedPageId));
-		// Select next page or previous if at end
 		const currentIndex = pages.findIndex(p => p.id === selectedPageId);
-		const nextPage = pages[currentIndex + 1] || pages[currentIndex - 1];
-		setSelectedPageId(nextPage?.id || null);
-	}, [selectedPageId, pages]);
+		if (currentIndex === -1) return;
+		deletePageMutation.mutate(selectedPageId, {
+			onSuccess: () => {
+				setPages(prev => prev.filter(p => p.id !== selectedPageId));
+				// Select next page or previous if at end
+				const nextPage = pages[currentIndex + 1] || pages[currentIndex - 1];
+				setSelectedPageId(nextPage?.id || null);
+			},
+		});
+	}, [deletePageMutation, selectedPageId, pages]);
 
 	const handleRescan = useCallback((pageId: string) => {
 		setPages((prev) =>
@@ -1004,14 +1155,16 @@ export function ScanningStation() {
 		setPages(prev => prev.map(p =>
 			p.id === selectedPageId ? { ...p, status: 'accepted' as const, needsReview: false } : p
 		));
-	}, [selectedPageId]);
+		updatePageMutation.mutate({ pageId: selectedPageId, status: 'accepted' });
+	}, [selectedPageId, updatePageMutation]);
 
 	const handleRejectPage = useCallback(() => {
 		if (!selectedPageId) return;
 		setPages(prev => prev.map(p =>
 			p.id === selectedPageId ? { ...p, status: 'rejected' as const } : p
 		));
-	}, [selectedPageId]);
+		updatePageMutation.mutate({ pageId: selectedPageId, status: 'rejected' });
+	}, [selectedPageId, updatePageMutation]);
 
 	// Scanning controls
 	const toggleScanning = useCallback(() => {
@@ -1530,7 +1683,7 @@ export function ScanningStation() {
 										{selectedPage.hasBlur && (
 											<div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/90 text-slate-900 rounded-lg text-sm font-medium">
 												<Eye className="w-4 h-4" />
-												Blur Detected ({selectedPage.blurScore}%)
+												Blur Detected{selectedPage.blurScore !== undefined ? ` (${selectedPage.blurScore}%)` : ''}
 											</div>
 										)}
 										{selectedPage.hasSkew && (
@@ -1625,6 +1778,8 @@ export function ScanningStation() {
 			{projectId && (
 				<SeparatorEventFeed
 					projectId={projectId}
+					batchId={batchId}
+					pages={pages}
 					isScanning={isScanning}
 				/>
 			)}

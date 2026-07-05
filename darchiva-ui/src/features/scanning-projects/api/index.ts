@@ -260,6 +260,38 @@ export async function addBatchDocument(
 	return response;
 }
 
+export interface UpdateBatchPageInput {
+	status?: 'accepted' | 'rejected';
+	rotation?: number;
+}
+
+export async function updateBatchPage(
+	batchId: string,
+	pageId: string,
+	input: UpdateBatchPageInput
+): Promise<BatchDocument> {
+	const { data: response } = await apiClient.patch<BatchDocument>(
+		`/scanning-projects/batches/${batchId}/pages/${pageId}`,
+		input
+	);
+	return response;
+}
+
+export async function deleteBatchPage(batchId: string, pageId: string): Promise<void> {
+	await apiClient.delete(`/scanning-projects/batches/${batchId}/pages/${pageId}`);
+}
+
+export async function splitBatchAtPage(
+	batchId: string,
+	pageId: string | number
+): Promise<{ new_batch_id?: string; new_batch_name?: string }> {
+	const { data: response } = await apiClient.post<{ new_batch_id?: string; new_batch_name?: string }>(
+		`/scanning-projects/batches/${batchId}/split`,
+		{ split_at_page: pageId }
+	);
+	return response;
+}
+
 // =====================================================
 // Milestones API
 // =====================================================
