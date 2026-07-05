@@ -130,7 +130,7 @@ function TaskRow({ task, onAction }: { task: WorkflowTask; onAction: (id: string
     const [commentText, setCommentText] = useState('');
     const addComment = useMutation({
         mutationFn: async (content: string) => {
-            await apiClient.post(`/nodes/${task.document_id}/comments`, {
+            await apiClient.post(`/documents/${task.document_id}/comments`, {
                 content,
                 parent_id: null,
             });
