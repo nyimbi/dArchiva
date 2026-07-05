@@ -2,13 +2,15 @@
 import {
   useCreatePortfolio,
   useDeletePortfolio,
+  usePortfolioDocuments,
   usePortfolios,
   usePortfolioStats,
+  useRemovePortfolioDocument,
   useUpdatePortfolio,
   type Portfolio,
+  type PortfolioDocument,
   type PortfolioStatus,
 } from '@/features/portfolios';
-import { useCases, type Case, type CaseStatus } from '@/features/cases';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,13 +34,6 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import {
   Sheet,
@@ -74,6 +69,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 const STATUS_LABELS: Record<PortfolioStatus, string> = {
   active: 'Active',
@@ -108,6 +104,10 @@ function parseTags(value: string): string[] {
     .filter(Boolean);
 }
 
+function formatTags(tags?: string[]): string {
+  return (tags ?? []).join(', ');
+}
+
 interface PortfolioFormDialogProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -128,8 +128,15 @@ function PortfolioFormDialog({ open, onOpenChange, initial }: PortfolioFormDialo
   const reset = () => {
     setName(initial?.name ?? '');
     setDescription(initial?.description ?? '');
-    setTags('');
+    setTags(formatTags(initial?.tags));
   };
+
+  useEffect(() => {
+    if (!open) return;
+    setName(initial?.name ?? '');
+    setDescription(initial?.description ?? '');
+    setTags(formatTags(initial?.tags));
+  }, [initial, open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,17 +148,31 @@ function PortfolioFormDialog({ open, onOpenChange, initial }: PortfolioFormDialo
         description: description.trim() || undefined,
         tags: parseTags(tags),
       };
-      await updatePortfolio.mutateAsync({
-        id: initial.id,
-        data: payload,
-      });
+      try {
+        await updatePortfolio.mutateAsync({
+          id: initial.id,
+          data: payload,
+        }, {
+          onSuccess: () => toast.success('Portfolio updated'),
+          onError: () => toast.error('Failed to update portfolio'),
+        });
+      } catch {
+        return;
+      }
     } else {
       const payload = {
         name: name.trim(),
         description: description.trim() || undefined,
         tags: parseTags(tags),
       };
-      await createPortfolio.mutateAsync(payload);
+      try {
+        await createPortfolio.mutateAsync(payload, {
+          onSuccess: () => toast.success('Portfolio created'),
+          onError: () => toast.error('Failed to create portfolio'),
+        });
+      } catch {
+        return;
+      }
     }
     reset();
     onOpenChange(false);
@@ -261,8 +282,12 @@ function PortfolioDocumentPickerDialog({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['portfolios'] });
-      queryClient.invalidateQueries({ queryKey: ['cases'] });
+      queryClient.invalidateQueries({ queryKey: ['search'] });
+      toast.success('Documents added to portfolio');
       onOpenChange(false);
+    },
+    onError: () => {
+      toast.error('Failed to add documents');
     },
   });
 
@@ -284,8 +309,12 @@ function PortfolioDocumentPickerDialog({
 
   const handleConfirm = async () => {
     if (selectedIds.length === 0) return;
-    await addDocuments.mutateAsync(selectedIds);
-    reset();
+    try {
+      await addDocuments.mutateAsync(selectedIds);
+      reset();
+    } catch {
+      // Toast is handled by the mutation error callback.
+    }
   };
 
   return (
@@ -383,8 +412,15 @@ function DeletePortfolioDialog({
 
   const handleConfirm = async () => {
     if (!portfolio) return;
-    await deletePortfolio.mutateAsync(portfolio.id);
-    onOpenChange(false);
+    try {
+      await deletePortfolio.mutateAsync(portfolio.id, {
+        onSuccess: () => toast.success('Portfolio deleted'),
+        onError: () => toast.error('Failed to delete portfolio'),
+      });
+      onOpenChange(false);
+    } catch {
+      // Toast is handled by the mutation error callback.
+    }
   };
 
   return (
@@ -417,23 +453,6 @@ function DeletePortfolioDialog({
 
 // ─── Portfolio Folder Sheet ───────────────────────────────────────────────────
 
-const CASE_STATUS_LABELS: Record<CaseStatus, string> = {
-  open: 'Open',
-  pending: 'Pending',
-  closed: 'Closed',
-  on_hold: 'On Hold',
-};
-
-const CASE_STATUS_VARIANTS: Record<
-  CaseStatus,
-  'default' | 'secondary' | 'outline'
-> = {
-  open: 'default',
-  pending: 'secondary',
-  closed: 'outline',
-  on_hold: 'secondary',
-};
-
 function PortfolioFolderSheet({
   portfolio,
   open,
@@ -443,11 +462,21 @@ function PortfolioFolderSheet({
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
-  const { data: casesData, isLoading } = useCases(1, 50, undefined, portfolio?.id);
+  const { data: documentsData, isLoading } = usePortfolioDocuments(portfolio?.id);
+  const removeDocument = useRemovePortfolioDocument(portfolio?.id ?? '');
   const [pickerOpen, setPickerOpen] = useState(false);
-  const cases = casesData?.items || [];
+  const documents = documentsData?.items || [];
 
   if (!portfolio) return null;
+
+  const handleRemoveDocument = async (document: PortfolioDocument) => {
+    try {
+      await removeDocument.mutateAsync(document.id);
+      toast.success('Document removed from portfolio');
+    } catch {
+      toast.error('Failed to remove document');
+    }
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -488,12 +517,12 @@ function PortfolioFolderSheet({
 
           <Separator />
 
-          {/* Cases in this portfolio */}
+          {/* Documents in this portfolio */}
           <div>
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-sm font-medium flex items-center gap-2">
-                <Briefcase className="w-4 h-4" />
-                Cases
+                <FileText className="w-4 h-4" />
+                Documents
               </h4>
               <Button size="sm" variant="outline" onClick={() => setPickerOpen(true)}>
                 <Plus className="w-4 h-4 mr-1" />
@@ -507,40 +536,45 @@ function PortfolioFolderSheet({
                   <Skeleton key={i} className="h-12 w-full" />
                 ))}
               </div>
-            ) : cases.length === 0 ? (
+            ) : documents.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                <Briefcase className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                <p className="text-sm">No cases in this portfolio yet</p>
+                <FileText className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                <p className="text-sm">No documents in this portfolio yet</p>
               </div>
             ) : (
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Case</TableHead>
-                      <TableHead className="w-24">Status</TableHead>
-                      <TableHead className="w-20 text-right">Docs</TableHead>
+                      <TableHead>Document</TableHead>
+                      <TableHead className="w-32">Added</TableHead>
+                      <TableHead className="w-14" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {cases.map((c: Case) => {
-                      const sv = CASE_STATUS_VARIANTS[c.status] ?? 'outline';
-                      const sl = CASE_STATUS_LABELS[c.status] ?? c.status;
+                    {documents.map((document: PortfolioDocument) => {
                       return (
-                        <TableRow key={c.id}>
+                        <TableRow key={document.id}>
                           <TableCell>
-                            <div>
-                              <p className="font-medium text-sm">{c.title}</p>
-                              <p className="text-xs text-muted-foreground font-mono">
-                                {c.caseNumber}
-                              </p>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                              <p className="font-medium text-sm truncate">{document.title}</p>
                             </div>
                           </TableCell>
-                          <TableCell>
-                            <Badge variant={sv}>{sl}</Badge>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {document.createdAt ? formatDate(document.createdAt) : '—'}
                           </TableCell>
-                          <TableCell className="text-right text-sm text-muted-foreground">
-                            {c.documentCount}
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              onClick={() => handleRemoveDocument(document)}
+                              disabled={removeDocument.isPending}
+                              aria-label={`Remove ${document.title} from portfolio`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           </TableCell>
                         </TableRow>
                       );
@@ -666,10 +700,14 @@ function PortfolioCard({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function Portfolios() {
-  const { data: portfoliosData, isLoading: portfoliosLoading, isError: portfoliosError } = usePortfolios();
-  const { data: stats, isLoading: statsLoading } = usePortfolioStats();
-
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+  const {
+    data: portfoliosData,
+    isLoading: portfoliosLoading,
+    isError: portfoliosError,
+  } = usePortfolios(1, 200, undefined, debouncedSearchQuery);
+  const { data: stats, isLoading: statsLoading } = usePortfolioStats();
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Portfolio | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Portfolio | null>(null);
@@ -677,9 +715,9 @@ export function Portfolios() {
   const [folderOpen, setFolderOpen] = useState(false);
 
   const portfolios = (portfoliosData?.items || []).filter((p: Portfolio) =>
-    searchQuery
-      ? p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    debouncedSearchQuery
+      ? p.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        p.description?.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
       : true,
   );
 
