@@ -1,6 +1,7 @@
 // (c) Copyright Datacraft, 2026
 import { motion } from 'framer-motion';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import {
   PhysicalContainer,
   useContainerCustodyHistory,
@@ -45,22 +46,32 @@ export function ContainerDetail({ container, onClose }: Props) {
 	];
 
 	const handleVerify = async () => {
-		await verifyContainer.mutateAsync(container.id);
+		try {
+			await verifyContainer.mutateAsync(container.id);
+			toast.success('Container verified');
+		} catch {
+			toast.error('Verification failed');
+		}
 	};
 
 	const handleDownloadQR = async () => {
-		const blob = await generateQRCode.mutateAsync({
-			documentId: container.barcode,
-			format: 'compact',
-			size: 300,
-			includeLabel: true,
-		});
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = `qr_${container.barcode}.png`;
-		a.click();
-		URL.revokeObjectURL(url);
+		try {
+			const blob = await generateQRCode.mutateAsync({
+				documentId: container.barcode,
+				format: 'compact',
+				size: 300,
+				includeLabel: true,
+			});
+			toast.success('QR code generated');
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = `qr_${container.barcode}.png`;
+			a.click();
+			URL.revokeObjectURL(url);
+		} catch {
+			toast.error('Failed to generate QR code');
+		}
 	};
 
 	return (

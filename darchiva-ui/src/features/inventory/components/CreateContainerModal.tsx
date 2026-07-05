@@ -1,6 +1,7 @@
 // (c) Copyright Datacraft, 2026
 import { motion } from 'framer-motion';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { PhysicalContainer,useCreateContainer,WarehouseLocation } from '../api';
 import styles from './CreateModal.module.css';
 
@@ -37,17 +38,22 @@ export function CreateContainerModal({ locations, onClose, onCreated }: Props) {
 				}
 				: undefined;
 
-		const result = await createContainer.mutateAsync({
-			barcode: formData.barcode,
-			containerType: formData.containerType,
-			label: formData.label || undefined,
-			description: formData.description || undefined,
-			locationId: formData.locationId || undefined,
-			weightKg: formData.weightKg ? parseFloat(formData.weightKg) : undefined,
-			dimensions,
-		});
+		try {
+			const result = await createContainer.mutateAsync({
+				barcode: formData.barcode,
+				containerType: formData.containerType,
+				label: formData.label || undefined,
+				description: formData.description || undefined,
+				locationId: formData.locationId || undefined,
+				weightKg: formData.weightKg ? parseFloat(formData.weightKg) : undefined,
+				dimensions,
+			});
+			toast.success('Container created');
 
-		onCreated(result);
+			onCreated(result);
+		} catch {
+			toast.error('Failed to create container');
+		}
 	};
 
 	const containerTypes = [

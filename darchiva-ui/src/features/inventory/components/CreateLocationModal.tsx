@@ -1,6 +1,7 @@
 // (c) Copyright Datacraft, 2026
 import { motion } from 'framer-motion';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { useCreateLocation,WarehouseLocation } from '../api';
 import styles from './CreateModal.module.css';
 
@@ -31,22 +32,27 @@ export function CreateLocationModal({ locations, onClose, onCreated }: Props) {
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 
-		const result = await createLocation.mutateAsync({
-			code: formData.code,
-			name: formData.name,
-			description: formData.description || undefined,
-			parentId: formData.parentId || undefined,
-			capacity: formData.capacity ? parseInt(formData.capacity) : undefined,
-			aisle: formData.aisle || undefined,
-			bay: formData.bay || undefined,
-			shelfNumber: formData.shelfNumber || undefined,
-			position: formData.position || undefined,
-			climateControlled: formData.climateControlled,
-			fireSuppression: formData.fireSuppression,
-			accessRestricted: formData.accessRestricted,
-		});
+		try {
+			const result = await createLocation.mutateAsync({
+				code: formData.code,
+				name: formData.name,
+				description: formData.description || undefined,
+				parentId: formData.parentId || undefined,
+				capacity: formData.capacity ? parseInt(formData.capacity) : undefined,
+				aisle: formData.aisle || undefined,
+				bay: formData.bay || undefined,
+				shelfNumber: formData.shelfNumber || undefined,
+				position: formData.position || undefined,
+				climateControlled: formData.climateControlled,
+				fireSuppression: formData.fireSuppression,
+				accessRestricted: formData.accessRestricted,
+			});
+			toast.success('Location created');
 
-		onCreated(result);
+			onCreated(result);
+		} catch {
+			toast.error('Failed to create location');
+		}
 	};
 
 	return (

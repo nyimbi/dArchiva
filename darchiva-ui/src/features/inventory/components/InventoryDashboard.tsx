@@ -1,5 +1,6 @@
 // (c) Copyright Datacraft, 2026
 import { AnimatePresence,motion } from 'framer-motion';
+import { AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 import {
   PhysicalContainer,
@@ -27,12 +28,12 @@ export function InventoryDashboard() {
 	const [showCreateLocation, setShowCreateLocation] = useState(false);
 	const [filterStatus, setFilterStatus] = useState<string>('all');
 
-	const { data: summary } = useInventorySummary();
-	const { data: containers = [] } = useContainers({
+	const { data: summary, isError: summaryError } = useInventorySummary();
+	const { data: containers = [], isError: containersError } = useContainers({
 		status: filterStatus !== 'all' ? filterStatus : undefined,
 		limit: 100,
 	});
-	const { data: locations = [] } = useLocations();
+	const { data: locations = [], isError: locationsError } = useLocations();
 	const { data: scanHistory = [] } = useScanHistory(20);
 
 	const tabs: { id: Tab; label: string; icon: string }[] = [
@@ -77,6 +78,25 @@ export function InventoryDashboard() {
 					</button>
 				</div>
 			</header>
+
+			{(summaryError || containersError || locationsError) && (
+				<div
+					style={{
+						display: 'flex',
+						alignItems: 'center',
+						gap: '0.5rem',
+						padding: '0.625rem 0.875rem',
+						border: '1px solid rgba(248, 113, 113, 0.4)',
+						borderRadius: '0.5rem',
+						color: '#fca5a5',
+						background: 'rgba(127, 29, 29, 0.25)',
+						fontSize: '0.875rem',
+					}}
+				>
+					<AlertCircle size={16} />
+					<span>Inventory data could not be loaded.</span>
+				</div>
+			)}
 
 			{/* Stats Bar */}
 			{summary && (

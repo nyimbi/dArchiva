@@ -23,8 +23,10 @@ import {
   Search,
   Upload,
   XCircle,
+  AlertCircle,
 } from 'lucide-react';
 import { type ElementType, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -277,15 +279,20 @@ function AddItemDialog({
   }
 
   async function handleSubmit() {
-    await create.mutateAsync({
-      barcode,
-      containerType,
-      label: label || undefined,
-      description: description || undefined,
-      locationId: locationId || undefined,
-    });
-    reset();
-    onClose();
+    try {
+      await create.mutateAsync({
+        barcode,
+        containerType,
+        label: label || undefined,
+        description: description || undefined,
+        locationId: locationId || undefined,
+      });
+      toast.success('Inventory item added');
+      reset();
+      onClose();
+    } catch {
+      toast.error('Failed to add inventory item');
+    }
   }
 
   return (
@@ -402,14 +409,19 @@ function CheckoutDialog({
 
   async function handleSubmit() {
     if (!container) return;
-    await checkout.mutateAsync({
-      containerId: container.id,
-      toUserId: userId,
-      reason,
-      expectedReturnDate: dueDate || undefined,
-    });
-    reset();
-    onClose();
+    try {
+      await checkout.mutateAsync({
+        containerId: container.id,
+        toUserId: userId,
+        reason,
+        expectedReturnDate: dueDate || undefined,
+      });
+      toast.success('Container checked out');
+      reset();
+      onClose();
+    } catch {
+      toast.error('Failed to check out container');
+    }
   }
 
   return (
@@ -500,13 +512,18 @@ function CheckinDialog({
 
   async function handleSubmit() {
     if (!container) return;
-    await checkin.mutateAsync({
-      containerId: container.id,
-      toLocationId: locationId,
-      notes: notes || undefined,
-    });
-    reset();
-    onClose();
+    try {
+      await checkin.mutateAsync({
+        containerId: container.id,
+        toLocationId: locationId,
+        notes: notes || undefined,
+      });
+      toast.success('Container checked in');
+      reset();
+      onClose();
+    } catch {
+      toast.error('Failed to check in container');
+    }
   }
 
   return (
@@ -722,9 +739,13 @@ export function InventoryManager() {
   const [reconcileResult, setReconcileResult] = useState<ReconciliationResult | null>(null);
   const [physicalRecords] = useState<PhysicalRecordInput[]>([]);
 
-  const { data: summary } = useInventorySummary();
-  const { data: allContainers = [], isLoading } = useContainers({ limit: 500 });
-  const { data: locations = [] } = useLocations();
+  const { data: summary, isError: summaryError } = useInventorySummary();
+  const {
+    data: allContainers = [],
+    isLoading,
+    isError: containersError,
+  } = useContainers({ limit: 500 });
+  const { data: locations = [], isError: locationsError } = useLocations();
 
   const reconcileMutation = useReconcileInventory();
   const resolveMutation = useResolveDiscrepancy();
@@ -781,21 +802,31 @@ export function InventoryManager() {
   }, [filteredContainers]);
 
   async function handleReconcile() {
-    const result = await reconcileMutation.mutateAsync({
-      physicalRecords,
-      matchBy: ['barcode'],
-      pageCountTolerance: 0,
-    });
-    setReconcileResult(result);
+    try {
+      const result = await reconcileMutation.mutateAsync({
+        physicalRecords,
+        matchBy: ['barcode'],
+        pageCountTolerance: 0,
+      });
+      toast.success('Inventory reconciled');
+      setReconcileResult(result);
+    } catch {
+      toast.error('Failed to reconcile inventory');
+    }
   }
 
   async function handleResolve(id: string, notes: string) {
-    await resolveMutation.mutateAsync({ discrepancyId: id, resolutionNotes: notes });
-    if (reconcileResult) {
-      setReconcileResult({
-        ...reconcileResult,
-        discrepancies: reconcileResult.discrepancies.filter((d) => d.id !== id),
-      });
+    try {
+      await resolveMutation.mutateAsync({ discrepancyId: id, resolutionNotes: notes });
+      toast.success('Discrepancy resolved');
+      if (reconcileResult) {
+        setReconcileResult({
+          ...reconcileResult,
+          discrepancies: reconcileResult.discrepancies.filter((d) => d.id !== id),
+        });
+      }
+    } catch {
+      toast.error('Failed to resolve discrepancy');
     }
   }
 
@@ -831,6 +862,15 @@ export function InventoryManager() {
           </Button>
         )}
       </div>
+
+      {(summaryError || containersError || locationsError) && (
+        <div className="flex items-center gap-3 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm">
+          <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+          <span className="text-red-700">
+            Inventory data could not be loaded. Refresh the page or try again.
+          </span>
+        </div>
+      )}
 
       {/* Stats Row */}
       <div className="grid grid-cols-4 gap-4">
