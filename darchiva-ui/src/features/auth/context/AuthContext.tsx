@@ -2,6 +2,7 @@
 /**
  * Authentication context and provider.
  */
+import { toast } from 'sonner';
 import { createContext,useCallback,useContext,useEffect,useState,type ReactNode } from 'react';
 
 interface User {
@@ -48,7 +49,6 @@ function isTokenExpired(token: string): boolean {
 	return Date.now() >= payload.exp * 1000;
 }
 
-import { toast } from '@/hooks/use-toast';
 import { AUTH_FORBIDDEN_EVENT,AUTH_UNAUTHORIZED_EVENT } from '@/lib/error-handler';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -146,11 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		const handleForbidden = (event: Event) => {
 			const customEvent = event as CustomEvent;
 			const message = customEvent.detail?.message || "You don't have permission to perform this action.";
-			toast({
-				title: 'Access Denied',
-				description: message,
-				variant: 'destructive',
-			});
+			toast.error('Access Denied', { description: message });
 		};
 
 		window.addEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized);

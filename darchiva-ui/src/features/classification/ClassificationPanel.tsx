@@ -8,6 +8,7 @@
  *   documentType — optional current type from the parent (avoids double-fetch)
  *   predictedConfidence — optional 0-1 confidence from the classifier
  */
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,7 +19,6 @@ import {
 	SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useToast } from '@/hooks/use-toast';
 import { CheckCircle2, ChevronDown, Clock, Tag } from 'lucide-react';
 import { useState } from 'react';
 import {
@@ -74,7 +74,6 @@ export function ClassificationPanel({
 	documentType,
 	predictedConfidence,
 }: ClassificationPanelProps) {
-	const { toast } = useToast();
 	const [selectedType, setSelectedType] = useState<string>('');
 	const [submitted, setSubmitted] = useState<string | null>(null);
 	const [historyOpen, setHistoryOpen] = useState(false);
@@ -96,12 +95,9 @@ export function ClassificationPanel({
 			});
 			setSubmitted(selectedType);
 			setSelectedType('');
-			toast({ title: `Classification updated to "${selectedType}"` });
+			toast.success(`Classification updated to "${selectedType}"`);
 		} catch {
-			toast({
-				title: 'Failed to submit correction',
-				variant: 'destructive',
-			});
+			toast.error('Failed to submit correction');
 		}
 	}
 

@@ -2,6 +2,7 @@
 /**
  * Email account configuration form.
  */
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -29,7 +30,6 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tabs,TabsContent,TabsList,TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { FolderSync,Loader2,Mail,Server,TestTube } from 'lucide-react';
 import { useState } from 'react';
@@ -71,7 +71,6 @@ interface EmailAccountFormProps {
 }
 
 export function EmailAccountForm({ account, onSuccess, onCancel }: EmailAccountFormProps) {
-	const { toast } = useToast();
 	const [testing, setTesting] = useState(false);
 
 	const createMutation = useCreateEmailAccount();
@@ -106,18 +105,14 @@ export function EmailAccountForm({ account, onSuccess, onCancel }: EmailAccountF
 		try {
 			if (account) {
 				await updateMutation.mutateAsync({ accountId: account.id, data: payload });
-				toast({ title: 'Account updated successfully' });
+				toast.success('Account updated successfully');
 			} else {
 				await createMutation.mutateAsync(payload);
-				toast({ title: 'Account created successfully' });
+				toast.success('Account created successfully');
 			}
 			onSuccess?.();
 		} catch {
-			toast({
-				title: 'Error',
-				description: 'Failed to save account',
-				variant: 'destructive',
-			});
+			toast.error('Error', { description: 'Failed to save account' });
 		}
 	};
 
@@ -127,17 +122,13 @@ export function EmailAccountForm({ account, onSuccess, onCancel }: EmailAccountF
 		setTesting(true);
 		try {
 			const result = await testMutation.mutateAsync(account.id);
-			toast({
-				title: result.success ? 'Connection successful' : 'Connection failed',
-				description: result.message,
-				variant: result.success ? 'default' : 'destructive',
-			});
+			if (result.success) {
+				toast.success('Connection successful', { description: result.message });
+			} else {
+				toast.error('Connection failed', { description: result.message });
+			}
 		} catch {
-			toast({
-				title: 'Test failed',
-				description: 'Could not test connection',
-				variant: 'destructive',
-			});
+			toast.error('Test failed', { description: 'Could not test connection' });
 		} finally {
 			setTesting(false);
 		}

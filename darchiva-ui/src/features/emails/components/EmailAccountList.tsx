@@ -2,6 +2,7 @@
 /**
  * Email account list component.
  */
+import { toast } from 'sonner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,7 +31,6 @@ import {
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
-import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -137,7 +137,6 @@ interface AccountCardProps {
 }
 
 function AccountCard({ account, onEdit }: AccountCardProps) {
-	const { toast } = useToast();
 	const [syncing, setSyncing] = useState(false);
 
 	const updateMutation = useUpdateEmailAccount();
@@ -154,11 +153,7 @@ function AccountCard({ account, onEdit }: AccountCardProps) {
 				data: { is_active: !account.is_active },
 			});
 		} catch {
-			toast({
-				title: 'Error',
-				description: 'Failed to update account',
-				variant: 'destructive',
-			});
+			toast.error('Error', { description: 'Failed to update account' });
 		}
 	};
 
@@ -166,13 +161,9 @@ function AccountCard({ account, onEdit }: AccountCardProps) {
 		setSyncing(true);
 		try {
 			await syncMutation.mutateAsync(account.id);
-			toast({ title: 'Sync started' });
+			toast.success('Sync started');
 		} catch {
-			toast({
-				title: 'Sync failed',
-				description: 'Could not start sync',
-				variant: 'destructive',
-			});
+			toast.error('Sync failed', { description: 'Could not start sync' });
 		} finally {
 			setSyncing(false);
 		}
@@ -181,13 +172,9 @@ function AccountCard({ account, onEdit }: AccountCardProps) {
 	const handleDelete = async () => {
 		try {
 			await deleteMutation.mutateAsync(account.id);
-			toast({ title: 'Account deleted' });
+			toast.success('Account deleted');
 		} catch {
-			toast({
-				title: 'Error',
-				description: 'Failed to delete account',
-				variant: 'destructive',
-			});
+			toast.error('Error', { description: 'Failed to delete account' });
 		}
 	};
 

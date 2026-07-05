@@ -9,10 +9,10 @@
  * by type with color-coded badges, confidence bars, and copy-to-clipboard.
  * Re-extraction can be triggered via POST /documents/{documentId}/re-extract-entities.
  */
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useToast } from '@/hooks/use-toast';
 import { Check, Copy, RefreshCw, Tags } from 'lucide-react';
 import { useState } from 'react';
 import { useDocumentEntities, useReExtractEntities } from '../api/entities';
@@ -76,16 +76,15 @@ function typeConfig(entityType: string): TypeConfig {
 
 function CopyButton({ value }: { value: string }) {
 	const [copied, setCopied] = useState(false);
-	const { toast } = useToast();
 
 	const handleCopy = async () => {
 		try {
 			await navigator.clipboard.writeText(value);
 			setCopied(true);
-			toast({ title: 'Copied to clipboard', duration: 1500 });
+			toast.success('Copied to clipboard', { duration: 1500 });
 			setTimeout(() => setCopied(false), 1500);
 		} catch {
-			toast({ title: 'Copy failed', variant: 'destructive' });
+			toast.error('Copy failed');
 		}
 	};
 
@@ -169,20 +168,15 @@ interface EntityPanelProps {
 }
 
 export function EntityPanel({ documentId }: EntityPanelProps) {
-	const { toast } = useToast();
 	const { data, isLoading, isError, refetch } = useDocumentEntities(documentId);
 	const reExtract = useReExtractEntities(documentId);
 
 	const handleReExtract = async () => {
 		try {
 			await reExtract.mutateAsync();
-			toast({
-				title: 'Re-extraction queued',
-				description: 'Entities will update when the task completes (~2 min).',
-				duration: 4000,
-			});
+			toast.success('Re-extraction queued', { description: 'Entities will update when the task completes (~2 min).', duration: 4000 });
 		} catch {
-			toast({ title: 'Failed to queue re-extraction', variant: 'destructive' });
+			toast.error('Failed to queue re-extraction');
 		}
 	};
 

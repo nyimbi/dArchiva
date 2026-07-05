@@ -2,6 +2,7 @@
 /**
  * Custom field create/edit form.
  */
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +15,6 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
 import { Loader2,Plus,Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useCreateCustomField,useUpdateCustomField } from '../api';
@@ -38,7 +38,6 @@ const FIELD_TYPES: { value: CustomFieldType; label: string }[] = [
 ];
 
 export function CustomFieldForm({ field, onSuccess, onCancel }: CustomFieldFormProps) {
-	const { toast } = useToast();
 	const createMutation = useCreateCustomField();
 	const updateMutation = useUpdateCustomField();
 
@@ -65,12 +64,12 @@ export function CustomFieldForm({ field, onSuccess, onCancel }: CustomFieldFormP
 		e.preventDefault();
 
 		if (!name.trim()) {
-			toast({ title: 'Name is required', variant: 'destructive' });
+			toast.error('Name is required');
 			return;
 		}
 
 		if (type === 'select' && options.length === 0) {
-			toast({ title: 'Dropdown fields need at least one option', variant: 'destructive' });
+			toast.error('Dropdown fields need at least one option');
 			return;
 		}
 
@@ -86,18 +85,14 @@ export function CustomFieldForm({ field, onSuccess, onCancel }: CustomFieldFormP
 		try {
 			if (field) {
 				await updateMutation.mutateAsync({ fieldId: field.id, data });
-				toast({ title: 'Field updated' });
+				toast.success('Field updated');
 			} else {
 				await createMutation.mutateAsync(data);
-				toast({ title: 'Field created' });
+				toast.success('Field created');
 			}
 			onSuccess?.();
 		} catch {
-			toast({
-				title: 'Error',
-				description: 'Failed to save field',
-				variant: 'destructive',
-			});
+			toast.error('Error', { description: 'Failed to save field' });
 		}
 	};
 

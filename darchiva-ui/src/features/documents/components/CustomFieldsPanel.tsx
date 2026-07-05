@@ -10,6 +10,7 @@
  * (useCustomFieldValues) in parallel, renders type-appropriate inputs, and
  * submits all values at once via PUT on "Save".
  */
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -22,7 +23,6 @@ import {
 	SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import {
@@ -177,7 +177,6 @@ interface CustomFieldsPanelProps {
 }
 
 export function CustomFieldsPanel({ documentId, projectId }: CustomFieldsPanelProps) {
-	const { toast } = useToast();
 
 	// Fetch field definitions scoped to project (or globals if no projectId)
 	const { data: fieldDefs, isLoading: defsLoading } = useCustomFields(projectId);
@@ -218,9 +217,9 @@ export function CustomFieldsPanel({ documentId, projectId }: CustomFieldsPanelPr
 	const handleSave = async () => {
 		try {
 			await upsertMutation.mutateAsync(formValues);
-			toast({ title: 'Metadata saved' });
+			toast.success('Metadata saved');
 		} catch {
-			toast({ title: 'Save failed', variant: 'destructive' });
+			toast.error('Save failed');
 		}
 	};
 

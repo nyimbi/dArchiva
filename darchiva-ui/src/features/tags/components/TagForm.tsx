@@ -2,6 +2,7 @@
 /**
  * Tag create/edit form.
  */
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,7 +14,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useCreateTag,useTags,useUpdateTag } from '../api';
@@ -38,7 +38,6 @@ const COLORS = [
 ];
 
 export function TagForm({ tag, onSuccess, onCancel }: TagFormProps) {
-	const { toast } = useToast();
 	const { data: tagsData } = useTags();
 	const createMutation = useCreateTag();
 	const updateMutation = useUpdateTag();
@@ -55,7 +54,7 @@ export function TagForm({ tag, onSuccess, onCancel }: TagFormProps) {
 		e.preventDefault();
 
 		if (!name.trim()) {
-			toast({ title: 'Name is required', variant: 'destructive' });
+			toast.error('Name is required');
 			return;
 		}
 
@@ -69,18 +68,14 @@ export function TagForm({ tag, onSuccess, onCancel }: TagFormProps) {
 		try {
 			if (tag) {
 				await updateMutation.mutateAsync({ tagId: tag.id, data });
-				toast({ title: 'Tag updated' });
+				toast.success('Tag updated');
 			} else {
 				await createMutation.mutateAsync(data);
-				toast({ title: 'Tag created' });
+				toast.success('Tag created');
 			}
 			onSuccess?.();
 		} catch {
-			toast({
-				title: 'Error',
-				description: 'Failed to save tag',
-				variant: 'destructive',
-			});
+			toast.error('Error', { description: 'Failed to save tag' });
 		}
 	};
 

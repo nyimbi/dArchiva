@@ -1,4 +1,5 @@
 // (c) Copyright Datacraft, 2026
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
 	Dialog,
@@ -8,7 +9,6 @@ import {
 	DialogTitle,
 } from '@/components/ui/dialog';
 import { documentKeys } from '@/features/documents/api';
-import { useToast } from '@/hooks/use-toast';
 import { cn, formatBytes } from '@/lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, File, Loader2, Upload, XCircle } from 'lucide-react';
@@ -93,7 +93,6 @@ export function DropZoneOverlay({
 	onClose,
 }: DropZoneOverlayProps) {
 	const queryClient = useQueryClient();
-	const { toast } = useToast();
 	const [rows, setRows] = useState<UploadRow[]>([]);
 	const activeUploadId = useRef<number | null>(null);
 
@@ -162,16 +161,9 @@ export function DropZoneOverlay({
 			await queryClient.invalidateQueries({ queryKey: documentKeys.all });
 
 			if (errorCount === 0) {
-				toast({
-					title: 'Upload complete',
-					description: `${successCount} file${successCount === 1 ? '' : 's'} uploaded.`,
-				});
+				toast.success('Upload complete', { description: `${successCount} file${successCount === 1 ? '' : 's'} uploaded.` });
 			} else {
-				toast({
-					title: 'Upload finished with errors',
-					description: `${successCount} uploaded, ${errorCount} failed.`,
-					variant: 'destructive',
-				});
+				toast.error('Upload finished with errors', { description: `${successCount} uploaded, ${errorCount} failed.` });
 			}
 		}
 
@@ -180,7 +172,7 @@ export function DropZoneOverlay({
 		return () => {
 			cancelled = true;
 		};
-	}, [files, hasFiles, parentId, queryClient, toast, uploadId]);
+	}, [files, hasFiles, parentId, queryClient, uploadId]);
 
 	return (
 		<>

@@ -2,6 +2,7 @@
 /**
  * Email rule list component.
  */
+import { toast } from 'sonner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,7 +36,6 @@ import {
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
-import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import {
   ChevronRight,
@@ -150,7 +150,6 @@ interface RuleCardProps {
 }
 
 function RuleCard({ rule, onEdit }: RuleCardProps) {
-	const { toast } = useToast();
 	const [expanded, setExpanded] = useState(false);
 
 	const updateMutation = useUpdateEmailRule();
@@ -163,24 +162,16 @@ function RuleCard({ rule, onEdit }: RuleCardProps) {
 				data: { is_active: !rule.is_active },
 			});
 		} catch {
-			toast({
-				title: 'Error',
-				description: 'Failed to update rule',
-				variant: 'destructive',
-			});
+			toast.error('Error', { description: 'Failed to update rule' });
 		}
 	};
 
 	const handleDelete = async () => {
 		try {
 			await deleteMutation.mutateAsync(rule.id);
-			toast({ title: 'Rule deleted' });
+			toast.success('Rule deleted');
 		} catch {
-			toast({
-				title: 'Error',
-				description: 'Failed to delete rule',
-				variant: 'destructive',
-			});
+			toast.error('Error', { description: 'Failed to delete rule' });
 		}
 	};
 

@@ -1,4 +1,5 @@
 // (c) Copyright Datacraft, 2026
+import { toast } from 'sonner';
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -36,7 +37,6 @@ import {
 	TableHeader,
 	TableRow,
 } from '@/components/ui/table';
-import { useToast } from '@/hooks/use-toast';
 import { cn, formatDateTime } from '@/lib/utils';
 import { Edit2, GitMerge, Loader2, Plus, Tag as TagIcon, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -64,7 +64,6 @@ function TagFormDialog({
 	state: TagDialogState | null;
 	onClose: () => void;
 }) {
-	const { toast } = useToast();
 	const createTag = useCreateTag();
 	const updateTag = useUpdateTag();
 	const [name, setName] = useState(state?.tag?.name ?? '');
@@ -85,17 +84,14 @@ function TagFormDialog({
 					tagId: state.tag.id,
 					data: { name: trimmedName, color },
 				});
-				toast({ title: 'Tag updated' });
+				toast.success('Tag updated');
 			} else {
 				await createTag.mutateAsync({ name: trimmedName, color });
-				toast({ title: 'Tag created' });
+				toast.success('Tag created');
 			}
 			onClose();
 		} catch {
-			toast({
-				title: 'Tag save failed',
-				variant: 'destructive',
-			});
+			toast.error('Tag save failed');
 		}
 	};
 
@@ -157,7 +153,6 @@ function TagFormDialog({
 }
 
 function MergeTagsPanel({ tags }: { tags: Tag[] }) {
-	const { toast } = useToast();
 	const mergeTags = useMergeTags();
 	const [sourceTagId, setSourceTagId] = useState('');
 	const [targetTagId, setTargetTagId] = useState('');
@@ -168,11 +163,11 @@ function MergeTagsPanel({ tags }: { tags: Tag[] }) {
 		if (!canMerge) return;
 		try {
 			await mergeTags.mutateAsync({ sourceTagId, targetTagId });
-			toast({ title: 'Tags merged' });
+			toast.success('Tags merged');
 			setSourceTagId('');
 			setTargetTagId('');
 		} catch {
-			toast({ title: 'Merge failed', variant: 'destructive' });
+			toast.error('Merge failed');
 		}
 	};
 
@@ -217,7 +212,6 @@ function MergeTagsPanel({ tags }: { tags: Tag[] }) {
 }
 
 export function TagManagementPage() {
-	const { toast } = useToast();
 	const { data, isLoading } = useTags();
 	const deleteTag = useDeleteTag();
 	const [dialogState, setDialogState] = useState<TagDialogState | null>(null);
@@ -235,10 +229,10 @@ export function TagManagementPage() {
 		if (!deleteTarget) return;
 		try {
 			await deleteTag.mutateAsync(deleteTarget.id);
-			toast({ title: 'Tag deleted' });
+			toast.success('Tag deleted');
 			setDeleteTarget(null);
 		} catch {
-			toast({ title: 'Delete failed', variant: 'destructive' });
+			toast.error('Delete failed');
 		}
 	};
 

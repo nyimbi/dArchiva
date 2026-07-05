@@ -12,10 +12,10 @@
  *
  * Empty state shown when document has no document_type assigned yet.
  */
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useToast } from '@/hooks/use-toast';
 import { FolderOpen, Lightbulb, RefreshCw, Tag } from 'lucide-react';
 import {
 	useFilingSuggestions,
@@ -117,7 +117,6 @@ interface FilingSuggestionsPanelProps {
 }
 
 export function FilingSuggestionsPanel({ documentId }: FilingSuggestionsPanelProps) {
-	const { toast } = useToast();
 	const { data, isLoading, isError, refetch } = useFilingSuggestions(documentId);
 	const apply = useApplyFilingSuggestion(documentId);
 
@@ -130,21 +129,18 @@ export function FilingSuggestionsPanel({ documentId }: FilingSuggestionsPanelPro
 	async function handleMoveToFolder(folderId: string) {
 		try {
 			await apply.mutateAsync({ folder_id: folderId });
-			toast({ title: 'Document moved', duration: 2500 });
+			toast.success('Document moved', { duration: 2500 });
 		} catch {
-			toast({ title: 'Move failed', variant: 'destructive' });
+			toast.error('Move failed');
 		}
 	}
 
 	async function handleAddTags(tagIds: string[]) {
 		try {
 			const res = await apply.mutateAsync({ tag_ids: tagIds });
-			toast({
-				title: `${res.tags_added} tag${res.tags_added !== 1 ? 's' : ''} added`,
-				duration: 2500,
-			});
+			toast.success(`${res.tags_added} tag${res.tags_added !== 1 ? 's' : ''} added`, { duration: 2500 });
 		} catch {
-			toast({ title: 'Tag update failed', variant: 'destructive' });
+			toast.error('Tag update failed');
 		}
 	}
 
@@ -160,9 +156,9 @@ export function FilingSuggestionsPanel({ documentId }: FilingSuggestionsPanelPro
 			const parts: string[] = [];
 			if (res.moved) parts.push('moved to folder');
 			if (res.tags_added > 0) parts.push(`${res.tags_added} tag${res.tags_added !== 1 ? 's' : ''} added`);
-			toast({ title: parts.join(', ') || 'Applied', duration: 2500 });
+			toast.success(parts.join(', ') || 'Applied', { duration: 2500 });
 		} catch {
-			toast({ title: 'Apply failed', variant: 'destructive' });
+			toast.error('Apply failed');
 		}
 	}
 

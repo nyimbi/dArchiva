@@ -1,6 +1,7 @@
 // (c) Copyright Datacraft, 2026
 // Document segmentation review UI — jobs, segment verification, document creation.
 
+import { toast } from 'sonner';
 import { useState } from 'react';
 import {
   Check,
@@ -42,7 +43,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
 
 import {
   useCreateDocumentFromSegment,
@@ -248,7 +248,6 @@ const DEFAULT_START_FORM = {
 };
 
 export function SegmentationPage() {
-  const { toast } = useToast();
 
   // Tab / selection state
   const [activeTab, setActiveTab] = useState('jobs');
@@ -327,7 +326,7 @@ export function SegmentationPage() {
 
   async function handleStartSubmit() {
     if (!startForm.document_id.trim()) {
-      toast({ title: 'Document ID is required', variant: 'destructive' });
+      toast.error('Document ID is required');
       return;
     }
     try {
@@ -338,11 +337,11 @@ export function SegmentationPage() {
         deskew: startForm.deskew,
         auto_create_documents: startForm.auto_create_documents,
       });
-      toast({ title: 'Segmentation job started' });
+      toast.success('Segmentation job started');
       setShowStartDialog(false);
       setStartForm(DEFAULT_START_FORM);
     } catch {
-      toast({ title: 'Failed to start segmentation', variant: 'destructive' });
+      toast.error('Failed to start segmentation');
     }
   }
 
@@ -350,9 +349,9 @@ export function SegmentationPage() {
     markProcessing(segmentId);
     try {
       await verifyMutation.mutateAsync({ segmentId, req: { approved: true } });
-      toast({ title: 'Segment approved' });
+      toast.success('Segment approved');
     } catch {
-      toast({ title: 'Failed to approve segment', variant: 'destructive' });
+      toast.error('Failed to approve segment');
     } finally {
       unmarkProcessing(segmentId);
     }
@@ -362,9 +361,9 @@ export function SegmentationPage() {
     markProcessing(segmentId);
     try {
       await verifyMutation.mutateAsync({ segmentId, req: { approved: false } });
-      toast({ title: 'Segment rejected' });
+      toast.success('Segment rejected');
     } catch {
-      toast({ title: 'Failed to reject segment', variant: 'destructive' });
+      toast.error('Failed to reject segment');
     } finally {
       unmarkProcessing(segmentId);
     }
@@ -380,9 +379,9 @@ export function SegmentationPage() {
           verifyMutation.mutateAsync({ segmentId: s.id, req: { approved: true } }),
         ),
       );
-      toast({ title: `${pending.length} segments approved` });
+      toast.success(`${pending.length} segments approved`);
     } catch {
-      toast({ title: 'Some segments failed to approve', variant: 'destructive' });
+      toast.error('Some segments failed to approve');
     } finally {
       pending.forEach((s) => unmarkProcessing(s.id));
     }
@@ -391,7 +390,7 @@ export function SegmentationPage() {
   async function handleCreateDocSubmit() {
     if (!createDocTarget) return;
     if (!createDocFolderId.trim()) {
-      toast({ title: 'Folder ID is required', variant: 'destructive' });
+      toast.error('Folder ID is required');
       return;
     }
     try {
@@ -400,21 +399,21 @@ export function SegmentationPage() {
         folder_id: createDocFolderId.trim(),
         title: createDocTitle.trim() || createDocTarget.defaultTitle,
       });
-      toast({ title: 'Document created successfully' });
+      toast.success('Document created successfully');
       setCreateDocTarget(null);
     } catch {
-      toast({ title: 'Failed to create document', variant: 'destructive' });
+      toast.error('Failed to create document');
     }
   }
 
   async function handleCreateAllApproved() {
     if (!bulkFolderId.trim()) {
-      toast({ title: 'Enter a destination folder ID first', variant: 'destructive' });
+      toast.error('Enter a destination folder ID first');
       return;
     }
     const eligible = segments.filter((s) => s.status === 'approved' && !s.document_id);
     if (!eligible.length) {
-      toast({ title: 'No approved segments without documents' });
+      toast.success('No approved segments without documents');
       return;
     }
     try {
@@ -427,9 +426,9 @@ export function SegmentationPage() {
           }),
         ),
       );
-      toast({ title: `${eligible.length} documents created` });
+      toast.success(`${eligible.length} documents created`);
     } catch {
-      toast({ title: 'Some documents failed to create', variant: 'destructive' });
+      toast.error('Some documents failed to create');
     }
   }
 

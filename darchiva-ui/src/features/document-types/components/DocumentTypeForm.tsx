@@ -2,6 +2,7 @@
 /**
  * Document type create/edit form.
  */
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +15,6 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useCustomFields } from '@/features/custom-fields/api';
-import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useCreateDocumentType,useUpdateDocumentType } from '../api';
@@ -39,7 +39,6 @@ const COLORS = [
 ];
 
 export function DocumentTypeForm({ documentType, onSuccess, onCancel }: DocumentTypeFormProps) {
-	const { toast } = useToast();
 	const { data: customFieldsData } = useCustomFields();
 	const createMutation = useCreateDocumentType();
 	const updateMutation = useUpdateDocumentType();
@@ -63,7 +62,7 @@ export function DocumentTypeForm({ documentType, onSuccess, onCancel }: Document
 		e.preventDefault();
 
 		if (!name.trim()) {
-			toast({ title: 'Name is required', variant: 'destructive' });
+			toast.error('Name is required');
 			return;
 		}
 
@@ -79,18 +78,14 @@ export function DocumentTypeForm({ documentType, onSuccess, onCancel }: Document
 		try {
 			if (documentType) {
 				await updateMutation.mutateAsync({ typeId: documentType.id, data });
-				toast({ title: 'Document type updated' });
+				toast.success('Document type updated');
 			} else {
 				await createMutation.mutateAsync(data);
-				toast({ title: 'Document type created' });
+				toast.success('Document type created');
 			}
 			onSuccess?.();
 		} catch {
-			toast({
-				title: 'Error',
-				description: 'Failed to save document type',
-				variant: 'destructive',
-			});
+			toast.error('Error', { description: 'Failed to save document type' });
 		}
 	};
 

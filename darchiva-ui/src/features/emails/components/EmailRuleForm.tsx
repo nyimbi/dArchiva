@@ -2,6 +2,7 @@
 /**
  * Email rule configuration form.
  */
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -21,7 +22,6 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
 import { GripVertical,Loader2,Plus,Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useCreateEmailRule,useUpdateEmailRule } from '../api';
@@ -63,7 +63,6 @@ interface EmailRuleFormProps {
 }
 
 export function EmailRuleForm({ rule, accountId, onSuccess, onCancel }: EmailRuleFormProps) {
-	const { toast } = useToast();
 
 	const [name, setName] = useState(rule?.name ?? '');
 	const [description, setDescription] = useState(rule?.description ?? '');
@@ -107,17 +106,17 @@ export function EmailRuleForm({ rule, accountId, onSuccess, onCancel }: EmailRul
 		e.preventDefault();
 
 		if (!name.trim()) {
-			toast({ title: 'Name is required', variant: 'destructive' });
+			toast.error('Name is required');
 			return;
 		}
 
 		if (conditions.length === 0) {
-			toast({ title: 'At least one condition is required', variant: 'destructive' });
+			toast.error('At least one condition is required');
 			return;
 		}
 
 		if (actions.length === 0) {
-			toast({ title: 'At least one action is required', variant: 'destructive' });
+			toast.error('At least one action is required');
 			return;
 		}
 
@@ -134,18 +133,14 @@ export function EmailRuleForm({ rule, accountId, onSuccess, onCancel }: EmailRul
 		try {
 			if (rule) {
 				await updateMutation.mutateAsync({ ruleId: rule.id, data: payload });
-				toast({ title: 'Rule updated successfully' });
+				toast.success('Rule updated successfully');
 			} else {
 				await createMutation.mutateAsync(payload);
-				toast({ title: 'Rule created successfully' });
+				toast.success('Rule created successfully');
 			}
 			onSuccess?.();
 		} catch {
-			toast({
-				title: 'Error',
-				description: 'Failed to save rule',
-				variant: 'destructive',
-			});
+			toast.error('Error', { description: 'Failed to save rule' });
 		}
 	};
 

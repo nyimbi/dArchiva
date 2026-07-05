@@ -2,6 +2,7 @@
 /**
  * Email management dashboard.
  */
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -16,7 +17,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tabs,TabsContent,TabsList,TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
 import {
   Filter,
   Loader2,
@@ -41,7 +41,6 @@ interface EmailDashboardProps {
 }
 
 export function EmailDashboard({ folderId }: EmailDashboardProps) {
-	const { toast } = useToast();
 	const [selectedEmail, setSelectedEmail] = useState<EmailImport | null>(null);
 	const [accountDialogOpen, setAccountDialogOpen] = useState(false);
 	const [ruleDialogOpen, setRuleDialogOpen] = useState(false);
@@ -54,13 +53,9 @@ export function EmailDashboard({ folderId }: EmailDashboardProps) {
 
 		try {
 			await importMutation.mutateAsync({ file, folderId });
-			toast({ title: 'Email imported successfully' });
+			toast.success('Email imported successfully');
 		} catch {
-			toast({
-				title: 'Import failed',
-				description: 'Could not import email file',
-				variant: 'destructive',
-			});
+			toast.error('Import failed', { description: 'Could not import email file' });
 		}
 
 		// Reset input
