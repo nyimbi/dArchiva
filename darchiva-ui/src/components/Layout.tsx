@@ -1,4 +1,5 @@
 // (c) Copyright Datacraft, 2026
+import { useNotificationSocket } from '@/features/notifications/useNotificationSocket';
 import { useStore } from '@/hooks/useStore';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -9,6 +10,7 @@ import { Sidebar } from './Sidebar';
 
 export function Layout() {
 	const { sidebarCollapsed } = useStore();
+	useNotificationSocket();
 
 	return (
 		<div className="min-h-screen bg-slate-950 text-slate-200">

@@ -13,6 +13,7 @@ interface NotificationStore {
 
 	// Notification actions
 	setNotifications: (notifications: Notification[]) => void;
+	addNotification: (notification: Notification) => void;
 	markAsRead: (id: string) => void;
 	markAllAsRead: () => void;
 	removeNotification: (id: string) => void;
@@ -55,6 +56,12 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
 	clearToasts: () => set({ toasts: [] }),
 
 	setNotifications: (notifications) => set({ notifications }),
+
+	addNotification: (notification) => {
+		set(state => ({
+			notifications: [notification, ...state.notifications],
+		}));
+	},
 
 	markAsRead: (id) => {
 		set(state => ({
