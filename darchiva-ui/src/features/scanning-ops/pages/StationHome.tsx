@@ -1,9 +1,26 @@
 import { Clock, FileText, LogIn, LogOut, Scan, Target, Trophy, WifiOff } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { useBrowserScanner } from '@/features/scanning-projects/hooks';
 import { toast } from 'sonner';
 import {
+    useAssignedBatches,
     useClockIn,
     useClockOut,
     useMyActiveSession,
@@ -44,9 +61,18 @@ export function StationHome() {
     const { data: shiftStats } = useShiftStats();
     const { data: activeSession, isLoading: sessionLoading } = useMyActiveSession();
     const { data: recentSessions = [] } = useRecentSessions(5);
+    const currentProjectId = new URLSearchParams(window.location.search).get('projectId') ?? activeSession?.project_id;
+    const {
+        data: assignedBatches,
+        isLoading: batchesLoading,
+        isError: batchesError,
+    } = useAssignedBatches(currentProjectId);
     const { activeScanner, scanners } = useBrowserScanner({ autoDiscover: true });
     const clockIn = useClockIn();
     const clockOut = useClockOut();
+    const [batchDialogOpen, setBatchDialogOpen] = useState(false);
+    const [selectedBatchId, setSelectedBatchId] = useState('');
+    const availableBatches = assignedBatches ?? [];
 
     const displayName = user?.username ?? 'Operator';
     const stationTitle = activeScanner?.name
@@ -59,6 +85,18 @@ export function StationHome() {
     const qualityScore = shiftStats?.quality_score ?? 0;
     const errorRate = qualityScore > 0 ? (100 - qualityScore).toFixed(1) : null;
     const sessionTime = activeSession ? formatDuration(activeSession.duration_minutes) : null;
+
+    useEffect(() => {
+        const batches = assignedBatches ?? [];
+        if (batches.length === 0) {
+            setSelectedBatchId('');
+            return;
+        }
+
+        if (!selectedBatchId || !batches.some((batch) => batch.id === selectedBatchId)) {
+            setSelectedBatchId(batches[0].id);
+        }
+    }, [assignedBatches, selectedBatchId]);
 
     const speedDemonTarget = Math.max(targetPages, 500);
     const speedDemonProgress = speedDemonTarget > 0
@@ -81,6 +119,23 @@ export function StationHome() {
         if (activeSession) clockOut.mutate(activeSession.session_id);
     };
 
+    const handleStartScanning = () => {
+        const selectedBatch = availableBatches.find((batch) => batch.id === selectedBatchId);
+        if (!selectedBatch) {
+            toast.error('No batch selected', {
+                description: 'Select an assigned batch before opening the scanning interface.',
+            });
+            return;
+        }
+
+        const params = new URLSearchParams({
+            batchId: selectedBatch.id,
+            projectId: selectedBatch.project_id,
+        });
+        setBatchDialogOpen(false);
+        navigate(`/scanning/interface?${params.toString()}`);
+    };
+
     const errorRateColor =
         errorRate === null ? 'text-slate-400'
         : parseFloat(errorRate) < 5 ? 'text-green-400'
@@ -90,6 +145,71 @@ export function StationHome() {
     const targetPct = targetPages > 0 ? Math.round((pagesScanned / targetPages) * 100) : null;
 
     return (
+        <>
+            <Dialog open={batchDialogOpen} onOpenChange={setBatchDialogOpen}>
+                <DialogContent className="bg-slate-900 border-slate-700 text-slate-100">
+                    <DialogHeader>
+                        <DialogTitle>Select Batch</DialogTitle>
+                        <DialogDescription className="text-slate-400">
+                            Choose the assigned batch to scan so the interface opens with the correct project context.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {batchesLoading ? (
+                        <div className="rounded-lg border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-400">
+                            Loading assigned batches...
+                        </div>
+                    ) : batchesError ? (
+                        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                            Unable to load assigned batches. Try again after refreshing the station.
+                        </div>
+                    ) : availableBatches.length === 0 ? (
+                        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                            No assigned batches are available for this station.
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-slate-300" htmlFor="scan-batch">
+                                Batch
+                            </label>
+                            <Select value={selectedBatchId} onValueChange={setSelectedBatchId}>
+                                <SelectTrigger
+                                    id="scan-batch"
+                                    className="border-slate-700 bg-slate-950 text-slate-100"
+                                >
+                                    <SelectValue placeholder="Select a batch" />
+                                </SelectTrigger>
+                                <SelectContent className="border-slate-700 bg-slate-900 text-slate-100">
+                                    {availableBatches.map((batch) => (
+                                        <SelectItem key={batch.id} value={batch.id}>
+                                            {batch.batch_number} · {batch.physical_location} · {batch.estimated_pages.toLocaleString()} pages
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <button
+                            type="button"
+                            onClick={() => setBatchDialogOpen(false)}
+                            className="px-4 py-2 text-sm font-bold text-slate-300 hover:text-white transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleStartScanning}
+                            disabled={batchesLoading || batchesError || availableBatches.length === 0 || !selectedBatchId}
+                            className="px-4 py-2 bg-brass-600 hover:bg-brass-500 text-slate-950 rounded-lg font-bold text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            Start Scanning
+                        </button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
         <div className="h-full grid grid-cols-12 gap-6 overflow-hidden">
             {/* ── Left: banner + stats + sessions ── */}
             <div className="col-span-8 flex flex-col gap-5 min-h-0">
@@ -100,7 +220,7 @@ export function StationHome() {
                         <p className="text-lg font-medium opacity-80 mb-6">Welcome back, {displayName}.</p>
                         <div className="flex items-center gap-4 flex-wrap">
                             <button
-                                onClick={() => navigate('/scanning/interface')}
+                                onClick={() => setBatchDialogOpen(true)}
                                 className="px-8 py-4 bg-slate-900 text-white rounded-xl font-bold text-lg hover:scale-105 transition-transform flex items-center gap-3"
                             >
                                 <Scan className="w-6 h-6" /> Start Scanning
@@ -346,5 +466,6 @@ export function StationHome() {
                 </div>
             </div>
         </div>
+        </>
     );
 }

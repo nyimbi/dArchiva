@@ -91,7 +91,8 @@ function SourceCard({ source }: SourceCardProps) {
   const Icon = TYPE_ICON[source.type] ?? FileText;
 
   const hasError = source.error_count > 0;
-  const canRetry = source.status === 'error';
+  const hasDegradedError = Boolean(source.last_error) || source.error_count > 0 || source.status === 'error';
+  const canRetry = hasDegradedError;
 
   return (
     <div
@@ -128,6 +129,9 @@ function SourceCard({ source }: SourceCardProps) {
               </span>
             )}
           </div>
+          {hasDegradedError && source.last_error && (
+            <p className="mt-1 text-xs text-red-400 truncate">{source.last_error}</p>
+          )}
           <div className="flex items-center gap-2 mt-0.5">
             <span className="text-xs text-slate-500">{TYPE_LABEL[source.type]}</span>
             <span className="text-slate-700">·</span>
