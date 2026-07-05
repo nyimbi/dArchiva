@@ -5,16 +5,26 @@ import {
   useFolderTree,
   useUpdateFolder,
   BatchActionsBar,
+  documentKeys,
   type Document as APIDocument,
   type TreeNode as APITreeNode,
 } from '@/features/documents';
 import { useInfiniteDocuments } from '@/features/documents/api/infiniteDocuments';
-import { VirtualDocumentList } from '@/features/documents/components/VirtualDocumentList';
 import { ThumbnailGrid } from '@/features/documents/components/ThumbnailGrid';
+import { DeleteDocumentDialog } from '@/features/documents/components/modals';
 import { useAddFavorite, useFavorites, useRemoveFavorite } from '@/features/home/api/hooks';
 import { ShareDialog } from '@/features/shared-nodes/components/ShareDialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { apiClient } from '@/lib/api-client';
 import { useStore } from '@/hooks/useStore';
 import { cn, formatBytes, formatRelativeTime } from '@/lib/utils';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertCircle,
@@ -23,9 +33,12 @@ import {
   CheckSquare,
   ChevronDown,
   ChevronRight,
+  Copy,
+  Download,
   FileText,
   Filter,
   Folder,
+  FolderInput,
   FolderOpen,
   FolderPlus,
   GitBranch,
@@ -62,6 +75,7 @@ interface ContextMenuState {
 type ViewMode = 'list' | 'card' | 'thumbnail';
 
 const VIEW_MODE_STORAGE_KEY = 'darchiva-view-mode';
+const API_BASE = '/api/v1';
 
 function getStoredViewMode(): ViewMode {
   const stored = localStorage.getItem(VIEW_MODE_STORAGE_KEY);
@@ -90,6 +104,161 @@ function useDialogFocus(dialogRef: React.RefObject<HTMLDivElement>, isOpen = tru
       if (returnTarget?.isConnected) returnTarget.focus();
     };
   }, [dialogRef, isOpen]);
+}
+
+function triggerDownload(url: string) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function flattenFolders(nodes: APITreeNode[], depth = 0): Array<{ id: string; title: string; depth: number }> {
+  return nodes.flatMap((node) => [
+    { id: node.id, title: node.title, depth },
+    ...(node.children ? flattenFolders(node.children, depth + 1) : []),
+  ]);
+}
+
+function MoveDocumentDialog({
+  open,
+  document,
+  folders,
+  selectedFolderId,
+  onSelectedFolderIdChange,
+  onMove,
+  onClose,
+  isMoving,
+  isLoadingFolders,
+}: {
+  open: boolean;
+  document: APIDocument | null;
+  folders: APITreeNode[];
+  selectedFolderId: string;
+  onSelectedFolderIdChange: (folderId: string) => void;
+  onMove: () => void;
+  onClose: () => void;
+  isMoving: boolean;
+  isLoadingFolders: boolean;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef, open);
+
+  if (!open || !document) return null;
+
+  const folderOptions = flattenFolders(folders);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <motion.div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="move-document-title"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="relative z-10 w-full max-w-md glass-card p-6"
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-full bg-brass-500/20 flex items-center justify-center">
+            <FolderInput className="w-5 h-5 text-brass-400" />
+          </div>
+          <div>
+            <h3 id="move-document-title" className="font-display font-semibold text-slate-100">Move Document</h3>
+            <p className="text-sm text-slate-400">Choose a destination folder</p>
+          </div>
+        </div>
+        <p className="text-sm text-slate-300 mb-4">
+          Move <span className="font-semibold text-brass-400">"{document.title}"</span>
+        </p>
+        <label htmlFor="document-move-folder" className="sr-only">Destination folder</label>
+        <select
+          id="document-move-folder"
+          value={selectedFolderId}
+          onChange={(event) => onSelectedFolderIdChange(event.target.value)}
+          disabled={isMoving || isLoadingFolders}
+          className="input-field w-full mb-5"
+        >
+          <option value="">Home</option>
+          {folderOptions.map((folder) => (
+            <option key={folder.id} value={folder.id}>
+              {`${'  '.repeat(folder.depth)}${folder.title}`}
+            </option>
+          ))}
+        </select>
+        <div className="flex justify-end gap-3">
+          <button onClick={onClose} disabled={isMoving} className="btn-secondary">
+            Cancel
+          </button>
+          <button onClick={onMove} disabled={isMoving || isLoadingFolders} className="btn-primary">
+            {isMoving ? <Loader2 className="w-4 h-4 animate-spin" /> : <FolderInput className="w-4 h-4" />}
+            Move
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+function CopyDocumentDialog({
+  open,
+  document,
+  onCopy,
+  onClose,
+  isCopying,
+}: {
+  open: boolean;
+  document: APIDocument | null;
+  onCopy: () => void;
+  onClose: () => void;
+  isCopying: boolean;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef, open);
+
+  if (!open || !document) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <motion.div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="copy-document-title"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="relative z-10 w-full max-w-md glass-card p-6"
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-full bg-brass-500/20 flex items-center justify-center">
+            <Copy className="w-5 h-5 text-brass-400" />
+          </div>
+          <div>
+            <h3 id="copy-document-title" className="font-display font-semibold text-slate-100">Copy Document</h3>
+            <p className="text-sm text-slate-400">Create a duplicate document</p>
+          </div>
+        </div>
+        <p className="text-slate-300 mb-6">
+          Create a copy of <span className="font-semibold text-brass-400">"{document.title}"</span>?
+        </p>
+        <div className="flex justify-end gap-3">
+          <button onClick={onClose} disabled={isCopying} className="btn-secondary">
+            Cancel
+          </button>
+          <button onClick={onCopy} disabled={isCopying} className="btn-primary">
+            {isCopying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
+            Copy
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -363,6 +532,11 @@ function DocumentCard({
   doc,
   onShare,
   onOpen,
+  onDownload,
+  onMove,
+  onCopy,
+  onDelete,
+  onViewVersions,
   selectionMode,
   isFavorited,
   toggleFavorite,
@@ -370,6 +544,11 @@ function DocumentCard({
   doc: APIDocument;
   onShare: (doc: APIDocument) => void;
   onOpen: (doc: APIDocument) => void;
+  onDownload: (doc: APIDocument) => void;
+  onMove: (doc: APIDocument) => void;
+  onCopy: (doc: APIDocument) => void;
+  onDelete: (doc: APIDocument) => void;
+  onViewVersions: (doc: APIDocument) => void;
   selectionMode: boolean;
   isFavorited: (docId: string) => unknown;
   toggleFavorite: (e: React.MouseEvent, doc: { id: string; title: string }) => void;
@@ -459,12 +638,44 @@ function DocumentCard({
           >
             <Share2 className="w-4 h-4" />
           </button>
-          <button
-            className="p-1.5 rounded-lg bg-slate-900/90 text-slate-400 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500"
-            aria-label={`Open options for ${doc.title}`}
-          >
-            <MoreVertical className="w-4 h-4" />
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="p-1.5 rounded-lg bg-slate-900/90 text-slate-400 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500"
+                onClick={(e) => e.stopPropagation()}
+                aria-label={`Open options for ${doc.title}`}
+              >
+                <MoreVertical className="w-4 h-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="border-slate-800 bg-slate-900 text-slate-100">
+              <DropdownMenuItem onSelect={() => onOpen(doc)}>
+                <FileText className="mr-2 h-4 w-4" />
+                Open
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => onDownload(doc)}>
+                <Download className="mr-2 h-4 w-4" />
+                Download
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => onMove(doc)}>
+                <FolderInput className="mr-2 h-4 w-4" />
+                Move
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => onCopy(doc)}>
+                <Copy className="mr-2 h-4 w-4" />
+                Copy
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => onViewVersions(doc)}>
+                <GitBranch className="mr-2 h-4 w-4" />
+                View versions
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="bg-slate-800" />
+              <DropdownMenuItem onSelect={() => onDelete(doc)} className="text-red-300 focus:text-red-200">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       )}
     </motion.div>
@@ -478,12 +689,14 @@ function DocumentRow({
   doc,
   onShare,
   onOpen,
+  onViewVersions,
   isFavorited,
   toggleFavorite,
 }: {
   doc: APIDocument;
   onShare: (doc: APIDocument) => void;
   onOpen: (doc: APIDocument) => void;
+  onViewVersions: (doc: APIDocument) => void;
   isFavorited: (docId: string) => unknown;
   toggleFavorite: (e: React.MouseEvent, doc: { id: string; title: string }) => void;
 }) {
@@ -564,6 +777,7 @@ function DocumentRow({
           </button>
           <button
             className="p-1.5 text-slate-400 hover:text-slate-300 hover:bg-slate-800 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500"
+            onClick={(e) => { e.stopPropagation(); onViewVersions(doc); }}
             aria-label={`View versions for ${doc.title}`}
           >
             <GitBranch className="w-4 h-4" />
@@ -578,17 +792,57 @@ function DocumentRow({
 // Main Documents page
 // ---------------------------------------------------------------------------
 export function Documents() {
+  const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState<ViewMode>(getStoredViewMode);
   const [selectionMode, setSelectionMode] = useState(false);
   const { data: favorites = [] } = useFavorites();
   const addFavorite = useAddFavorite();
   const removeFavorite = useRemoveFavorite();
 
-  const { selectedNodeIds, clearNodeSelection, selectNodes, toggleNodeSelection, currentFolderId, setCurrentFolderId, openModal } = useStore();
+  const {
+    selectedNodeIds,
+    clearNodeSelection,
+    selectNodes,
+    toggleNodeSelection,
+    currentFolderId,
+    setCurrentFolderId,
+    openModal,
+    sortBy,
+    sortOrder,
+    searchFilters,
+  } = useStore();
   const navigate = useNavigate();
   const [folderSearch, setFolderSearch] = useState('');
+  const [movingDocument, setMovingDocument] = useState<APIDocument | null>(null);
+  const [copyingDocument, setCopyingDocument] = useState<APIDocument | null>(null);
+  const [deletingDocument, setDeletingDocument] = useState<APIDocument | null>(null);
+  const [selectedMoveFolderId, setSelectedMoveFolderId] = useState('');
 
   const { data: folderTree, isLoading: treeLoading, isError: treeError } = useFolderTree();
+  const documentQueryFilters = useMemo(() => {
+    const filters: Record<string, unknown> = {
+      sort_by: sortBy === 'size' ? 'file_size' : sortBy,
+      sort_direction: sortOrder,
+    };
+
+    if (searchFilters.documentTypes.length > 0) {
+      filters.document_types = searchFilters.documentTypes.join(',');
+    }
+    if (searchFilters.tags.length > 0) {
+      filters.tags = searchFilters.tags.join(',');
+    }
+    if (searchFilters.dateRange.start) {
+      filters.date_from = searchFilters.dateRange.start;
+    }
+    if (searchFilters.dateRange.end) {
+      filters.date_to = searchFilters.dateRange.end;
+    }
+    if (searchFilters.owner) {
+      filters.owner = searchFilters.owner;
+    }
+
+    return filters;
+  }, [searchFilters, sortBy, sortOrder]);
   const {
     documents: infiniteDocs,
     isLoading: docsLoading,
@@ -596,15 +850,56 @@ export function Documents() {
     hasNextPage,
     isFetchingNextPage,
     fetchNextPage,
-  } = useInfiniteDocuments(currentFolderId || undefined, folderSearch || undefined);
+  } = useInfiniteDocuments(currentFolderId || undefined, folderSearch || undefined, documentQueryFilters, sortBy, sortOrder);
 
   const handleOpenDocument = useCallback((doc: APIDocument) => {
     navigate(`/document/${doc.id}`);
   }, [navigate]);
 
+  const handleViewVersions = useCallback((doc: APIDocument) => {
+    navigate(`/document/${doc.id}?tab=versions`);
+  }, [navigate]);
+
+  const handleDownloadDocument = useCallback((doc: APIDocument) => {
+    triggerDownload(`${API_BASE}/documents/${doc.id}/download`);
+  }, []);
+
   const createFolder = useCreateFolder();
   const updateFolder = useUpdateFolder();
   const deleteFolder = useDeleteFolder();
+
+  const moveDocumentMutation = useMutation({
+    mutationFn: async ({ documentId, folderId }: { documentId: string; folderId: string | null }) => {
+      const { data } = await apiClient.patch<APIDocument>(`/documents/${documentId}`, { folder_id: folderId });
+      return data;
+    },
+    onSuccess: async () => {
+      setMovingDocument(null);
+      setSelectedMoveFolderId('');
+      await queryClient.invalidateQueries({ queryKey: documentKeys.all });
+    },
+  });
+
+  const copyDocumentMutation = useMutation({
+    mutationFn: async (documentId: string) => {
+      const { data } = await apiClient.post<APIDocument>(`/documents/${documentId}/copy`);
+      return data;
+    },
+    onSuccess: async () => {
+      setCopyingDocument(null);
+      await queryClient.invalidateQueries({ queryKey: documentKeys.all });
+    },
+  });
+
+  const deleteDocumentMutation = useMutation({
+    mutationFn: async (documentId: string) => {
+      await apiClient.delete(`/documents/${documentId}`);
+    },
+    onSuccess: async () => {
+      setDeletingDocument(null);
+      await queryClient.invalidateQueries({ queryKey: documentKeys.all });
+    },
+  });
 
   const handleSetViewMode = useCallback((mode: ViewMode) => {
     setViewMode(mode);
@@ -896,20 +1191,84 @@ export function Documents() {
               onToggleSelect={toggleNodeSelection}
               isSelectMode={selectionMode}
             />
+          ) : viewMode === 'card' ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {documents.map((doc) => (
+                  <DocumentCard
+                    key={doc.id}
+                    doc={doc}
+                    onShare={setSharingNode}
+                    onOpen={handleOpenDocument}
+                    onDownload={handleDownloadDocument}
+                    onMove={setMovingDocument}
+                    onCopy={setCopyingDocument}
+                    onDelete={setDeletingDocument}
+                    onViewVersions={handleViewVersions}
+                    selectionMode={selectionMode}
+                    isFavorited={isFavorited}
+                    toggleFavorite={toggleFavorite}
+                  />
+                ))}
+              </div>
+              {(hasNextPage || isFetchingNextPage) && (
+                <div className="flex justify-center py-4">
+                  <button
+                    type="button"
+                    onClick={() => fetchNextPage()}
+                    disabled={!hasNextPage || isFetchingNextPage}
+                    className="btn-secondary"
+                  >
+                    {isFetchingNextPage ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                    Load more
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
-            <VirtualDocumentList
-              documents={documents}
-              isLoading={docsLoading}
-              hasNextPage={hasNextPage}
-              isFetchingNextPage={isFetchingNextPage}
-              onFetchNextPage={fetchNextPage}
-              viewMode={viewMode}
-              selectedIds={selectedNodeIds}
-              onToggleSelect={toggleNodeSelection}
-              isSelectMode={selectionMode}
-              isFavorited={isFavorited}
-              toggleFavorite={toggleFavorite}
-            />
+            <div className="space-y-4">
+              <div className="glass-card overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="border-b border-slate-700/50 text-xs uppercase tracking-wide text-slate-500">
+                    <tr>
+                      <th className="px-3 py-2">Select</th>
+                      <th className="px-3 py-2">Document</th>
+                      <th className="px-3 py-2">Size</th>
+                      <th className="px-3 py-2">Pages</th>
+                      <th className="px-3 py-2">Modified</th>
+                      <th className="px-3 py-2">OCR</th>
+                      <th className="px-3 py-2">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {documents.map((doc) => (
+                      <DocumentRow
+                        key={doc.id}
+                        doc={doc}
+                        onShare={setSharingNode}
+                        onOpen={handleOpenDocument}
+                        onViewVersions={handleViewVersions}
+                        isFavorited={isFavorited}
+                        toggleFavorite={toggleFavorite}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {(hasNextPage || isFetchingNextPage) && (
+                <div className="flex justify-center py-4">
+                  <button
+                    type="button"
+                    onClick={() => fetchNextPage()}
+                    disabled={!hasNextPage || isFetchingNextPage}
+                    className="btn-secondary"
+                  >
+                    {isFetchingNextPage ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                    Load more
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </motion.div>
@@ -922,6 +1281,48 @@ export function Documents() {
           .map((d) => ({ id: d.id, title: d.title, page_count: d.page_count }))}
         onClear={() => { clearNodeSelection(); setSelectionMode(false); }}
         onComplete={() => { clearNodeSelection(); setSelectionMode(false); }}
+      />
+
+      <MoveDocumentDialog
+        open={!!movingDocument}
+        document={movingDocument}
+        folders={folderTree ?? []}
+        selectedFolderId={selectedMoveFolderId}
+        onSelectedFolderIdChange={setSelectedMoveFolderId}
+        onMove={() => {
+          if (movingDocument) {
+            moveDocumentMutation.mutate({
+              documentId: movingDocument.id,
+              folderId: selectedMoveFolderId || null,
+            });
+          }
+        }}
+        onClose={() => setMovingDocument(null)}
+        isMoving={moveDocumentMutation.isPending}
+        isLoadingFolders={treeLoading}
+      />
+
+      <CopyDocumentDialog
+        open={!!copyingDocument}
+        document={copyingDocument}
+        onCopy={() => {
+          if (copyingDocument) copyDocumentMutation.mutate(copyingDocument.id);
+        }}
+        onClose={() => setCopyingDocument(null)}
+        isCopying={copyDocumentMutation.isPending}
+      />
+
+      <DeleteDocumentDialog
+        open={!!deletingDocument}
+        document={deletingDocument ? {
+          id: deletingDocument.id,
+          title: deletingDocument.title,
+          pageCount: deletingDocument.page_count,
+        } : null}
+        onDelete={async () => {
+          if (deletingDocument) await deleteDocumentMutation.mutateAsync(deletingDocument.id);
+        }}
+        onClose={() => setDeletingDocument(null)}
       />
 
       {/* Single-item folder context menu */}
