@@ -1,13 +1,15 @@
 // (c) Copyright Datacraft, 2026
 /**
- * NotificationToaster — shows a sonner toast for each incoming notification.
+ * NotificationToaster — shows a sonner toast for each incoming WebSocket notification.
  *
- * Mount this once near the app root (wiring agent handles placement).
- * It renders nothing visible itself — just orchestrates toasts.
+ * Mount once near the app root. Renders nothing visible itself — just orchestrates toasts.
+ * Toasts auto-dismiss after 5 s. If the notification carries a document_id or link, a
+ * clickable "View" action is included in the toast.
  */
 import { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { AlertTriangle, CheckCircle, ScanLine, Sparkles } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Info, ScanLine, Sparkles } from 'lucide-react';
 
 import { useNotifications } from '@/hooks/useNotifications';
 import type { NotificationEvent, NotificationEventType } from '@/hooks/useNotifications';
@@ -60,27 +62,8 @@ function toastConfig(event: NotificationEventType): ToastConfig {
       return {
         title: 'Notification',
         variant: 'default',
-        icon: null,
+        icon: <Info className="h-4 w-4 text-slate-400" />,
       };
-  }
-}
-
-function fireToast(notif: NotificationEvent) {
-  const { title, variant, icon } = toastConfig(notif.event);
-  const message =
-    (notif.data?.message as string) ??
-    (notif.data?.title as string) ??
-    title;
-
-  const opts = {
-    duration: TOAST_DURATION_MS,
-    icon,
-  };
-
-  if (variant === 'destructive') {
-    toast.error(message, { ...opts, description: title });
-  } else {
-    toast(message, { ...opts, description: title });
   }
 }
 
@@ -90,24 +73,55 @@ function fireToast(notif: NotificationEvent) {
 
 export function NotificationToaster() {
   const { notifications } = useNotifications();
+  const navigate = useNavigate();
 
-  // Track which notification IDs we have already toasted to avoid duplicates
-  // on re-renders.
+  // Track which notification IDs we've already toasted to avoid duplicates on re-renders.
   const seenRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (notifications.length === 0) return;
 
-    // The hook prepends new notifications, so index 0 is always the newest.
+    // Hook prepends new notifications, so index 0 is always the newest.
     const latest = notifications[0];
-    if (!seenRef.current.has(latest.id)) {
-      seenRef.current.add(latest.id);
-      fireToast(latest);
-    }
-  }, [notifications]);
+    if (seenRef.current.has(latest.id)) return;
+    seenRef.current.add(latest.id);
 
-  // This component renders nothing — toasts are injected into the Sonner
-  // <Toaster /> that the wiring agent places in the app root.
+    const { title, variant, icon } = toastConfig(latest.event);
+    const message =
+      (latest.data?.message as string) ??
+      (latest.data?.title as string) ??
+      title;
+
+    // Build optional navigation action
+    const documentId = latest.data?.document_id as string | undefined;
+    const link = latest.data?.link as string | undefined;
+
+    const action = documentId
+      ? {
+          label: 'View',
+          onClick: () => navigate(`/documents?nodeId=${documentId}`),
+        }
+      : link
+      ? {
+          label: 'Open',
+          onClick: () => window.open(link, '_blank'),
+        }
+      : undefined;
+
+    const opts = {
+      duration: TOAST_DURATION_MS,
+      icon,
+      ...(action && { action }),
+    };
+
+    if (variant === 'destructive') {
+      toast.error(message, { ...opts, description: title });
+    } else {
+      toast(message, { ...opts, description: title });
+    }
+  }, [notifications, navigate]);
+
+  // Renders nothing — toasts are injected into the Sonner <Toaster /> at the app root.
   return null;
 }
 
