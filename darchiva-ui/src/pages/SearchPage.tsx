@@ -249,7 +249,7 @@ export function SearchPage() {
 		if (debouncedQuery.trim()) {
 			pushHistory(debouncedQuery.trim());
 		}
-	}, [debouncedQuery]);
+	}, [debouncedQuery, pushHistory, setSearchParams, urlQuery]);
 
 	const { data: results, isLoading, isFetching } = useSearchDocuments(
 		debouncedQuery,
