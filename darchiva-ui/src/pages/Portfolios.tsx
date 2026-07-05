@@ -25,6 +25,7 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -55,7 +56,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { useSearchDocuments } from '@/features/search/api';
+import { apiClient } from '@/lib/api-client';
 import { formatDate } from '@/lib/utils';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Briefcase,
   Calendar,
@@ -68,7 +72,7 @@ import {
   Trash2,
   Users,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 const STATUS_LABELS: Record<PortfolioStatus, string> = {
   active: 'Active',
@@ -86,6 +90,22 @@ const STATUS_VARIANTS: Record<
 };
 
 // ─── Create / Edit Dialog ─────────────────────────────────────────────────────
+
+function useDebounce<T>(value: T, ms: number): T {
+  const [v, setV] = useState<T>(value);
+  useEffect(() => {
+    const id = setTimeout(() => setV(value), ms);
+    return () => clearTimeout(id);
+  }, [value, ms]);
+  return v;
+}
+
+function parseTags(value: string): string[] {
+  return value
+    .split(',')
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+}
 
 interface PortfolioFormDialogProps {
   open: boolean;
@@ -115,18 +135,22 @@ function PortfolioFormDialog({ open, onOpenChange, initial }: PortfolioFormDialo
     if (!name.trim()) return;
 
     if (isEdit && initial) {
-      await updatePortfolio.mutateAsync({
-        id: initial.id,
-        data: {
-          name: name.trim(),
-          description: description.trim() || undefined,
-        },
-      });
-    } else {
-      await createPortfolio.mutateAsync({
+      const payload = {
         name: name.trim(),
         description: description.trim() || undefined,
+        tags: parseTags(tags),
+      };
+      await updatePortfolio.mutateAsync({
+        id: initial.id,
+        data: payload,
       });
+    } else {
+      const payload = {
+        name: name.trim(),
+        description: description.trim() || undefined,
+        tags: parseTags(tags),
+      };
+      await createPortfolio.mutateAsync(payload);
     }
     reset();
     onOpenChange(false);
@@ -196,6 +220,148 @@ function PortfolioFormDialog({ open, onOpenChange, initial }: PortfolioFormDialo
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Portfolio Document Picker ────────────────────────────────────────────────
+
+interface PortfolioDocumentPickerDialogProps {
+  portfolio: Portfolio;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}
+
+function PortfolioDocumentPickerDialog({
+  portfolio,
+  open,
+  onOpenChange,
+}: PortfolioDocumentPickerDialogProps) {
+  const queryClient = useQueryClient();
+  const [query, setQuery] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const debouncedQuery = useDebounce(query, 300);
+
+  const { data, isLoading } = useSearchDocuments(
+    debouncedQuery,
+    {},
+    1,
+    15,
+    'date_desc',
+  );
+  const items = data?.items ?? [];
+
+  const addDocuments = useMutation({
+    mutationFn: async (documentIds: string[]) => {
+      await apiClient.post(`/portfolios/${portfolio.id}/documents`, {
+        document_ids: documentIds,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['portfolios'] });
+      queryClient.invalidateQueries({ queryKey: ['cases'] });
+      onOpenChange(false);
+    },
+  });
+
+  const reset = () => {
+    setQuery('');
+    setSelectedIds([]);
+  };
+
+  const handleClose = (v: boolean) => {
+    if (!v) reset();
+    onOpenChange(v);
+  };
+
+  const toggleDocument = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  };
+
+  const handleConfirm = async () => {
+    if (selectedIds.length === 0) return;
+    await addDocuments.mutateAsync(selectedIds);
+    reset();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Plus className="h-5 w-5" />
+            Add Documents
+          </DialogTitle>
+          <DialogDescription>
+            Search for documents to add to {portfolio.name}.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search documents…"
+            className="pl-9"
+          />
+        </div>
+
+        <div className="mt-1 max-h-72 overflow-y-auto space-y-0.5 -mx-1 px-1">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : items.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              {debouncedQuery ? 'No documents found' : 'Start typing to search'}
+            </p>
+          ) : (
+            items.map((item) => {
+              const selected = selectedIds.includes(item.id);
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => toggleDocument(item.id)}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent text-left transition-colors"
+                >
+                  <span
+                    className={`h-4 w-4 rounded border shrink-0 ${
+                      selected ? 'bg-primary border-primary' : 'border-muted-foreground/50'
+                    }`}
+                  />
+                  <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="flex-1 text-sm truncate">{item.title}</span>
+                </button>
+              );
+            })
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() => handleClose(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            disabled={addDocuments.isPending || selectedIds.length === 0}
+            onClick={handleConfirm}
+          >
+            {addDocuments.isPending && (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            )}
+            Add {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -277,6 +443,7 @@ function PortfolioFolderSheet({
   onOpenChange: (v: boolean) => void;
 }) {
   const { data: casesData, isLoading } = useCases(1, 50, undefined, portfolio?.id);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const cases = casesData?.items || [];
 
   if (!portfolio) return null;
@@ -327,7 +494,7 @@ function PortfolioFolderSheet({
                 <Briefcase className="w-4 h-4" />
                 Cases
               </h4>
-              <Button size="sm" variant="outline">
+              <Button size="sm" variant="outline" onClick={() => setPickerOpen(true)}>
                 <Plus className="w-4 h-4 mr-1" />
                 Add Documents
               </Button>
@@ -384,6 +551,11 @@ function PortfolioFolderSheet({
           </div>
         </div>
       </SheetContent>
+      <PortfolioDocumentPickerDialog
+        portfolio={portfolio}
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+      />
     </Sheet>
   );
 }
