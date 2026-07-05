@@ -14,20 +14,34 @@ import {
   TrendingUp,
   XCircle,
 } from 'lucide-react';
+import { useQualityStats } from '../api';
 import type { QualityStats,RuleSeverity } from '../types';
 import { SEVERITY_CONFIG } from '../types';
 
 interface QualityDashboardProps {
-	stats: QualityStats;
+	stats?: QualityStats;
 	onRefresh?: () => void;
 	isLoading?: boolean;
 }
 
 export function QualityDashboard({
-	stats,
+	stats: statsProp,
 	onRefresh,
-	isLoading,
+	isLoading: isLoadingProp,
 }: QualityDashboardProps) {
+	const { data: fetchedStats, isLoading: isFetching, refetch } = useQualityStats(7);
+	const stats = statsProp ?? fetchedStats;
+	const isLoading = isLoadingProp ?? isFetching;
+	const handleRefresh = onRefresh ?? (() => { void refetch(); });
+
+	if (!stats) {
+		return (
+			<div className="flex items-center justify-center h-64 text-slate-500">
+				{isLoading ? 'Loading quality data…' : 'No quality data available'}
+			</div>
+		);
+	}
+
 	const passRate = stats.passRate;
 	const trend = stats.trend7d;
 	const lastDayTrend = trend.length >= 2
@@ -45,9 +59,9 @@ export function QualityDashboard({
 				<h2 className="text-lg font-display font-semibold text-slate-100">
 					Quality Overview
 				</h2>
-				{onRefresh && (
+				{handleRefresh && (
 					<button
-						onClick={onRefresh}
+						onClick={handleRefresh}
 						disabled={isLoading}
 						className="btn-ghost text-sm"
 					>

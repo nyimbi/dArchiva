@@ -19,10 +19,10 @@ import type { AccessEvent,UserInvitation } from '../types';
 import { MetricCard } from './core/MetricCard';
 
 interface IAMDashboardProps {
-	onNavigate: (section: string, id?: string) => void;
+	onNavigate?: (section: string, id?: string) => void;
 }
 
-export function IAMDashboard({ onNavigate }: IAMDashboardProps) {
+export function IAMDashboard({ onNavigate = () => {} }: IAMDashboardProps) {
 	const { data: stats, isLoading } = useIAMStats();
 	const { data: eventsData } = useAccessEvents({ pageSize: 10 });
 	const { data: invitations } = useInvitations();
