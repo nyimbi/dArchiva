@@ -738,6 +738,10 @@ export interface SLAConfigCreate {
 	escalation_chain_id?: string;
 }
 
+export type SLAConfigUpdate = Partial<SLAConfigCreate> & {
+	is_active?: boolean;
+};
+
 export interface SLAMetricsResponse {
 	items: TaskMetric[];
 	total: number;
@@ -829,6 +833,18 @@ export async function createSLAConfig(input: SLAConfigCreate): Promise<SLAConfig
 	return data;
 }
 
+export async function updateSLAConfig(
+	configId: string,
+	input: SLAConfigUpdate,
+): Promise<SLAConfig> {
+	const { data } = await apiClient.patch<SLAConfig>(`${API_BASE}/sla/configs/${configId}`, input);
+	return data;
+}
+
+export async function deleteSLAConfig(configId: string): Promise<void> {
+	await apiClient.delete(`${API_BASE}/sla/configs/${configId}`);
+}
+
 // --- Delegation ---
 
 export async function delegateApprovalRequest(
@@ -838,6 +854,42 @@ export async function delegateApprovalRequest(
 	const { data } = await apiClient.post<{ status: string; delegated_to: string }>(
 		`${API_BASE}/approval-requests/${requestId}/delegate`,
 		delegation,
+	);
+	return data;
+}
+
+// --- SLA Metric Actions ---
+
+export async function escalateSLAMetric(metricId: string): Promise<TaskMetric> {
+	const { data } = await apiClient.post<TaskMetric>(
+		`${API_BASE}/sla/metrics/${metricId}/escalate`,
+		{},
+	);
+	return data;
+}
+
+export async function extendSLAMetric(metricId: string, targetAt: string): Promise<TaskMetric> {
+	const { data } = await apiClient.patch<TaskMetric>(
+		`${API_BASE}/sla/metrics/${metricId}`,
+		{ target_at: targetAt },
+	);
+	return data;
+}
+
+// --- SLA Alert Actions ---
+
+export async function escalateSLAAlertAction(alertId: string): Promise<SLAAlert> {
+	const { data } = await apiClient.post<SLAAlert>(
+		`${API_BASE}/sla/alerts/${alertId}/escalate`,
+		{},
+	);
+	return data;
+}
+
+export async function assignSLAAlert(alertId: string, owner: string): Promise<SLAAlert> {
+	const { data } = await apiClient.patch<SLAAlert>(
+		`${API_BASE}/sla/alerts/${alertId}`,
+		{ assignee_id: owner },
 	);
 	return data;
 }

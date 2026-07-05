@@ -7,13 +7,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import {
 	acknowledgeSLAAlert,
+	escalateSLAMetric,
+	extendSLAMetric,
 	getSLADashboard,
 	type SLAAlert,
+	type TaskMetric,
 } from '../api';
 
 interface SLADashboardProps {
@@ -41,6 +44,29 @@ export function SLADashboard({ className }: SLADashboardProps) {
 		},
 		onError: () => {
 			toast.error('Failed to acknowledge SLA alert');
+		},
+	});
+
+	const escalateMetricMutation = useMutation({
+		mutationFn: (metricId: string) => escalateSLAMetric(metricId),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['sla-dashboard'] });
+			toast.success('Escalated');
+		},
+		onError: () => {
+			toast.error('Failed to escalate');
+		},
+	});
+
+	const extendMetricMutation = useMutation({
+		mutationFn: ({ id, targetAt }: { id: string; targetAt: string }) =>
+			extendSLAMetric(id, targetAt),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['sla-dashboard'] });
+			toast.success('Deadline extended');
+		},
+		onError: () => {
+			toast.error('Failed to extend deadline');
 		},
 	});
 
@@ -170,19 +196,21 @@ export function SLADashboard({ className }: SLADashboardProps) {
 											<th className="px-3 py-2 text-left">Duration</th>
 											<th className="px-3 py-2 text-left">Target</th>
 											<th className="px-3 py-2 text-left">Status</th>
+											<th className="px-3 py-2 text-left">Actions</th>
 										</tr>
 									</thead>
 									<tbody className="divide-y divide-slate-800">
 										{recent_metrics.map(metric => (
-											<tr key={metric.id} className="hover:bg-slate-800/40">
-												<td className="px-3 py-2 text-slate-200">{metric.step_type || 'N/A'}</td>
-												<td className="px-3 py-2 text-slate-400">{formatDate(metric.started_at)}</td>
-												<td className="px-3 py-2 text-slate-400">{formatDuration(metric.duration_seconds)}</td>
-												<td className="px-3 py-2 text-slate-400">{formatDuration(metric.target_seconds)}</td>
-												<td className="px-3 py-2">
-													<StatusBadge status={metric.sla_status} />
-												</td>
-											</tr>
+											<MetricRow
+												key={metric.id}
+												metric={metric}
+												onEscalate={id => escalateMetricMutation.mutate(id)}
+												onExtend={(id, targetAt) =>
+													extendMetricMutation.mutate({ id, targetAt })
+												}
+												isEscalating={escalateMetricMutation.isPending}
+												isExtending={extendMetricMutation.isPending}
+											/>
 										))}
 									</tbody>
 								</table>
@@ -194,6 +222,120 @@ export function SLADashboard({ className }: SLADashboardProps) {
 		</div>
 	);
 }
+
+// ---------------------------------------------------------------------------
+// MetricRow
+// ---------------------------------------------------------------------------
+
+interface MetricRowProps {
+	metric: TaskMetric;
+	onEscalate: (id: string) => void;
+	onExtend: (id: string, targetAt: string) => void;
+	isEscalating: boolean;
+	isExtending: boolean;
+}
+
+function MetricRow({ metric, onEscalate, onExtend, isEscalating, isExtending }: MetricRowProps) {
+	const [showExtend, setShowExtend] = useState(false);
+	const [extendDate, setExtendDate] = useState('');
+
+	const isActionable =
+		metric.sla_status === 'warning' || metric.sla_status === 'breached';
+
+	function handleExtendConfirm() {
+		if (!extendDate) return;
+		onExtend(metric.id, new Date(extendDate).toISOString());
+		setShowExtend(false);
+		setExtendDate('');
+	}
+
+	return (
+		<>
+			<tr className="hover:bg-slate-800/40">
+				<td className="px-3 py-2 text-slate-200">{metric.step_type || 'N/A'}</td>
+				<td className="px-3 py-2 text-slate-400">{formatDate(metric.started_at)}</td>
+				<td className="px-3 py-2 text-slate-400">{formatDuration(metric.duration_seconds)}</td>
+				<td className="px-3 py-2 text-slate-400">{formatDuration(metric.target_seconds)}</td>
+				<td className="px-3 py-2">
+					<StatusBadge status={metric.sla_status} />
+				</td>
+				<td className="px-3 py-2">
+					{isActionable && (
+						<div className="flex items-center gap-1">
+							<Button
+								type="button"
+								size="sm"
+								variant="ghost"
+								className="h-7 gap-1 px-2 text-xs text-amber-400 hover:bg-amber-500/10 hover:text-amber-300"
+								onClick={() => onEscalate(metric.id)}
+								disabled={isEscalating}
+								title="Escalate"
+							>
+								{isEscalating ? (
+									<Loader2 className="h-3.5 w-3.5 animate-spin" />
+								) : (
+									<AlertTriangle className="h-3.5 w-3.5" />
+								)}
+								Escalate
+							</Button>
+							<Button
+								type="button"
+								size="sm"
+								variant="ghost"
+								className="h-7 gap-1 px-2 text-xs text-blue-400 hover:bg-blue-500/10 hover:text-blue-300"
+								onClick={() => setShowExtend(v => !v)}
+								title="Extend deadline"
+							>
+								<Clock className="h-3.5 w-3.5" />
+								Extend
+							</Button>
+						</div>
+					)}
+				</td>
+			</tr>
+			{showExtend && isActionable && (
+				<tr className="bg-slate-900/60">
+					<td colSpan={6} className="px-3 py-2">
+						<div className="flex flex-wrap items-center gap-2">
+							<span className="text-xs text-slate-400">New deadline:</span>
+							<input
+								type="datetime-local"
+								value={extendDate}
+								onChange={e => setExtendDate(e.target.value)}
+								className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
+							/>
+							<Button
+								type="button"
+								size="sm"
+								className="bg-cyan-500 text-slate-950 hover:bg-cyan-400"
+								onClick={handleExtendConfirm}
+								disabled={!extendDate || isExtending}
+							>
+								{isExtending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Confirm'}
+							</Button>
+							<Button
+								type="button"
+								size="sm"
+								variant="ghost"
+								className="text-slate-400 hover:text-slate-200"
+								onClick={() => {
+									setShowExtend(false);
+									setExtendDate('');
+								}}
+							>
+								Cancel
+							</Button>
+						</div>
+					</td>
+				</tr>
+			)}
+		</>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Stat / Gauge helpers
+// ---------------------------------------------------------------------------
 
 interface StatCardProps {
 	label: string;
@@ -260,6 +402,10 @@ function LegendItem({ className, label }: { className: string; label: string }) 
 	);
 }
 
+// ---------------------------------------------------------------------------
+// AlertItem
+// ---------------------------------------------------------------------------
+
 interface AlertItemProps {
 	alert: SLAAlert;
 	onAcknowledge: () => void;
@@ -302,6 +448,10 @@ function AlertItem({ alert, onAcknowledge, isAcknowledging }: AlertItemProps) {
 	);
 }
 
+// ---------------------------------------------------------------------------
+// Badge helpers
+// ---------------------------------------------------------------------------
+
 interface StatusBadgeProps {
 	status: 'on_track' | 'warning' | 'breached';
 }
@@ -331,6 +481,10 @@ function SeverityBadge({ severity }: { severity: SLAAlert['severity'] }) {
 
 	return <Badge variant="outline" className={classes[severity]}>{severity}</Badge>;
 }
+
+// ---------------------------------------------------------------------------
+// Formatters
+// ---------------------------------------------------------------------------
 
 function formatDate(dateStr: string): string {
 	const date = new Date(dateStr);

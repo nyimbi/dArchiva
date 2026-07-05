@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
 	AlertCircle,
+	ArrowUp,
 	Bell,
 	Check,
 	CheckCircle2,
@@ -20,10 +21,17 @@ import {
 	Clock,
 	Loader2,
 	TriangleAlert,
+	User,
 } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
-import { acknowledgeSLAAlert, getSLAAlerts, type SLAAlert } from '../api';
+import {
+	acknowledgeSLAAlert,
+	assignSLAAlert,
+	escalateSLAAlertAction,
+	getSLAAlerts,
+	type SLAAlert,
+} from '../api';
 
 interface WorkflowAlertsListProps {
 	className?: string;
@@ -54,6 +62,30 @@ export function WorkflowAlertsList({ className }: WorkflowAlertsListProps) {
 		},
 		onError: () => {
 			toast.error('Failed to acknowledge alert');
+		},
+	});
+
+	const escalateAlertMutation = useMutation({
+		mutationFn: (alertId: string) => escalateSLAAlertAction(alertId),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['sla-alerts'] });
+			queryClient.invalidateQueries({ queryKey: ['sla-dashboard'] });
+			toast.success('Alert escalated');
+		},
+		onError: () => {
+			toast.error('Failed to escalate alert');
+		},
+	});
+
+	const assignAlertMutation = useMutation({
+		mutationFn: ({ id, owner }: { id: string; owner: string }) =>
+			assignSLAAlert(id, owner),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['sla-alerts'] });
+			toast.success('Alert assigned');
+		},
+		onError: () => {
+			toast.error('Failed to assign alert');
 		},
 	});
 
@@ -174,6 +206,9 @@ export function WorkflowAlertsList({ className }: WorkflowAlertsListProps) {
 								onToggleSelect={() => toggleSelect(alert.id)}
 								onAcknowledge={() => acknowledgeMutation.mutate(alert.id)}
 								isAcknowledging={acknowledgeMutation.isPending}
+								onEscalate={() => escalateAlertMutation.mutate(alert.id)}
+								isEscalating={escalateAlertMutation.isPending}
+								onAssign={owner => assignAlertMutation.mutate({ id: alert.id, owner })}
 							/>
 						))}
 					</div>
@@ -209,6 +244,10 @@ export function WorkflowAlertsList({ className }: WorkflowAlertsListProps) {
 	);
 }
 
+// ---------------------------------------------------------------------------
+// AlertCard
+// ---------------------------------------------------------------------------
+
 interface AlertCardProps {
 	alert: SLAAlert;
 	isExpanded: boolean;
@@ -217,6 +256,9 @@ interface AlertCardProps {
 	onToggleSelect: () => void;
 	onAcknowledge: () => void;
 	isAcknowledging: boolean;
+	onEscalate: () => void;
+	isEscalating: boolean;
+	onAssign: (owner: string) => void;
 }
 
 function AlertCard({
@@ -227,7 +269,21 @@ function AlertCard({
 	onToggleSelect,
 	onAcknowledge,
 	isAcknowledging,
+	onEscalate,
+	isEscalating,
+	onAssign,
 }: AlertCardProps) {
+	const [showAssign, setShowAssign] = useState(false);
+	const [assignOwner, setAssignOwner] = useState('');
+
+	function submitAssign() {
+		const trimmed = assignOwner.trim();
+		if (!trimmed) return;
+		onAssign(trimmed);
+		setShowAssign(false);
+		setAssignOwner('');
+	}
+
 	return (
 		<Card className={cn('border-slate-800 bg-slate-950/70 shadow-none', alert.acknowledged && 'opacity-70')}>
 			<div className={cn('border-l-2', severityBorderClass(alert.severity))}>
@@ -263,20 +319,59 @@ function AlertCard({
 						</div>
 					</button>
 
-					<div className="flex shrink-0 items-center gap-1">
-						{!alert.acknowledged ? (
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								className="border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800 hover:text-slate-100"
-								onClick={event => { event.stopPropagation(); onAcknowledge(); }}
-								disabled={isAcknowledging}
-							>
-								{isAcknowledging ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-								Ack
-							</Button>
-						) : (
+					<div className="flex shrink-0 flex-wrap items-center gap-1">
+						{!alert.acknowledged && (
+							<>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									className="border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800 hover:text-slate-100"
+									onClick={event => {
+										event.stopPropagation();
+										onEscalate();
+									}}
+									disabled={isEscalating}
+									title="Escalate alert"
+								>
+									{isEscalating ? (
+										<Loader2 className="h-4 w-4 animate-spin" />
+									) : (
+										<ArrowUp className="h-4 w-4" />
+									)}
+									Escalate
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									className={cn(
+										'border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800 hover:text-slate-100',
+										showAssign && 'border-cyan-500/50 bg-cyan-500/10 text-cyan-300',
+									)}
+									onClick={event => {
+										event.stopPropagation();
+										setShowAssign(v => !v);
+									}}
+									title="Assign alert owner"
+								>
+									<User className="h-4 w-4" />
+									Assign
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									className="border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800 hover:text-slate-100"
+									onClick={event => { event.stopPropagation(); onAcknowledge(); }}
+									disabled={isAcknowledging}
+								>
+									{isAcknowledging ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+									Ack
+								</Button>
+							</>
+						)}
+						{alert.acknowledged && (
 							<Badge className="bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20">
 								<Check className="mr-1 h-3 w-3" />
 								Acknowledged
@@ -293,6 +388,38 @@ function AlertCard({
 						</Button>
 					</div>
 				</div>
+
+				{showAssign && !alert.acknowledged && (
+					<div className="flex flex-wrap items-center gap-2 border-t border-slate-800 px-4 py-3">
+						<User className="h-4 w-4 shrink-0 text-slate-400" />
+						<input
+							type="text"
+							placeholder="Owner name or email"
+							value={assignOwner}
+							onChange={e => setAssignOwner(e.target.value)}
+							onKeyDown={e => { if (e.key === 'Enter') submitAssign(); }}
+							className="flex-1 rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200 placeholder-slate-500 focus:border-cyan-500 focus:outline-none"
+						/>
+						<Button
+							type="button"
+							size="sm"
+							className="bg-cyan-500 text-slate-950 hover:bg-cyan-400"
+							onClick={submitAssign}
+							disabled={!assignOwner.trim()}
+						>
+							Assign
+						</Button>
+						<Button
+							type="button"
+							size="sm"
+							variant="ghost"
+							className="text-slate-400 hover:text-slate-200"
+							onClick={() => { setShowAssign(false); setAssignOwner(''); }}
+						>
+							Cancel
+						</Button>
+					</div>
+				)}
 
 				{isExpanded && (
 					<div className="space-y-4 border-t border-slate-800 p-4">
