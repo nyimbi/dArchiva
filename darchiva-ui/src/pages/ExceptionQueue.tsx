@@ -1,5 +1,6 @@
 // (c) Copyright Datacraft, 2026
 import {
+	exceptionKeys,
 	type CreateRoutingRuleInput,
 	type ExceptionEvent,
 	type ExceptionFilters,
@@ -17,7 +18,16 @@ import {
 	useResolveException,
 	useUpdateRoutingRule,
 } from '@/features/scanning-projects/api/exceptions';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+	Sheet,
+	SheetContent,
+	SheetHeader,
+	SheetTitle,
+} from '@/components/ui/sheet';
+import { apiClient } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
 	AlertTriangle,
 	CheckCircle,
@@ -25,9 +35,11 @@ import {
 	ChevronRight,
 	Loader2,
 	Plus,
+	RefreshCw,
 	ToggleLeft,
 	ToggleRight,
 	Trash2,
+	User,
 	Wand2,
 	XCircle,
 } from 'lucide-react';
@@ -100,41 +112,6 @@ function StatCard({
 }
 
 // =====================================================
-// Row-level resolve inline form
-// =====================================================
-
-function ResolveForm({ id, onDone }: { id: string; onDone: () => void }) {
-	const [notes, setNotes] = useState('');
-	const resolve = useResolveException();
-
-	const submit = () => {
-		resolve.mutate({ id, resolution_notes: notes }, { onSuccess: onDone });
-	};
-
-	return (
-		<div className="flex items-center gap-2 mt-2">
-			<input
-				type="text"
-				value={notes}
-				onChange={(e) => setNotes(e.target.value)}
-				placeholder="Resolution notes (optional)"
-				className="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brass-500"
-			/>
-			<button
-				onClick={submit}
-				disabled={resolve.isPending}
-				className="btn-primary text-sm py-1.5 px-3"
-			>
-				{resolve.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirm'}
-			</button>
-			<button onClick={onDone} className="btn-secondary text-sm py-1.5 px-3">
-				Cancel
-			</button>
-		</div>
-	);
-}
-
-// =====================================================
 // Exceptions tab
 // =====================================================
 
@@ -170,9 +147,29 @@ function ExceptionsTab() {
 	const [typeFilter, setTypeFilter] = useState<ExceptionType | ''>('');
 	const [severityFilter, setSeverityFilter] = useState<ExceptionSeverity | ''>('');
 	const [page, setPage] = useState(0);
-	const [resolvingId, setResolvingId] = useState<string | null>(null);
+	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+	const [detailExc, setDetailExc] = useState<ExceptionEvent | null>(null);
+	const [resolveNotes, setResolveNotes] = useState('');
 
 	const dismiss = useDismissException();
+	const resolve = useResolveException();
+	const qc = useQueryClient();
+
+	const requeueMutation = useMutation({
+		mutationFn: async (id: string) => {
+			const { data } = await apiClient.patch<ExceptionEvent>(`/exceptions/${id}/reopen`, {});
+			return data;
+		},
+		onSuccess: () => qc.invalidateQueries({ queryKey: exceptionKeys.all }),
+	});
+
+	const assignMutation = useMutation({
+		mutationFn: async (id: string) => {
+			const { data } = await apiClient.patch<ExceptionEvent>(`/exceptions/${id}/assign-me`, {});
+			return data;
+		},
+		onSuccess: () => qc.invalidateQueries({ queryKey: exceptionKeys.all }),
+	});
 
 	const filters: ExceptionFilters = {
 		...(statusFilter && { status: statusFilter }),
@@ -191,6 +188,58 @@ function ExceptionsTab() {
 		? items.filter((e) => e.severity === severityFilter)
 		: items;
 
+	// Bulk selection
+	const allChecked =
+		filteredItems.length > 0 && filteredItems.every((e) => selectedIds.has(e.id));
+	const someChecked = filteredItems.some((e) => selectedIds.has(e.id));
+
+	function toggleAll() {
+		if (allChecked) {
+			setSelectedIds(new Set());
+		} else {
+			setSelectedIds(new Set(filteredItems.map((e) => e.id)));
+		}
+	}
+
+	function toggleOne(id: string) {
+		setSelectedIds((prev) => {
+			const next = new Set(prev);
+			if (next.has(id)) next.delete(id);
+			else next.add(id);
+			return next;
+		});
+	}
+
+	async function bulkResolve() {
+		await Promise.all(
+			Array.from(selectedIds).map((id) =>
+				resolve.mutateAsync({ id, resolution_notes: 'Bulk resolved' }),
+			),
+		);
+		setSelectedIds(new Set());
+	}
+
+	async function bulkDismiss() {
+		await Promise.all(
+			Array.from(selectedIds).map((id) => dismiss.mutateAsync({ id })),
+		);
+		setSelectedIds(new Set());
+	}
+
+	async function bulkRequeue() {
+		await Promise.all(
+			Array.from(selectedIds).map((id) => requeueMutation.mutateAsync(id)),
+		);
+		setSelectedIds(new Set());
+	}
+
+	async function bulkAssign() {
+		await Promise.all(
+			Array.from(selectedIds).map((id) => assignMutation.mutateAsync(id)),
+		);
+		setSelectedIds(new Set());
+	}
+
 	const selectCls =
 		'bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-brass-500';
 
@@ -200,33 +249,97 @@ function ExceptionsTab() {
 			<div className="flex flex-wrap items-center gap-3">
 				<select
 					value={statusFilter}
-					onChange={(e) => { setStatusFilter(e.target.value as ExceptionStatus | ''); setPage(0); }}
+					onChange={(e) => {
+						setStatusFilter(e.target.value as ExceptionStatus | '');
+						setPage(0);
+					}}
 					className={selectCls}
 				>
 					{STATUS_OPTIONS.map((o) => (
-						<option key={o.value} value={o.value}>{o.label}</option>
+						<option key={o.value} value={o.value}>
+							{o.label}
+						</option>
 					))}
 				</select>
 				<select
 					value={typeFilter}
-					onChange={(e) => { setTypeFilter(e.target.value as ExceptionType | ''); setPage(0); }}
+					onChange={(e) => {
+						setTypeFilter(e.target.value as ExceptionType | '');
+						setPage(0);
+					}}
 					className={selectCls}
 				>
 					{TYPE_OPTIONS.map((o) => (
-						<option key={o.value} value={o.value}>{o.label}</option>
+						<option key={o.value} value={o.value}>
+							{o.label}
+						</option>
 					))}
 				</select>
 				<select
 					value={severityFilter}
-					onChange={(e) => { setSeverityFilter(e.target.value as ExceptionSeverity | ''); setPage(0); }}
+					onChange={(e) => {
+						setSeverityFilter(e.target.value as ExceptionSeverity | '');
+						setPage(0);
+					}}
 					className={selectCls}
 				>
 					{SEVERITY_OPTIONS.map((o) => (
-						<option key={o.value} value={o.value}>{o.label}</option>
+						<option key={o.value} value={o.value}>
+							{o.label}
+						</option>
 					))}
 				</select>
 				<span className="ml-auto text-sm text-slate-500">{total} total</span>
 			</div>
+
+			{/* Bulk action bar */}
+			{selectedIds.size > 0 && (
+				<div className="flex flex-wrap items-center gap-3 px-4 py-2.5 bg-brass-500/10 border border-brass-700/30 rounded-lg">
+					<span className="text-sm text-brass-300 font-medium">
+						{selectedIds.size} selected
+					</span>
+					<div className="flex flex-wrap items-center gap-2 ml-auto">
+						<button
+							onClick={bulkResolve}
+							disabled={resolve.isPending}
+							className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-emerald-600/20 text-emerald-400 border border-emerald-700/30 hover:bg-emerald-600/30 transition-colors disabled:opacity-50"
+						>
+							<CheckCircle className="w-3.5 h-3.5" />
+							Bulk Resolve
+						</button>
+						<button
+							onClick={bulkDismiss}
+							disabled={dismiss.isPending}
+							className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-slate-700/50 text-slate-300 border border-slate-600 hover:bg-slate-600/50 transition-colors disabled:opacity-50"
+						>
+							<XCircle className="w-3.5 h-3.5" />
+							Bulk Dismiss
+						</button>
+						<button
+							onClick={bulkRequeue}
+							disabled={requeueMutation.isPending}
+							className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-amber-600/20 text-amber-400 border border-amber-700/30 hover:bg-amber-600/30 transition-colors disabled:opacity-50"
+						>
+							<RefreshCw className="w-3.5 h-3.5" />
+							Bulk Requeue
+						</button>
+						<button
+							onClick={bulkAssign}
+							disabled={assignMutation.isPending}
+							className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-blue-600/20 text-blue-400 border border-blue-700/30 hover:bg-blue-600/30 transition-colors disabled:opacity-50"
+						>
+							<User className="w-3.5 h-3.5" />
+							Bulk Assign
+						</button>
+						<button
+							onClick={() => setSelectedIds(new Set())}
+							className="text-xs text-slate-500 hover:text-slate-300 transition-colors px-2"
+						>
+							Clear
+						</button>
+					</div>
+				</div>
+			)}
 
 			{/* Table */}
 			<div className="glass-card overflow-hidden">
@@ -234,12 +347,18 @@ function ExceptionsTab() {
 					<table className="w-full text-sm">
 						<thead>
 							<tr className="border-b border-slate-800">
+								<th className="px-4 py-3 w-10">
+									<Checkbox
+										checked={allChecked ? true : someChecked ? 'indeterminate' : false}
+										onCheckedChange={toggleAll}
+										className="border-slate-600"
+									/>
+								</th>
 								<th className="text-left px-4 py-3 text-slate-500 font-medium">Date</th>
 								<th className="text-left px-4 py-3 text-slate-500 font-medium">Type</th>
 								<th className="text-left px-4 py-3 text-slate-500 font-medium">Severity</th>
 								<th className="text-left px-4 py-3 text-slate-500 font-medium">Description</th>
-								<th className="text-left px-4 py-3 text-slate-500 font-medium">Batch</th>
-								<th className="text-left px-4 py-3 text-slate-500 font-medium">Page</th>
+								<th className="text-left px-4 py-3 text-slate-500 font-medium">Document</th>
 								<th className="text-left px-4 py-3 text-slate-500 font-medium">Status</th>
 								<th className="text-left px-4 py-3 text-slate-500 font-medium">Actions</th>
 							</tr>
@@ -261,64 +380,87 @@ function ExceptionsTab() {
 								</tr>
 							)}
 							{filteredItems.map((exc: ExceptionEvent) => (
-								<>
-									<tr
-										key={exc.id}
-										className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors"
-									>
-										<td className="px-4 py-3 text-slate-400 whitespace-nowrap">
-											{new Date(exc.created_at).toLocaleDateString()}
-										</td>
-										<td className="px-4 py-3">
-											<TypeBadge type={exc.exception_type} />
-										</td>
-										<td className="px-4 py-3">
-											<SeverityBadge severity={exc.severity} />
-										</td>
-										<td className="px-4 py-3 text-slate-300 max-w-xs truncate" title={exc.description}>
-											{exc.description}
-										</td>
-										<td className="px-4 py-3 text-slate-400 font-mono text-xs">
-											{exc.batch_id ? (
-												<span className="text-brass-400">{exc.batch_id.slice(0, 8)}…</span>
-											) : (
-												<span className="text-slate-600">—</span>
-											)}
-										</td>
-										<td className="px-4 py-3 text-slate-400">
-											{exc.page_number ?? <span className="text-slate-600">—</span>}
-										</td>
-										<td className="px-4 py-3">
-											<StatusBadge status={exc.status} />
-										</td>
-										<td className="px-4 py-3">
-											{(exc.status === 'open' || exc.status === 'in_review') && (
-												<div className="flex items-center gap-2">
-													<button
-														onClick={() => setResolvingId(resolvingId === exc.id ? null : exc.id)}
-														className="btn-primary text-xs py-1 px-2"
-													>
-														Resolve
-													</button>
-													<button
-														onClick={() => dismiss.mutate({ id: exc.id })}
-														disabled={dismiss.isPending}
-														className="btn-secondary text-xs py-1 px-2"
-													>
-														Dismiss
-													</button>
-												</div>
-											)}
-										</td>
-									</tr>
-									{resolvingId === exc.id && (
-										<tr key={`${exc.id}-resolve`} className="bg-slate-800/40">
-											<td colSpan={8} className="px-4 pb-3">
-												<ResolveForm id={exc.id} onDone={() => setResolvingId(null)} />
-											</td>
-										</tr>
+								<tr
+									key={exc.id}
+									className={cn(
+										'border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors cursor-pointer',
+										selectedIds.has(exc.id) && 'bg-brass-500/5',
 									)}
-								</>
+									onClick={() => {
+										setDetailExc(exc);
+										setResolveNotes('');
+									}}
+								>
+									<td
+										className="px-4 py-3"
+										onClick={(e) => e.stopPropagation()}
+									>
+										<Checkbox
+											checked={selectedIds.has(exc.id)}
+											onCheckedChange={() => toggleOne(exc.id)}
+											className="border-slate-600"
+										/>
+									</td>
+									<td className="px-4 py-3 text-slate-400 whitespace-nowrap">
+										{new Date(exc.created_at).toLocaleDateString()}
+									</td>
+									<td className="px-4 py-3">
+										<TypeBadge type={exc.exception_type} />
+									</td>
+									<td className="px-4 py-3">
+										<SeverityBadge severity={exc.severity} />
+									</td>
+									<td
+										className="px-4 py-3 text-slate-300 max-w-xs truncate"
+										title={exc.description}
+									>
+										{exc.description}
+									</td>
+									<td className="px-4 py-3 text-slate-400 font-mono text-xs">
+										{exc.document_id ? (
+											<span className="text-brass-400">
+												{exc.document_id.slice(0, 8)}…
+											</span>
+										) : exc.batch_id ? (
+											<span className="text-slate-500">
+												batch:{exc.batch_id.slice(0, 6)}…
+											</span>
+										) : (
+											<span className="text-slate-600">—</span>
+										)}
+									</td>
+									<td className="px-4 py-3">
+										<StatusBadge status={exc.status} />
+									</td>
+									<td
+										className="px-4 py-3"
+										onClick={(e) => e.stopPropagation()}
+									>
+										{(exc.status === 'open' || exc.status === 'in_review') && (
+											<div className="flex items-center gap-2">
+												<button
+													onClick={() => {
+														resolve.mutate(
+															{ id: exc.id, resolution_notes: '' },
+															{ onSuccess: () => setDetailExc(null) },
+														);
+													}}
+													disabled={resolve.isPending}
+													className="btn-primary text-xs py-1 px-2"
+												>
+													Resolve
+												</button>
+												<button
+													onClick={() => dismiss.mutate({ id: exc.id })}
+													disabled={dismiss.isPending}
+													className="btn-secondary text-xs py-1 px-2"
+												>
+													Dismiss
+												</button>
+											</div>
+										)}
+									</td>
+								</tr>
 							))}
 						</tbody>
 					</table>
@@ -349,6 +491,220 @@ function ExceptionsTab() {
 					</div>
 				)}
 			</div>
+
+			{/* Detail side sheet */}
+			<Sheet
+				open={!!detailExc}
+				onOpenChange={(open) => {
+					if (!open) setDetailExc(null);
+				}}
+			>
+				<SheetContent
+					side="right"
+					className="w-full sm:max-w-xl bg-slate-900 border-slate-700 overflow-y-auto"
+				>
+					<SheetHeader className="pb-4 border-b border-slate-800">
+						<SheetTitle className="text-slate-100 flex items-center gap-2">
+							{detailExc && <TypeBadge type={detailExc.exception_type} />}
+							Exception Detail
+						</SheetTitle>
+					</SheetHeader>
+
+					{detailExc && (
+						<div className="py-5 space-y-5">
+							{/* Meta */}
+							<div className="grid grid-cols-2 gap-3">
+								<div>
+									<p className="text-xs text-slate-500 mb-1">Status</p>
+									<StatusBadge status={detailExc.status} />
+								</div>
+								<div>
+									<p className="text-xs text-slate-500 mb-1">Severity</p>
+									<SeverityBadge severity={detailExc.severity} />
+								</div>
+								<div>
+									<p className="text-xs text-slate-500 mb-1">Occurred</p>
+									<p className="text-sm text-slate-300">
+										{new Date(detailExc.created_at).toLocaleString()}
+									</p>
+								</div>
+								<div>
+									<p className="text-xs text-slate-500 mb-1">Auto-fixable</p>
+									<p className="text-sm text-slate-300">
+										{detailExc.auto_fixable ? 'Yes' : 'No'}
+									</p>
+								</div>
+								{detailExc.document_id && (
+									<div className="col-span-2">
+										<p className="text-xs text-slate-500 mb-1">Document ID</p>
+										<p className="text-sm font-mono text-brass-400 break-all">
+											{detailExc.document_id}
+										</p>
+									</div>
+								)}
+								{detailExc.batch_id && (
+									<div className="col-span-2">
+										<p className="text-xs text-slate-500 mb-1">Batch ID</p>
+										<p className="text-sm font-mono text-slate-300 break-all">
+											{detailExc.batch_id}
+										</p>
+									</div>
+								)}
+								{detailExc.page_number != null && (
+									<div>
+										<p className="text-xs text-slate-500 mb-1">Page</p>
+										<p className="text-sm text-slate-300">{detailExc.page_number}</p>
+									</div>
+								)}
+								{detailExc.quality_score != null && (
+									<div>
+										<p className="text-xs text-slate-500 mb-1">Quality Score</p>
+										<p className="text-sm text-slate-300">
+											{(detailExc.quality_score * 100).toFixed(1)}%
+										</p>
+									</div>
+								)}
+							</div>
+
+							{/* Error details */}
+							<div>
+								<p className="text-xs text-slate-500 mb-2">Error Details</p>
+								<p className="text-sm text-slate-300 leading-relaxed bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
+									{detailExc.description}
+								</p>
+							</div>
+
+							{/* Defects / stack trace */}
+							{detailExc.defects && detailExc.defects.length > 0 && (
+								<div>
+									<p className="text-xs text-slate-500 mb-2">Defects / Stack Trace</p>
+									<pre className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono text-slate-300 overflow-x-auto whitespace-pre-wrap max-h-48">
+										{detailExc.defects.join('\n')}
+									</pre>
+								</div>
+							)}
+
+							{/* Resolution notes (existing) */}
+							{detailExc.resolution_notes && (
+								<div>
+									<p className="text-xs text-slate-500 mb-2">Resolution Notes</p>
+									<p className="text-sm text-slate-300 bg-emerald-900/20 border border-emerald-800/30 rounded-lg p-3">
+										{detailExc.resolution_notes}
+									</p>
+								</div>
+							)}
+
+							{/* Action buttons */}
+							<div className="space-y-2 pt-2 border-t border-slate-800">
+								<p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-3">
+									Actions
+								</p>
+
+								{(detailExc.status === 'open' || detailExc.status === 'in_review') && (
+									<>
+										<button
+											onClick={() =>
+												assignMutation.mutate(detailExc.id, {
+													onSuccess: (updated) => setDetailExc(updated),
+												})
+											}
+											disabled={
+												assignMutation.isPending ||
+												detailExc.status === 'in_review'
+											}
+											className="w-full flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600/20 text-blue-300 border border-blue-700/30 hover:bg-blue-600/30 transition-colors text-sm disabled:opacity-50"
+										>
+											{assignMutation.isPending ? (
+												<Loader2 className="w-4 h-4 animate-spin" />
+											) : (
+												<User className="w-4 h-4" />
+											)}
+											{detailExc.status === 'in_review'
+												? 'Already In Review'
+												: 'Assign to Me'}
+										</button>
+
+										{/* Resolve with notes */}
+										<div className="space-y-1.5">
+											<textarea
+												value={resolveNotes}
+												onChange={(e) => setResolveNotes(e.target.value)}
+												placeholder="Resolution notes (optional)"
+												rows={2}
+												className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brass-500 resize-none"
+											/>
+											<button
+												onClick={() =>
+													resolve.mutate(
+														{
+															id: detailExc.id,
+															resolution_notes: resolveNotes,
+														},
+														{
+															onSuccess: (updated) => {
+																setDetailExc(updated);
+																setResolveNotes('');
+															},
+														},
+													)
+												}
+												disabled={resolve.isPending}
+												className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600/20 text-emerald-300 border border-emerald-700/30 hover:bg-emerald-600/30 transition-colors text-sm disabled:opacity-50"
+											>
+												{resolve.isPending ? (
+													<Loader2 className="w-4 h-4 animate-spin" />
+												) : (
+													<CheckCircle className="w-4 h-4" />
+												)}
+												Mark Resolved
+											</button>
+										</div>
+
+										<button
+											onClick={() =>
+												dismiss.mutate(
+													{ id: detailExc.id },
+													{ onSuccess: () => setDetailExc(null) },
+												)
+											}
+											disabled={dismiss.isPending}
+											className="w-full flex items-center gap-2 px-4 py-2.5 rounded-lg bg-slate-700/50 text-slate-300 border border-slate-600 hover:bg-slate-600/50 transition-colors text-sm disabled:opacity-50"
+										>
+											{dismiss.isPending ? (
+												<Loader2 className="w-4 h-4 animate-spin" />
+											) : (
+												<XCircle className="w-4 h-4" />
+											)}
+											Dismiss
+										</button>
+									</>
+								)}
+
+								{(detailExc.status === 'resolved' ||
+									detailExc.status === 'dismissed' ||
+									detailExc.status === 'auto_resolved') && (
+									<button
+										onClick={() =>
+											requeueMutation.mutate(detailExc.id, {
+												onSuccess: (updated) => setDetailExc(updated),
+											})
+										}
+										disabled={requeueMutation.isPending}
+										className="w-full flex items-center gap-2 px-4 py-2.5 rounded-lg bg-amber-600/20 text-amber-300 border border-amber-700/30 hover:bg-amber-600/30 transition-colors text-sm disabled:opacity-50"
+									>
+										{requeueMutation.isPending ? (
+											<Loader2 className="w-4 h-4 animate-spin" />
+										) : (
+											<RefreshCw className="w-4 h-4" />
+										)}
+										Requeue (Reopen)
+									</button>
+								)}
+							</div>
+						</div>
+					)}
+				</SheetContent>
+			</Sheet>
 		</div>
 	);
 }

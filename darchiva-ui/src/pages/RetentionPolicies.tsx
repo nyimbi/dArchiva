@@ -81,6 +81,37 @@ function StatusBadge({ active }: { active: boolean }) {
 }
 
 // ---------------------------------------------------------------------------
+// Stat card
+// ---------------------------------------------------------------------------
+
+function StatCard({
+	label,
+	value,
+	sub,
+	icon: Icon,
+	color,
+}: {
+	label: string;
+	value: string | number;
+	sub?: string;
+	icon: React.ElementType;
+	color: string;
+}) {
+	return (
+		<div className="bg-slate-900 border border-slate-700 rounded-xl p-4 flex items-center gap-4">
+			<div className={cn('w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0', color)}>
+				<Icon className="w-5 h-5" />
+			</div>
+			<div className="min-w-0">
+				<p className="text-2xl font-semibold text-white leading-none">{value}</p>
+				<p className="text-xs text-slate-400 mt-1">{label}</p>
+				{sub && <p className="text-xs text-slate-600 mt-0.5 truncate">{sub}</p>}
+			</div>
+		</div>
+	);
+}
+
+// ---------------------------------------------------------------------------
 // Form dialog
 // ---------------------------------------------------------------------------
 
@@ -494,6 +525,41 @@ export function RetentionPolicies() {
 					New Policy
 				</button>
 			</div>
+
+			{/* Stats cards */}
+			{!isLoading && !isError && policies && (
+				<div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+					<StatCard
+						label="Total Policies"
+						value={policies.length}
+						icon={Clock}
+						color="bg-indigo-500/20 text-indigo-400"
+					/>
+					<StatCard
+						label="Active"
+						value={policies.filter((p) => p.is_active).length}
+						sub={`${policies.filter((p) => !p.is_active).length} inactive`}
+						icon={CheckCircle2}
+						color="bg-emerald-500/20 text-emerald-400"
+					/>
+					<StatCard
+						label="Docs Processed"
+						value={policies.reduce((s, p) => s + p.docs_processed, 0).toLocaleString()}
+						icon={Play}
+						color="bg-amber-500/20 text-amber-400"
+					/>
+					<StatCard
+						label="Last Sweep Ran"
+						value={(() => {
+							const dates = policies.map((p) => p.last_run_at).filter(Boolean) as string[];
+							if (!dates.length) return '—';
+							return formatDate(dates.reduce((a, b) => (a > b ? a : b)));
+						})()}
+						icon={AlertCircle}
+						color="bg-slate-500/20 text-slate-400"
+					/>
+				</div>
+			)}
 
 			{/* Body */}
 			{isLoading && (

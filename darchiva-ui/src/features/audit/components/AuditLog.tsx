@@ -29,6 +29,12 @@ import {
 } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useAuditLogs, useExportAuditLog } from '../api';
 import type { AuditLogEntry, AuditOperation } from '../types';
 import {
@@ -109,6 +115,7 @@ export function AuditLog({ recordId, userId, hideUserFilter = false }: AuditLogP
   const [dateFrom, setDateFrom]           = useState<string>('');
   const [dateTo, setDateTo]               = useState<string>('');
   const [exporting, setExporting]         = useState<'csv' | 'pdf' | null>(null);
+  const [selectedEntry, setSelectedEntry] = useState<AuditLogEntry | null>(null);
 
   const { exportLogs } = useExportAuditLog();
 
@@ -313,6 +320,7 @@ export function AuditLog({ recordId, userId, hideUserFilter = false }: AuditLogP
               key={entry.id}
               entry={entry}
               onNavigate={(id) => navigate(`/documents/${id}`)}
+              onSelect={setSelectedEntry}
             />
           ))}
         </div>
@@ -349,6 +357,53 @@ export function AuditLog({ recordId, userId, hideUserFilter = false }: AuditLogP
           </div>
         </div>
       )}
+
+      {/* ── event detail dialog ─────────────────────────────────────────────── */}
+      <Dialog open={!!selectedEntry} onOpenChange={(open) => { if (!open) setSelectedEntry(null); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Audit Event Detail</DialogTitle>
+          </DialogHeader>
+          {selectedEntry && (
+            <div className="space-y-5 mt-2">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Operation</p>
+                  <span className={cn('text-[10px] font-medium px-1.5 py-0.5 rounded border', OPERATION_BADGE_VARIANTS[selectedEntry.operation])}>
+                    {OPERATION_LABELS[selectedEntry.operation]}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Table</p>
+                  <p className="font-mono text-xs">{selectedEntry.tableName}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">User</p>
+                  <p>{selectedEntry.username ?? <span className="italic text-muted-foreground">system</span>}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Timestamp</p>
+                  <p className="text-xs">{format(parseISO(selectedEntry.timestamp), 'PPpp')}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-xs text-muted-foreground mb-0.5">Record ID</p>
+                  <p className="font-mono text-xs break-all">{selectedEntry.recordId}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-xs text-muted-foreground mb-0.5">Event ID</p>
+                  <p className="font-mono text-xs text-muted-foreground">{selectedEntry.id}</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Full JSON Payload</p>
+                <pre className="bg-slate-950 rounded-lg p-4 text-xs font-mono text-slate-300 overflow-x-auto border border-border/40 max-h-64">
+                  {JSON.stringify(selectedEntry, null, 2)}
+                </pre>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -358,9 +413,11 @@ export function AuditLog({ recordId, userId, hideUserFilter = false }: AuditLogP
 function AuditEntryRow({
   entry,
   onNavigate,
+  onSelect,
 }: {
   entry: AuditLogEntry;
   onNavigate: (recordId: string) => void;
+  onSelect: (entry: AuditLogEntry) => void;
 }) {
   const initials   = getInitials(entry.username);
   const avatarBg   = stringToColor(entry.username ?? entry.userId ?? entry.id);
@@ -379,7 +436,10 @@ function AuditEntryRow({
     entry.tableName === 'pages';
 
   return (
-    <div className="flex items-start gap-3 px-3 py-2.5 rounded-lg border border-border/40 hover:bg-accent/20 transition-colors group">
+    <div
+      className="flex items-start gap-3 px-3 py-2.5 rounded-lg border border-border/40 hover:bg-accent/20 transition-colors group cursor-pointer"
+      onClick={() => onSelect(entry)}
+    >
       {/* User initials avatar */}
       <div
         className={cn(
@@ -411,7 +471,7 @@ function AuditEntryRow({
           {isDocumentTable && entry.recordId && (
             <button
               className="text-xs text-blue-400 hover:text-blue-300 hover:underline truncate max-w-[180px] font-mono"
-              onClick={() => onNavigate(entry.recordId)}
+              onClick={(e) => { e.stopPropagation(); onNavigate(entry.recordId); }}
               title={`Open record ${entry.recordId}`}
             >
               {entry.recordId.slice(0, 8)}…
