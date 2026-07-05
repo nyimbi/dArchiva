@@ -24,6 +24,7 @@ import { ChatPanel } from '@/features/document-chat';
 import { ACLPanel } from '@/features/acl/ACLPanel';
 import { CommentsPanel } from '@/features/comments/CommentsPanel';
 import { OCRCorrectionPanel } from '@/features/ocr-correction';
+import { PageManagementPanel } from '@/features/page-management';
 import {
 	VersionDiffViewer,
 	VersionHistoryWithCompare,
@@ -67,7 +68,7 @@ export function DocumentDetail() {
 	const [diff, setDiff] = useState<{ versionA: number; versionB: number } | null>(null);
 	const [showVersionHistory, setShowVersionHistory] = useState(false);
 	// Right-panel tab: null = closed, or one of the named panels
-	type SidePanel = 'custom-fields' | 'related' | 'similar' | 'entities' | 'expiry' | 'annotations' | 'ocr-quality' | 'ocr-correction' | 'signatures' | 'approvals' | 'duplicates' | 'classification' | 'filing' | 'legal-hold' | 'activity' | 'chat' | 'acl' | 'comments';
+	type SidePanel = 'custom-fields' | 'related' | 'similar' | 'entities' | 'expiry' | 'annotations' | 'ocr-quality' | 'ocr-correction' | 'signatures' | 'approvals' | 'duplicates' | 'classification' | 'filing' | 'legal-hold' | 'activity' | 'chat' | 'acl' | 'comments' | 'page-management';
 	const [sidePanel, setSidePanel] = useState<SidePanel | null>(null);
 	const [showPageEditor, setShowPageEditor] = useState(false);
 	const [showSplitDialog, setShowSplitDialog] = useState(false);
@@ -467,6 +468,18 @@ export function DocumentDetail() {
 						pageCount={document.pageCount ?? pages.length}
 					/>
 					<button
+						onClick={() => togglePanel('page-management')}
+						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+							sidePanel === 'page-management'
+								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
+								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+						}`}
+						title="Manage Pages"
+					>
+						<Layers className="w-3.5 h-3.5" />
+						Pages
+					</button>
+					<button
 						onClick={() => setShowPageEditor(true)}
 						className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors"
 						title="Edit pages"
@@ -643,6 +656,13 @@ export function DocumentDetail() {
 							documentId={id!}
 							pageCount={document.pageCount ?? pages.length}
 						/>
+					</div>
+				)}
+
+				{/* Page management panel — reorder, rotate, delete, extract */}
+				{sidePanel === 'page-management' && (
+					<div className="w-80 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto flex flex-col">
+						<PageManagementPanel documentId={id!} pages={pages} />
 					</div>
 				)}
 			</div>
