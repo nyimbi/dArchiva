@@ -81,7 +81,7 @@ function formatRelative(iso: string | null): string {
 export function IngestionSourceDashboard() {
   const qc = useQueryClient();
 
-  const { data: sources, isLoading } = useQuery<IngestionSource[]>({
+  const { data: sources, isLoading, isError } = useQuery<IngestionSource[]>({
     queryKey: ['ingestion-sources'],
     queryFn: async () => {
       const { data } = await apiClient.get<{ items: IngestionSource[] }>('/ingestion/sources');
@@ -123,6 +123,15 @@ export function IngestionSourceDashboard() {
     return (
       <div className="flex items-center justify-center h-48 text-muted-foreground">
         <Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading sources…
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex items-center gap-2 m-4 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+        <AlertCircle className="h-4 w-4 shrink-0" />
+        Failed to load ingestion sources. Check your connection and try refreshing.
       </div>
     );
   }
