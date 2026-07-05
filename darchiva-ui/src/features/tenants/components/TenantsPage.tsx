@@ -17,8 +17,8 @@ import {
   getTenant,
   listTenants,
   suspendTenant,
-  updateCurrentTenantBranding,
-  updateCurrentTenantSettings,
+  updateTenantBranding,
+  updateTenantSettings,
   updateTenant,
 } from '../api';
 import styles from '../tenants.module.css';
@@ -89,12 +89,17 @@ export function TenantsPage() {
 	};
 
 	const handleActivateTenant = async (tenant: Tenant) => {
-		try {
-			await activateTenant(tenant.id);
-			await loadTenants();
-		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Failed to activate tenant');
-		}
+		setConfirmDialog({
+			message: `Activate ${tenant.name}? Users will be able to access this organization.`,
+			onConfirm: async () => {
+				try {
+					await activateTenant(tenant.id);
+					await loadTenants();
+				} catch (err) {
+					toast.error(err instanceof Error ? err.message : 'Failed to activate tenant');
+				}
+			},
+		});
 	};
 
 	const handleDeleteTenant = async (tenant: Tenant) => {
@@ -125,18 +130,18 @@ export function TenantsPage() {
 	const handleUpdateBranding = async (data: BrandingUpdate) => {
 		if (!selectedTenant) return;
 		try {
-			await updateCurrentTenantBranding(data);
+			await updateTenantBranding(selectedTenant.id, data);
 			const updated = await getTenant(selectedTenant.id);
 			setSelectedTenant(updated);
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Failed to update branding');
+			throw err instanceof Error ? err : new Error('Failed to update branding');
 		}
 	};
 
 	const handleUpdateSettings = async (data: SettingsUpdate) => {
 		if (!selectedTenant) return;
 		try {
-			await updateCurrentTenantSettings(data);
+			await updateTenantSettings(selectedTenant.id, data);
 			const updated = await getTenant(selectedTenant.id);
 			setSelectedTenant(updated);
 		} catch (err) {

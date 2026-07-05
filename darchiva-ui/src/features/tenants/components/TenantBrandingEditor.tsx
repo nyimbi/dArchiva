@@ -1,14 +1,28 @@
 // (c) Copyright Datacraft, 2026
+import type { ChangeEvent } from 'react';
 import { useRef,useState } from 'react';
+import { apiClient } from '@/lib/api-client';
+import { toast } from 'sonner';
 import styles from '../tenants.module.css';
 import type { BrandingUpdate,TenantBranding } from '../types';
 
 interface TenantBrandingEditorProps {
+	tenantId: string;
 	branding?: TenantBranding;
 	onSave: (data: BrandingUpdate) => Promise<void>;
 }
 
-export function TenantBrandingEditor({ branding, onSave }: TenantBrandingEditorProps) {
+type BrandingUploadField = 'logo_url' | 'login_background_url';
+
+interface BrandingUploadResponse {
+	url?: string;
+	logoUrl?: string;
+	logo_url?: string;
+	loginBackgroundUrl?: string;
+	login_background_url?: string;
+}
+
+export function TenantBrandingEditor({ tenantId, branding, onSave }: TenantBrandingEditorProps) {
 	const [formData, setFormData] = useState<BrandingUpdate>({
 		logo_url: branding?.logo_url || '',
 		logo_dark_url: branding?.logo_dark_url || '',
@@ -18,21 +32,61 @@ export function TenantBrandingEditor({ branding, onSave }: TenantBrandingEditorP
 		login_message: branding?.login_message || '',
 	});
 	const [saving, setSaving] = useState(false);
-	const fileInputRef = useRef<HTMLInputElement>(null);
+	const [uploadingField, setUploadingField] = useState<BrandingUploadField | null>(null);
+	const logoInputRef = useRef<HTMLInputElement>(null);
+	const backgroundInputRef = useRef<HTMLInputElement>(null);
 
 	const handleSave = async () => {
 		setSaving(true);
 		try {
 			await onSave(formData);
+			toast.success('Branding saved');
+		} catch {
+			toast.error('Save failed');
 		} finally {
 			setSaving(false);
 		}
 	};
 
-	const handleFileUpload = (_fieldName: 'logo_url' | 'login_background_url') => {
-		// In a real implementation, this would upload to storage and return a URL
-		// For now, we'll just show how the UI would work
-		fileInputRef.current?.click();
+	const handleFileUpload = (fieldName: BrandingUploadField) => {
+		if (fieldName === 'logo_url') {
+			logoInputRef.current?.click();
+			return;
+		}
+		backgroundInputRef.current?.click();
+	};
+
+	const handleFileChange = async (
+		fieldName: BrandingUploadField,
+		event: ChangeEvent<HTMLInputElement>,
+	) => {
+		const file = event.target.files?.[0];
+		event.target.value = '';
+		if (!file) return;
+
+		setUploadingField(fieldName);
+		try {
+			const body = new FormData();
+			body.append('file', file);
+			body.append('field', fieldName);
+			body.append('variant', fieldName === 'logo_url' ? 'light' : 'background');
+
+			const { data } = await apiClient.post<BrandingUploadResponse>(
+				`/tenants/${tenantId}/branding/logo`,
+				body,
+			);
+			const uploadedUrl =
+				data[fieldName] ??
+				data.logoUrl ??
+				data.loginBackgroundUrl ??
+				data.url ??
+				URL.createObjectURL(file);
+			setFormData((prev) => ({ ...prev, [fieldName]: uploadedUrl }));
+		} catch {
+			toast.error('Upload failed');
+		} finally {
+			setUploadingField(null);
+		}
 	};
 
 	return (
@@ -76,13 +130,15 @@ export function TenantBrandingEditor({ branding, onSave }: TenantBrandingEditorP
 						<button
 							className={styles.uploadButton}
 							onClick={() => handleFileUpload('logo_url')}
+							disabled={uploadingField === 'logo_url'}
 						>
-							Upload Logo
+							{uploadingField === 'logo_url' ? 'Uploading...' : 'Upload Logo'}
 						</button>
 						<input
-							ref={fileInputRef}
+							ref={logoInputRef}
 							type="file"
 							accept="image/*"
+							onChange={(event) => handleFileChange('logo_url', event)}
 							style={{ display: 'none' }}
 						/>
 					</div>
@@ -193,9 +249,17 @@ export function TenantBrandingEditor({ branding, onSave }: TenantBrandingEditorP
 						<button
 							className={styles.uploadButton}
 							onClick={() => handleFileUpload('login_background_url')}
+							disabled={uploadingField === 'login_background_url'}
 						>
-							Upload Background
+							{uploadingField === 'login_background_url' ? 'Uploading...' : 'Upload Background'}
 						</button>
+						<input
+							ref={backgroundInputRef}
+							type="file"
+							accept="image/*"
+							onChange={(event) => handleFileChange('login_background_url', event)}
+							style={{ display: 'none' }}
+						/>
 					</div>
 				</div>
 			</div>

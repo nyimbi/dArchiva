@@ -41,6 +41,14 @@ export async function updateCurrentTenantBranding(input: BrandingUpdate): Promis
 	return data;
 }
 
+export async function updateTenantBranding(
+	tenantId: string,
+	input: BrandingUpdate,
+): Promise<TenantBranding> {
+	const { data } = await apiClient.patch<TenantBranding>(`${API_BASE}/${tenantId}/branding`, input);
+	return data;
+}
+
 export async function getCurrentTenantSettings(): Promise<TenantSettings> {
 	const { data } = await apiClient.get<TenantSettings>(`${API_BASE}/current/settings`);
 	return data;
@@ -48,6 +56,14 @@ export async function getCurrentTenantSettings(): Promise<TenantSettings> {
 
 export async function updateCurrentTenantSettings(input: SettingsUpdate): Promise<TenantSettings> {
 	const { data } = await apiClient.patch<TenantSettings>(`${API_BASE}/current/settings`, input);
+	return data;
+}
+
+export async function updateTenantSettings(
+	tenantId: string,
+	input: SettingsUpdate,
+): Promise<TenantSettings> {
+	const { data } = await apiClient.patch<TenantSettings>(`${API_BASE}/${tenantId}/settings`, input);
 	return data;
 }
 

@@ -1,6 +1,7 @@
 // (c) Copyright Datacraft, 2026
 import { motion } from 'framer-motion';
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -12,7 +13,10 @@ import {
 	AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { apiClient } from '@/lib/api-client';
+import { toast } from 'sonner';
 import {
+	adminKeys,
 	Tenant,
 	useResetTenantAITokens,
 	useTenant,
@@ -32,14 +36,51 @@ interface Props {
 	onClose: () => void;
 }
 
+interface TenantUsageData {
+	storageUsedGb?: number;
+	storage_used_gb?: number;
+	storageUsedBytes?: number;
+	userCount?: number;
+	user_count?: number;
+	totalUsers?: number;
+}
+
 export function TenantDetailPanel({ tenant, onClose }: Props) {
 	const [activeTab, setActiveTab] = useState<Tab>('overview');
 	const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
-	const { data: tenantDetail } = useTenant(tenant.id);
-	const { data: storage } = useTenantStorage(tenant.id);
-	const { data: ai } = useTenantAI(tenant.id);
-	const { data: subscription } = useTenantSubscription(tenant.id);
+	const {
+		data: tenantDetail,
+		isLoading: tenantLoading,
+		isError: tenantError,
+	} = useTenant(tenant.id);
+	const {
+		data: storage,
+		isLoading: storageLoading,
+		isError: storageError,
+	} = useTenantStorage(tenant.id);
+	const {
+		data: ai,
+		isLoading: aiLoading,
+		isError: aiError,
+	} = useTenantAI(tenant.id);
+	const {
+		data: subscription,
+		isLoading: subscriptionLoading,
+		isError: subscriptionError,
+	} = useTenantSubscription(tenant.id);
+	const {
+		data: usageData,
+		isLoading: usageLoading,
+		isError: usageError,
+	} = useQuery({
+		queryKey: adminKeys.tenantUsage(tenant.id),
+		queryFn: async () => {
+			const { data } = await apiClient.get<TenantUsageData>(`/admin/tenants/${tenant.id}/usage`);
+			return data;
+		},
+		enabled: !!tenant.id,
+	});
 	const { data: activity = [], isLoading: activityLoading } = useTenantActivity(tenant.id);
 	const recentActivity = [...activity]
 		.sort((a, b) => getActivityDateValue(b) - getActivityDateValue(a))
@@ -65,6 +106,52 @@ export function TenantDetailPanel({ tenant, onClose }: Props) {
 	};
 
 	const status = statusConfig[tenant.status] || statusConfig.cancelled;
+	const storageUsedGb = usageData
+		? usageData.storageUsedGb ??
+			usageData.storage_used_gb ??
+			(usageData.storageUsedBytes !== undefined
+				? usageData.storageUsedBytes / 1024 / 1024 / 1024
+				: 0)
+		: 0;
+	const userCount = usageData
+		? usageData.userCount ?? usageData.user_count ?? usageData.totalUsers ?? 0
+		: 0;
+
+	const confirmTenantStatusChange = (nextStatus: 'active' | 'suspended') => {
+		const action = nextStatus === 'active' ? 'Activate' : 'Suspend';
+		setConfirmDialog({
+			message:
+				nextStatus === 'active'
+					? `Activate ${tenant.name}? Users will be able to access this tenant.`
+					: `Suspend ${tenant.name}? Users will not be able to access this tenant.`,
+			onConfirm: async () => {
+				try {
+					await updateTenant.mutateAsync({ id: tenant.id, data: { status: nextStatus } });
+					toast.success(`Tenant ${nextStatus === 'active' ? 'activated' : 'suspended'}`);
+				} catch {
+					toast.error(`Failed to ${action.toLowerCase()} tenant`);
+				}
+			},
+		});
+	};
+
+	const handleVerifyStorage = async () => {
+		try {
+			await verifyStorage.mutateAsync(tenant.id);
+			toast.success('Storage verified');
+		} catch {
+			toast.error('Storage verification failed');
+		}
+	};
+
+	const handleResetTokens = async () => {
+		try {
+			await resetAITokens.mutateAsync(tenant.id);
+			toast.success('Token count reset');
+		} catch {
+			toast.error('Failed to reset token count');
+		}
+	};
 
 	return (
 		<>
@@ -94,7 +181,7 @@ export function TenantDetailPanel({ tenant, onClose }: Props) {
 				<div className={styles.quickActions}>
 					{tenant.status !== 'suspended' ? (
 						<button
-							onClick={() => updateTenant.mutate({ id: tenant.id, data: { status: 'suspended' } })}
+							onClick={() => confirmTenantStatusChange('suspended')}
 							className={styles.actionBtnDanger}
 							disabled={updateTenant.isPending}
 						>
@@ -102,7 +189,7 @@ export function TenantDetailPanel({ tenant, onClose }: Props) {
 						</button>
 					) : (
 						<button
-							onClick={() => updateTenant.mutate({ id: tenant.id, data: { status: 'active' } })}
+							onClick={() => confirmTenantStatusChange('active')}
 							className={styles.actionBtnSuccess}
 							disabled={updateTenant.isPending}
 						>
@@ -129,151 +216,194 @@ export function TenantDetailPanel({ tenant, onClose }: Props) {
 			<div className={styles.content}>
 				{activeTab === 'overview' && (
 					<div className={styles.section}>
-						<div className={styles.infoGrid}>
-							<InfoItem label="Contact Email" value={tenantDetail?.contactEmail || '—'} />
-							<InfoItem label="Billing Email" value={tenantDetail?.billingEmail || '—'} />
-							<InfoItem label="Plan" value={tenant.plan} highlight />
-							<InfoItem label="Max Users" value={tenant.maxUsers?.toString() || 'Unlimited'} />
-							<InfoItem label="Storage Limit" value={tenant.maxStorageGb ? `${tenant.maxStorageGb} GB` : 'Unlimited'} />
-							<InfoItem label="Created" value={new Date(tenant.createdAt).toLocaleDateString()} />
-						</div>
+						{tenantLoading ? (
+							<InfoGridSkeleton count={6} />
+						) : tenantError ? (
+							<ErrorBanner message="Failed to load tenant details." />
+						) : (
+							<div className={styles.infoGrid}>
+								<InfoItem label="Contact Email" value={tenantDetail?.contactEmail || '—'} />
+								<InfoItem label="Billing Email" value={tenantDetail?.billingEmail || '—'} />
+								<InfoItem label="Plan" value={tenant.plan} highlight />
+								<InfoItem label="Max Users" value={tenant.maxUsers?.toString() || 'Unlimited'} />
+								<InfoItem label="Storage Limit" value={tenant.maxStorageGb ? `${tenant.maxStorageGb} GB` : 'Unlimited'} />
+								<InfoItem label="Created" value={new Date(tenant.createdAt).toLocaleDateString()} />
+							</div>
+						)}
 
 						{/* Usage Meters */}
 						<div className={styles.metersSection}>
 							<h4 className={styles.sectionTitle}>Usage</h4>
-							<div className={styles.meters}>
-								<UsageMeter
-									label="Storage"
-									used={45}
-									total={tenant.maxStorageGb || 100}
-									unit="GB"
-									color="#c9a227"
-								/>
-								<UsageMeter
-									label="Users"
-									used={8}
-									total={tenant.maxUsers || 50}
-									unit="users"
-									color="#60a5fa"
-								/>
-							</div>
+							{usageLoading ? (
+								<div className={styles.meters}>
+									<Skeleton className="h-20 w-full bg-primary/20" />
+									<Skeleton className="h-20 w-full bg-primary/20" />
+								</div>
+							) : usageError ? (
+								<ErrorBanner message="Failed to load tenant usage." />
+							) : (
+								<div className={styles.meters}>
+									<UsageMeter
+										label="Storage"
+										used={storageUsedGb}
+										total={tenant.maxStorageGb || Math.max(storageUsedGb, 1)}
+										unit="GB"
+										color="#c9a227"
+									/>
+									<UsageMeter
+										label="Users"
+										used={userCount}
+										total={tenant.maxUsers || Math.max(userCount, 1)}
+										unit="users"
+										color="#60a5fa"
+									/>
+								</div>
+							)}
 						</div>
 					</div>
 				)}
 
 				{activeTab === 'storage' && (
 					<div className={styles.section}>
-						<div className={styles.infoGrid}>
-							<InfoItem label="Provider" value={storage?.provider?.toUpperCase() || 'LOCAL'} highlight />
-							<InfoItem label="Bucket" value={storage?.bucketName || '—'} />
-							<InfoItem label="Region" value={storage?.region || '—'} />
-							<InfoItem label="Base Path" value={storage?.basePath || '/'} />
-							<InfoItem
-								label="Status"
-								value={storage?.isVerified ? 'Verified' : 'Not Verified'}
-								valueColor={storage?.isVerified ? '#4ade80' : '#f87171'}
-							/>
-							<InfoItem label="Last Verified" value={storage?.lastVerifiedAt ? new Date(storage.lastVerifiedAt).toLocaleString() : 'Never'} />
-						</div>
+						{storageLoading ? (
+							<InfoGridSkeleton count={6} />
+						) : storageError ? (
+							<ErrorBanner message="Failed to load storage settings." />
+						) : (
+							<>
+								<div className={styles.infoGrid}>
+									<InfoItem label="Provider" value={storage?.provider?.toUpperCase() || '—'} highlight />
+									<InfoItem label="Bucket" value={storage?.bucketName || '—'} />
+									<InfoItem label="Region" value={storage?.region || '—'} />
+									<InfoItem label="Base Path" value={storage?.basePath || '—'} />
+									<InfoItem
+										label="Status"
+										value={storage?.isVerified ? 'Verified' : 'Not Verified'}
+										valueColor={storage?.isVerified ? '#4ade80' : '#f87171'}
+									/>
+									<InfoItem label="Last Verified" value={storage?.lastVerifiedAt ? new Date(storage.lastVerifiedAt).toLocaleString() : 'Never'} />
+								</div>
 
-						<div className={styles.actionSection}>
-							<button
-								onClick={() => verifyStorage.mutate(tenant.id)}
-								className={styles.actionBtn}
-								disabled={verifyStorage.isPending}
-							>
-								{verifyStorage.isPending ? 'Verifying...' : 'Verify Connection'}
-							</button>
-						</div>
+								<div className={styles.actionSection}>
+									<button
+										onClick={handleVerifyStorage}
+										className={styles.actionBtn}
+										disabled={verifyStorage.isPending}
+									>
+										{verifyStorage.isPending ? 'Verifying...' : 'Verify Connection'}
+									</button>
+								</div>
+							</>
+						)}
 					</div>
 				)}
 
 				{activeTab === 'ai' && (
 					<div className={styles.section}>
-						<div className={styles.infoGrid}>
-							<InfoItem label="Provider" value={ai?.provider || 'OpenAI'} highlight />
-							<InfoItem label="Model" value={ai?.defaultModel || 'gpt-4o-mini'} />
-							<InfoItem label="Embedding Model" value={ai?.embeddingModel || 'text-embedding-3-small'} />
-						</div>
+						{aiLoading ? (
+							<InfoGridSkeleton count={3} />
+						) : aiError ? (
+							<ErrorBanner message="Failed to load AI settings." />
+						) : (
+							<>
+								<div className={styles.infoGrid}>
+									<InfoItem label="Provider" value={ai?.provider || '—'} highlight />
+									<InfoItem label="Model" value={ai?.defaultModel || '—'} />
+									<InfoItem label="Embedding Model" value={ai?.embeddingModel || '—'} />
+								</div>
 
-						{/* Token Usage */}
-						<div className={styles.metersSection}>
-							<h4 className={styles.sectionTitle}>Token Usage This Month</h4>
-							<UsageMeter
-								label="AI Tokens"
-								used={ai?.tokensUsedThisMonth || 0}
-								total={ai?.monthlyTokenLimit || 100000}
-								unit="tokens"
-								color="#a855f7"
-								formatValue={(v) => `${(v / 1000).toFixed(1)}K`}
-							/>
-						</div>
+								{/* Token Usage */}
+								<div className={styles.metersSection}>
+									<h4 className={styles.sectionTitle}>Token Usage This Month</h4>
+									{ai?.monthlyTokenLimit ? (
+										<UsageMeter
+											label="AI Tokens"
+											used={ai.tokensUsedThisMonth}
+											total={ai.monthlyTokenLimit}
+											unit="tokens"
+											color="#a855f7"
+											formatValue={(v) => `${(v / 1000).toFixed(1)}K`}
+										/>
+									) : (
+										<div className="text-sm text-muted-foreground">No token limit data</div>
+									)}
+								</div>
 
-						{/* Feature Toggles */}
-						<div className={styles.featuresSection}>
-							<h4 className={styles.sectionTitle}>Features</h4>
-							<div className={styles.featureList}>
-								<FeatureToggle label="Classification" enabled={ai?.classificationEnabled ?? true} />
-								<FeatureToggle label="Extraction" enabled={ai?.extractionEnabled ?? true} />
-								<FeatureToggle label="Summarization" enabled={ai?.summarizationEnabled ?? true} />
-								<FeatureToggle label="Chat Assistant" enabled={ai?.chatEnabled ?? false} />
-							</div>
-						</div>
+								{/* Feature Toggles */}
+								<div className={styles.featuresSection}>
+									<h4 className={styles.sectionTitle}>Features</h4>
+									<div className={styles.featureList}>
+										<FeatureToggle label="Classification" enabled={ai?.classificationEnabled ?? false} />
+										<FeatureToggle label="Extraction" enabled={ai?.extractionEnabled ?? false} />
+										<FeatureToggle label="Summarization" enabled={ai?.summarizationEnabled ?? false} />
+										<FeatureToggle label="Chat Assistant" enabled={ai?.chatEnabled ?? false} />
+									</div>
+								</div>
 
-						<div className={styles.actionSection}>
-							<button
-								onClick={() =>
-									setConfirmDialog({
-										message: 'Reset AI token count for this tenant?',
-										onConfirm: () => resetAITokens.mutate(tenant.id),
-									})
-								}
-								className={styles.actionBtn}
-								disabled={resetAITokens.isPending}
-							>
-								{resetAITokens.isPending ? 'Resetting...' : 'Reset Token Count'}
-							</button>
-						</div>
+								<div className={styles.actionSection}>
+									<button
+										onClick={() =>
+											setConfirmDialog({
+												message: 'Reset AI token count for this tenant?',
+												onConfirm: handleResetTokens,
+											})
+										}
+										className={styles.actionBtn}
+										disabled={resetAITokens.isPending}
+									>
+										{resetAITokens.isPending ? 'Resetting...' : 'Reset Token Count'}
+									</button>
+								</div>
+							</>
+						)}
 					</div>
 				)}
 
 				{activeTab === 'subscription' && (
 					<div className={styles.section}>
-						<div className={styles.infoGrid}>
-							<InfoItem label="Plan" value={subscription?.plan || 'Free'} highlight />
-							<InfoItem label="Billing Cycle" value={subscription?.billingCycle || 'Monthly'} />
-							<InfoItem
-								label="Period End"
-								value={subscription?.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : '—'}
-							/>
-							<InfoItem
-								label="Cancel at Period End"
-								value={subscription?.cancelAtPeriodEnd ? 'Yes' : 'No'}
-								valueColor={subscription?.cancelAtPeriodEnd ? '#f87171' : '#4ade80'}
-							/>
-						</div>
+						{subscriptionLoading ? (
+							<InfoGridSkeleton count={4} />
+						) : subscriptionError ? (
+							<ErrorBanner message="Failed to load subscription settings." />
+						) : (
+							<>
+								<div className={styles.infoGrid}>
+									<InfoItem label="Plan" value={subscription?.plan || '—'} highlight />
+									<InfoItem label="Billing Cycle" value={subscription?.billingCycle || '—'} />
+									<InfoItem
+										label="Period End"
+										value={subscription?.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : '—'}
+									/>
+									<InfoItem
+										label="Cancel at Period End"
+										value={subscription?.cancelAtPeriodEnd ? 'Yes' : 'No'}
+										valueColor={subscription?.cancelAtPeriodEnd ? '#f87171' : '#4ade80'}
+									/>
+								</div>
 
-						<div className={styles.limitsSection}>
-							<h4 className={styles.sectionTitle}>Plan Limits</h4>
-							<div className={styles.limitsList}>
-								<div className={styles.limitItem}>
-									<span className={styles.limitLabel}>Max Users</span>
-									<span className={styles.limitValue}>{subscription?.maxUsers ?? '∞'}</span>
+								<div className={styles.limitsSection}>
+									<h4 className={styles.sectionTitle}>Plan Limits</h4>
+									<div className={styles.limitsList}>
+										<div className={styles.limitItem}>
+											<span className={styles.limitLabel}>Max Users</span>
+											<span className={styles.limitValue}>{subscription?.maxUsers ?? '—'}</span>
+										</div>
+										<div className={styles.limitItem}>
+											<span className={styles.limitLabel}>Max Storage</span>
+											<span className={styles.limitValue}>{subscription?.maxStorageGb ? `${subscription.maxStorageGb} GB` : '—'}</span>
+										</div>
+										<div className={styles.limitItem}>
+											<span className={styles.limitLabel}>Max Documents</span>
+											<span className={styles.limitValue}>{subscription?.maxDocuments ?? '—'}</span>
+										</div>
+										<div className={styles.limitItem}>
+											<span className={styles.limitLabel}>AI Tokens/Month</span>
+											<span className={styles.limitValue}>{subscription?.aiTokensPerMonth ? `${(subscription.aiTokensPerMonth / 1000).toFixed(0)}K` : '—'}</span>
+										</div>
+									</div>
 								</div>
-								<div className={styles.limitItem}>
-									<span className={styles.limitLabel}>Max Storage</span>
-									<span className={styles.limitValue}>{subscription?.maxStorageGb ? `${subscription.maxStorageGb} GB` : '∞'}</span>
-								</div>
-								<div className={styles.limitItem}>
-									<span className={styles.limitLabel}>Max Documents</span>
-									<span className={styles.limitValue}>{subscription?.maxDocuments ?? '∞'}</span>
-								</div>
-								<div className={styles.limitItem}>
-									<span className={styles.limitLabel}>AI Tokens/Month</span>
-									<span className={styles.limitValue}>{subscription?.aiTokensPerMonth ? `${(subscription.aiTokensPerMonth / 1000).toFixed(0)}K` : '∞'}</span>
-								</div>
-							</div>
-						</div>
+							</>
+						)}
 					</div>
 				)}
 
@@ -336,6 +466,27 @@ export function TenantDetailPanel({ tenant, onClose }: Props) {
 }
 
 // Sub-components
+function InfoGridSkeleton({ count }: { count: number }) {
+	return (
+		<div className={styles.infoGrid}>
+			{Array.from({ length: count }).map((_, index) => (
+				<div key={index} className={styles.infoItem}>
+					<Skeleton className="h-3 w-24 bg-primary/20" />
+					<Skeleton className="h-4 w-36 bg-primary/20" />
+				</div>
+			))}
+		</div>
+	);
+}
+
+function ErrorBanner({ message }: { message: string }) {
+	return (
+		<div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+			{message}
+		</div>
+	);
+}
+
 function InfoItem({
 	label,
 	value,

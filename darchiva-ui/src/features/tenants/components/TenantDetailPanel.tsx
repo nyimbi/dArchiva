@@ -299,6 +299,7 @@ export function TenantDetailPanel({
 
 				{activeTab === 'branding' && (
 					<TenantBrandingEditor
+						tenantId={tenant.id}
 						branding={tenant.branding}
 						onSave={onUpdateBranding}
 					/>
