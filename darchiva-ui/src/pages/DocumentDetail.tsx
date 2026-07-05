@@ -46,6 +46,7 @@ import type { ViewerPage } from '@/types';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Activity,ArrowLeft,Bell,Calendar,CheckSquare,Copy,Download,Edit2,FileText,FolderInput,GitFork,GitCompare,Hash,History,Layers,Lightbulb,Link2,Loader2,Lock,MessageCircle,MessageSquare,MoreHorizontal,PenTool,Printer,QrCode,ScanLine,ScanText,Scissors,Share2,Shield,Stamp,Star,Tag,Tags,Trash2,Users } from 'lucide-react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { useMemo,useState } from 'react';
 import { useNavigate,useParams } from 'react-router-dom';
 
@@ -181,7 +182,7 @@ export function DocumentDetail() {
 		}));
 	}, [id, previewPagesData?.pages, previewVersion?.id]);
 
-	// Handle saving OCR text
+	usePageTitle(document?.title);
 
 	if (isLoading) {
 		return (
