@@ -19,6 +19,7 @@ import { cn, formatBytes, formatRelativeTime } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
+	Activity,
 	AlertCircle,
 	ArrowDown,
 	ArrowUp,
@@ -514,7 +515,11 @@ export function Dashboard() {
 				) : feedError ? (
 					<ErrorState message="Failed to load activity" onRetry={() => void refetchFeed()} />
 				) : !feedEvents || feedEvents.length === 0 ? (
-					<div className="p-8 text-center text-sm text-slate-400">No activity yet</div>
+					<EmptyState
+						icon={Activity}
+						title="No recent activity"
+						description="Document events will appear here as they happen"
+					/>
 				) : (
 					feedEvents.map((event, idx) => (
 						<motion.div

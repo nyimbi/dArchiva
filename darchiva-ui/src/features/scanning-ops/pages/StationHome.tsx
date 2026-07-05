@@ -2,6 +2,7 @@ import { Clock, FileText, LogIn, LogOut, Scan, Target, Trophy, WifiOff } from 'l
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { useBrowserScanner } from '@/features/scanning-projects/hooks';
+import { toast } from 'sonner';
 import {
     useClockIn,
     useClockOut,
@@ -48,6 +49,11 @@ export function StationHome() {
     const clockOut = useClockOut();
 
     const displayName = user?.username ?? 'Operator';
+    const stationTitle = activeScanner?.name
+        ? `${activeScanner.name} Ready`
+        : activeSession?.project_name
+            ? `${activeSession.project_name} Ready`
+            : 'Station Ready';
     const targetPages = shiftStats?.target_pages ?? 0;
     const pagesScanned = shiftStats?.pages_scanned ?? 0;
     const qualityScore = shiftStats?.quality_score ?? 0;
@@ -63,7 +69,9 @@ export function StationHome() {
     const handleClockIn = () => {
         const projectId = new URLSearchParams(window.location.search).get('projectId') ?? '';
         if (!projectId) {
-            alert('No project selected. Navigate to a project and clock in from there, or ask your supervisor.');
+            toast.error('No project selected', {
+                description: 'Open a scanning project first, then clock in from the station home.',
+            });
             return;
         }
         clockIn.mutate({ project_id: projectId });
@@ -88,7 +96,7 @@ export function StationHome() {
                 {/* Welcome Banner */}
                 <div className="bg-gradient-to-br from-brass-600 to-brass-800 rounded-3xl p-8 text-slate-900 relative overflow-hidden shrink-0">
                     <div className="relative z-10">
-                        <h1 className="text-4xl font-bold mb-1">Station 01 Ready</h1>
+                        <h1 className="text-4xl font-bold mb-1">{stationTitle}</h1>
                         <p className="text-lg font-medium opacity-80 mb-6">Welcome back, {displayName}.</p>
                         <div className="flex items-center gap-4 flex-wrap">
                             <button
