@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   ArrowDownToLine,
   CalendarClock,
+  CreditCard,
   DatabaseZap,
   Briefcase,
   ChevronLeft,
@@ -27,6 +28,7 @@ import {
   Plug,
   Route,
   ScanLine,
+  ShieldCheck,
   Workflow,
   LayoutTemplate,
   Search,
@@ -37,6 +39,7 @@ import {
   Timer,
   TrendingUp,
   Upload,
+  UserCog,
   Users,
   Webhook,
   Zap,
@@ -66,6 +69,7 @@ const navItems = [
 	{ id: 'connectors', label: 'Connectors', icon: Plug, path: '/connectors' },
 	{ id: 'automation', label: 'Automation', icon: Zap, path: '/automation' },
 	{ id: 'reports-scheduled', label: 'Scheduled Reports', icon: CalendarClock, path: '/reports/scheduled' },
+	{ id: 'quality', label: 'Quality Control', icon: ShieldCheck, path: '/quality' },
 ];
 
 const adminItems = [
@@ -74,11 +78,13 @@ const adminItems = [
 	{ id: 'webhooks', label: 'Webhooks', icon: Webhook, path: '/webhooks' },
 	{ id: 'email-ingest', label: 'Email Ingest', icon: Mail, path: '/settings/email-ingest' },
 	{ id: 'admin-users', label: 'Users', icon: Users, path: '/admin/users' },
+	{ id: 'billing', label: 'Billing & Cost', icon: CreditCard, path: '/billing' },
 	{ id: 'api-keys', label: 'API Keys', icon: Key, path: '/api-keys' },
 	{ id: 'system', label: 'System Health', icon: Activity, path: '/system' },
 	{ id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
 	{ id: 'audit', label: 'Audit Logs', icon: History, path: '/audit' },
 	{ id: 'encryption', label: 'Encryption', icon: Shield, path: '/encryption' },
+	{ id: 'iam', label: 'IAM', icon: UserCog, path: '/iam' },
 	{ id: 'data-export', label: 'Data Export', icon: DatabaseZap, path: '/admin/data-export' },
 	{ id: 'superadmin', label: 'Super Admin', icon: ShieldAlert, path: '/superadmin' },
 ];

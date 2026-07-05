@@ -59,6 +59,9 @@ import { AutomationRulesPage } from './features/automation/AutomationRulesPage';
 import { ScheduledReportsPage } from './features/reports/ScheduledReportsPage';
 import { ThemeProvider } from './features/theme/ThemeProvider';
 import { EntityGraphPage } from './features/entity-graph/EntityGraphPage';
+import { CostDashboard } from './features/billing';
+import { QualityDashboard } from './features/quality';
+import { IAMDashboard } from './features/iam';
 
 import { ScanningLayout } from './features/scanning-ops/layouts/ScanningLayout';
 import { OperatorDashboard } from './features/scanning-ops/pages/OperatorDashboard';
@@ -150,6 +153,9 @@ export default function App() {
 								<Route path="reports/scheduled" element={<ScheduledReportsPage />} />
 								<Route path="analytics" element={<Analytics />} />
 								<Route path="entity-graph" element={<EntityGraphPage />} />
+								<Route path="billing" element={<CostDashboard />} />
+								<Route path="quality" element={<QualityDashboard />} />
+								<Route path="iam" element={<IAMDashboard />} />
 							</Route>
 						</Route>
 
