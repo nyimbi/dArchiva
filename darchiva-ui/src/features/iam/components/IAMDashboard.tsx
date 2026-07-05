@@ -1,5 +1,5 @@
 // IAM Dashboard — Identity & Access Management
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
 	AlertCircle,
 	Globe,
@@ -23,6 +23,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { apiClient } from '@/lib/api-client';
+import { UserForm } from '@/features/users/components/UserForm';
+import { useResetPassword } from '@/features/users/api';
+import type { User as UserFormUser } from '@/features/users/types';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -67,6 +73,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
 	useActiveSessions,
+	useAddGroupMembers,
 	useCreateGroup,
 	useCreateRole,
 	useGroups,
@@ -87,7 +94,8 @@ export function IAMDashboard({ onNavigate = () => {} }: IAMDashboardProps) {
 	const [inviteOpen, setInviteOpen] = useState(false);
 	const [createRoleOpen, setCreateRoleOpen] = useState(false);
 	const [createGroupOpen, setCreateGroupOpen] = useState(false);
-	const { data: stats, isLoading } = useIAMStats();
+	const statsQuery = useIAMStats();
+	const stats = statsQuery.data;
 
 	void onNavigate; // available for parent routing
 
@@ -116,8 +124,11 @@ export function IAMDashboard({ onNavigate = () => {} }: IAMDashboardProps) {
 			</div>
 
 			{/* Stats */}
+			{statsQuery.isError && (
+				<QueryErrorState onRetry={() => void statsQuery.refetch()} />
+			)}
 			<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-				{isLoading ? (
+				{statsQuery.isLoading ? (
 					Array.from({ length: 4 }).map((_, i) => (
 						<Skeleton key={i} className="h-28 rounded-xl" />
 					))
@@ -187,6 +198,55 @@ export function IAMDashboard({ onNavigate = () => {} }: IAMDashboardProps) {
 	);
 }
 
+function QueryErrorState({ onRetry }: { onRetry: () => void }) {
+	return (
+		<div className="flex items-center gap-2 text-sm text-destructive p-4">
+			<AlertCircle className="h-4 w-4" />
+			Failed to load.{' '}
+			<Button variant="ghost" size="sm" onClick={onRetry}>
+				Retry
+			</Button>
+		</div>
+	);
+}
+
+function useToggleUserActive() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+			apiClient.patch(`/users/${id}`, { is_active: isActive }),
+		onSuccess: (_, { id }) => {
+			qc.invalidateQueries({ queryKey: ['iam', 'users'] });
+			qc.invalidateQueries({ queryKey: ['iam', 'user', id] });
+			qc.invalidateQueries({ queryKey: ['iam', 'stats'] });
+			qc.invalidateQueries({ queryKey: ['users'] });
+		},
+	});
+}
+
+function useUpdateIAMGroup() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: ({ id, data }: { id: string; data: { name: string; description?: string } }) =>
+			apiClient.patch<Group>(`/iam/groups/${id}`, data).then((r) => r.data),
+		onSuccess: (_, { id }) => {
+			qc.invalidateQueries({ queryKey: ['iam', 'groups'] });
+			qc.invalidateQueries({ queryKey: ['iam', 'group', id] });
+		},
+	});
+}
+
+function useDeleteIAMGroup() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: (id: string) => apiClient.delete(`/iam/groups/${id}`),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ['iam', 'groups'] });
+			qc.invalidateQueries({ queryKey: ['iam', 'stats'] });
+		},
+	});
+}
+
 /* ── Stat Card ─────────────────────────────────────────────────────────── */
 function StatCard({
 	label,
@@ -224,83 +284,190 @@ function StatCard({
 function UsersTab({ onInvite }: { onInvite: () => void }) {
 	const [search, setSearch] = useState('');
 	const [statusFilter, setStatusFilter] = useState('all');
+	const [userToEdit, setUserToEdit] = useState<IAMUser | null>(null);
+	const [userToReset, setUserToReset] = useState<IAMUser | null>(null);
+	const [userToToggle, setUserToToggle] = useState<IAMUser | null>(null);
+	const qc = useQueryClient();
 
-	const { data, isLoading } = useIAMUsers({
+	const usersQuery = useIAMUsers({
 		search: search || undefined,
 		status: statusFilter === 'all' ? undefined : statusFilter,
 		pageSize: 20,
 	});
+	const resetPassword = useResetPassword();
+	const toggleUserActive = useToggleUserActive();
 
-	const users = data?.items ?? [];
+	const users = usersQuery.data?.items ?? [];
+
+	const userFormUser = userToEdit
+		? ({
+			...userToEdit,
+			permissions: userToEdit.effective_permissions,
+		} satisfies UserFormUser)
+		: null;
 
 	return (
-		<div className="space-y-4">
-			<div className="flex items-center gap-3">
-				<Input
-					placeholder="Search users..."
-					value={search}
-					onChange={(e) => setSearch(e.target.value)}
-					className="max-w-xs"
-				/>
-				<Select value={statusFilter} onValueChange={setStatusFilter}>
-					<SelectTrigger className="w-40">
-						<SelectValue />
-					</SelectTrigger>
-					<SelectContent>
-						<SelectItem value="all">All statuses</SelectItem>
-						<SelectItem value="active">Active</SelectItem>
-						<SelectItem value="inactive">Suspended</SelectItem>
-					</SelectContent>
-				</Select>
-				<div className="ml-auto">
-					<Button size="sm" onClick={onInvite}>
-						<UserPlus className="w-4 h-4 mr-2" />
-						Invite User
-					</Button>
+		<>
+			<div className="space-y-4">
+				<div className="flex items-center gap-3">
+					<Input
+						placeholder="Search users..."
+						value={search}
+						onChange={(e) => setSearch(e.target.value)}
+						className="max-w-xs"
+					/>
+					<Select value={statusFilter} onValueChange={setStatusFilter}>
+						<SelectTrigger className="w-40">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="all">All statuses</SelectItem>
+							<SelectItem value="active">Active</SelectItem>
+							<SelectItem value="inactive">Suspended</SelectItem>
+						</SelectContent>
+					</Select>
+					<div className="ml-auto">
+						<Button size="sm" onClick={onInvite}>
+							<UserPlus className="w-4 h-4 mr-2" />
+							Invite User
+						</Button>
+					</div>
+				</div>
+
+				{usersQuery.isError && (
+					<QueryErrorState onRetry={() => void usersQuery.refetch()} />
+				)}
+
+				<div className="rounded-md border">
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>User</TableHead>
+								<TableHead>Roles</TableHead>
+								<TableHead>Last Login</TableHead>
+								<TableHead>Status</TableHead>
+								<TableHead>2FA</TableHead>
+								<TableHead className="w-10" />
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{usersQuery.isLoading
+								? Array.from({ length: 5 }).map((_, i) => (
+										<TableRow key={i}>
+											<TableCell colSpan={6}>
+												<Skeleton className="h-8 w-full" />
+											</TableCell>
+										</TableRow>
+									))
+								: users.length === 0
+									? (
+										<TableRow>
+											<TableCell
+												colSpan={6}
+												className="text-center text-muted-foreground py-8"
+											>
+												No users found
+											</TableCell>
+										</TableRow>
+									)
+									: users.map((user) => (
+										<UserRow
+											key={user.id}
+											user={user}
+											onEdit={() => setUserToEdit(user)}
+											onResetPassword={() => setUserToReset(user)}
+											onToggleActive={() => setUserToToggle(user)}
+										/>
+									))}
+						</TableBody>
+					</Table>
 				</div>
 			</div>
-
-			<div className="rounded-md border">
-				<Table>
-					<TableHeader>
-						<TableRow>
-							<TableHead>User</TableHead>
-							<TableHead>Roles</TableHead>
-							<TableHead>Last Login</TableHead>
-							<TableHead>Status</TableHead>
-							<TableHead>2FA</TableHead>
-							<TableHead className="w-10" />
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{isLoading
-							? Array.from({ length: 5 }).map((_, i) => (
-									<TableRow key={i}>
-										<TableCell colSpan={6}>
-											<Skeleton className="h-8 w-full" />
-										</TableCell>
-									</TableRow>
-								))
-							: users.length === 0
-								? (
-									<TableRow>
-										<TableCell
-											colSpan={6}
-											className="text-center text-muted-foreground py-8"
-										>
-											No users found
-										</TableCell>
-									</TableRow>
-								)
-								: users.map((user) => <UserRow key={user.id} user={user} />)}
-					</TableBody>
-				</Table>
-			</div>
-		</div>
+			<UserForm
+				open={!!userToEdit}
+				onOpenChange={(open) => {
+					if (!open) {
+						setUserToEdit(null);
+						qc.invalidateQueries({ queryKey: ['iam', 'users'] });
+					}
+				}}
+				user={userFormUser}
+			/>
+			<AlertDialog open={!!userToReset} onOpenChange={(open) => { if (!open) setUserToReset(null); }}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Reset Password</AlertDialogTitle>
+						<AlertDialogDescription>
+							Reset the password for <strong>{userToReset?.email}</strong>?
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={() => {
+								if (!userToReset) return;
+								resetPassword.mutate(userToReset.id, {
+									onSuccess: () => {
+										toast.success('Password reset.');
+										setUserToReset(null);
+									},
+									onError: () => toast.error('Failed to reset password.'),
+								});
+							}}
+						>
+							Reset Password
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+			<AlertDialog open={!!userToToggle} onOpenChange={(open) => { if (!open) setUserToToggle(null); }}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>
+							{userToToggle?.is_active ? 'Suspend User' : 'Activate User'}
+						</AlertDialogTitle>
+						<AlertDialogDescription>
+							{userToToggle?.is_active ? 'Suspend' : 'Activate'}{' '}
+							<strong>{userToToggle?.email}</strong>?
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={() => {
+								if (!userToToggle) return;
+								toggleUserActive.mutate(
+									{ id: userToToggle.id, isActive: !userToToggle.is_active },
+									{
+										onSuccess: () => {
+											toast.success(userToToggle.is_active ? 'User suspended.' : 'User activated.');
+											setUserToToggle(null);
+										},
+										onError: () => toast.error('Failed to update user status.'),
+									},
+								);
+							}}
+						>
+							{userToToggle?.is_active ? 'Suspend' : 'Activate'}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+		</>
 	);
 }
 
-function UserRow({ user }: { user: IAMUser }) {
+function UserRow({
+	user,
+	onEdit,
+	onResetPassword,
+	onToggleActive,
+}: {
+	user: IAMUser;
+	onEdit: () => void;
+	onResetPassword: () => void;
+	onToggleActive: () => void;
+}) {
 	const full =
 		user.first_name && user.last_name
 			? `${user.first_name} ${user.last_name}`
@@ -377,9 +544,9 @@ function UserRow({ user }: { user: IAMUser }) {
 						</Button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end">
-						<DropdownMenuItem>Edit User</DropdownMenuItem>
-						<DropdownMenuItem>Reset Password</DropdownMenuItem>
-						<DropdownMenuItem className="text-destructive">
+						<DropdownMenuItem onClick={onEdit}>Edit User</DropdownMenuItem>
+						<DropdownMenuItem onClick={onResetPassword}>Reset Password</DropdownMenuItem>
+						<DropdownMenuItem onClick={onToggleActive} className="text-destructive">
 							{user.is_active ? 'Suspend' : 'Activate'}
 						</DropdownMenuItem>
 					</DropdownMenuContent>
@@ -391,8 +558,8 @@ function UserRow({ user }: { user: IAMUser }) {
 
 /* ── Roles Tab ─────────────────────────────────────────────────────────── */
 function RolesTab({ onCreate }: { onCreate: () => void }) {
-	const { data, isLoading } = useRoles({ pageSize: 50 });
-	const roles = data?.items ?? [];
+	const rolesQuery = useRoles({ pageSize: 50 });
+	const roles = rolesQuery.data?.items ?? [];
 
 	return (
 		<div className="space-y-4">
@@ -403,7 +570,11 @@ function RolesTab({ onCreate }: { onCreate: () => void }) {
 				</Button>
 			</div>
 
-			{isLoading ? (
+			{rolesQuery.isError && (
+				<QueryErrorState onRetry={() => void rolesQuery.refetch()} />
+			)}
+
+			{rolesQuery.isLoading ? (
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 					{Array.from({ length: 6 }).map((_, i) => (
 						<Skeleton key={i} className="h-36 rounded-xl" />
@@ -470,60 +641,126 @@ function RoleCard({ role }: { role: Role }) {
 
 /* ── Groups Tab ────────────────────────────────────────────────────────── */
 function GroupsTab({ onCreate }: { onCreate: () => void }) {
-	const { data, isLoading } = useGroups({ pageSize: 50 });
-	const groups = data?.items ?? [];
+	const [groupToEdit, setGroupToEdit] = useState<Group | null>(null);
+	const [groupToAddMembers, setGroupToAddMembers] = useState<Group | null>(null);
+	const [groupToDelete, setGroupToDelete] = useState<Group | null>(null);
+	const groupsQuery = useGroups({ pageSize: 50 });
+	const groups = groupsQuery.data?.items ?? [];
+	const deleteGroup = useDeleteIAMGroup();
+
+	const handleDelete = () => {
+		if (!groupToDelete) return;
+		deleteGroup.mutate(groupToDelete.id, {
+			onSuccess: () => {
+				toast.success('Group deleted.');
+				setGroupToDelete(null);
+			},
+			onError: () => toast.error('Failed to delete group.'),
+		});
+	};
 
 	return (
-		<div className="space-y-4">
-			<div className="flex justify-end">
-				<Button size="sm" onClick={onCreate}>
-					<UserPlus className="w-4 h-4 mr-2" />
-					Create Group
-				</Button>
-			</div>
+		<>
+			<div className="space-y-4">
+				<div className="flex justify-end">
+					<Button size="sm" onClick={onCreate}>
+						<UserPlus className="w-4 h-4 mr-2" />
+						Create Group
+					</Button>
+				</div>
 
-			<div className="rounded-md border">
-				<Table>
-					<TableHeader>
-						<TableRow>
-							<TableHead>Group</TableHead>
-							<TableHead>Members</TableHead>
-							<TableHead>Roles</TableHead>
-							<TableHead>Created</TableHead>
-							<TableHead className="w-10" />
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{isLoading
-							? Array.from({ length: 5 }).map((_, i) => (
-									<TableRow key={i}>
-										<TableCell colSpan={5}>
-											<Skeleton className="h-8 w-full" />
-										</TableCell>
-									</TableRow>
-								))
-							: groups.length === 0
-								? (
-									<TableRow>
-										<TableCell
-											colSpan={5}
-											className="text-center text-muted-foreground py-8"
-										>
-											No groups yet
-										</TableCell>
-									</TableRow>
-								)
-								: groups.map((group) => (
-									<GroupRow key={group.id} group={group} />
-								))}
-					</TableBody>
-				</Table>
+				{groupsQuery.isError && (
+					<QueryErrorState onRetry={() => void groupsQuery.refetch()} />
+				)}
+
+				<div className="rounded-md border">
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>Group</TableHead>
+								<TableHead>Members</TableHead>
+								<TableHead>Roles</TableHead>
+								<TableHead>Created</TableHead>
+								<TableHead className="w-10" />
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{groupsQuery.isLoading
+								? Array.from({ length: 5 }).map((_, i) => (
+										<TableRow key={i}>
+											<TableCell colSpan={5}>
+												<Skeleton className="h-8 w-full" />
+											</TableCell>
+										</TableRow>
+									))
+								: groups.length === 0
+									? (
+										<TableRow>
+											<TableCell
+												colSpan={5}
+												className="text-center text-muted-foreground py-8"
+											>
+												No groups yet
+											</TableCell>
+										</TableRow>
+									)
+									: groups.map((group) => (
+										<GroupRow
+											key={group.id}
+											group={group}
+											onEdit={() => setGroupToEdit(group)}
+											onAddMembers={() => setGroupToAddMembers(group)}
+											onDelete={() => setGroupToDelete(group)}
+										/>
+									))}
+						</TableBody>
+					</Table>
+				</div>
 			</div>
-		</div>
+			<EditGroupDialog
+				group={groupToEdit}
+				open={!!groupToEdit}
+				onOpenChange={(open) => { if (!open) setGroupToEdit(null); }}
+			/>
+			<AddGroupMembersDialog
+				group={groupToAddMembers}
+				open={!!groupToAddMembers}
+				onOpenChange={(open) => { if (!open) setGroupToAddMembers(null); }}
+			/>
+			<AlertDialog open={!!groupToDelete} onOpenChange={(open) => { if (!open) setGroupToDelete(null); }}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Delete Group</AlertDialogTitle>
+						<AlertDialogDescription>
+							Delete <strong>{groupToDelete?.name}</strong>? Members will lose access inherited from this group.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={handleDelete}
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+						>
+							Delete
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+		</>
 	);
 }
 
-function GroupRow({ group }: { group: Group }) {
+function GroupRow({
+	group,
+	onEdit,
+	onAddMembers,
+	onDelete,
+}: {
+	group: Group;
+	onEdit: () => void;
+	onAddMembers: () => void;
+	onDelete: () => void;
+}) {
 	return (
 		<TableRow>
 			<TableCell>
@@ -570,9 +807,9 @@ function GroupRow({ group }: { group: Group }) {
 						</Button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end">
-						<DropdownMenuItem>Edit</DropdownMenuItem>
-						<DropdownMenuItem>Add Members</DropdownMenuItem>
-						<DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+						<DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
+						<DropdownMenuItem onClick={onAddMembers}>Add Members</DropdownMenuItem>
+						<DropdownMenuItem onClick={onDelete} className="text-destructive">Delete</DropdownMenuItem>
 					</DropdownMenuContent>
 				</DropdownMenu>
 			</TableCell>
@@ -580,14 +817,206 @@ function GroupRow({ group }: { group: Group }) {
 	);
 }
 
+function EditGroupDialog({
+	group,
+	open,
+	onOpenChange,
+}: {
+	group: Group | null;
+	open: boolean;
+	onOpenChange: (v: boolean) => void;
+}) {
+	const [name, setName] = useState('');
+	const [description, setDescription] = useState('');
+	const updateGroup = useUpdateIAMGroup();
+
+	useEffect(() => {
+		if (open && group) {
+			setName(group.name);
+			setDescription(group.description ?? '');
+		}
+	}, [group, open]);
+
+	const handleSubmit = () => {
+		if (!group || !name.trim()) return;
+		updateGroup.mutate(
+			{ id: group.id, data: { name: name.trim(), description: description.trim() || undefined } },
+			{
+				onSuccess: () => {
+					toast.success('Group updated.');
+					onOpenChange(false);
+					setName('');
+					setDescription('');
+				},
+				onError: () => toast.error('Failed to update group.'),
+			},
+		);
+	};
+
+	return (
+		<Dialog
+			open={open}
+			onOpenChange={(nextOpen) => {
+				if (nextOpen && group) {
+					setName(group.name);
+					setDescription(group.description ?? '');
+				}
+				if (!nextOpen) {
+					setName('');
+					setDescription('');
+				}
+				onOpenChange(nextOpen);
+			}}
+		>
+			<DialogContent className="sm:max-w-md">
+				<DialogHeader>
+					<DialogTitle>Edit Group</DialogTitle>
+				</DialogHeader>
+				<div className="space-y-4 py-2">
+					<div className="space-y-2">
+						<Label htmlFor="edit-group-name">Group name</Label>
+						<Input
+							id="edit-group-name"
+							value={name}
+							onChange={(e) => setName(e.target.value)}
+						/>
+					</div>
+					<div className="space-y-2">
+						<Label htmlFor="edit-group-desc">Description</Label>
+						<Input
+							id="edit-group-desc"
+							value={description}
+							onChange={(e) => setDescription(e.target.value)}
+						/>
+					</div>
+				</div>
+				<DialogFooter>
+					<Button variant="outline" onClick={() => onOpenChange(false)}>
+						Cancel
+					</Button>
+					<Button onClick={handleSubmit} disabled={!name.trim() || updateGroup.isPending}>
+						{updateGroup.isPending ? 'Saving…' : 'Save Changes'}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
+function AddGroupMembersDialog({
+	group,
+	open,
+	onOpenChange,
+}: {
+	group: Group | null;
+	open: boolean;
+	onOpenChange: (v: boolean) => void;
+}) {
+	const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+	const usersQuery = useIAMUsers({ pageSize: 100, status: 'active' });
+	const addGroupMembers = useAddGroupMembers();
+	const qc = useQueryClient();
+	const users = usersQuery.data?.items ?? [];
+
+	const toggleUser = (userId: string) => {
+		setSelectedUserIds((prev) =>
+			prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
+		);
+	};
+
+	const handleSubmit = () => {
+		if (!group || selectedUserIds.length === 0) return;
+		addGroupMembers.mutate(
+			{ groupId: group.id, userIds: selectedUserIds },
+			{
+				onSuccess: () => {
+					toast.success('Members added.');
+					qc.invalidateQueries({ queryKey: ['iam', 'groups'] });
+					setSelectedUserIds([]);
+					onOpenChange(false);
+				},
+				onError: () => toast.error('Failed to add members.'),
+			},
+		);
+	};
+
+	return (
+		<Dialog
+			open={open}
+			onOpenChange={(nextOpen) => {
+				if (!nextOpen) setSelectedUserIds([]);
+				onOpenChange(nextOpen);
+			}}
+		>
+			<DialogContent className="sm:max-w-md">
+				<DialogHeader>
+					<DialogTitle>Add Members</DialogTitle>
+				</DialogHeader>
+				<div className="border rounded-md max-h-72 overflow-y-auto">
+					{usersQuery.isError ? (
+						<QueryErrorState onRetry={() => void usersQuery.refetch()} />
+					) : usersQuery.isLoading ? (
+						<div className="p-3 space-y-2">
+							{Array.from({ length: 4 }).map((_, i) => (
+								<Skeleton key={i} className="h-10 w-full" />
+							))}
+						</div>
+					) : users.length === 0 ? (
+						<p className="p-4 text-center text-sm text-muted-foreground">
+							No users available
+						</p>
+					) : (
+						<div className="divide-y">
+							{users.map((user) => (
+								<label
+									key={user.id}
+									className="flex items-center gap-3 p-3 hover:bg-accent/30 cursor-pointer"
+								>
+									<Checkbox
+										checked={selectedUserIds.includes(user.id)}
+										onCheckedChange={() => toggleUser(user.id)}
+									/>
+									<div className="min-w-0">
+										<p className="text-sm font-medium truncate">
+											{user.first_name && user.last_name
+												? `${user.first_name} ${user.last_name}`
+												: user.username}
+										</p>
+										<p className="text-xs text-muted-foreground truncate">{user.email}</p>
+									</div>
+								</label>
+							))}
+						</div>
+					)}
+				</div>
+				<DialogFooter>
+					<Button variant="outline" onClick={() => onOpenChange(false)}>
+						Cancel
+					</Button>
+					<Button
+						onClick={handleSubmit}
+						disabled={selectedUserIds.length === 0 || addGroupMembers.isPending}
+					>
+						{addGroupMembers.isPending ? 'Adding…' : 'Add Members'}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
 /* ── Policies Tab ──────────────────────────────────────────────────────── */
 function PoliciesTab() {
-	const { data: permGroups, isLoading } = usePermissionGroups();
+	const permGroupsQuery = usePermissionGroups();
+	const permGroups = permGroupsQuery.data;
 
-	if (isLoading) return <Skeleton className="h-64 w-full" />;
+	if (permGroupsQuery.isLoading) return <Skeleton className="h-64 w-full" />;
 
 	return (
 		<div className="space-y-4">
+			{permGroupsQuery.isError && (
+				<QueryErrorState onRetry={() => void permGroupsQuery.refetch()} />
+			)}
 			{(permGroups ?? []).map((group) => (
 				<Card key={group.category}>
 					<CardHeader className="pb-2">
@@ -626,27 +1055,31 @@ function PoliciesTab() {
 /* ── Sessions Tab ──────────────────────────────────────────────────────── */
 function SessionsTab() {
 	const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
-	const { data, isLoading, refetch } = useActiveSessions({ pageSize: 25 });
+	const sessionsQuery = useActiveSessions({ pageSize: 25 });
 	const revokeSession = useRevokeSession();
-	const sessions = data?.items ?? [];
+	const sessions = sessionsQuery.data?.items ?? [];
 
 	return (
 		<>
 			<div className="space-y-4">
 				<div className="flex items-center justify-between">
 					<p className="text-sm text-muted-foreground">
-						{data?.total ?? 0} active session
-						{(data?.total ?? 0) !== 1 ? 's' : ''}
+						{sessionsQuery.data?.total ?? 0} active session
+						{(sessionsQuery.data?.total ?? 0) !== 1 ? 's' : ''}
 					</p>
 					<Button
 						variant="outline"
 						size="sm"
-						onClick={() => void refetch()}
+						onClick={() => void sessionsQuery.refetch()}
 					>
 						<RefreshCw className="w-4 h-4 mr-2" />
 						Refresh
 					</Button>
 				</div>
+
+				{sessionsQuery.isError && (
+					<QueryErrorState onRetry={() => void sessionsQuery.refetch()} />
+				)}
 
 				<div className="rounded-md border">
 					<Table>
@@ -661,7 +1094,7 @@ function SessionsTab() {
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{isLoading
+							{sessionsQuery.isLoading
 								? Array.from({ length: 5 }).map((_, i) => (
 										<TableRow key={i}>
 											<TableCell colSpan={6}>
@@ -692,6 +1125,9 @@ function SessionsTab() {
 														revokeSession.mutate({
 															userId: session.user_id,
 															sessionId: session.id,
+														}, {
+															onSuccess: () => toast.success('Session revoked.'),
+															onError: () => toast.error('Failed to revoke session.'),
 														}),
 												})
 											}
@@ -807,10 +1243,12 @@ function InviteUserDialog({
 			{ email, role_ids: roleId ? [roleId] : [] },
 			{
 				onSuccess: () => {
+					toast.success('Invitation sent.');
 					onOpenChange(false);
 					setEmail('');
 					setRoleId('');
 				},
+				onError: () => toast.error('Failed to send invitation.'),
 			},
 		);
 	};
@@ -888,11 +1326,13 @@ function CreateRoleDialog({
 			{ name, description, permission_ids: selectedPerms },
 			{
 				onSuccess: () => {
+					toast.success('Role created.');
 					onOpenChange(false);
 					setName('');
 					setDescription('');
 					setSelectedPerms([]);
 				},
+				onError: () => toast.error('Failed to create role.'),
 			},
 		);
 	};
@@ -1004,10 +1444,12 @@ function CreateGroupDialog({
 			{ name, description },
 			{
 				onSuccess: () => {
+					toast.success('Group created.');
 					onOpenChange(false);
 					setName('');
 					setDescription('');
 				},
+				onError: () => toast.error('Failed to create group.'),
 			},
 		);
 	};

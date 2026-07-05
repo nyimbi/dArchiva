@@ -44,7 +44,8 @@ import {
 	Trash2,
 	Users,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { useCreateRole, useDeleteRole, useRoles, useUpdateRole } from '../roles/api';
 import type { Role } from '../roles/types';
 
@@ -60,27 +61,51 @@ function RoleFormDialog({ role, open, onOpenChange }: RoleFormDialogProps) {
 	const isEdit = !!role;
 	const [name, setName] = useState(role?.name ?? '');
 	const [description, setDescription] = useState(role?.description ?? '');
+	const [selectedPermissionIds, setSelectedPermissionIds] = useState<string[]>(
+		role?.permissions.map((permission) => permission.id) ?? [],
+	);
 
 	const createRole = useCreateRole();
 	const updateRole = useUpdateRole(role?.id ?? '');
+
+	useEffect(() => {
+		if (!open) return;
+		setName(role?.name ?? '');
+		setDescription(role?.description ?? '');
+		setSelectedPermissionIds(role?.permissions.map((permission) => permission.id) ?? []);
+	}, [open, role]);
 
 	// Reset form when dialog opens with a different role
 	const handleOpenChange = (o: boolean) => {
 		if (o) {
 			setName(role?.name ?? '');
 			setDescription(role?.description ?? '');
+			setSelectedPermissionIds(role?.permissions.map((permission) => permission.id) ?? []);
 		}
 		onOpenChange(o);
 	};
 
 	const handleSubmit = async () => {
 		if (!name.trim()) return;
-		if (isEdit && role) {
-			await updateRole.mutateAsync({ name: name.trim(), permission_ids: [] });
-		} else {
-			await createRole.mutateAsync({ name: name.trim(), description: description.trim() || undefined, permission_ids: [] });
+		try {
+			if (isEdit && role) {
+				await updateRole.mutateAsync({
+					name: name.trim(),
+					permission_ids: selectedPermissionIds,
+				});
+				toast.success('Role updated.');
+			} else {
+				await createRole.mutateAsync({
+					name: name.trim(),
+					description: description.trim() || undefined,
+					permission_ids: [],
+				});
+				toast.success('Role created.');
+			}
+			onOpenChange(false);
+		} catch {
+			toast.error(isEdit ? 'Failed to update role.' : 'Failed to create role.');
 		}
-		onOpenChange(false);
 	};
 
 	const isPending = createRole.isPending || updateRole.isPending;
@@ -158,8 +183,13 @@ export function RoleManagement() {
 
 	const handleDelete = async () => {
 		if (!roleToDelete) return;
-		await deleteRole.mutateAsync(roleToDelete.id);
-		setRoleToDelete(null);
+		try {
+			await deleteRole.mutateAsync(roleToDelete.id);
+			toast.success('Role deleted.');
+			setRoleToDelete(null);
+		} catch {
+			toast.error('Failed to delete role.');
+		}
 	};
 
 	return (
