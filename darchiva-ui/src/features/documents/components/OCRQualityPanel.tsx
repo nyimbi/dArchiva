@@ -22,6 +22,12 @@ function confidenceColor(score: number): string {
 	return '#ef4444'; // red-500
 }
 
+function confidenceTextClass(score: number): string {
+	if (score >= 0.8) return 'text-green-400';
+	if (score >= 0.6) return 'text-amber-400';
+	return 'text-red-400';
+}
+
 function confidenceLabel(score: number): string {
 	if (score >= 0.8) return 'Good';
 	if (score >= 0.6) return 'Fair';
@@ -49,55 +55,34 @@ function PageBar({ pageNumber, wordCount, confidence, isLow, onJumpToPage }: Pag
 	const width = `${Math.round(confidence * 100)}%`;
 
 	return (
-		<div
-			style={{
-				display: 'flex',
-				alignItems: 'center',
-				gap: '8px',
-				padding: '4px 0',
-				borderBottom: '1px solid #f1f5f9',
-			}}
-		>
+		<div className="flex items-center gap-2 border-b border-slate-100 py-1">
 			{/* Page number */}
 			<span
-				style={{
-					minWidth: '52px',
-					fontSize: '12px',
-					color: isLow ? '#ef4444' : '#64748b',
-					fontWeight: isLow ? 600 : 400,
-				}}
+				className={`min-w-[52px] text-xs ${
+					isLow ? 'font-semibold text-red-400' : 'text-slate-500'
+				}`}
 			>
 				pg {pageNumber}
 			</span>
 
 			{/* Bar track */}
-			<div
-				style={{
-					flex: 1,
-					height: '10px',
-					background: '#e2e8f0',
-					borderRadius: '5px',
-					overflow: 'hidden',
-				}}
-			>
+			<div className="h-2.5 flex-1 overflow-hidden rounded-[5px] bg-slate-200">
 				<div
+					className="h-full rounded-[5px] transition-[width] duration-300 ease-in-out"
 					style={{
 						width,
-						height: '100%',
-						background: color,
-						borderRadius: '5px',
-						transition: 'width 0.3s ease',
+						backgroundColor: color,
 					}}
 				/>
 			</div>
 
 			{/* Score */}
-			<span style={{ minWidth: '36px', fontSize: '12px', color, fontWeight: 600 }}>
+			<span className={`min-w-9 text-xs font-semibold ${confidenceTextClass(confidence)}`}>
 				{pct(confidence)}
 			</span>
 
 			{/* Word count */}
-			<span style={{ minWidth: '52px', fontSize: '11px', color: '#94a3b8' }}>
+			<span className="min-w-[52px] text-[11px] text-slate-400">
 				{wordCount}w
 			</span>
 
@@ -105,15 +90,7 @@ function PageBar({ pageNumber, wordCount, confidence, isLow, onJumpToPage }: Pag
 			{onJumpToPage && (
 				<button
 					onClick={() => onJumpToPage(pageNumber)}
-					style={{
-						fontSize: '11px',
-						color: '#6366f1',
-						background: 'none',
-						border: 'none',
-						cursor: 'pointer',
-						padding: '0 4px',
-						textDecoration: 'underline',
-					}}
+					className="cursor-pointer px-1 text-[11px] text-indigo-500 underline"
 				>
 					jump
 				</button>
@@ -142,7 +119,7 @@ export function OCRQualityPanel({ documentId, onJumpToPage }: OCRQualityPanelPro
 
 	if (isLoading) {
 		return (
-			<div style={{ padding: '16px', color: '#64748b', fontSize: '14px' }}>
+			<div className="p-4 text-sm text-slate-500">
 				Loading OCR quality data…
 			</div>
 		);
@@ -150,7 +127,7 @@ export function OCRQualityPanel({ documentId, onJumpToPage }: OCRQualityPanelPro
 
 	if (isError) {
 		return (
-			<div style={{ padding: '16px', color: '#ef4444', fontSize: '14px' }}>
+			<div className="p-4 text-sm text-red-400">
 				Failed to load OCR quality data.
 			</div>
 		);
@@ -158,23 +135,13 @@ export function OCRQualityPanel({ documentId, onJumpToPage }: OCRQualityPanelPro
 
 	if (!data || data.page_count === 0) {
 		return (
-			<div style={{ padding: '16px', color: '#94a3b8', fontSize: '14px' }}>
+			<div className="p-4 text-sm text-slate-400">
 				No OCR data available for this document yet.
 				<br />
 				<button
 					onClick={() => reOcr.mutate()}
 					disabled={reOcr.isPending}
-					style={{
-						marginTop: '10px',
-						padding: '6px 14px',
-						background: '#6366f1',
-						color: '#fff',
-						border: 'none',
-						borderRadius: '6px',
-						cursor: reOcr.isPending ? 'not-allowed' : 'pointer',
-						fontSize: '13px',
-						opacity: reOcr.isPending ? 0.7 : 1,
-					}}
+					className="mt-2.5 rounded-md bg-indigo-500 px-3.5 py-1.5 text-[13px] text-white disabled:cursor-not-allowed disabled:opacity-70"
 				>
 					{reOcr.isPending ? 'Queuing…' : 'Run OCR'}
 				</button>
@@ -184,47 +151,27 @@ export function OCRQualityPanel({ documentId, onJumpToPage }: OCRQualityPanelPro
 
 	const { overall_confidence, page_count, pages_with_text, page_scores, low_confidence_pages, ocr_status } = data;
 	const isProcessing = ocr_status === 'RECEIVED' || ocr_status === 'STARTED';
-	const overallColor = confidenceColor(overall_confidence);
 
 	return (
-		<div style={{ padding: '12px 16px', fontFamily: 'inherit' }}>
+		<div className="py-3 px-4">
 			{/* ---------------------------------------------------------------- */}
 			{/* Header: overall score + status badge                             */}
 			{/* ---------------------------------------------------------------- */}
-			<div
-				style={{
-					display: 'flex',
-					alignItems: 'center',
-					justifyContent: 'space-between',
-					marginBottom: '12px',
-				}}
-			>
-				<div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+			<div className="mb-3 flex items-center justify-between">
+				<div className="flex items-baseline gap-2">
 					<span
-						style={{
-							fontSize: '36px',
-							fontWeight: 700,
-							color: overallColor,
-							lineHeight: 1,
-						}}
+						className={`text-[36px] font-bold leading-none ${confidenceTextClass(overall_confidence)}`}
 					>
 						{pct(overall_confidence)}
 					</span>
-					<span style={{ fontSize: '14px', color: overallColor, fontWeight: 600 }}>
+					<span className={`text-sm font-semibold ${confidenceTextClass(overall_confidence)}`}>
 						{confidenceLabel(overall_confidence)}
 					</span>
 				</div>
 
 				{isProcessing && (
 					<span
-						style={{
-							fontSize: '12px',
-							padding: '2px 8px',
-							background: '#fef3c7',
-							color: '#92400e',
-							borderRadius: '10px',
-							fontWeight: 600,
-						}}
+						className="rounded-[10px] bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800"
 					>
 						OCR in progress…
 					</span>
@@ -234,19 +181,11 @@ export function OCRQualityPanel({ documentId, onJumpToPage }: OCRQualityPanelPro
 			{/* ---------------------------------------------------------------- */}
 			{/* Summary stats                                                    */}
 			{/* ---------------------------------------------------------------- */}
-			<div
-				style={{
-					display: 'flex',
-					gap: '16px',
-					marginBottom: '14px',
-					fontSize: '12px',
-					color: '#64748b',
-				}}
-			>
+			<div className="mb-3.5 flex gap-4 text-xs text-slate-500">
 				<span>{page_count} pages</span>
 				<span>{pages_with_text} with text</span>
 				{low_confidence_pages.length > 0 && (
-					<span style={{ color: '#ef4444', fontWeight: 600 }}>
+					<span className="font-semibold text-red-400">
 						{low_confidence_pages.length} low-confidence
 					</span>
 				)}
@@ -255,17 +194,8 @@ export function OCRQualityPanel({ documentId, onJumpToPage }: OCRQualityPanelPro
 			{/* ---------------------------------------------------------------- */}
 			{/* Per-page bars                                                    */}
 			{/* ---------------------------------------------------------------- */}
-			<div style={{ marginBottom: '14px' }}>
-				<div
-					style={{
-						fontSize: '11px',
-						fontWeight: 600,
-						color: '#94a3b8',
-						textTransform: 'uppercase',
-						letterSpacing: '0.06em',
-						marginBottom: '6px',
-					}}
-				>
+			<div className="mb-3.5">
+				<div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-400">
 					Per-page confidence
 				</div>
 				{page_scores.map((s) => (
@@ -284,34 +214,18 @@ export function OCRQualityPanel({ documentId, onJumpToPage }: OCRQualityPanelPro
 			{/* Low-confidence page list (quick reference)                       */}
 			{/* ---------------------------------------------------------------- */}
 			{low_confidence_pages.length > 0 && (
-				<div style={{ marginBottom: '14px' }}>
-					<div
-						style={{
-							fontSize: '11px',
-							fontWeight: 600,
-							color: '#ef4444',
-							textTransform: 'uppercase',
-							letterSpacing: '0.06em',
-							marginBottom: '6px',
-						}}
-					>
+				<div className="mb-3.5">
+					<div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-red-400">
 						Low-confidence pages
 					</div>
-					<div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+					<div className="flex flex-wrap gap-1.5">
 						{low_confidence_pages.map((pg) => (
 							<button
 								key={pg}
 								onClick={() => onJumpToPage?.(pg)}
-								style={{
-									padding: '2px 10px',
-									background: '#fee2e2',
-									color: '#b91c1c',
-									border: '1px solid #fecaca',
-									borderRadius: '12px',
-									cursor: onJumpToPage ? 'pointer' : 'default',
-									fontSize: '12px',
-									fontWeight: 600,
-								}}
+								className={`rounded-xl border border-red-200 bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700 ${
+									onJumpToPage ? 'cursor-pointer' : 'cursor-default'
+								}`}
 							>
 								pg {pg}
 							</button>
@@ -323,24 +237,11 @@ export function OCRQualityPanel({ documentId, onJumpToPage }: OCRQualityPanelPro
 			{/* ---------------------------------------------------------------- */}
 			{/* Re-OCR button                                                    */}
 			{/* ---------------------------------------------------------------- */}
-			<div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '8px' }}>
+			<div className="mt-2 flex items-center gap-2.5">
 				<button
 					onClick={() => reOcr.mutate()}
 					disabled={reOcr.isPending || isProcessing}
-					style={{
-						padding: '7px 16px',
-						background: reOcr.isPending || isProcessing ? '#a5b4fc' : '#6366f1',
-						color: '#fff',
-						border: 'none',
-						borderRadius: '6px',
-						cursor: reOcr.isPending || isProcessing ? 'not-allowed' : 'pointer',
-						fontSize: '13px',
-						fontWeight: 600,
-						display: 'flex',
-						alignItems: 'center',
-						gap: '6px',
-						transition: 'background 0.2s',
-					}}
+					className="flex items-center gap-1.5 rounded-md bg-indigo-500 px-4 py-[7px] text-[13px] font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:bg-indigo-300"
 				>
 					{reOcr.isPending || isProcessing ? (
 						<>
@@ -353,12 +254,12 @@ export function OCRQualityPanel({ documentId, onJumpToPage }: OCRQualityPanelPro
 				</button>
 
 				{reOcr.isSuccess && (
-					<span style={{ fontSize: '12px', color: '#22c55e', fontWeight: 600 }}>
+					<span className="text-xs font-semibold text-green-400">
 						Queued successfully
 					</span>
 				)}
 				{reOcr.isError && (
-					<span style={{ fontSize: '12px', color: '#ef4444' }}>
+					<span className="text-xs text-red-400">
 						Failed to queue re-OCR
 					</span>
 				)}
@@ -378,9 +279,8 @@ function SpinnerIcon() {
 			height="14"
 			viewBox="0 0 14 14"
 			fill="none"
-			style={{ animation: 'spin 1s linear infinite' }}
+			className="animate-spin"
 		>
-			<style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 			<circle cx="7" cy="7" r="5.5" stroke="rgba(255,255,255,0.4)" strokeWidth="2" />
 			<path
 				d="M7 1.5A5.5 5.5 0 0 1 12.5 7"
