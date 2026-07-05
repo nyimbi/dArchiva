@@ -44,6 +44,12 @@ interface ProfileForm {
 	apiTokens: ApiToken[];
 }
 
+interface TwoFactorSetupResponse {
+	qr_code?: string;  // base64 PNG/SVG or data URI
+	qr_url?: string;   // URL to QR image
+	secret?: string;   // TOTP secret for manual entry
+}
+
 const emptyProfile: ProfileForm = {
 	firstName: '',
 	lastName: '',
@@ -66,6 +72,7 @@ function passwordScore(password: string) {
 export function UserProfile() {
 	const [profile, setProfile] = useState<ProfileForm>(emptyProfile);
 	const [avatarFileName, setAvatarFileName] = useState('');
+	const [avatarUploading, setAvatarUploading] = useState(false);
 	const [currentPassword, setCurrentPassword] = useState('');
 	const [newPassword, setNewPassword] = useState('');
 	const [confirmPassword, setConfirmPassword] = useState('');
@@ -73,6 +80,9 @@ export function UserProfile() {
 	const [saving, setSaving] = useState(false);
 	const [status, setStatus] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [twoFactorQrCode, setTwoFactorQrCode] = useState<string | null>(null);
+	const [twoFactorSecret, setTwoFactorSecret] = useState<string | null>(null);
+	const [twoFactorSetting, setTwoFactorSetting] = useState(false);
 
 	useEffect(() => {
 		let mounted = true;
@@ -117,10 +127,27 @@ export function UserProfile() {
 		setProfile((current) => ({ ...current, [field]: value }));
 	};
 
-	const handleAvatarChange = (event: ChangeEvent<HTMLInputElement>) => {
+	// Bug fix #1: upload avatar to API on file pick, update avatarUrl from response
+	const handleAvatarChange = async (event: ChangeEvent<HTMLInputElement>) => {
 		const file = event.target.files?.[0];
 		if (!file) return;
 		setAvatarFileName(file.name);
+		setAvatarUploading(true);
+		setError(null);
+		setStatus(null);
+		try {
+			const formData = new FormData();
+			formData.append('avatar', file);
+			const { data } = await apiClient.post<{ avatarUrl: string }>('/users/me/avatar', formData, {
+				headers: { 'Content-Type': 'multipart/form-data' },
+			});
+			setProfile((current) => ({ ...current, avatarUrl: data.avatarUrl }));
+			setStatus('Avatar updated.');
+		} catch {
+			setError('Could not upload avatar.');
+		} finally {
+			setAvatarUploading(false);
+		}
 	};
 
 	const saveProfile = async () => {
@@ -159,15 +186,34 @@ export function UserProfile() {
 		}
 	};
 
+	// Bug fix #2: use response data to render real QR code or fallback TOTP secret
 	const setupTwoFactor = async () => {
 		setError(null);
 		setStatus(null);
+		setTwoFactorSetting(true);
+		setTwoFactorQrCode(null);
+		setTwoFactorSecret(null);
 		try {
-			await apiClient.post('/users/me/2fa/setup', {});
+			const { data } = await apiClient.post<TwoFactorSetupResponse>('/users/me/2fa/setup', {});
 			setProfile((current) => ({ ...current, twoFactorEnabled: true }));
-			setStatus('Two-factor authentication setup started.');
+			if (data.qr_code) {
+				// Accept a bare base64 string or a full data URI
+				setTwoFactorQrCode(
+					data.qr_code.startsWith('data:')
+						? data.qr_code
+						: `data:image/png;base64,${data.qr_code}`,
+				);
+			} else if (data.qr_url) {
+				setTwoFactorQrCode(data.qr_url);
+			}
+			if (data.secret) {
+				setTwoFactorSecret(data.secret);
+			}
+			setStatus('Two-factor authentication setup started. Scan the QR code with your authenticator app.');
 		} catch {
 			setError('Could not start two-factor setup.');
+		} finally {
+			setTwoFactorSetting(false);
 		}
 	};
 
@@ -238,17 +284,22 @@ export function UserProfile() {
 			<div className="grid gap-6 lg:grid-cols-[300px_1fr]">
 				<section className="rounded-lg border border-slate-800 bg-slate-900 p-5">
 					<div className="flex flex-col items-center text-center">
-						<div className="flex h-28 w-28 items-center justify-center rounded-full bg-slate-800 text-3xl font-semibold text-brass-300">
+						<div className="relative flex h-28 w-28 items-center justify-center rounded-full bg-slate-800 text-3xl font-semibold text-brass-300">
 							{profile.avatarUrl ? <img src={profile.avatarUrl} alt="" className="h-full w-full rounded-full object-cover" /> : initials}
+							{avatarUploading && (
+								<div className="absolute inset-0 flex items-center justify-center rounded-full bg-slate-900/70">
+									<div className="h-6 w-6 animate-spin rounded-full border-2 border-brass-400 border-t-transparent" />
+								</div>
+							)}
 						</div>
 						<h2 className="mt-4 text-lg font-semibold text-slate-100">{profile.firstName || profile.lastName ? `${profile.firstName} ${profile.lastName}` : 'Profile photo'}</h2>
 						<p className="text-sm text-slate-500">{profile.email}</p>
 						<label className="mt-4 inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border border-slate-700 px-4 text-sm text-slate-200 hover:bg-slate-800">
 							<Camera className="h-4 w-4" />
-							Upload photo
-							<input type="file" accept="image/*" onChange={handleAvatarChange} className="sr-only" />
+							{avatarUploading ? 'Uploading...' : 'Upload photo'}
+							<input type="file" accept="image/*" onChange={handleAvatarChange} disabled={avatarUploading} className="sr-only" />
 						</label>
-						{avatarFileName && <p className="mt-2 text-xs text-slate-500">{avatarFileName}</p>}
+						{avatarFileName && !avatarUploading && <p className="mt-2 text-xs text-slate-500">{avatarFileName}</p>}
 					</div>
 				</section>
 
@@ -317,13 +368,27 @@ export function UserProfile() {
 							{profile.twoFactorEnabled ? 'Enabled' : 'Not configured'}
 						</Badge>
 					</div>
-					<div className="mt-5 flex items-center gap-5">
-						<div className="flex h-32 w-32 items-center justify-center rounded-lg border border-dashed border-slate-700 bg-slate-800 text-slate-500">
-							<QrCode className="h-16 w-16" />
+					<div className="mt-5 flex items-start gap-5">
+						<div className="flex h-32 w-32 flex-shrink-0 items-center justify-center rounded-lg border border-dashed border-slate-700 bg-slate-800 text-slate-500">
+							{twoFactorQrCode ? (
+								<img src={twoFactorQrCode} alt="2FA QR code — scan with your authenticator app" className="h-full w-full rounded-lg object-contain" />
+							) : (
+								<QrCode className="h-16 w-16" />
+							)}
 						</div>
 						<div className="space-y-3">
 							<p className="text-sm text-slate-400">Scan the setup code with your authenticator app when setup starts.</p>
-							<Button onClick={setupTwoFactor}>Setup 2FA</Button>
+							{twoFactorSecret && (
+								<div className="space-y-1">
+									<p className="text-xs text-slate-500">Or enter this secret manually:</p>
+									<code className="block break-all rounded bg-slate-800 px-3 py-2 font-mono text-xs text-brass-300">
+										{twoFactorSecret}
+									</code>
+								</div>
+							)}
+							<Button onClick={setupTwoFactor} disabled={twoFactorSetting}>
+								{twoFactorSetting ? 'Setting up...' : 'Setup 2FA'}
+							</Button>
 						</div>
 					</div>
 				</section>
