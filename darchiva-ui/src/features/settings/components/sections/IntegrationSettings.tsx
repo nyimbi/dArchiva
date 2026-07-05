@@ -6,6 +6,14 @@ import { useCreateWebhook,useDeleteWebhook,useIntegrationSettings,useUpdateInteg
 import type { OAuthProvider,WebhookConfig } from '../../types';
 import { SettingsBadge,SettingsButton,SettingsCard,SettingsField,SettingsToggle } from '../ui/SettingsControls';
 
+const WEBHOOK_EVENTS = [
+	'document.created',
+	'document.updated',
+	'batch.completed',
+	'workflow.triggered',
+	'approval.requested',
+] as const;
+
 export function IntegrationSettings() {
 	const { data: settings } = useIntegrationSettings();
 	const { data: webhooks } = useWebhooks();
@@ -154,16 +162,64 @@ function NewWebhookForm({ onSubmit, onCancel }: {
 }) {
 	const [name, setName] = useState('');
 	const [url, setUrl] = useState('');
+	const [selectedEvents, setSelectedEvents] = useState<string[]>([...WEBHOOK_EVENTS]);
+	const [secret, setSecret] = useState('');
+
+	const toggleEvent = (event: string, checked: boolean) => {
+		setSelectedEvents((current) =>
+			checked ? [...current, event] : current.filter((selectedEvent) => selectedEvent !== event)
+		);
+	};
+
+	const generateSecret = () => {
+		const bytes = new Uint8Array(16);
+		crypto.getRandomValues(bytes);
+		setSecret(Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join(''));
+	};
 
 	return (
 		<div className="p-4 rounded-lg bg-slate-900 border border-cyan-500/30 space-y-4">
 			<SettingsField label="Name" value={name} onChange={setName} placeholder="My Webhook" />
 			<SettingsField label="URL" value={url} onChange={setUrl} placeholder="https://..." />
+			<div className="space-y-2">
+				<span className="text-sm font-medium text-slate-200">Events</span>
+				<div className="space-y-2 rounded-lg border border-slate-700 bg-slate-950/50 p-3">
+					{WEBHOOK_EVENTS.map((event) => (
+						<label key={event} className="flex items-center gap-3 text-sm text-slate-300">
+							<input
+								type="checkbox"
+								checked={selectedEvents.includes(event)}
+								onChange={(e) => toggleEvent(event, e.target.checked)}
+								className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-cyan-500 focus:ring-cyan-500"
+							/>
+							<span className="font-mono text-xs">{event}</span>
+						</label>
+					))}
+				</div>
+			</div>
+			<div className="space-y-2">
+				<SettingsField
+					label="Signing Secret"
+					value={secret}
+					onChange={setSecret}
+					type="password"
+					placeholder="Optional"
+				/>
+				<SettingsButton onClick={generateSecret}>Generate</SettingsButton>
+			</div>
 			<div className="flex gap-2">
 				<SettingsButton onClick={onCancel}>Cancel</SettingsButton>
 				<SettingsButton
 					variant="primary"
-					onClick={() => onSubmit({ name, url, events: ['*'], active: true, secret: null })}
+					onClick={() =>
+						onSubmit({
+							name,
+							url,
+							events: selectedEvents,
+							active: true,
+							secret: secret.trim() || null,
+						})
+					}
 				>
 					Create
 				</SettingsButton>

@@ -172,12 +172,15 @@ const LOGIN_ATTEMPTS: LoginAttempts[] = ['3', '5', '10'];
 const STORAGE_PROVIDERS: StorageProvider[] = ['Local', 'S3', 'MinIO', 'Azure'];
 const OCR_ENGINES: OcrEngine[] = ['Tesseract', 'EasyOCR', 'PaddleOCR', 'Azure Vision'];
 const NOTIFICATION_EVENTS = [
-	'Document Uploaded',
-	'OCR Complete',
-	'Workflow Triggered',
-	'Approval Needed',
-	'Share Received',
-	'System Alerts',
+	{ label: 'Document Uploaded', key: 'document_uploaded' },
+	{ label: 'OCR Complete', key: 'ocr_complete' },
+	{ label: 'Classification Done', key: 'classification_done' },
+	{ label: 'Workflow Triggered', key: 'workflow_triggered' },
+	{ label: 'Approval Needed', key: 'approval_needed' },
+	{ label: 'Share Received', key: 'document_shared' },
+	{ label: 'System Error', key: 'error' },
+	{ label: 'Warning', key: 'warning' },
+	{ label: 'System Alerts', key: 'system_alert' },
 ] as const;
 
 const OCR_LANGUAGES = ['English', 'French', 'Arabic', 'Spanish', 'Swahili', 'German'];
@@ -215,7 +218,10 @@ const DEFAULT_SETTINGS: SettingsState = {
 		itemsPerPage: '50',
 	},
 	notifications: Object.fromEntries(
-		NOTIFICATION_EVENTS.map((event) => [event, { inApp: true, email: event === 'Approval Needed' }])
+		NOTIFICATION_EVENTS.map((event) => [
+			event.key,
+			{ inApp: true, email: event.key === 'approval_needed' },
+		])
 	),
 	security: {
 		sessionTimeoutMinutes: 30,
@@ -740,24 +746,24 @@ export function Settings() {
 									</thead>
 									<tbody className="divide-y divide-slate-800">
 										{NOTIFICATION_EVENTS.map((event) => (
-											<tr key={event}>
-												<td className="px-4 py-3 font-medium text-slate-200">{event}</td>
+											<tr key={event.key}>
+												<td className="px-4 py-3 font-medium text-slate-200">{event.label}</td>
 												<td className="px-4 py-3 text-center">
 													<Switch
-														checked={settings.notifications[event]?.inApp ?? false}
+														checked={settings.notifications[event.key]?.inApp ?? false}
 														onCheckedChange={(value) =>
-															updateNotification(event, 'inApp', value)
+															updateNotification(event.key, 'inApp', value)
 														}
-														aria-label={`${event} in-app notifications`}
+														aria-label={`${event.label} in-app notifications`}
 													/>
 												</td>
 												<td className="px-4 py-3 text-center">
 													<Switch
-														checked={settings.notifications[event]?.email ?? false}
+														checked={settings.notifications[event.key]?.email ?? false}
 														onCheckedChange={(value) =>
-															updateNotification(event, 'email', value)
+															updateNotification(event.key, 'email', value)
 														}
-														aria-label={`${event} email notifications`}
+														aria-label={`${event.label} email notifications`}
 													/>
 												</td>
 											</tr>
