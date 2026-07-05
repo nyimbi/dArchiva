@@ -43,6 +43,7 @@ import {
 	Wand2,
 	XCircle,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useState } from 'react';
 
 // =====================================================
@@ -211,33 +212,49 @@ function ExceptionsTab() {
 	}
 
 	async function bulkResolve() {
-		await Promise.all(
-			Array.from(selectedIds).map((id) =>
-				resolve.mutateAsync({ id, resolution_notes: 'Bulk resolved' }),
-			),
-		);
-		setSelectedIds(new Set());
+		try {
+			await Promise.all(
+				Array.from(selectedIds).map((id) =>
+					resolve.mutateAsync({ id, resolution_notes: 'Bulk resolved' }),
+				),
+			);
+			setSelectedIds(new Set());
+		} catch {
+			toast.error('Bulk action failed. Please try again.');
+		}
 	}
 
 	async function bulkDismiss() {
-		await Promise.all(
-			Array.from(selectedIds).map((id) => dismiss.mutateAsync({ id })),
-		);
-		setSelectedIds(new Set());
+		try {
+			await Promise.all(
+				Array.from(selectedIds).map((id) => dismiss.mutateAsync({ id })),
+			);
+			setSelectedIds(new Set());
+		} catch {
+			toast.error('Bulk action failed. Please try again.');
+		}
 	}
 
 	async function bulkRequeue() {
-		await Promise.all(
-			Array.from(selectedIds).map((id) => requeueMutation.mutateAsync(id)),
-		);
-		setSelectedIds(new Set());
+		try {
+			await Promise.all(
+				Array.from(selectedIds).map((id) => requeueMutation.mutateAsync(id)),
+			);
+			setSelectedIds(new Set());
+		} catch {
+			toast.error('Bulk action failed. Please try again.');
+		}
 	}
 
 	async function bulkAssign() {
-		await Promise.all(
-			Array.from(selectedIds).map((id) => assignMutation.mutateAsync(id)),
-		);
-		setSelectedIds(new Set());
+		try {
+			await Promise.all(
+				Array.from(selectedIds).map((id) => assignMutation.mutateAsync(id)),
+			);
+			setSelectedIds(new Set());
+		} catch {
+			toast.error('Bulk action failed. Please try again.');
+		}
 	}
 
 	const selectCls =

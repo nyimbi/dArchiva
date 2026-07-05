@@ -16,6 +16,7 @@ import {
 	ShieldOff,
 	X,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useState } from 'react';
 
 interface Props {
@@ -51,9 +52,13 @@ function CopyButton({ text }: { text: string }) {
 	const [copied, setCopied] = useState(false);
 
 	const handleCopy = async () => {
-		await navigator.clipboard.writeText(text);
-		setCopied(true);
-		setTimeout(() => setCopied(false), 1800);
+		try {
+			await navigator.clipboard.writeText(text);
+			setCopied(true);
+			setTimeout(() => setCopied(false), 1800);
+		} catch {
+			toast.error('Failed to copy link');
+		}
 	};
 
 	return (
@@ -82,13 +87,17 @@ export function ShareLinkDialog({ open, documentId, documentTitle, onClose }: Pr
 	const deactivate = useDeactivateShareLink(documentId);
 
 	const handleCreate = async () => {
-		await createLink.mutateAsync({
-			expiry,
-			password: password.trim() || undefined,
-			maxViews: maxViews ? parseInt(maxViews, 10) : undefined,
-		});
-		setPassword('');
-		setMaxViews('');
+		try {
+			await createLink.mutateAsync({
+				expiry,
+				password: password.trim() || undefined,
+				maxViews: maxViews ? parseInt(maxViews, 10) : undefined,
+			});
+			setPassword('');
+			setMaxViews('');
+		} catch {
+			toast.error('Failed to create share link');
+		}
 	};
 
 	if (!open) return null;

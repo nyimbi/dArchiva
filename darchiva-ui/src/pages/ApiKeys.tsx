@@ -11,6 +11,7 @@ import {
 	Trash2,
 	Zap,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { EmptyState } from '@/components/EmptyState';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -160,9 +161,13 @@ function RevealModal({ created, onClose }: RevealModalProps) {
 	const [copied, setCopied] = useState(false);
 
 	async function handleCopy() {
-		await navigator.clipboard.writeText(created.key);
-		setCopied(true);
-		setTimeout(() => setCopied(false), 2000);
+		try {
+			await navigator.clipboard.writeText(created.key);
+			setCopied(true);
+			setTimeout(() => setCopied(false), 2000);
+		} catch {
+			toast.error('Failed to copy');
+		}
 	}
 
 	return (
@@ -252,12 +257,16 @@ function CreateDialog({ onClose, onCreated }: CreateDialogProps) {
 		if (!name.trim()) return;
 
 		const expires_at = expiryDays != null ? addDays(expiryDays) : null;
-		const result = await createMutation.mutateAsync({
-			name: name.trim(),
-			scopes: selectedScopes,
-			expires_at,
-		});
-		onCreated(result);
+		try {
+			const result = await createMutation.mutateAsync({
+				name: name.trim(),
+				scopes: selectedScopes,
+				expires_at,
+			});
+			onCreated(result);
+		} catch {
+			toast.error('Failed to create API key');
+		}
 	}
 
 	return (
@@ -360,8 +369,12 @@ function KeyRow({ apiKey }: { apiKey: ApiKey }) {
 
 	async function handleRevoke() {
 		if (!confirming) { setConfirming(true); return; }
-		await revoke.mutateAsync(apiKey.id);
-		setConfirming(false);
+		try {
+			await revoke.mutateAsync(apiKey.id);
+			setConfirming(false);
+		} catch {
+			toast.error('Failed to revoke key');
+		}
 	}
 
 	return (
