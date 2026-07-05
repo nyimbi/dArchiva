@@ -27,18 +27,70 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 
+function QueryErrorBanner({
+  message,
+  onRetry,
+  isRetrying,
+}: {
+  message: string;
+  onRetry: () => void;
+  isRetrying?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+      <div className="flex items-center gap-2">
+        <AlertCircle className="w-4 h-4 text-red-400" />
+        <span>{message}</span>
+      </div>
+      <button
+        type="button"
+        onClick={onRetry}
+        disabled={isRetrying}
+        className="btn-ghost py-1.5 text-red-300 hover:bg-red-500/10 disabled:opacity-50"
+      >
+        <RefreshCw className={cn('w-4 h-4', isRetrying && 'animate-spin')} />
+        Retry
+      </button>
+    </div>
+  );
+}
+
 export function Encryption() {
   const [activeTab, setActiveTab] = useState<'overview' | 'keys' | 'access' | 'documents'>('overview');
   const [showRotateModal, setShowRotateModal] = useState(false);
   const [expiryDays, setExpiryDays] = useState(30);
   const { openModal } = useStore();
 
-  const { data: keys, isLoading: keysLoading } = useEncryptionKeys();
+  const {
+    data: keys,
+    isLoading: keysLoading,
+    isError: keysError,
+    isFetching: keysFetching,
+    refetch: refetchKeys,
+  } = useEncryptionKeys();
 
   const handleViewDocument = (doc: EncryptedDocument) => openModal('view-encrypted-document', doc);
-  const { data: stats, isLoading: statsLoading } = useEncryptionStats();
-  const { data: accessRequests, isLoading: accessLoading } = useAccessRequests();
-  const { data: encryptedDocs, isLoading: docsLoading } = useEncryptedDocuments();
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isError: statsError,
+    isFetching: statsFetching,
+    refetch: refetchStats,
+  } = useEncryptionStats();
+  const {
+    data: accessRequests,
+    isLoading: accessLoading,
+    isError: accessError,
+    isFetching: accessFetching,
+    refetch: refetchAccessRequests,
+  } = useAccessRequests();
+  const {
+    data: encryptedDocs,
+    isLoading: docsLoading,
+    isError: docsError,
+    isFetching: docsFetching,
+    refetch: refetchEncryptedDocs,
+  } = useEncryptedDocuments();
   const rotateKey = useRotateKey();
   const resolveRequest = useResolveAccessRequest();
 
@@ -46,7 +98,7 @@ export function Encryption() {
   const pendingRequests = Array.isArray(accessRequests) ? accessRequests.filter(r => r.status === 'pending').length : 0;
 
   const handleRotateKey = () => {
-    rotateKey.mutate(undefined, {
+    rotateKey.mutate({ expiryDays } as never, {
       onSuccess: () => setShowRotateModal(false),
     });
   };
@@ -74,6 +126,37 @@ export function Encryption() {
           <RefreshCw className="w-4 h-4" />
           Rotate Key
         </button>
+      </div>
+
+      <div className="space-y-2">
+        {keysError && (
+          <QueryErrorBanner
+            message="Failed to load encryption keys."
+            onRetry={() => void refetchKeys()}
+            isRetrying={keysFetching}
+          />
+        )}
+        {statsError && (
+          <QueryErrorBanner
+            message="Failed to load encryption statistics."
+            onRetry={() => void refetchStats()}
+            isRetrying={statsFetching}
+          />
+        )}
+        {accessError && (
+          <QueryErrorBanner
+            message="Failed to load access requests."
+            onRetry={() => void refetchAccessRequests()}
+            isRetrying={accessFetching}
+          />
+        )}
+        {docsError && (
+          <QueryErrorBanner
+            message="Failed to load encrypted documents."
+            onRetry={() => void refetchEncryptedDocs()}
+            isRetrying={docsFetching}
+          />
+        )}
       </div>
 
       {/* Stats */}

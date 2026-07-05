@@ -6,6 +6,7 @@ import {
   useExtractionQueue,
   useFormTemplates,
   useReExtract,
+  useUpdateFieldValue,
   type ExtractionQueueItem,
   type ExtractionStatus,
   type FieldValue,
@@ -50,6 +51,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { cn, formatRelativeTime } from '@/lib/utils';
 import {
+  AlertCircle,
   AlertTriangle,
   Check,
   CheckCircle2,
@@ -59,6 +61,7 @@ import {
   Loader2,
   Pencil,
   Plus,
+  RefreshCw,
   RotateCcw,
   Save,
   Settings,
@@ -86,6 +89,29 @@ const STATUS_LABEL: Record<ExtractionStatus, string> = {
   needs_review: 'Needs Review',
   failed: 'Failed',
 };
+
+function QueryErrorBanner({
+  message,
+  onRetry,
+  isRetrying,
+}: {
+  message: string;
+  onRetry: () => void;
+  isRetrying?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+      <div className="flex items-center gap-2">
+        <AlertCircle className="w-4 h-4" />
+        <span>{message}</span>
+      </div>
+      <Button variant="ghost" size="sm" onClick={onRetry} disabled={isRetrying}>
+        <RefreshCw className={cn('w-4 h-4 mr-2', isRetrying && 'animate-spin')} />
+        Retry
+      </Button>
+    </div>
+  );
+}
 
 // ─── Add Form Template Dialog ─────────────────────────────────────────────────
 
@@ -279,11 +305,30 @@ function ReviewSheet({
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
-  const { data: extraction, isLoading } = useExtraction(extractionId ?? '');
+  const {
+    data: extraction,
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+  } = useExtraction(extractionId ?? '');
   const confirmExtraction = useConfirmExtraction();
   const reExtract = useReExtract();
+  const updateFieldValue = useUpdateFieldValue();
+  const [editField, setEditField] = useState<FieldValue | null>(null);
+  const [editValue, setEditValue] = useState('');
 
   const lowConfidenceCount = extraction?.fieldValues.filter((f) => f.confidence < 0.75).length ?? 0;
+
+  const openEditField = (field: FieldValue) => {
+    setEditField(field);
+    setEditValue(field.value);
+  };
+
+  const closeEditField = () => {
+    setEditField(null);
+    setEditValue('');
+  };
 
   const handleConfirm = async () => {
     if (extractionId) {
@@ -296,6 +341,18 @@ function ReviewSheet({
     if (extractionId) {
       await reExtract.mutateAsync(extractionId);
     }
+  };
+
+  const handleUpdateField = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!extractionId || !editField) return;
+
+    await updateFieldValue.mutateAsync({
+      extractionId,
+      fieldName: editField.fieldName,
+      value: editValue,
+    });
+    closeEditField();
   };
 
   return (
@@ -313,6 +370,14 @@ function ReviewSheet({
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-14 w-full" />
             ))}
+          </div>
+        ) : isError ? (
+          <div className="mt-6">
+            <QueryErrorBanner
+              message="Failed to load extraction details."
+              onRetry={() => void refetch()}
+              isRetrying={isFetching}
+            />
           </div>
         ) : extraction ? (
           <div className="mt-6 space-y-6">
@@ -361,7 +426,7 @@ function ReviewSheet({
               </div>
               <div className="space-y-2">
                 {extraction.fieldValues.map((field: FieldValue) => (
-                  <FieldRow key={field.fieldName} field={field} onEdit={() => {}} />
+                  <FieldRow key={field.fieldName} field={field} onEdit={() => openEditField(field)} />
                 ))}
               </div>
             </div>
@@ -446,6 +511,45 @@ function ReviewSheet({
           </div>
         )}
       </SheetContent>
+      <Dialog open={!!editField} onOpenChange={(isOpen) => {
+        if (!isOpen) closeEditField();
+      }}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Edit Field</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleUpdateField} className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="field-label">Field</Label>
+              <Input id="field-label" value={editField?.label ?? ''} disabled />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="field-value">Value</Label>
+              <Input
+                id="field-value"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                autoFocus
+              />
+            </div>
+            {updateFieldValue.isError && (
+              <div className="flex items-center gap-2 text-sm text-destructive">
+                <AlertCircle className="w-4 h-4" />
+                Failed to update field. Please try again.
+              </div>
+            )}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={closeEditField}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={updateFieldValue.isPending || !editField}>
+                {updateFieldValue.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Save Field
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </Sheet>
   );
 }
@@ -453,7 +557,13 @@ function ReviewSheet({
 // ─── Templates Tab ────────────────────────────────────────────────────────────
 
 function TemplatesTab({ onAddTemplate }: { onAddTemplate: () => void }) {
-  const { data: templatesData, isLoading } = useFormTemplates();
+  const {
+    data: templatesData,
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+  } = useFormTemplates();
   const templates = templatesData?.items || [];
 
   return (
@@ -477,6 +587,14 @@ function TemplatesTab({ onAddTemplate }: { onAddTemplate: () => void }) {
             <Skeleton className="h-8 w-full" />
           </div>
         ))
+      ) : isError ? (
+        <div className="col-span-full">
+          <QueryErrorBanner
+            message="Failed to load form templates."
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
+          />
+        </div>
       ) : templates.length === 0 ? (
         <div className="col-span-full text-center py-12 text-muted-foreground">
           <FileText className="w-10 h-10 mx-auto mb-3 opacity-40" />
@@ -658,7 +776,13 @@ export function Forms() {
   const [reviewId, setReviewId] = useState<string | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
 
-  const { data: queueData, isLoading: queueLoading } = useExtractionQueue();
+  const {
+    data: queueData,
+    isLoading: queueLoading,
+    isError: queueError,
+    isFetching: queueFetching,
+    refetch: refetchQueue,
+  } = useExtractionQueue();
   const allItems = queueData?.items ?? [];
 
   const queueItems = allItems.filter(
@@ -694,6 +818,14 @@ export function Forms() {
           </Button>
         </div>
       </div>
+
+      {queueError && (
+        <QueryErrorBanner
+          message="Failed to load extraction queue."
+          onRetry={() => void refetchQueue()}
+          isRetrying={queueFetching}
+        />
+      )}
 
       {/* Tabs */}
       <Tabs defaultValue="templates">
