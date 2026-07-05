@@ -1,6 +1,48 @@
 // (c) Copyright Datacraft, 2026.
 import { useState } from 'react';
 import {
+	CalendarClock,
+	CheckCircle2,
+	Clock,
+	FileText,
+	Loader2,
+	Plus,
+	Send,
+	Trash2,
+	Pencil,
+} from 'lucide-react';
+
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
+
+import {
 	useScheduledReports,
 	useCreateScheduledReport,
 	useUpdateScheduledReport,
@@ -24,11 +66,11 @@ const REPORT_TYPE_LABELS: Record<ReportType, string> = {
 	expiry_upcoming: 'Expiry Upcoming',
 };
 
-const REPORT_TYPE_COLORS: Record<ReportType, string> = {
-	document_summary: 'bg-blue-900 text-blue-300',
-	ocr_quality: 'bg-purple-900 text-purple-300',
-	scanning_productivity: 'bg-green-900 text-green-300',
-	expiry_upcoming: 'bg-amber-900 text-amber-300',
+const REPORT_TYPE_VARIANTS: Record<ReportType, 'default' | 'secondary' | 'outline'> = {
+	document_summary: 'default',
+	ocr_quality: 'secondary',
+	scanning_productivity: 'outline',
+	expiry_upcoming: 'outline',
 };
 
 const SCHEDULE_LABELS: Record<ReportSchedule, string> = {
@@ -38,7 +80,6 @@ const SCHEDULE_LABELS: Record<ReportSchedule, string> = {
 };
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 // ---------------------------------------------------------------------------
@@ -66,22 +107,69 @@ function formatDate(iso: string | null): string {
 	return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
+/**
+ * Compute the next send datetime for a scheduled report.
+ * Returns a Date representing the next scheduled delivery.
+ */
+function nextSendDate(r: ScheduledReport): Date {
+	const now = new Date();
+	const candidate = new Date(now);
+	// set to today at delivery hour UTC
+	candidate.setUTCHours(r.delivery_hour, 0, 0, 0);
+
+	if (r.schedule === 'daily') {
+		if (candidate <= now) candidate.setUTCDate(candidate.getUTCDate() + 1);
+		return candidate;
+	}
+
+	if (r.schedule === 'weekly') {
+		const targetDay = r.day_of_week ?? 0; // 0=Mon … 6=Sun
+		// JS getDay(): 0=Sun,1=Mon… convert to Mon-based: (getDay()+6)%7
+		const todayMon = (now.getUTCDay() + 6) % 7;
+		let daysAhead = (targetDay - todayMon + 7) % 7;
+		if (daysAhead === 0 && candidate <= now) daysAhead = 7;
+		candidate.setUTCDate(candidate.getUTCDate() + daysAhead);
+		return candidate;
+	}
+
+	// monthly — 1st of next month (or this month if not yet passed)
+	candidate.setUTCDate(1);
+	if (candidate <= now) {
+		candidate.setUTCMonth(candidate.getUTCMonth() + 1);
+		candidate.setUTCDate(1);
+	}
+	return candidate;
+}
+
+function formatNextSend(r: ScheduledReport): string {
+	const next = nextSendDate(r);
+	const diff = next.getTime() - Date.now();
+	const hours = Math.floor(diff / 3_600_000);
+	if (hours < 1) return 'In < 1h';
+	if (hours < 24) return `In ${hours}h`;
+	const days = Math.floor(hours / 24);
+	return `In ${days}d`;
+}
+
 // ---------------------------------------------------------------------------
-// Dialog
+// Create / Edit Dialog
 // ---------------------------------------------------------------------------
 
-interface DialogProps {
+interface ReportDialogProps {
+	open: boolean;
 	initial?: ScheduledReport | null;
 	onClose: () => void;
 }
 
-function ReportDialog({ initial, onClose }: DialogProps) {
+function ReportDialog({ open, initial, onClose }: ReportDialogProps) {
 	const isEdit = !!initial;
 	const create = useCreateScheduledReport();
 	const update = useUpdateScheduledReport();
 
 	const [name, setName] = useState(initial?.name ?? '');
-	const [reportType, setReportType] = useState<ReportType>(initial?.report_type ?? 'document_summary');
+	const [reportType, setReportType] = useState<ReportType>(
+		initial?.report_type ?? 'document_summary',
+	);
 	const [schedule, setSchedule] = useState<ReportSchedule>(initial?.schedule ?? 'daily');
 	const [deliveryHour, setDeliveryHour] = useState(initial?.delivery_hour ?? 8);
 	const [dayOfWeek, setDayOfWeek] = useState<number>(initial?.day_of_week ?? 0);
@@ -94,7 +182,6 @@ function ReportDialog({ initial, onClose }: DialogProps) {
 	async function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
 		setError('');
-
 		const payload: CreateScheduledReportInput = {
 			name,
 			report_type: reportType,
@@ -104,7 +191,6 @@ function ReportDialog({ initial, onClose }: DialogProps) {
 			recipients,
 			format,
 		};
-
 		try {
 			if (isEdit && initial) {
 				await update.mutateAsync({ id: initial.id, ...payload });
@@ -113,172 +199,231 @@ function ReportDialog({ initial, onClose }: DialogProps) {
 			}
 			onClose();
 		} catch (err: unknown) {
-			const msg = err instanceof Error ? err.message : 'Request failed';
-			setError(msg);
+			setError(err instanceof Error ? err.message : 'Request failed');
 		}
 	}
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-			<div className="w-full max-w-lg rounded-xl border border-slate-700 bg-slate-900 shadow-2xl">
-				{/* Header */}
-				<div className="flex items-center justify-between border-b border-slate-700 px-6 py-4">
-					<h2 className="text-lg font-semibold text-slate-100">
+		<Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+			<DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+				<DialogHeader>
+					<DialogTitle>
 						{isEdit ? 'Edit Scheduled Report' : 'New Scheduled Report'}
-					</h2>
-					<button
-						onClick={onClose}
-						className="text-slate-400 transition hover:text-slate-200"
-						aria-label="Close"
-					>
-						<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-						</svg>
-					</button>
-				</div>
+					</DialogTitle>
+				</DialogHeader>
 
-				{/* Body */}
-				<form onSubmit={handleSubmit} className="space-y-5 px-6 py-5">
-					{/* Name */}
-					<div>
-						<label className="mb-1 block text-sm font-medium text-slate-300">Name</label>
-						<input
-							type="text"
+				<form onSubmit={handleSubmit} className="space-y-4">
+					<div className="space-y-1">
+						<Label htmlFor="sr-name">Name</Label>
+						<Input
+							id="sr-name"
+							required
+							placeholder="e.g. Weekly OCR Quality Report"
 							value={name}
 							onChange={e => setName(e.target.value)}
-							required
-							className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-							placeholder="e.g. Weekly OCR Quality Report"
 						/>
 					</div>
 
-					{/* Report type */}
-					<div>
-						<label className="mb-1 block text-sm font-medium text-slate-300">Report Type</label>
-						<select
-							value={reportType}
-							onChange={e => setReportType(e.target.value as ReportType)}
-							className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-						>
-							{(Object.keys(REPORT_TYPE_LABELS) as ReportType[]).map(t => (
-								<option key={t} value={t}>{REPORT_TYPE_LABELS[t]}</option>
-							))}
-						</select>
+					<div className="space-y-1">
+						<Label>Report Type</Label>
+						<Select value={reportType} onValueChange={v => setReportType(v as ReportType)}>
+							<SelectTrigger>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{(Object.keys(REPORT_TYPE_LABELS) as ReportType[]).map(t => (
+									<SelectItem key={t} value={t}>
+										{REPORT_TYPE_LABELS[t]}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					</div>
 
-					{/* Schedule */}
-					<div>
-						<label className="mb-1 block text-sm font-medium text-slate-300">Schedule</label>
+					<div className="space-y-1">
+						<Label>Schedule</Label>
 						<div className="flex gap-2">
 							{(['daily', 'weekly', 'monthly'] as ReportSchedule[]).map(s => (
-								<button
+								<Button
 									key={s}
 									type="button"
+									size="sm"
+									variant={schedule === s ? 'default' : 'outline'}
+									className="flex-1"
 									onClick={() => setSchedule(s)}
-									className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition ${
-										schedule === s
-											? 'border-blue-500 bg-blue-600 text-white'
-											: 'border-slate-600 bg-slate-800 text-slate-300 hover:border-slate-500'
-									}`}
 								>
 									{SCHEDULE_LABELS[s]}
-								</button>
+								</Button>
 							))}
 						</div>
 					</div>
 
-					{/* Day of week (weekly only) */}
 					{schedule === 'weekly' && (
-						<div>
-							<label className="mb-1 block text-sm font-medium text-slate-300">Day of Week</label>
-							<select
-								value={dayOfWeek}
-								onChange={e => setDayOfWeek(Number(e.target.value))}
-								className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+						<div className="space-y-1">
+							<Label>Day of Week</Label>
+							<Select
+								value={String(dayOfWeek)}
+								onValueChange={v => setDayOfWeek(Number(v))}
 							>
-								{DAY_NAMES.map((d, i) => (
-									<option key={i} value={i}>{d}</option>
-								))}
-							</select>
+								<SelectTrigger>
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									{DAY_NAMES.map((d, i) => (
+										<SelectItem key={i} value={String(i)}>
+											{d}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
 						</div>
 					)}
 
-					{/* Delivery hour */}
-					<div>
-						<label className="mb-1 block text-sm font-medium text-slate-300">Delivery Time (UTC)</label>
-						<select
-							value={deliveryHour}
-							onChange={e => setDeliveryHour(Number(e.target.value))}
-							className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+					<div className="space-y-1">
+						<Label>Delivery Time (UTC)</Label>
+						<Select
+							value={String(deliveryHour)}
+							onValueChange={v => setDeliveryHour(Number(v))}
 						>
-							{HOURS.map(h => (
-								<option key={h} value={h}>{formatHour(h)}</option>
-							))}
-						</select>
+							<SelectTrigger>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{HOURS.map(h => (
+									<SelectItem key={h} value={String(h)}>
+										{formatHour(h)}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					</div>
 
-					{/* Recipients */}
-					<div>
-						<label className="mb-1 block text-sm font-medium text-slate-300">
-							Recipients <span className="text-slate-500 font-normal">(comma-separated emails)</span>
-						</label>
-						<textarea
-							value={recipients}
-							onChange={e => setRecipients(e.target.value)}
+					<div className="space-y-1">
+						<Label htmlFor="sr-recipients">
+							Recipients{' '}
+							<span className="text-xs font-normal text-muted-foreground">
+								(comma-separated emails)
+							</span>
+						</Label>
+						<Textarea
+							id="sr-recipients"
 							required
 							rows={2}
-							className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
 							placeholder="alice@example.com, bob@example.com"
+							value={recipients}
+							onChange={e => setRecipients(e.target.value)}
 						/>
 					</div>
 
-					{/* Format */}
-					<div>
-						<label className="mb-1 block text-sm font-medium text-slate-300">Format</label>
+					<div className="space-y-1">
+						<Label>Format</Label>
 						<div className="flex gap-2">
 							{(['csv', 'xlsx'] as ReportFormat[]).map(f => (
-								<button
+								<Button
 									key={f}
 									type="button"
+									size="sm"
+									variant={format === f ? 'default' : 'outline'}
+									className="flex-1 uppercase"
 									onClick={() => setFormat(f)}
-									className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium uppercase transition ${
-										format === f
-											? 'border-blue-500 bg-blue-600 text-white'
-											: 'border-slate-600 bg-slate-800 text-slate-300 hover:border-slate-500'
-									}`}
 								>
 									{f}
-								</button>
+								</Button>
 							))}
 						</div>
 					</div>
 
 					{error && (
-						<p className="rounded-lg border border-red-800 bg-red-950 px-3 py-2 text-sm text-red-400">
+						<p className="rounded border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
 							{error}
 						</p>
 					)}
 
-					{/* Actions */}
-					<div className="flex justify-end gap-3 pt-1">
-						<button
-							type="button"
-							onClick={onClose}
-							className="rounded-lg border border-slate-600 bg-slate-800 px-4 py-2 text-sm text-slate-300 transition hover:bg-slate-700"
-						>
+					<DialogFooter>
+						<Button type="button" variant="outline" onClick={onClose}>
 							Cancel
-						</button>
-						<button
-							type="submit"
-							disabled={busy}
-							className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:opacity-50"
-						>
-							{busy ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Report'}
-						</button>
-					</div>
+						</Button>
+						<Button type="submit" disabled={busy}>
+							{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+							{isEdit ? 'Save Changes' : 'Create Report'}
+						</Button>
+					</DialogFooter>
 				</form>
-			</div>
-		</div>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Report History Panel
+// ---------------------------------------------------------------------------
+
+function ReportHistory({ reports }: { reports: ScheduledReport[] }) {
+	const sent = reports
+		.filter(r => r.last_sent_at && r.send_count > 0)
+		.sort((a, b) => (b.last_sent_at! > a.last_sent_at! ? 1 : -1))
+		.slice(0, 5);
+
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle className="flex items-center gap-2 text-base">
+					<Clock className="h-4 w-4 text-muted-foreground" />
+					Delivery History
+					<span className="ml-auto text-xs font-normal text-muted-foreground">
+						Last send per report
+					</span>
+				</CardTitle>
+			</CardHeader>
+			<CardContent className="p-0">
+				{sent.length === 0 ? (
+					<p className="px-6 py-4 text-sm text-muted-foreground">
+						No reports have been sent yet. Use "Run Now" or wait for the schedule.
+					</p>
+				) : (
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>Report</TableHead>
+								<TableHead>Type</TableHead>
+								<TableHead>Last Sent</TableHead>
+								<TableHead>Recipients</TableHead>
+								<TableHead>Total Sends</TableHead>
+								<TableHead>Result</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{sent.map(r => (
+								<TableRow key={r.id}>
+									<TableCell className="font-medium">{r.name}</TableCell>
+									<TableCell>
+										<Badge variant={REPORT_TYPE_VARIANTS[r.report_type]} className="text-xs">
+											{REPORT_TYPE_LABELS[r.report_type]}
+										</Badge>
+									</TableCell>
+									<TableCell className="text-sm text-muted-foreground">
+										{formatDate(r.last_sent_at)}
+									</TableCell>
+									<TableCell
+										className="max-w-[180px] truncate text-sm text-muted-foreground"
+										title={r.recipients}
+									>
+										{r.recipients}
+									</TableCell>
+									<TableCell className="text-sm">{r.send_count}</TableCell>
+									<TableCell>
+										<span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+											<CheckCircle2 className="h-3 w-3" />
+											Delivered
+										</span>
+									</TableCell>
+								</TableRow>
+							))}
+						</TableBody>
+					</Table>
+				)}
+			</CardContent>
+		</Card>
 	);
 }
 
@@ -326,204 +471,180 @@ export function ScheduledReportsPage() {
 		try {
 			const result = await sendNow.mutateAsync(r.id);
 			setToastMsg(`Sent to ${result.recipients.join(', ')}`);
-			setTimeout(() => setToastMsg(null), 4000);
 		} catch {
 			setToastMsg('Delivery failed — check server logs');
-			setTimeout(() => setToastMsg(null), 4000);
 		} finally {
 			setSendingId(null);
+			setTimeout(() => setToastMsg(null), 4000);
 		}
 	}
 
 	return (
-		<div className="min-h-screen bg-slate-950 p-6 text-slate-100">
+		<div className="space-y-6 p-6">
 			{/* Toast */}
 			{toastMsg && (
-				<div className="fixed bottom-6 right-6 z-50 rounded-lg border border-slate-600 bg-slate-800 px-4 py-3 text-sm text-slate-200 shadow-xl">
+				<div className="fixed bottom-6 right-6 z-50 rounded-lg border bg-background px-4 py-3 text-sm shadow-xl">
 					{toastMsg}
 				</div>
 			)}
 
 			{/* Header */}
-			<div className="mb-6 flex items-center justify-between">
+			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold text-slate-100">Scheduled Reports</h1>
-					<p className="mt-1 text-sm text-slate-400">
+					<h1 className="text-2xl font-bold">Scheduled Reports</h1>
+					<p className="mt-1 text-sm text-muted-foreground">
 						Configure recurring analytics reports delivered by email.
 					</p>
 				</div>
-				<button
-					onClick={openCreate}
-					className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500"
-				>
-					<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-					</svg>
+				<Button onClick={openCreate}>
+					<Plus className="mr-2 h-4 w-4" />
 					New Scheduled Report
-				</button>
+				</Button>
 			</div>
 
-			{/* State */}
+			{/* Loading */}
 			{isLoading && (
-				<div className="flex items-center justify-center py-20 text-slate-400">
-					<svg className="mr-3 h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
-						<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-						<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-					</svg>
+				<div className="flex items-center justify-center gap-2 py-20 text-muted-foreground">
+					<Loader2 className="h-5 w-5 animate-spin" />
 					Loading…
 				</div>
 			)}
 
+			{/* Error */}
 			{error && (
-				<div className="rounded-lg border border-red-800 bg-red-950 px-4 py-3 text-sm text-red-400">
+				<div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
 					Failed to load scheduled reports.
 				</div>
 			)}
 
+			{/* Empty state */}
 			{!isLoading && !error && reports.length === 0 && (
-				<div className="flex flex-col items-center justify-center rounded-xl border border-slate-700 bg-slate-900 py-20 text-center">
-					<svg className="mb-4 h-12 w-12 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-							d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-					</svg>
-					<p className="text-slate-400">No scheduled reports yet.</p>
-					<button
-						onClick={openCreate}
-						className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500"
-					>
+				<div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-20 text-center">
+					<FileText className="mb-4 h-12 w-12 text-muted-foreground/40" />
+					<p className="text-muted-foreground">No scheduled reports yet.</p>
+					<Button className="mt-4" onClick={openCreate}>
 						Create your first report
-					</button>
+					</Button>
 				</div>
 			)}
 
-			{/* Table */}
+			{/* Reports table */}
 			{!isLoading && reports.length > 0 && (
-				<div className="overflow-hidden rounded-xl border border-slate-700 bg-slate-900">
-					<table className="w-full text-sm">
-						<thead>
-							<tr className="border-b border-slate-700 bg-slate-800/50">
-								<th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Name</th>
-								<th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Type</th>
-								<th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Schedule</th>
-								<th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Recipients</th>
-								<th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Format</th>
-								<th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Last Sent</th>
-								<th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Status</th>
-								<th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">Actions</th>
-							</tr>
-						</thead>
-						<tbody className="divide-y divide-slate-700/50">
+				<div className="overflow-hidden rounded-lg border">
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>Name</TableHead>
+								<TableHead>Type</TableHead>
+								<TableHead>Schedule</TableHead>
+								<TableHead>Recipients</TableHead>
+								<TableHead>Format</TableHead>
+								<TableHead>Last Sent</TableHead>
+								<TableHead>Next Send</TableHead>
+								<TableHead>Active</TableHead>
+								<TableHead className="text-right">Actions</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
 							{reports.map(r => (
-								<tr key={r.id} className="transition hover:bg-slate-800/40">
-									{/* Name */}
-									<td className="px-4 py-3 font-medium text-slate-200">{r.name}</td>
+								<TableRow key={r.id}>
+									<TableCell className="font-medium">{r.name}</TableCell>
 
-									{/* Type badge */}
-									<td className="px-4 py-3">
-										<span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${REPORT_TYPE_COLORS[r.report_type]}`}>
+									<TableCell>
+										<Badge variant={REPORT_TYPE_VARIANTS[r.report_type]} className="text-xs">
 											{REPORT_TYPE_LABELS[r.report_type]}
-										</span>
-									</td>
+										</Badge>
+									</TableCell>
 
-									{/* Schedule */}
-									<td className="px-4 py-3 text-slate-300">{scheduleDescription(r)}</td>
+									<TableCell className="text-sm text-muted-foreground">
+										{scheduleDescription(r)}
+									</TableCell>
 
-									{/* Recipients */}
-									<td className="max-w-[180px] truncate px-4 py-3 text-slate-400" title={r.recipients}>
+									<TableCell
+										className="max-w-[160px] truncate text-sm text-muted-foreground"
+										title={r.recipients}
+									>
 										{r.recipients}
-									</td>
+									</TableCell>
 
-									{/* Format */}
-									<td className="px-4 py-3">
-										<span className="rounded border border-slate-600 bg-slate-800 px-2 py-0.5 text-xs font-mono text-slate-300 uppercase">
+									<TableCell>
+										<span className="rounded border bg-muted px-2 py-0.5 font-mono text-xs uppercase">
 											{r.format}
 										</span>
-									</td>
+									</TableCell>
 
-									{/* Last sent */}
-									<td className="px-4 py-3 text-slate-400">
+									<TableCell className="text-sm text-muted-foreground">
 										{formatDate(r.last_sent_at)}
 										{r.send_count > 0 && (
-											<span className="ml-1 text-xs text-slate-600">({r.send_count}x)</span>
+											<span className="ml-1 text-xs text-muted-foreground/60">
+												({r.send_count}×)
+											</span>
 										)}
-									</td>
+									</TableCell>
 
-									{/* Active toggle */}
-									<td className="px-4 py-3">
-										<button
-											onClick={() => handleToggle(r)}
-											className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
-												r.is_active ? 'bg-blue-600' : 'bg-slate-600'
-											}`}
-											title={r.is_active ? 'Active — click to pause' : 'Paused — click to activate'}
-										>
-											<span
-												className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-													r.is_active ? 'translate-x-5' : 'translate-x-0.5'
-												}`}
-											/>
-										</button>
-									</td>
+									<TableCell>
+										{r.is_active ? (
+											<span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+												<CalendarClock className="h-3 w-3" />
+												{formatNextSend(r)}
+											</span>
+										) : (
+											<span className="text-xs text-muted-foreground">Paused</span>
+										)}
+									</TableCell>
 
-									{/* Actions */}
-									<td className="px-4 py-3">
+									<TableCell>
+										<Switch
+											checked={r.is_active}
+											onCheckedChange={() => handleToggle(r)}
+											disabled={toggleActive.isPending}
+										/>
+									</TableCell>
+
+									<TableCell>
 										<div className="flex items-center justify-end gap-1">
-											{/* Send Now */}
-											<button
+											<Button
+												size="icon"
+												variant="ghost"
 												onClick={() => handleSendNow(r)}
 												disabled={sendingId === r.id}
 												title="Send now"
-												className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-700 hover:text-blue-400 disabled:opacity-50"
 											>
-												{sendingId === r.id ? (
-													<svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-														<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-														<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-													</svg>
-												) : (
-													<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-														<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-															d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-													</svg>
-												)}
-											</button>
-
-											{/* Edit */}
-											<button
+												{sendingId === r.id
+													? <Loader2 className="h-4 w-4 animate-spin" />
+													: <Send className="h-4 w-4" />}
+											</Button>
+											<Button
+												size="icon"
+												variant="ghost"
 												onClick={() => openEdit(r)}
 												title="Edit"
-												className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-700 hover:text-slate-200"
 											>
-												<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-													<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-														d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-												</svg>
-											</button>
-
-											{/* Delete */}
-											<button
+												<Pencil className="h-4 w-4" />
+											</Button>
+											<Button
+												size="icon"
+												variant="ghost"
+												className="text-destructive hover:text-destructive"
 												onClick={() => handleDelete(r)}
 												title="Delete"
-												className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-700 hover:text-red-400"
 											>
-												<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-													<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-														d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-												</svg>
-											</button>
+												<Trash2 className="h-4 w-4" />
+											</Button>
 										</div>
-									</td>
-								</tr>
+									</TableCell>
+								</TableRow>
 							))}
-						</tbody>
-					</table>
+						</TableBody>
+					</Table>
 				</div>
 			)}
 
-			{/* Dialog */}
-			{dialogOpen && (
-				<ReportDialog initial={editTarget} onClose={closeDialog} />
-			)}
+			{/* Delivery history */}
+			{!isLoading && reports.length > 0 && <ReportHistory reports={reports} />}
+
+			{/* Create / edit dialog */}
+			<ReportDialog open={dialogOpen} initial={editTarget} onClose={closeDialog} />
 		</div>
 	);
 }

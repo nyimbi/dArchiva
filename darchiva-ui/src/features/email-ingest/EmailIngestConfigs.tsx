@@ -1,17 +1,50 @@
 // (c) Copyright Datacraft, 2026
 /**
  * Email Ingest Configs page — IMAP mailbox monitoring.
- * Route: /settings/email-ingest  (wiring agent adds to App.tsx)
+ * Route: /settings/email-ingest
  */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
-	useEmailIngestConfigs,
+	AlertCircle,
+	CheckCircle2,
+	ChevronDown,
+	ChevronRight,
+	Loader2,
+	Mail,
+	Plus,
+	RefreshCw,
+	Trash2,
+} from 'lucide-react';
+
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+
+import {
 	useCreateEmailIngestConfig,
-	useUpdateEmailIngestConfig,
 	useDeleteEmailIngestConfig,
+	useEmailIngestConfigs,
 	useTestEmailIngestConfig,
-	useTriggerEmailIngest,
 	useToggleEmailIngestConfig,
+	useTriggerEmailIngest,
+	useUpdateEmailIngestConfig,
 	type EmailIngestConfig,
 	type EmailIngestConfigCreate,
 	type EmailTestResult,
@@ -23,26 +56,211 @@ import {
 
 function fmtDate(iso: string | null): string {
 	if (!iso) return '—';
-	return new Date(iso).toLocaleString(undefined, {
-		dateStyle: 'short',
-		timeStyle: 'short',
-	});
+	return new Date(iso).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
 }
 
-function statusBadge(active: boolean) {
-	return active ? (
-		<span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-300">
-			Active
-		</span>
-	) : (
-		<span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-400">
-			Inactive
-		</span>
+function isToday(iso: string | null): boolean {
+	if (!iso) return false;
+	const d = new Date(iso);
+	const now = new Date();
+	return (
+		d.getFullYear() === now.getFullYear() &&
+		d.getMonth() === now.getMonth() &&
+		d.getDate() === now.getDate()
+	);
+}
+
+function configStatus(c: EmailIngestConfig): 'Active' | 'Paused' | 'Pending' {
+	if (!c.is_active) return 'Paused';
+	if (!c.last_checked_at) return 'Pending';
+	return 'Active';
+}
+
+function statusVariant(
+	status: ReturnType<typeof configStatus>,
+): 'default' | 'secondary' | 'outline' {
+	if (status === 'Active') return 'default';
+	if (status === 'Paused') return 'secondary';
+	return 'outline';
+}
+
+// ---------------------------------------------------------------------------
+// Stats Cards
+// ---------------------------------------------------------------------------
+
+function StatsCards({ configs }: { configs: EmailIngestConfig[] }) {
+	const total = configs.length;
+	const active = configs.filter(c => c.is_active).length;
+	const checkedToday = configs.filter(c => isToday(c.last_checked_at)).length;
+	const totalDocs = configs.reduce((sum, c) => sum + c.documents_ingested, 0);
+
+	const stats: { label: string; value: string | number; Icon: typeof Mail }[] = [
+		{ label: 'Total Configs', value: total, Icon: Mail },
+		{ label: 'Active', value: active, Icon: CheckCircle2 },
+		{ label: 'Checked Today', value: checkedToday, Icon: RefreshCw },
+		{ label: 'Docs Ingested', value: totalDocs.toLocaleString(), Icon: AlertCircle },
+	];
+
+	return (
+		<div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+			{stats.map(({ label, value, Icon }) => (
+				<Card key={label}>
+					<CardContent className="flex items-center gap-3 pb-4 pt-5">
+						<Icon className="h-5 w-5 text-muted-foreground shrink-0" />
+						<div>
+							<p className="text-2xl font-bold leading-none">{value}</p>
+							<p className="mt-1 text-xs text-muted-foreground">{label}</p>
+						</div>
+					</CardContent>
+				</Card>
+			))}
+		</div>
 	);
 }
 
 // ---------------------------------------------------------------------------
-// Config Form (create & edit)
+// Expandable sync-log detail row
+// ---------------------------------------------------------------------------
+
+function SyncLogRow({ config }: { config: EmailIngestConfig }) {
+	return (
+		<tr className="bg-muted/20">
+			<td colSpan={10} className="px-6 py-4">
+				<div className="space-y-2 text-sm">
+					<p className="font-medium text-muted-foreground">Sync Details</p>
+					<div className="grid max-w-xl grid-cols-2 gap-x-8 gap-y-1">
+						<span className="text-muted-foreground">Last checked:</span>
+						<span>{fmtDate(config.last_checked_at)}</span>
+						<span className="text-muted-foreground">Docs ingested (lifetime):</span>
+						<span>{config.documents_ingested}</span>
+						<span className="text-muted-foreground">Last processed UID:</span>
+						<span>{config.last_processed_uid || '—'}</span>
+						<span className="text-muted-foreground">Allowed senders:</span>
+						<span className="truncate">{config.allowed_senders || 'All'}</span>
+					</div>
+					<p className="mt-1 text-xs italic text-muted-foreground">
+						Per-email log (subject, from, status) requires backend log access.
+					</p>
+				</div>
+			</td>
+		</tr>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Config table row (with inline test + expandable log)
+// ---------------------------------------------------------------------------
+
+interface ConfigRowProps {
+	config: EmailIngestConfig;
+	onEdit: (c: EmailIngestConfig) => void;
+	onDelete: (c: EmailIngestConfig) => void;
+	onToggle: (c: EmailIngestConfig) => void;
+	onTrigger: (c: EmailIngestConfig) => void;
+	triggerMsg: string | undefined;
+}
+
+function ConfigRow({ config, onEdit, onDelete, onToggle, onTrigger, triggerMsg }: ConfigRowProps) {
+	const [expanded, setExpanded] = useState(false);
+	const [testResult, setTestResult] = useState<EmailTestResult | null>(null);
+	const testMutation = useTestEmailIngestConfig();
+
+	async function handleTest() {
+		setTestResult(null);
+		const result = await testMutation.mutateAsync(config.id);
+		setTestResult(result);
+	}
+
+	const status = configStatus(config);
+
+	return (
+		<>
+			<tr className="transition-colors hover:bg-muted/30">
+				{/* expand toggle */}
+				<td className="pl-3 pr-1 py-3 w-8">
+					<button
+						onClick={() => setExpanded(v => !v)}
+						className="text-muted-foreground hover:text-foreground"
+						aria-label={expanded ? 'Collapse' : 'Expand'}
+					>
+						{expanded
+							? <ChevronDown className="h-4 w-4" />
+							: <ChevronRight className="h-4 w-4" />}
+					</button>
+				</td>
+				<td className="px-4 py-3 text-sm font-medium">{config.name}</td>
+				<td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
+					{config.host}:{config.port}
+				</td>
+				<td className="px-4 py-3 text-sm text-muted-foreground">{config.username}</td>
+				<td className="px-4 py-3 text-sm text-muted-foreground">{config.mailbox_folder}</td>
+				<td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
+					{config.check_interval_minutes}m
+				</td>
+				<td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
+					{fmtDate(config.last_checked_at)}
+				</td>
+				<td className="px-4 py-3 text-sm text-muted-foreground">{config.documents_ingested}</td>
+				<td className="px-4 py-3">
+					<Badge variant={statusVariant(status)}>{status}</Badge>
+				</td>
+				<td className="px-4 py-3">
+					<div className="flex flex-wrap items-center gap-1">
+						<Button
+							size="sm"
+							variant="outline"
+							onClick={handleTest}
+							disabled={testMutation.isPending}
+							className="h-7 px-2 text-xs"
+						>
+							{testMutation.isPending
+								? <Loader2 className="h-3 w-3 animate-spin" />
+								: 'Test'}
+						</Button>
+						<Button
+							size="sm"
+							variant="outline"
+							onClick={() => onTrigger(config)}
+							className="h-7 px-2"
+							title="Check now"
+						>
+							{triggerMsg
+								? <CheckCircle2 className="h-3 w-3 text-green-500" />
+								: <RefreshCw className="h-3 w-3" />}
+						</Button>
+						<Switch
+							checked={config.is_active}
+							onCheckedChange={() => onToggle(config)}
+							className="scale-75"
+						/>
+						<Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => onEdit(config)}>
+							Edit
+						</Button>
+						<Button
+							size="sm"
+							variant="ghost"
+							className="h-7 px-2 text-destructive hover:text-destructive"
+							onClick={() => onDelete(config)}
+						>
+							<Trash2 className="h-3 w-3" />
+						</Button>
+					</div>
+					{testResult && (
+						<p className={`mt-1 text-xs ${testResult.success ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
+							{testResult.success
+								? `Connected — ${testResult.unseen_count ?? 0} unseen`
+								: `Error: ${testResult.error}`}
+						</p>
+					)}
+				</td>
+			</tr>
+			{expanded && <SyncLogRow config={config} />}
+		</>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Config Form Dialog
 // ---------------------------------------------------------------------------
 
 interface ConfigFormState {
@@ -77,34 +295,37 @@ function defaultForm(c?: EmailIngestConfig): ConfigFormState {
 	};
 }
 
+const INTERVAL_OPTIONS = [
+	{ value: '5', label: 'Every 5 minutes' },
+	{ value: '15', label: 'Every 15 minutes' },
+	{ value: '30', label: 'Every 30 minutes' },
+	{ value: '60', label: 'Every hour' },
+	{ value: '360', label: 'Every 6 hours' },
+	{ value: '1440', label: 'Daily' },
+];
+
 interface ConfigDialogProps {
+	open: boolean;
 	existing?: EmailIngestConfig;
 	onClose: () => void;
 }
 
-function ConfigDialog({ existing, onClose }: ConfigDialogProps) {
+function ConfigDialog({ open, existing, onClose }: ConfigDialogProps) {
 	const isEdit = !!existing;
 	const [form, setForm] = useState<ConfigFormState>(() => defaultForm(existing));
 	const [showPassword, setShowPassword] = useState(false);
-	const [testResult, setTestResult] = useState<EmailTestResult | null>(null);
 
 	const create = useCreateEmailIngestConfig();
 	const update = useUpdateEmailIngestConfig();
-	const test = useTestEmailIngestConfig();
-
 	const isSaving = create.isPending || update.isPending;
-	const isTesting = test.isPending;
 
-	const inputCls =
-		'mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100';
-	const labelCls = 'block text-sm font-medium text-gray-700 dark:text-gray-300';
+	function str(key: keyof ConfigFormState): string {
+		return form[key] as string;
+	}
 
-	function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
-		const { name, value, type } = e.target;
-		setForm(prev => ({
-			...prev,
-			[name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
-		}));
+	function setStr(key: keyof ConfigFormState) {
+		return (e: React.ChangeEvent<HTMLInputElement>) =>
+			setForm(prev => ({ ...prev, [key]: e.target.value }));
 	}
 
 	function buildPayload(): EmailIngestConfigCreate {
@@ -135,203 +356,193 @@ function ConfigDialog({ existing, onClose }: ConfigDialogProps) {
 		onClose();
 	}
 
-	async function handleTest() {
-		if (!existing) return;
-		setTestResult(null);
-		const result = await test.mutateAsync(existing.id);
-		setTestResult(result);
-	}
-
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-			<div className="w-full max-w-lg rounded-xl bg-white shadow-2xl dark:bg-gray-800">
-				{/* Header */}
-				<div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
-					<h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-						{isEdit ? 'Edit IMAP Config' : 'New IMAP Email Ingest Config'}
-					</h2>
-					<button
-						onClick={onClose}
-						className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl leading-none"
-					>
-						&times;
-					</button>
-				</div>
+		<Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+			<DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+				<DialogHeader>
+					<DialogTitle>{isEdit ? 'Edit IMAP Config' : 'New IMAP Config'}</DialogTitle>
+				</DialogHeader>
 
-				{/* Form */}
-				<form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto max-h-[70vh] px-6 py-4">
-					{/* Name */}
-					<div>
-						<label htmlFor="ei-name" className={labelCls}>Display Name</label>
-						<input id="ei-name" name="name" type="text" required
+				<form onSubmit={handleSubmit} className="space-y-4">
+					<div className="space-y-1">
+						<Label htmlFor="ei-name">Display Name</Label>
+						<Input
+							id="ei-name"
+							required
 							placeholder="e.g. Accounts invoices inbox"
-							value={form.name} onChange={handleChange} className={inputCls} />
+							value={str('name')}
+							onChange={setStr('name')}
+						/>
 					</div>
 
-					{/* Host + Port */}
 					<div className="grid grid-cols-3 gap-3">
-						<div className="col-span-2">
-							<label htmlFor="ei-host" className={labelCls}>IMAP Host</label>
-							<input id="ei-host" name="host" type="text" required
+						<div className="col-span-2 space-y-1">
+							<Label htmlFor="ei-host">IMAP Host</Label>
+							<Input
+								id="ei-host"
+								required
 								placeholder="imap.example.com"
-								value={form.host} onChange={handleChange} className={inputCls} />
+								value={str('host')}
+								onChange={setStr('host')}
+							/>
 						</div>
-						<div>
-							<label htmlFor="ei-port" className={labelCls}>Port</label>
-							<input id="ei-port" name="port" type="number" min={1} max={65535}
-								value={form.port} onChange={handleChange} className={inputCls} />
+						<div className="space-y-1">
+							<Label htmlFor="ei-port">Port</Label>
+							<Input
+								id="ei-port"
+								type="number"
+								min={1}
+								max={65535}
+								value={str('port')}
+								onChange={setStr('port')}
+							/>
 						</div>
 					</div>
 
-					{/* SSL toggle */}
-					<div className="flex items-center gap-3">
-						<input id="ei-ssl" name="use_ssl" type="checkbox"
-							checked={form.use_ssl} onChange={handleChange}
-							className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-						<label htmlFor="ei-ssl" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-							Use SSL/TLS (IMAPS)
-						</label>
+					<div className="flex items-center gap-2">
+						<Switch
+							id="ei-ssl"
+							checked={form.use_ssl}
+							onCheckedChange={v => setForm(prev => ({ ...prev, use_ssl: v }))}
+						/>
+						<Label htmlFor="ei-ssl">Use SSL/TLS (IMAPS)</Label>
 					</div>
 
-					{/* Username */}
-					<div>
-						<label htmlFor="ei-username" className={labelCls}>Username / Email</label>
-						<input id="ei-username" name="username" type="text" required
+					<div className="space-y-1">
+						<Label htmlFor="ei-username">Username / Email</Label>
+						<Input
+							id="ei-username"
+							required
 							autoComplete="username"
 							placeholder="user@example.com"
-							value={form.username} onChange={handleChange} className={inputCls} />
+							value={str('username')}
+							onChange={setStr('username')}
+						/>
 					</div>
 
-					{/* Password */}
-					<div>
-						<label htmlFor="ei-password" className={labelCls}>
-							Password{isEdit && <span className="ml-1 text-gray-400 font-normal">(leave blank to keep existing)</span>}
-						</label>
-						<div className="relative mt-1">
-							<input id="ei-password" name="password"
+					<div className="space-y-1">
+						<Label htmlFor="ei-password">
+							Password
+							{isEdit && (
+								<span className="ml-1 text-xs font-normal text-muted-foreground">
+									(blank = keep existing)
+								</span>
+							)}
+						</Label>
+						<div className="relative">
+							<Input
+								id="ei-password"
 								type={showPassword ? 'text' : 'password'}
 								autoComplete="new-password"
 								required={!isEdit}
 								placeholder={isEdit ? '••••••••' : 'Enter password'}
-								value={form.password} onChange={handleChange}
-								className={inputCls + ' pr-16'} />
-							<button type="button"
+								value={str('password')}
+								onChange={setStr('password')}
+								className="pr-16"
+							/>
+							<button
+								type="button"
 								onClick={() => setShowPassword(v => !v)}
-								className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+								className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
+							>
 								{showPassword ? 'Hide' : 'Show'}
 							</button>
 						</div>
 					</div>
 
-					{/* Mailbox Folder */}
-					<div>
-						<label htmlFor="ei-folder" className={labelCls}>Mailbox Folder</label>
-						<input id="ei-folder" name="mailbox_folder" type="text"
+					<div className="space-y-1">
+						<Label htmlFor="ei-folder">Mailbox Folder</Label>
+						<Input
+							id="ei-folder"
 							placeholder="INBOX"
-							value={form.mailbox_folder} onChange={handleChange} className={inputCls} />
+							value={str('mailbox_folder')}
+							onChange={setStr('mailbox_folder')}
+						/>
 					</div>
 
-					{/* Check Interval */}
-					<div>
-						<label htmlFor="ei-interval" className={labelCls}>Check Interval (minutes)</label>
-						<input id="ei-interval" name="check_interval_minutes" type="number" min={1} max={1440}
-							value={form.check_interval_minutes} onChange={handleChange} className={inputCls} />
+					<div className="space-y-1">
+						<Label>Check Interval</Label>
+						<Select
+							value={form.check_interval_minutes}
+							onValueChange={v => setForm(prev => ({ ...prev, check_interval_minutes: v }))}
+						>
+							<SelectTrigger>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{INTERVAL_OPTIONS.map(o => (
+									<SelectItem key={o.value} value={o.value}>
+										{o.label}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					</div>
 
-					{/* Destination Folder ID */}
-					<div>
-						<label htmlFor="ei-dest" className={labelCls}>
-							Destination Folder ID <span className="text-gray-400 font-normal">(optional)</span>
-						</label>
-						<input id="ei-dest" name="destination_folder_id" type="text"
+					<div className="space-y-1">
+						<Label htmlFor="ei-dest">
+							Destination Folder ID{' '}
+							<span className="text-xs font-normal text-muted-foreground">(optional)</span>
+						</Label>
+						<Input
+							id="ei-dest"
 							placeholder="UUID of target folder"
-							value={form.destination_folder_id} onChange={handleChange} className={inputCls} />
+							value={str('destination_folder_id')}
+							onChange={setStr('destination_folder_id')}
+						/>
 					</div>
 
-					{/* Project ID */}
-					<div>
-						<label htmlFor="ei-project" className={labelCls}>
-							Project ID <span className="text-gray-400 font-normal">(optional)</span>
-						</label>
-						<input id="ei-project" name="project_id" type="text"
-							placeholder="UUID of project"
-							value={form.project_id} onChange={handleChange} className={inputCls} />
-					</div>
-
-					{/* Allowed Senders */}
-					<div>
-						<label htmlFor="ei-senders" className={labelCls}>
-							Allowed Senders <span className="text-gray-400 font-normal">(comma-separated emails; empty = all)</span>
-						</label>
-						<input id="ei-senders" name="allowed_senders" type="text"
+					<div className="space-y-1">
+						<Label htmlFor="ei-senders">
+							Allowed Senders{' '}
+							<span className="text-xs font-normal text-muted-foreground">
+								(comma-separated; empty = all)
+							</span>
+						</Label>
+						<Input
+							id="ei-senders"
 							placeholder="alice@example.com, scanner@hq.org"
-							value={form.allowed_senders} onChange={handleChange} className={inputCls} />
+							value={str('allowed_senders')}
+							onChange={setStr('allowed_senders')}
+						/>
 					</div>
 
-					{/* Active toggle */}
-					<div className="flex items-center gap-3">
-						<input id="ei-active" name="is_active" type="checkbox"
-							checked={form.is_active} onChange={handleChange}
-							className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-						<label htmlFor="ei-active" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-							Active (poll on schedule)
-						</label>
+					<div className="flex items-center gap-2">
+						<Switch
+							id="ei-active"
+							checked={form.is_active}
+							onCheckedChange={v => setForm(prev => ({ ...prev, is_active: v }))}
+						/>
+						<Label htmlFor="ei-active">Active (poll on schedule)</Label>
 					</div>
 
-					{/* Test result banner */}
-					{testResult && (
-						<div className={`rounded-md px-3 py-2 text-sm ${
-							testResult.success
-								? 'bg-green-50 text-green-800 dark:bg-green-900/20 dark:text-green-300'
-								: 'bg-red-50 text-red-800 dark:bg-red-900/20 dark:text-red-300'
-						}`}>
-							{testResult.success
-								? `Connected — ${testResult.unseen_count ?? 0} unseen message(s) in ${form.mailbox_folder}`
-								: `Connection failed: ${testResult.error}`}
-						</div>
-					)}
-
-					{/* Errors */}
 					{(create.isError || update.isError) && (
-						<p className="text-sm text-red-600 dark:text-red-400">
-							{(create.error || update.error)?.message ?? 'An error occurred. Please try again.'}
+						<p className="text-sm text-destructive">
+							{(create.error || update.error)?.message ?? 'An error occurred.'}
 						</p>
 					)}
-				</form>
 
-				{/* Footer */}
-				<div className="flex items-center justify-between border-t border-gray-200 px-6 py-4 dark:border-gray-700">
-					<div>
-						{isEdit && (
-							<button type="button" onClick={handleTest} disabled={isTesting}
-								className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
-								{isTesting ? 'Testing...' : 'Test Connection'}
-							</button>
-						)}
-					</div>
-					<div className="flex gap-2">
-						<button type="button" onClick={onClose}
-							className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
+					<DialogFooter>
+						<Button type="button" variant="outline" onClick={onClose}>
 							Cancel
-						</button>
-						<button type="submit" form="ei-form" disabled={isSaving}
-							onClick={handleSubmit as unknown as React.MouseEventHandler}
-							className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50">
-							{isSaving ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Config'}
-						</button>
-					</div>
-				</div>
-			</div>
-		</div>
+						</Button>
+						<Button type="submit" disabled={isSaving}>
+							{isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+							{isEdit ? 'Save Changes' : 'Create Config'}
+						</Button>
+					</DialogFooter>
+				</form>
+			</DialogContent>
+		</Dialog>
 	);
 }
 
 // ---------------------------------------------------------------------------
-// Main page component
+// Main page
 // ---------------------------------------------------------------------------
 
 export function EmailIngestConfigs() {
-	const { data: configs, isLoading, isError } = useEmailIngestConfigs();
+	const { data: configs = [], isLoading, isError } = useEmailIngestConfigs();
 	const deleteConfig = useDeleteEmailIngestConfig();
 	const toggle = useToggleEmailIngestConfig();
 	const trigger = useTriggerEmailIngest();
@@ -363,113 +574,88 @@ export function EmailIngestConfigs() {
 		const result = await trigger.mutateAsync(c.id);
 		setTriggerMsg(prev => ({
 			...prev,
-			[c.id]: result.error ? `Error: ${result.error}` : 'Check triggered',
+			[c.id]: result.error ? `Error: ${result.error}` : 'Triggered',
 		}));
-		setTimeout(() => setTriggerMsg(prev => { const n = { ...prev }; delete n[c.id]; return n; }), 4000);
+		setTimeout(
+			() => setTriggerMsg(prev => { const n = { ...prev }; delete n[c.id]; return n; }),
+			4000,
+		);
 	}
 
 	return (
-		<div className="p-6 space-y-6">
+		<div className="space-y-6 p-6">
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-						Email Ingest (IMAP)
-					</h1>
-					<p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+					<h1 className="text-2xl font-bold">Email Ingest (IMAP)</h1>
+					<p className="mt-1 text-sm text-muted-foreground">
 						Monitor IMAP mailboxes and ingest PDF / image attachments automatically.
 					</p>
 				</div>
-				<button onClick={openCreate}
-					className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700">
-					+ New Config
-				</button>
+				<Button onClick={openCreate}>
+					<Plus className="mr-2 h-4 w-4" />
+					New Config
+				</Button>
 			</div>
 
-			{/* Table */}
+			{/* Stats */}
+			{configs.length > 0 && <StatsCards configs={configs} />}
+
+			{/* Loading / error / empty */}
 			{isLoading && (
-				<p className="text-sm text-gray-500 dark:text-gray-400">Loading...</p>
+				<div className="flex items-center gap-2 py-8 text-muted-foreground">
+					<Loader2 className="h-5 w-5 animate-spin" />
+					Loading…
+				</div>
 			)}
 			{isError && (
-				<p className="text-sm text-red-600 dark:text-red-400">Failed to load configs.</p>
+				<p className="text-sm text-destructive">Failed to load configs.</p>
 			)}
-			{!isLoading && !isError && (!configs || configs.length === 0) && (
-				<div className="rounded-lg border border-dashed border-gray-300 p-10 text-center text-gray-500 dark:border-gray-600 dark:text-gray-400">
+			{!isLoading && !isError && configs.length === 0 && (
+				<div className="rounded-lg border border-dashed p-10 text-center text-muted-foreground">
 					No IMAP configs yet. Click "New Config" to add one.
 				</div>
 			)}
-			{configs && configs.length > 0 && (
-				<div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-					<table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-						<thead className="bg-gray-50 dark:bg-gray-800">
+
+			{/* Table */}
+			{configs.length > 0 && (
+				<div className="overflow-x-auto rounded-lg border">
+					<table className="min-w-full divide-y divide-border text-sm">
+						<thead className="bg-muted/50">
 							<tr>
+								<th className="w-8" />
 								{['Name', 'Host', 'Username', 'Folder', 'Interval', 'Last Checked', 'Docs', 'Status', 'Actions'].map(h => (
-									<th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+									<th
+										key={h}
+										className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+									>
 										{h}
 									</th>
 								))}
 							</tr>
 						</thead>
-						<tbody className="divide-y divide-gray-100 bg-white dark:divide-gray-700 dark:bg-gray-900">
+						<tbody className="divide-y divide-border bg-background">
 							{configs.map(c => (
-								<tr key={c.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-									<td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
-										{c.name}
-									</td>
-									<td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
-										{c.host}:{c.port}
-									</td>
-									<td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
-										{c.username}
-									</td>
-									<td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
-										{c.mailbox_folder}
-									</td>
-									<td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
-										{c.check_interval_minutes}m
-									</td>
-									<td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
-										{fmtDate(c.last_checked_at)}
-									</td>
-									<td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
-										{c.documents_ingested}
-									</td>
-									<td className="whitespace-nowrap px-4 py-3">
-										<button onClick={() => handleToggle(c)} title="Toggle active">
-											{statusBadge(c.is_active)}
-										</button>
-									</td>
-									<td className="whitespace-nowrap px-4 py-3">
-										<div className="flex items-center gap-2">
-											<button onClick={() => handleTrigger(c)}
-												title="Check now"
-												className="rounded px-2 py-1 text-xs font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50">
-												{triggerMsg[c.id] ?? 'Trigger'}
-											</button>
-											<button onClick={() => openEdit(c)}
-												className="rounded px-2 py-1 text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600">
-												Edit
-											</button>
-											<button onClick={() => handleDelete(c)}
-												className="rounded px-2 py-1 text-xs font-medium bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/50">
-												Delete
-											</button>
-										</div>
-									</td>
-								</tr>
+								<ConfigRow
+									key={c.id}
+									config={c}
+									onEdit={openEdit}
+									onDelete={handleDelete}
+									onToggle={handleToggle}
+									onTrigger={handleTrigger}
+									triggerMsg={triggerMsg[c.id]}
+								/>
 							))}
 						</tbody>
 					</table>
 				</div>
 			)}
 
-			{/* Dialog */}
-			{dialogOpen && (
-				<ConfigDialog
-					existing={editing}
-					onClose={() => { setDialogOpen(false); setEditing(undefined); }}
-				/>
-			)}
+			<ConfigDialog
+				open={dialogOpen}
+				existing={editing}
+				onClose={() => { setDialogOpen(false); setEditing(undefined); }}
+			/>
 		</div>
 	);
 }
