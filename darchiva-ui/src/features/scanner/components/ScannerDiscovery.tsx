@@ -132,7 +132,7 @@ export function ScannerDiscovery({ onScannerSelect }: ScannerDiscoveryProps) {
   const [showManualForm, setShowManualForm] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
-  const { data: scanners, isLoading: scannersLoading } = useScanners();
+  const { data: scanners, isLoading: scannersLoading, isError: scannersError } = useScanners();
   const discover = useDiscoverScanners(); // backend mDNS discovery
   const register = useRegisterScanner();
 
@@ -238,6 +238,11 @@ export function ScannerDiscovery({ onScannerSelect }: ScannerDiscoveryProps) {
           // Loading skeleton while the scanner list is being fetched
           <div className="grid gap-3">
             {[0, 1].map((i) => <ScannerCardSkeleton key={i} />)}
+          </div>
+        ) : scannersError ? (
+          <div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            Failed to load registered scanners. Check your connection and try refreshing.
           </div>
         ) : scanners?.length ? (
           <div className="grid gap-3">

@@ -5,10 +5,10 @@ import {
   CheckCircleIcon,
   ClockIcon,
   DocumentDuplicateIcon,
-  ExclamationTriangleIcon,
   PrinterIcon,
   XCircleIcon,
 } from '@heroicons/react/24/outline';
+import { AlertCircle } from 'lucide-react';
 import { useScanJobs,useScannerDashboard } from '../api/hooks';
 import '../styles/theme.css';
 import type { ScanJob,Scanner } from '../types';
@@ -22,7 +22,7 @@ interface ScannerDashboardProps {
 }
 
 export function ScannerDashboard({ onScannerSelect, onScanJobSelect, className }: ScannerDashboardProps) {
-	const { data: dashboard, isLoading, error } = useScannerDashboard();
+	const { data: dashboard, isLoading, isError } = useScannerDashboard();
 	const { data: recentJobs } = useScanJobs({ limit: 5 });
 
 	if (isLoading) {
@@ -40,15 +40,17 @@ export function ScannerDashboard({ onScannerSelect, onScanJobSelect, className }
 		);
 	}
 
-	if (error || !dashboard) {
+	if (isError) {
 		return (
-			<div className="flex items-center justify-center h-64">
-				<div className="text-center text-red-400">
-					<ExclamationTriangleIcon className="w-8 h-8 mx-auto mb-2" />
-					<span className="font-mono text-sm">Failed to load dashboard</span>
-				</div>
+			<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+				<AlertCircle className="h-4 w-4 shrink-0" />
+				Failed to load scanner dashboard. Check your connection and try refreshing.
 			</div>
 		);
+	}
+
+	if (!dashboard) {
+		return null;
 	}
 
 	return (

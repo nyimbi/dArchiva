@@ -12,6 +12,7 @@ import {
   WrenchIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
+import { AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 import {
   useDeleteScanner,
@@ -39,7 +40,7 @@ interface ScannerDetailProps {
 export function ScannerDetail({ scannerId, onBack, onStartScan, className }: ScannerDetailProps) {
 	const [activeTab, setActiveTab] = useState<TabId>('status');
 
-	const { data: scanner, isLoading } = useScanner(scannerId);
+	const { data: scanner, isLoading, isError } = useScanner(scannerId);
 	const { data: liveStatus } = useScannerStatus(scannerId);
 	const { data: capabilities } = useScannerCapabilities(scannerId);
 	const refreshCapsMutation = useRefreshCapabilities();
@@ -54,7 +55,7 @@ export function ScannerDetail({ scannerId, onBack, onStartScan, className }: Sca
 		{ id: 'settings', label: 'Settings', icon: <CogIcon className="w-4 h-4" /> },
 	];
 
-	if (isLoading || !scanner) {
+	if (isLoading) {
 		return (
 			<div className="flex items-center justify-center h-64">
 				<div className="scan-activity w-48">
@@ -62,6 +63,19 @@ export function ScannerDetail({ scannerId, onBack, onStartScan, className }: Sca
 				</div>
 			</div>
 		);
+	}
+
+	if (isError) {
+		return (
+			<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+				<AlertCircle className="h-4 w-4 shrink-0" />
+				Failed to load scanner details. Check your connection and try refreshing.
+			</div>
+		);
+	}
+
+	if (!scanner) {
+		return null;
 	}
 
 	return (

@@ -8,6 +8,7 @@ import {
   Squares2X2Icon,
 } from '@heroicons/react/24/outline';
 import { useState } from 'react';
+import { AlertCircle } from 'lucide-react';
 import { useScanners } from '../api/hooks';
 import type { Scanner,ScannerProtocol,ScannerStatus } from '../types';
 import { PROTOCOL_LABELS,STATUS_CONFIG } from '../types';
@@ -27,7 +28,7 @@ export function ScannerList({ onScannerSelect, onAddScanner, className }: Scanne
 	const [protocolFilter, setProtocolFilter] = useState<ScannerProtocol | 'all'>('all');
 	const [includeInactive, setIncludeInactive] = useState(false);
 
-	const { data: scanners, isLoading } = useScanners(includeInactive);
+	const { data: scanners, isLoading, isError } = useScanners(includeInactive);
 
 	// Filter scanners
 	const filteredScanners = scanners?.filter((scanner) => {
@@ -182,6 +183,11 @@ export function ScannerList({ onScannerSelect, onAddScanner, className }: Scanne
 						<span className="font-mono text-xs text-[var(--scan-text-muted)] uppercase">
 							Loading scanners...
 						</span>
+					</div>
+				) : isError ? (
+					<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+						<AlertCircle className="h-4 w-4 shrink-0" />
+						Failed to load scanners. Check your connection and try refreshing.
 					</div>
 				) : filteredScanners.length === 0 ? (
 					<div className="text-center py-12 text-[var(--scan-text-muted)]">

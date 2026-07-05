@@ -4,7 +4,7 @@
  */
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
-import { ChevronDown,Eye,Folder,Loader2,Play,Printer,Settings,Square } from 'lucide-react';
+import { AlertCircle,ChevronDown,Eye,Folder,Loader2,Play,Printer,Settings,Square } from 'lucide-react';
 import { useCallback,useEffect,useState } from 'react';
 import { useCancelScan,useScanJob,useScanner,useScanPreview,useStartScan } from '../api';
 import type { InputSource,ScanJob,Scanner,ScanOptions } from '../types';
@@ -23,7 +23,7 @@ export function ScannerPanel({ scanner, targetFolderId, onFolderSelect, onScanCo
 	const [activeJobId, setActiveJobId] = useState<string | null>(null);
 	const [showAdvanced, setShowAdvanced] = useState(false);
 
-	const { data: scannerData } = useScanner(scanner.id);
+	const { data: scannerData, isError: scannerError } = useScanner(scanner.id);
 	const preview = useScanPreview(scanner.id);
 	const startScan = useStartScan();
 	const cancelScan = useCancelScan();
@@ -89,6 +89,13 @@ export function ScannerPanel({ scanner, targetFolderId, onFolderSelect, onScanCo
 		<div className="flex gap-6 h-full">
 			{/* Controls Panel */}
 			<div className="w-80 flex-shrink-0 space-y-4">
+				{scannerError && (
+					<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+						<AlertCircle className="h-4 w-4 shrink-0" />
+						Failed to load scanner data. Check your connection and try refreshing.
+					</div>
+				)}
+
 				{/* Scanner Status */}
 				<div className="glass-card p-4">
 					<div className="flex items-center gap-3">
