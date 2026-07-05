@@ -279,6 +279,14 @@ export function usePendingQCSamples(projectId: string) {
 	});
 }
 
+export function useQCSamples(projectId: string) {
+	return useQuery({
+		queryKey: [...scanningProjectKeys.qcSamples(projectId), 'all'] as const,
+		queryFn: () => api.getAllQCSamples(projectId),
+		enabled: !!projectId,
+	});
+}
+
 export function useCreateQCSample() {
 	const queryClient = useQueryClient();
 

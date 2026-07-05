@@ -362,6 +362,13 @@ export async function getPendingQCSamples(projectId: string): Promise<QualityCon
 	return response;
 }
 
+export async function getAllQCSamples(projectId: string): Promise<QualityControlSample[]> {
+	const { data: response } = await apiClient.get<QualityControlSample[]>(
+		`/scanning-projects/${projectId}/qc/samples`
+	);
+	return response;
+}
+
 export async function createQCSample(
 	projectId: string,
 	input: CreateQCSampleInput
