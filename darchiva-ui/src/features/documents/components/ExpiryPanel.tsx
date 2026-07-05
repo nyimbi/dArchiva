@@ -16,6 +16,16 @@ import { Separator } from '@/components/ui/separator';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
 	Select,
 	SelectContent,
 	SelectItem,
@@ -234,6 +244,7 @@ function SetExpiryForm({
 
 export function ExpiryPanel({ documentId }: Props) {
 	const [editMode, setEditMode] = useState(false);
+	const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 	const { data: expiry, isLoading, isError } = useDocumentExpiry(documentId);
 	const removeExpiry = useRemoveDocumentExpiry(documentId);
 	const setExpiry = useSetDocumentExpiry(documentId);
@@ -311,7 +322,8 @@ export function ExpiryPanel({ documentId }: Props) {
 	}
 
 	return (
-		<div className="p-4 space-y-3">
+		<>
+			<div className="p-4 space-y-3">
 			{/* Expiry date + urgency */}
 			<div className="flex items-start justify-between gap-2">
 				<div className="space-y-0.5">
@@ -388,7 +400,12 @@ export function ExpiryPanel({ documentId }: Props) {
 				<Button
 					size="sm"
 					variant="ghost"
-					onClick={() => removeExpiry.mutate()}
+					onClick={() =>
+						setConfirmDialog({
+							message: 'Remove document expiry? The document will be kept indefinitely.',
+							onConfirm: () => removeExpiry.mutate(),
+						})
+					}
 					disabled={removeExpiry.isPending}
 					className="col-span-2 text-destructive hover:text-destructive"
 				>
@@ -401,5 +418,26 @@ export function ExpiryPanel({ documentId }: Props) {
 				</Button>
 			</div>
 		</div>
+			<AlertDialog open={!!confirmDialog} onOpenChange={(o) => { if (!o) setConfirmDialog(null); }}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Confirm</AlertDialogTitle>
+						<AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={() => {
+								confirmDialog?.onConfirm();
+								setConfirmDialog(null);
+							}}
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+						>
+							Confirm
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+		</>
 	);
 }

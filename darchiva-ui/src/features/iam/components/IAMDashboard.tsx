@@ -24,6 +24,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
 	Dialog,
 	DialogContent,
 	DialogFooter,
@@ -615,76 +625,103 @@ function PoliciesTab() {
 
 /* ── Sessions Tab ──────────────────────────────────────────────────────── */
 function SessionsTab() {
+	const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 	const { data, isLoading, refetch } = useActiveSessions({ pageSize: 25 });
 	const revokeSession = useRevokeSession();
 	const sessions = data?.items ?? [];
 
 	return (
-		<div className="space-y-4">
-			<div className="flex items-center justify-between">
-				<p className="text-sm text-muted-foreground">
-					{data?.total ?? 0} active session
-					{(data?.total ?? 0) !== 1 ? 's' : ''}
-				</p>
-				<Button
-					variant="outline"
-					size="sm"
-					onClick={() => void refetch()}
-				>
-					<RefreshCw className="w-4 h-4 mr-2" />
-					Refresh
-				</Button>
-			</div>
+		<>
+			<div className="space-y-4">
+				<div className="flex items-center justify-between">
+					<p className="text-sm text-muted-foreground">
+						{data?.total ?? 0} active session
+						{(data?.total ?? 0) !== 1 ? 's' : ''}
+					</p>
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={() => void refetch()}
+					>
+						<RefreshCw className="w-4 h-4 mr-2" />
+						Refresh
+					</Button>
+				</div>
 
-			<div className="rounded-md border">
-				<Table>
-					<TableHeader>
-						<TableRow>
-							<TableHead>User</TableHead>
-							<TableHead>IP Address</TableHead>
-							<TableHead>Device</TableHead>
-							<TableHead>Started</TableHead>
-							<TableHead>Last Activity</TableHead>
-							<TableHead className="w-24" />
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{isLoading
-							? Array.from({ length: 5 }).map((_, i) => (
-									<TableRow key={i}>
-										<TableCell colSpan={6}>
-											<Skeleton className="h-8 w-full" />
-										</TableCell>
-									</TableRow>
-								))
-							: sessions.length === 0
-								? (
-									<TableRow>
-										<TableCell
-											colSpan={6}
-											className="text-center text-muted-foreground py-8"
-										>
-											No active sessions
-										</TableCell>
-									</TableRow>
-								)
-								: sessions.map((session) => (
-									<SessionRow
-										key={session.id}
-										session={session}
-										isRevoking={revokeSession.isPending}
-										onRevoke={() =>
-											revokeSession.mutate({
-												userId: session.user_id,
-												sessionId: session.id,
-											})
-										}
-									/>
-								))}
-					</TableBody>
-				</Table>
+				<div className="rounded-md border">
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>User</TableHead>
+								<TableHead>IP Address</TableHead>
+								<TableHead>Device</TableHead>
+								<TableHead>Started</TableHead>
+								<TableHead>Last Activity</TableHead>
+								<TableHead className="w-24" />
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{isLoading
+								? Array.from({ length: 5 }).map((_, i) => (
+										<TableRow key={i}>
+											<TableCell colSpan={6}>
+												<Skeleton className="h-8 w-full" />
+											</TableCell>
+										</TableRow>
+									))
+								: sessions.length === 0
+									? (
+										<TableRow>
+											<TableCell
+												colSpan={6}
+												className="text-center text-muted-foreground py-8"
+											>
+												No active sessions
+											</TableCell>
+										</TableRow>
+									)
+									: sessions.map((session) => (
+										<SessionRow
+											key={session.id}
+											session={session}
+											isRevoking={revokeSession.isPending}
+											onRevoke={() =>
+												setConfirmDialog({
+													message: 'Revoke this session? The user will be signed out immediately.',
+													onConfirm: () =>
+														revokeSession.mutate({
+															userId: session.user_id,
+															sessionId: session.id,
+														}),
+												})
+											}
+										/>
+									))}
+						</TableBody>
+					</Table>
+				</div>
 			</div>
-		</div>
+			<AlertDialog open={!!confirmDialog} onOpenChange={(o) => { if (!o) setConfirmDialog(null); }}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Confirm</AlertDialogTitle>
+						<AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={() => {
+								confirmDialog?.onConfirm();
+								setConfirmDialog(null);
+							}}
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+						>
+							Confirm
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+		</>
 	);
 }
 

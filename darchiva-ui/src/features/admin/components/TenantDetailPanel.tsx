@@ -1,6 +1,16 @@
 // (c) Copyright Datacraft, 2026
 import { motion } from 'framer-motion';
 import { useState } from 'react';
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
 	Tenant,
@@ -24,6 +34,7 @@ interface Props {
 
 export function TenantDetailPanel({ tenant, onClose }: Props) {
 	const [activeTab, setActiveTab] = useState<Tab>('overview');
+	const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
 	const { data: tenantDetail } = useTenant(tenant.id);
 	const { data: storage } = useTenantStorage(tenant.id);
@@ -56,13 +67,14 @@ export function TenantDetailPanel({ tenant, onClose }: Props) {
 	const status = statusConfig[tenant.status] || statusConfig.cancelled;
 
 	return (
-		<motion.div
-			className={styles.panel}
-			initial={{ x: '100%', opacity: 0 }}
-			animate={{ x: 0, opacity: 1 }}
-			exit={{ x: '100%', opacity: 0 }}
-			transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-		>
+		<>
+			<motion.div
+				className={styles.panel}
+				initial={{ x: '100%', opacity: 0 }}
+				animate={{ x: 0, opacity: 1 }}
+				exit={{ x: '100%', opacity: 0 }}
+				transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+			>
 			{/* Header */}
 			<div className={styles.header}>
 				<button onClick={onClose} className={styles.closeBtn}>×</button>
@@ -210,7 +222,12 @@ export function TenantDetailPanel({ tenant, onClose }: Props) {
 
 						<div className={styles.actionSection}>
 							<button
-								onClick={() => resetAITokens.mutate(tenant.id)}
+								onClick={() =>
+									setConfirmDialog({
+										message: 'Reset AI token count for this tenant?',
+										onConfirm: () => resetAITokens.mutate(tenant.id),
+									})
+								}
 								className={styles.actionBtn}
 								disabled={resetAITokens.isPending}
 							>
@@ -293,7 +310,28 @@ export function TenantDetailPanel({ tenant, onClose }: Props) {
 					</div>
 				)}
 			</div>
-		</motion.div>
+			</motion.div>
+			<AlertDialog open={!!confirmDialog} onOpenChange={(o) => { if (!o) setConfirmDialog(null); }}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Confirm</AlertDialogTitle>
+						<AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={() => {
+								confirmDialog?.onConfirm();
+								setConfirmDialog(null);
+							}}
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+						>
+							Confirm
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+		</>
 	);
 }
 

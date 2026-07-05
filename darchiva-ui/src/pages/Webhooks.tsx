@@ -26,6 +26,16 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import {
 	useWebhooks,
@@ -334,6 +344,7 @@ function EditWebhookDialog({ webhook }: { webhook: WebhookType }) {
 
 function WebhookRow({ wh }: { wh: WebhookType }) {
 	const [expanded, setExpanded] = useState(false);
+	const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 	const deleteWh = useDeleteWebhook();
 	const testWh = useTestWebhook();
 	const updateWh = useUpdateWebhook();
@@ -343,7 +354,8 @@ function WebhookRow({ wh }: { wh: WebhookType }) {
 	}
 
 	return (
-		<div className="glass-card overflow-hidden">
+		<>
+			<div className="glass-card overflow-hidden">
 			<div className="flex items-start gap-4 p-4">
 				{/* Status dot */}
 				<div
@@ -410,7 +422,10 @@ function WebhookRow({ wh }: { wh: WebhookType }) {
 					</button>
 					<button
 						onClick={() =>
-							deleteWh.mutate(wh.id)
+							setConfirmDialog({
+								message: 'Delete this webhook? This action cannot be undone.',
+								onConfirm: () => deleteWh.mutate(wh.id),
+							})
 						}
 						disabled={deleteWh.isPending}
 						title="Delete webhook"
@@ -441,6 +456,27 @@ function WebhookRow({ wh }: { wh: WebhookType }) {
 				</div>
 			)}
 		</div>
+			<AlertDialog open={!!confirmDialog} onOpenChange={(o) => { if (!o) setConfirmDialog(null); }}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Confirm</AlertDialogTitle>
+						<AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={() => {
+								confirmDialog?.onConfirm();
+								setConfirmDialog(null);
+							}}
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+						>
+							Confirm
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+		</>
 	);
 }
 

@@ -2,6 +2,16 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   AlertTriangle,
   Check,
   ChevronDown,ChevronUp,
@@ -147,6 +157,7 @@ export function TokenList() {
 
 function TokenRow({ token, index, onDelete }: { token: APIToken; index: number; onDelete: () => void }) {
   const [copied, setCopied] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
   const revokeToken = useRevokeToken();
   const isExpired = token.expiresAt && new Date(token.expiresAt) < new Date();
   const expiresSoon = token.expiresAt && !isExpired &&
@@ -176,66 +187,93 @@ function TokenRow({ token, index, onDelete }: { token: APIToken; index: number; 
   };
 
   return (
-    <tr
-      className="token-row group"
-      style={{ animationDelay: `${0.05 * index}s` }}
-    >
-      <td className="token-td">
-        <div className="flex items-center gap-3">
-          <div className="token-icon-box">
-            <Key className="w-4 h-4" />
-          </div>
-          <div>
-            <p className="font-medium text-[var(--token-text)]">{token.name}</p>
-            <div className="flex items-center gap-2 mt-0.5">
-              <code className="token-prefix">{token.tokenPrefix}•••••••</code>
-              <button onClick={copyPrefix} className="token-copy-btn">
-                {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-              </button>
+    <>
+      <tr
+        className="token-row group"
+        style={{ animationDelay: `${0.05 * index}s` }}
+      >
+        <td className="token-td">
+          <div className="flex items-center gap-3">
+            <div className="token-icon-box">
+              <Key className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="font-medium text-[var(--token-text)]">{token.name}</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <code className="token-prefix">{token.tokenPrefix}•••••••</code>
+                <button onClick={copyPrefix} className="token-copy-btn">
+                  {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      </td>
-      <td className="token-td text-[var(--token-muted)]">
-        {formatDate(token.createdAt)}
-      </td>
-      <td className="token-td">
-        {isExpired ? (
-          <Badge variant="destructive" className="token-badge-expired">
-            <AlertTriangle className="w-3 h-3 mr-1" /> Expired
-          </Badge>
-        ) : expiresSoon ? (
-          <Badge className="token-badge-warning">
-            <Clock className="w-3 h-3 mr-1" /> {formatDate(token.expiresAt)}
-          </Badge>
-        ) : (
-          <span className="text-[var(--token-muted)]">
-            {token.expiresAt ? formatDate(token.expiresAt) : 'Never'}
-          </span>
-        )}
-      </td>
-      <td className="token-td text-[var(--token-muted)]">
-        {relativeTime(token.lastUsedAt)}
-      </td>
-      <td className="token-td text-right">
-        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={() => revokeToken.mutate(token.id)}
-            className="token-action-btn text-[var(--token-warning)]"
-            title="Revoke token"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-          <button
-            onClick={onDelete}
-            className="token-action-btn text-[var(--token-danger)]"
-            title="Delete token"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      </td>
-    </tr>
+        </td>
+        <td className="token-td text-[var(--token-muted)]">
+          {formatDate(token.createdAt)}
+        </td>
+        <td className="token-td">
+          {isExpired ? (
+            <Badge variant="destructive" className="token-badge-expired">
+              <AlertTriangle className="w-3 h-3 mr-1" /> Expired
+            </Badge>
+          ) : expiresSoon ? (
+            <Badge className="token-badge-warning">
+              <Clock className="w-3 h-3 mr-1" /> {formatDate(token.expiresAt)}
+            </Badge>
+          ) : (
+            <span className="text-[var(--token-muted)]">
+              {token.expiresAt ? formatDate(token.expiresAt) : 'Never'}
+            </span>
+          )}
+        </td>
+        <td className="token-td text-[var(--token-muted)]">
+          {relativeTime(token.lastUsedAt)}
+        </td>
+        <td className="token-td text-right">
+          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={() =>
+                setConfirmDialog({
+                  message: 'Revoke this API token? Any apps using it will lose access immediately.',
+                  onConfirm: () => revokeToken.mutate(token.id),
+                })
+              }
+              className="token-action-btn text-[var(--token-warning)]"
+              title="Revoke token"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+            <button
+              onClick={onDelete}
+              className="token-action-btn text-[var(--token-danger)]"
+              title="Delete token"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        </td>
+      </tr>
+      <AlertDialog open={!!confirmDialog} onOpenChange={(o) => { if (!o) setConfirmDialog(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm</AlertDialogTitle>
+            <AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                confirmDialog?.onConfirm();
+                setConfirmDialog(null);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 

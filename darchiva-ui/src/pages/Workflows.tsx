@@ -22,6 +22,16 @@ import { EmptyState } from '@/components/EmptyState';
 import type { PendingTask } from '@/features/workflows/api';
 import type { Workflow, WorkflowEdge, WorkflowExecution, WorkflowNode } from '@/features/workflows/types';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -273,6 +283,7 @@ function WorkflowCard({
   onViewDetail,
   isToggling,
 }: WorkflowCardProps) {
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
   const isActive = workflow.status === 'active';
   const wfExecutions = executions.filter((e) => e.workflowId === workflow.id);
   const stats = getWorkflowStats(wfExecutions);
@@ -280,104 +291,132 @@ function WorkflowCard({
   const TriggerIcon = trigger.Icon;
 
   return (
-    <div
-      className="doc-card cursor-pointer hover:border-brass-500/30 transition-colors"
-      onClick={() => onViewDetail(workflow)}
-    >
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className={cn('p-2 rounded-lg flex-shrink-0', isActive ? 'bg-brass-500/10 text-brass-400' : 'bg-slate-700/50 text-slate-400')}>
-            <GitBranch className="w-5 h-5" />
+    <>
+      <div
+        className="doc-card cursor-pointer hover:border-brass-500/30 transition-colors"
+        onClick={() => onViewDetail(workflow)}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={cn('p-2 rounded-lg flex-shrink-0', isActive ? 'bg-brass-500/10 text-brass-400' : 'bg-slate-700/50 text-slate-400')}>
+              <GitBranch className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="font-medium text-slate-200 truncate">{workflow.name}</h3>
+              <p className="text-sm text-slate-500 truncate">{workflow.description || 'No description'}</p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <h3 className="font-medium text-slate-200 truncate">{workflow.name}</h3>
-            <p className="text-sm text-slate-500 truncate">{workflow.description || 'No description'}</p>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded flex-shrink-0"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreVertical className="w-4 h-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onViewDetail(workflow); }}>
+                <FileText className="w-4 h-4 mr-2" />
+                View Details
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRunNow(workflow.id); }}>
+                <Play className="w-4 h-4 mr-2" />
+                Run Now
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  isActive ? onDeactivate(workflow.id) : onActivate(workflow.id);
+                }}
+                disabled={isToggling}
+              >
+                {isActive ? <Pause className="w-4 h-4 mr-2" /> : <Play className="w-4 h-4 mr-2" />}
+                {isActive ? 'Pause' : 'Activate'}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setConfirmDialog({
+                    message: 'Delete this workflow? All associated instances will be cancelled.',
+                    onConfirm: () => onDelete(workflow.id),
+                  });
+                }}
+                className="text-red-400 focus:text-red-400"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Trigger badge + step count */}
+        <div className="mt-3 flex items-center gap-2 flex-wrap">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-800 rounded text-xs text-slate-400">
+            <TriggerIcon className="w-3 h-3" />
+            {trigger.label}
+          </span>
+          <span className="text-xs text-slate-600">{(workflow.nodes ?? []).length} steps</span>
+        </div>
+
+        {/* Stats */}
+        <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+          <div>
+            <p className="text-base font-semibold text-slate-200">{stats.total}</p>
+            <p className="text-2xs text-slate-600">Runs</p>
+          </div>
+          <div>
+            <p className={cn(
+              'text-base font-semibold',
+              stats.successRate === null ? 'text-slate-500'
+              : stats.successRate >= 80   ? 'text-emerald-400'
+              : stats.successRate >= 50   ? 'text-amber-400'
+              :                             'text-red-400',
+            )}>
+              {stats.successRate === null ? '—' : `${stats.successRate}%`}
+            </p>
+            <p className="text-2xs text-slate-600">Success</p>
+          </div>
+          <div>
+            <p className="text-base font-semibold text-slate-200">v{workflow.version}</p>
+            <p className="text-2xs text-slate-600">Version</p>
           </div>
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded flex-shrink-0"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <MoreVertical className="w-4 h-4" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onViewDetail(workflow); }}>
-              <FileText className="w-4 h-4 mr-2" />
-              View Details
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRunNow(workflow.id); }}>
-              <Play className="w-4 h-4 mr-2" />
-              Run Now
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.stopPropagation();
-                isActive ? onDeactivate(workflow.id) : onActivate(workflow.id);
+        {/* Footer */}
+        <div className="mt-3 flex items-center justify-between pt-3 border-t border-slate-700/50">
+          <span className={cn('badge', isActive ? 'badge-green' : 'badge-gray')}>{workflow.status}</span>
+          <span className="text-2xs text-slate-600">
+            {stats.lastRun ? `Last run ${formatRelativeTime(stats.lastRun.startTime)}` : 'Never run'}
+          </span>
+        </div>
+      </div>
+      <AlertDialog open={!!confirmDialog} onOpenChange={(o) => { if (!o) setConfirmDialog(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm</AlertDialogTitle>
+            <AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                confirmDialog?.onConfirm();
+                setConfirmDialog(null);
               }}
-              disabled={isToggling}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isActive ? <Pause className="w-4 h-4 mr-2" /> : <Play className="w-4 h-4 mr-2" />}
-              {isActive ? 'Pause' : 'Activate'}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={(e) => { e.stopPropagation(); onDelete(workflow.id); }}
-              className="text-red-400 focus:text-red-400"
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {/* Trigger badge + step count */}
-      <div className="mt-3 flex items-center gap-2 flex-wrap">
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-800 rounded text-xs text-slate-400">
-          <TriggerIcon className="w-3 h-3" />
-          {trigger.label}
-        </span>
-        <span className="text-xs text-slate-600">{(workflow.nodes ?? []).length} steps</span>
-      </div>
-
-      {/* Stats */}
-      <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-        <div>
-          <p className="text-base font-semibold text-slate-200">{stats.total}</p>
-          <p className="text-2xs text-slate-600">Runs</p>
-        </div>
-        <div>
-          <p className={cn(
-            'text-base font-semibold',
-            stats.successRate === null ? 'text-slate-500'
-            : stats.successRate >= 80   ? 'text-emerald-400'
-            : stats.successRate >= 50   ? 'text-amber-400'
-            :                             'text-red-400',
-          )}>
-            {stats.successRate === null ? '—' : `${stats.successRate}%`}
-          </p>
-          <p className="text-2xs text-slate-600">Success</p>
-        </div>
-        <div>
-          <p className="text-base font-semibold text-slate-200">v{workflow.version}</p>
-          <p className="text-2xs text-slate-600">Version</p>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="mt-3 flex items-center justify-between pt-3 border-t border-slate-700/50">
-        <span className={cn('badge', isActive ? 'badge-green' : 'badge-gray')}>{workflow.status}</span>
-        <span className="text-2xs text-slate-600">
-          {stats.lastRun ? `Last run ${formatRelativeTime(stats.lastRun.startTime)}` : 'Never run'}
-        </span>
-      </div>
-    </div>
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -402,6 +441,7 @@ function WorkflowDetailSheet({
   onRunNow: (id: string) => void;
   isToggling: boolean;
 }) {
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
   const isActive = workflow?.status === 'active';
   const wfExecutions = workflow
     ? executions.filter((e) => e.workflowId === workflow.id)
@@ -413,11 +453,12 @@ function WorkflowDetailSheet({
   const TriggerIcon = trigger?.Icon ?? GitBranch;
 
   return (
-    <Sheet open={!!workflow} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <SheetContent
-        className="w-[480px] sm:max-w-[480px] bg-slate-900 border-slate-700 flex flex-col overflow-y-auto"
-        side="right"
-      >
+    <>
+      <Sheet open={!!workflow} onOpenChange={(open) => { if (!open) onClose(); }}>
+        <SheetContent
+          className="w-[480px] sm:max-w-[480px] bg-slate-900 border-slate-700 flex flex-col overflow-y-auto"
+          side="right"
+        >
         {workflow && (
           <>
             <SheetHeader>
@@ -565,7 +606,15 @@ function WorkflowDetailSheet({
                 </button>
                 <button
                   className="btn-ghost text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                  onClick={() => { onClose(); onDelete(workflow.id); }}
+                  onClick={() =>
+                    setConfirmDialog({
+                      message: 'Delete this workflow? All associated instances will be cancelled.',
+                      onConfirm: () => {
+                        onClose();
+                        onDelete(workflow.id);
+                      },
+                    })
+                  }
                   title="Delete workflow"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -574,8 +623,29 @@ function WorkflowDetailSheet({
             </div>
           </>
         )}
-      </SheetContent>
-    </Sheet>
+        </SheetContent>
+      </Sheet>
+      <AlertDialog open={!!confirmDialog} onOpenChange={(o) => { if (!o) setConfirmDialog(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm</AlertDialogTitle>
+            <AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                confirmDialog?.onConfirm();
+                setConfirmDialog(null);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
