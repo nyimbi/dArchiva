@@ -1,5 +1,7 @@
 // (c) Copyright Datacraft, 2026
 import { useStore } from '@/hooks/useStore';
+import { useDocumentTypes } from '@/features/document-types/api';
+import { useTags } from '@/features/tags/api';
 import { motion } from 'framer-motion';
 import { Calendar,FileText,Filter,Tag,X } from 'lucide-react';
 import { useState } from 'react';
@@ -11,6 +13,21 @@ interface FilterDocumentsModalProps {
 export function FilterDocumentsModal({ onClose }: FilterDocumentsModalProps) {
     const { searchFilters, setSearchFilters, clearSearchFilters } = useStore();
     const [localFilters, setLocalFilters] = useState(searchFilters);
+    const { data: documentTypesData, isLoading: isLoadingDocumentTypes } = useDocumentTypes();
+    const { data: tagsData, isLoading: isLoadingTags } = useTags();
+
+    const fallbackDocumentTypes = [
+        { value: 'invoice', label: 'Invoice' },
+        { value: 'contract', label: 'Contract' },
+        { value: 'report', label: 'Report' },
+    ];
+    const fallbackTags = ['Urgent', 'Review', 'Draft', 'Final'].map(tag => ({ value: tag, label: tag }));
+    const documentTypeOptions = documentTypesData?.items?.map(type => ({ value: type.id, label: type.name })) ?? [];
+    const tagOptions = tagsData?.items?.map(tag => ({ value: tag.name, label: tag.name })) ?? [];
+    const displayedDocumentTypes = documentTypeOptions.length > 0 || !isLoadingDocumentTypes
+        ? documentTypeOptions
+        : fallbackDocumentTypes;
+    const displayedTags = tagOptions.length > 0 || !isLoadingTags ? tagOptions : fallbackTags;
 
     const handleApply = () => {
         setSearchFilters(localFilters);
@@ -87,35 +104,56 @@ export function FilterDocumentsModal({ onClose }: FilterDocumentsModalProps) {
                         </div>
                     </div>
 
-                    {/* Document Type Placeholder */}
+                    {/* Document Type */}
                     <div className="space-y-3">
                         <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wider flex items-center gap-2">
                             <FileText className="w-3.5 h-3.5" />
                             Document Type
                         </h3>
-                        <select className="input-field w-full text-sm">
+                        <select
+                            value={localFilters.documentTypes[0] ?? ''}
+                            onChange={e => setLocalFilters(prev => ({
+                                ...prev,
+                                documentTypes: e.target.value ? [e.target.value] : [],
+                            }))}
+                            className="input-field w-full text-sm"
+                        >
                             <option value="">All Types</option>
-                            <option value="invoice">Invoice</option>
-                            <option value="contract">Contract</option>
-                            <option value="report">Report</option>
+                            {displayedDocumentTypes.map(type => (
+                                <option key={type.value} value={type.value}>{type.label}</option>
+                            ))}
                         </select>
                     </div>
 
-                    {/* Tags Placeholder */}
+                    {/* Tags */}
                     <div className="space-y-3">
                         <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wider flex items-center gap-2">
                             <Tag className="w-3.5 h-3.5" />
                             Tags
                         </h3>
                         <div className="flex flex-wrap gap-2">
-                            {['Urgent', 'Review', 'Draft', 'Final'].map(tag => (
+                            {displayedTags.map(tag => {
+                                const isSelected = localFilters.tags.includes(tag.value);
+                                return (
                                 <button
-                                    key={tag}
-                                    className="px-3 py-1 rounded-full border border-slate-700 text-xs text-slate-400 hover:border-brass-500/50 hover:text-brass-400 transition-colors"
+                                    key={tag.value}
+                                    type="button"
+                                    onClick={() => setLocalFilters(prev => ({
+                                        ...prev,
+                                        tags: isSelected
+                                            ? prev.tags.filter(value => value !== tag.value)
+                                            : [...prev.tags, tag.value],
+                                    }))}
+                                    className={`px-3 py-1 rounded-full border text-xs transition-colors ${
+                                        isSelected
+                                            ? 'border-brass-500/60 bg-brass-500/10 text-brass-400'
+                                            : 'border-slate-700 text-slate-400 hover:border-brass-500/50 hover:text-brass-400'
+                                    }`}
                                 >
-                                    {tag}
+                                    {tag.label}
                                 </button>
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
                 </div>

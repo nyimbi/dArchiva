@@ -16,17 +16,25 @@ interface DocumentPage {
 export type DocumentListItem = Document;
 
 export const infiniteDocumentKeys = {
-	infinite: (folderId?: string, searchQuery?: string, filters?: Record<string, unknown>) =>
-		['documents', 'infinite', folderId, searchQuery, filters] as const,
+	infinite: (
+		folderId?: string,
+		searchQuery?: string,
+		filters?: Record<string, unknown>,
+		sortBy?: string,
+		sortOrder?: 'asc' | 'desc',
+	) =>
+		['documents', 'infinite', folderId, searchQuery, filters, sortBy, sortOrder] as const,
 };
 
 export function useInfiniteDocuments(
 	folderId?: string,
 	searchQuery?: string,
 	filters?: Record<string, unknown>,
+	sortBy?: string,
+	sortOrder?: 'asc' | 'desc',
 ) {
 	const query = useInfiniteQuery({
-		queryKey: infiniteDocumentKeys.infinite(folderId, searchQuery, filters),
+		queryKey: infiniteDocumentKeys.infinite(folderId, searchQuery, filters, sortBy, sortOrder),
 		initialPageParam: 1,
 		queryFn: async ({ pageParam }) => {
 			const params: Record<string, unknown> = {
@@ -36,6 +44,8 @@ export function useInfiniteDocuments(
 			if (folderId) params.parent_id = folderId;
 			if (searchQuery) params.search = searchQuery;
 			if (filters) Object.assign(params, filters);
+			if (sortBy) params.sort_by = sortBy;
+			if (sortOrder) params.sort_order = sortOrder;
 
 			const { data } = await apiClient.get<DocumentPage>('/nodes/', { params });
 

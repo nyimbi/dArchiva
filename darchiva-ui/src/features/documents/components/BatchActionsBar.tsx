@@ -56,7 +56,7 @@ interface BatchActionsBarProps {
 // Internal dialog types
 // ---------------------------------------------------------------------------
 
-type ActiveDialog = 'tag' | 'move' | 'classify' | 'delete' | 'export' | 'merge' | 'hold' | null;
+type ActiveDialog = 'tag' | 'move' | 'classify' | 'delete' | 'archive' | 'export' | 'merge' | 'hold' | null;
 
 // ---------------------------------------------------------------------------
 // Tag dialog
@@ -278,6 +278,38 @@ function DeleteDialog({
   );
 }
 
+function ArchiveDialog({
+  count,
+  onConfirm,
+  onClose,
+  isPending,
+}: {
+  count: number;
+  onConfirm: () => void;
+  onClose: () => void;
+  isPending: boolean;
+}) {
+  return (
+    <Backdrop onClose={onClose}>
+      <DialogCard>
+        <DialogHeader icon={<Archive className="w-5 h-5 text-brass-400" />} title={`Archive ${count} document${count !== 1 ? 's' : ''}`} subtitle="Archived documents are hidden from the active view" />
+        <p className="text-slate-300 mb-6">
+          Archive{' '}
+          <span className="font-semibold text-brass-400">{count} selected document{count !== 1 ? 's' : ''}</span>?
+        </p>
+        <DialogFooter
+          onClose={onClose}
+          onConfirm={onConfirm}
+          disabled={isPending}
+          isPending={isPending}
+          confirmLabel="Archive All"
+          confirmIcon={<Archive className="w-4 h-4" />}
+        />
+      </DialogCard>
+    </Backdrop>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Hold dialog
 // ---------------------------------------------------------------------------
@@ -445,14 +477,19 @@ function useBatchHold() {
     try {
       for (const docId of documentIds) {
         // Each call is independent — we instantiate the hook payload directly
-        await fetch(`/api/v1/documents/${docId}/legal-holds`, {
+        const response = await fetch(`/api/v1/documents/${docId}/legal-holds`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({ hold_name: holdName, hold_reason: holdReason }),
         });
+        if (!response.ok) throw new Error(`Request failed: ${response.status}`);
       }
       onSuccess();
+    } catch (err) {
+      console.error('Batch legal hold failed:', err);
+      toast.error('Failed to place legal hold');
+      throw err;
     } finally {
       setIsPending(false);
     }
@@ -568,6 +605,7 @@ export function BatchActionsBar({ selectedIds, selectedDocuments, onClear, onCom
       await Promise.all(selectedIds.map((id) => apiClient.patch(`/nodes/${id}`, { archived: true })));
     },
     onSuccess: async () => {
+      close();
       await queryClient.invalidateQueries({ queryKey: documentKeys.all });
       toast.success(`Archived ${count} document${count !== 1 ? 's' : ''}`);
       onComplete();
@@ -597,6 +635,7 @@ export function BatchActionsBar({ selectedIds, selectedDocuments, onClear, onCom
         },
         onError: (err) => {
           console.error(`Batch ${label} failed:`, err);
+          toast.error('Operation failed');
         },
       },
     );
@@ -707,7 +746,7 @@ export function BatchActionsBar({ selectedIds, selectedDocuments, onClear, onCom
           </button>
 
           <button
-            onClick={() => archiveMutation.mutate()}
+            onClick={() => setActiveDialog('archive')}
             disabled={archiveMutation.isPending}
             className="btn-ghost text-sm py-1.5 px-3 flex items-center gap-1.5"
             title="Archive selected documents"
@@ -767,6 +806,14 @@ export function BatchActionsBar({ selectedIds, selectedDocuments, onClear, onCom
             onConfirm={() => run('delete', {}, 'delete')}
             onClose={close}
             isPending={batch.isPending}
+          />
+        )}
+        {activeDialog === 'archive' && (
+          <ArchiveDialog
+            count={selectedIds.length}
+            onConfirm={() => archiveMutation.mutate()}
+            onClose={close}
+            isPending={archiveMutation.isPending}
           />
         )}
         {activeDialog === 'hold' && (
