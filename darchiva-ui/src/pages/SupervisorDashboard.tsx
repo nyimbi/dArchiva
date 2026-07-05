@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react';
 import {
 	Activity,
+	AlertCircle,
 	AlertTriangle,
 	Bell,
 	ChevronDown,
@@ -45,6 +46,7 @@ import type { OperatorKPI, OperatorLiveStatus } from '@/features/scanning-projec
 import { Leaderboard } from '@/features/scanning-ops/components/Leaderboard';
 import { OperatorScorecard } from '@/features/scanning-ops/components/OperatorScorecard';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -129,7 +131,7 @@ function StatCard({
 	);
 }
 
-function ThroughputChart({ pagesToday }: { pagesToday: number }) {
+function ThroughputChart() {
 	const {
 		data: hourlyThroughput,
 		isError: throughputError,
@@ -142,20 +144,7 @@ function ThroughputChart({ pagesToday }: { pagesToday: number }) {
 		},
 	});
 
-	const syntheticData = useMemo(() => {
-		const now = new Date();
-		const weights = [0.06, 0.09, 0.14, 0.17, 0.19, 0.15, 0.12, 0.08];
-		return Array.from({ length: 8 }, (_, i) => {
-			const h = new Date(now);
-			h.setHours(h.getHours() - (7 - i), 0, 0, 0);
-			return {
-				hour: h.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-				pages: Math.round(pagesToday * weights[i]),
-			};
-		});
-	}, [pagesToday]);
-
-	const data = throughputLoading || throughputError ? syntheticData : hourlyThroughput ?? [];
+	const data = hourlyThroughput ?? [];
 
 	return (
 		<div className="glass-card p-5">
@@ -164,32 +153,45 @@ function ThroughputChart({ pagesToday }: { pagesToday: number }) {
 				<h3 className="text-sm font-semibold text-slate-300">Throughput — Last 8 Hours</h3>
 				<span className="text-xs text-slate-500 ml-auto">pages / hour</span>
 			</div>
-			<ResponsiveContainer width="100%" height={140}>
-				<BarChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-					<XAxis
-						dataKey="hour"
-						tick={{ fontSize: 10, fill: '#94a3b8' }}
-						axisLine={false}
-						tickLine={false}
-					/>
-					<YAxis
-						tick={{ fontSize: 10, fill: '#94a3b8' }}
-						axisLine={false}
-						tickLine={false}
-					/>
-					<RechartsTip
-						contentStyle={{
-							backgroundColor: '#1e293b',
-							border: '1px solid #334155',
-							borderRadius: 8,
-							color: '#f1f5f9',
-							fontSize: 12,
-						}}
-						cursor={{ fill: 'rgba(201,162,39,0.1)' }}
-					/>
-					<Bar dataKey="pages" fill="#c9a227" radius={[3, 3, 0, 0]} name="Pages" />
-				</BarChart>
-			</ResponsiveContainer>
+			{throughputLoading ? (
+				<Skeleton className="h-[140px] w-full bg-slate-700/40" />
+			) : throughputError ? (
+				<div className="flex h-[140px] items-center justify-center gap-2 text-sm text-red-400">
+					<AlertCircle className="h-4 w-4 shrink-0" />
+					Failed to load throughput data
+				</div>
+			) : data.length === 0 ? (
+				<div className="flex h-[140px] items-center justify-center text-sm text-slate-500">
+					No throughput data for this period
+				</div>
+			) : (
+				<ResponsiveContainer width="100%" height={140}>
+					<BarChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+						<XAxis
+							dataKey="hour"
+							tick={{ fontSize: 10, fill: '#94a3b8' }}
+							axisLine={false}
+							tickLine={false}
+						/>
+						<YAxis
+							tick={{ fontSize: 10, fill: '#94a3b8' }}
+							axisLine={false}
+							tickLine={false}
+						/>
+						<RechartsTip
+							contentStyle={{
+								backgroundColor: '#1e293b',
+								border: '1px solid #334155',
+								borderRadius: 8,
+								color: '#f1f5f9',
+								fontSize: 12,
+							}}
+							cursor={{ fill: 'rgba(201,162,39,0.1)' }}
+						/>
+						<Bar dataKey="pages" fill="#c9a227" radius={[3, 3, 0, 0]} name="Pages" />
+					</BarChart>
+				</ResponsiveContainer>
+			)}
 		</div>
 	);
 }
@@ -863,7 +865,7 @@ export function SupervisorDashboard() {
 						<OperatorScorecard />
 
 						{/* Pages-per-hour throughput chart */}
-						<ThroughputChart pagesToday={liveOps?.pages_scanned_today ?? 0} />
+						<ThroughputChart />
 
 						{/* Operator grid (2/3) + Alert panel (1/3) */}
 						<div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">

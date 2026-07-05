@@ -90,6 +90,17 @@ export interface TenantUsage {
 	storagePercentage?: number;
 }
 
+export interface TenantActivity {
+	id?: string;
+	action: string;
+	user?: string;
+	userEmail?: string;
+	actor?: string;
+	timestamp?: string;
+	createdAt?: string;
+	occurredAt?: string;
+}
+
 export interface TenantProvisionRequest {
 	name: string;
 	slug: string;
@@ -125,6 +136,7 @@ export const adminKeys = {
 	tenantAI: (id: string) => [...adminKeys.tenant(id), 'ai'] as const,
 	tenantSubscription: (id: string) => [...adminKeys.tenant(id), 'subscription'] as const,
 	tenantUsage: (id: string) => [...adminKeys.tenant(id), 'usage'] as const,
+	tenantActivity: (id: string) => [...adminKeys.tenant(id), 'activity'] as const,
 };
 
 // Hooks
@@ -177,6 +189,23 @@ export function useTenantSubscription(id: string) {
 		queryFn: async () => {
 			const { data } = await apiClient.get<Subscription>(`${API_BASE}/${id}/subscription`);
 			return data;
+		},
+		enabled: !!id,
+	});
+}
+
+export function useTenantActivity(id: string) {
+	return useQuery({
+		queryKey: adminKeys.tenantActivity(id),
+		queryFn: async () => {
+			try {
+				const { data } = await apiClient.get<TenantActivity[] | { items?: TenantActivity[] }>(
+					`${API_BASE}/${id}/activity`
+				);
+				return Array.isArray(data) ? data : data.items ?? [];
+			} catch {
+				return [];
+			}
 		},
 		enabled: !!id,
 	});

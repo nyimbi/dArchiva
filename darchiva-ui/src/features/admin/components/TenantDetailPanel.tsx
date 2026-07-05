@@ -1,15 +1,17 @@
 // (c) Copyright Datacraft, 2026
 import { motion } from 'framer-motion';
 import { useState } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Tenant,
-  useResetTenantAITokens,
-  useTenant,
-  useTenantAI,
-  useTenantStorage,
-  useTenantSubscription,
-  useUpdateTenant,
-  useVerifyTenantStorage,
+	Tenant,
+	useResetTenantAITokens,
+	useTenant,
+	useTenantActivity,
+	useTenantAI,
+	useTenantStorage,
+	useTenantSubscription,
+	useUpdateTenant,
+	useVerifyTenantStorage,
 } from '../api';
 import styles from './TenantDetailPanel.module.css';
 
@@ -27,6 +29,10 @@ export function TenantDetailPanel({ tenant, onClose }: Props) {
 	const { data: storage } = useTenantStorage(tenant.id);
 	const { data: ai } = useTenantAI(tenant.id);
 	const { data: subscription } = useTenantSubscription(tenant.id);
+	const { data: activity = [], isLoading: activityLoading } = useTenantActivity(tenant.id);
+	const recentActivity = [...activity]
+		.sort((a, b) => getActivityDateValue(b) - getActivityDateValue(a))
+		.slice(0, 10);
 
 	const updateTenant = useUpdateTenant();
 	const verifyStorage = useVerifyTenantStorage();
@@ -256,33 +262,34 @@ export function TenantDetailPanel({ tenant, onClose }: Props) {
 
 				{activeTab === 'activity' && (
 					<div className={styles.section}>
-						<div className={styles.activityList}>
-							<ActivityItem
-								action="User login"
-								user="john@acme.com"
-								timestamp="2 minutes ago"
-							/>
-							<ActivityItem
-								action="Document uploaded"
-								user="jane@acme.com"
-								timestamp="15 minutes ago"
-							/>
-							<ActivityItem
-								action="Workflow completed"
-								user="system"
-								timestamp="1 hour ago"
-							/>
-							<ActivityItem
-								action="Settings updated"
-								user="admin@acme.com"
-								timestamp="3 hours ago"
-							/>
-							<ActivityItem
-								action="User created"
-								user="admin@acme.com"
-								timestamp="Yesterday"
-							/>
-						</div>
+						{activityLoading ? (
+							<div className={styles.activityList}>
+								{Array.from({ length: 3 }).map((_, index) => (
+									<div key={index} className={styles.activityItem}>
+										<Skeleton className="h-2 w-2 rounded-full bg-primary/20" />
+										<div className={styles.activityContent}>
+											<Skeleton className="h-4 w-40 bg-primary/20" />
+											<Skeleton className="h-3 w-56 bg-primary/20" />
+										</div>
+									</div>
+								))}
+							</div>
+						) : recentActivity.length === 0 ? (
+							<div className="text-center py-8 text-muted-foreground text-sm">No recent activity</div>
+						) : (
+							<div className={styles.activityList}>
+								{recentActivity.map((item, index) => (
+									<ActivityItem
+										key={item.id ?? `${item.action}-${item.timestamp ?? item.createdAt ?? index}`}
+										action={item.action}
+										user={item.userEmail ?? item.user ?? item.actor ?? 'Unknown user'}
+										timestamp={formatActivityTimestamp(
+											item.timestamp ?? item.occurredAt ?? item.createdAt
+										)}
+									/>
+								))}
+							</div>
+						)}
 					</div>
 				)}
 			</div>
@@ -369,6 +376,27 @@ function FeatureToggle({ label, enabled }: { label: string; enabled: boolean }) 
 			</span>
 		</div>
 	);
+}
+
+function formatActivityTimestamp(timestamp?: string) {
+	if (!timestamp) return '—';
+
+	const date = new Date(timestamp);
+	if (Number.isNaN(date.getTime())) return timestamp;
+
+	return date.toLocaleString();
+}
+
+function getActivityDateValue(item: {
+	timestamp?: string;
+	occurredAt?: string;
+	createdAt?: string;
+}) {
+	const timestamp = item.timestamp ?? item.occurredAt ?? item.createdAt;
+	if (!timestamp) return 0;
+
+	const value = new Date(timestamp).getTime();
+	return Number.isNaN(value) ? 0 : value;
 }
 
 function ActivityItem({

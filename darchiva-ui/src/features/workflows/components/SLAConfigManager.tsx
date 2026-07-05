@@ -3,8 +3,14 @@
  * SLA Configuration Manager - Create and edit SLA configurations
  * for workflow deadline monitoring and escalation.
  */
-import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
-import { useCallback,useState } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { cn } from '@/lib/utils';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { AlertCircle, Clock, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import {
   createSLAConfig,
@@ -13,7 +19,6 @@ import {
   type SLAConfig,
   type SLAConfigCreate,
 } from '../api';
-import styles from './SLAConfigManager.module.css';
 
 interface SLAConfigManagerProps {
 	workflowId?: string;
@@ -21,92 +26,115 @@ interface SLAConfigManagerProps {
 }
 
 const REMINDER_THRESHOLDS = [50, 75, 90];
+const inputClassName =
+	'w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500';
+
+function normalizeWorkflowId(workflowId?: string) {
+	return workflowId && workflowId !== 'all' ? workflowId : undefined;
+}
 
 export function SLAConfigManager({ workflowId, className }: SLAConfigManagerProps) {
+	const effectiveWorkflowId = normalizeWorkflowId(workflowId);
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [expandedId, setExpandedId] = useState<string | null>(null);
 	const queryClient = useQueryClient();
 
-	const { data: configs, isLoading } = useQuery({
-		queryKey: ['sla-configs', workflowId],
-		queryFn: () => getSLAConfigs(workflowId),
+	const { data: configs, isLoading, isError } = useQuery({
+		queryKey: ['sla-configs', effectiveWorkflowId],
+		queryFn: () => getSLAConfigs(effectiveWorkflowId),
 	});
 
 	const createMutation = useMutation({
 		mutationFn: createSLAConfig,
 		onSuccess: () => {
-			toast.success('SLA config saved');
 			queryClient.invalidateQueries({ queryKey: ['sla-configs'] });
 			setIsModalOpen(false);
+			toast.success('SLA configuration created');
 		},
-		onError: () => toast.error('Failed to save SLA config'),
+		onError: () => {
+			toast.error('Failed to create SLA configuration');
+		},
 	});
 
 	const handleToggleExpand = useCallback((id: string) => {
 		setExpandedId(prev => prev === id ? null : id);
 	}, []);
 
-	if (isLoading) {
-		return (
-			<div className={`${styles.container} ${className || ''}`}>
-				<div className={styles.loading}>
-					<span className={styles.spinner} />
-					Loading configurations...
-				</div>
-			</div>
-		);
-	}
-
 	return (
-		<div className={`${styles.container} ${className || ''}`}>
-			<header className={styles.header}>
-				<div className={styles.headerTitle}>
-					<div className={styles.headerIcon}>
-						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-							<circle cx="12" cy="12" r="10" />
-							<polyline points="12 6 12 12 16 14" />
-						</svg>
+		<Card className={cn('border-slate-800 bg-slate-900/80 text-slate-200 shadow-none', className)}>
+			<CardHeader className="flex-row items-center justify-between gap-4 space-y-0 border-b border-slate-800 p-4">
+				<div className="flex items-center gap-3">
+					<div className="flex h-9 w-9 items-center justify-center rounded-md border border-cyan-500/30 bg-cyan-500/10 text-cyan-400">
+						<Clock className="h-4 w-4" />
 					</div>
-					<h3>SLA Configurations</h3>
+					<CardTitle className="text-base text-slate-100">SLA Configurations</CardTitle>
 				</div>
-				<button className={styles.addButton} onClick={() => setIsModalOpen(true)}>
-					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-						<line x1="12" y1="5" x2="12" y2="19" />
-						<line x1="5" y1="12" x2="19" y2="12" />
-					</svg>
+				<Button
+					size="sm"
+					className="bg-cyan-500 text-slate-950 hover:bg-cyan-400"
+					onClick={() => setIsModalOpen(true)}
+				>
+					<Plus className="h-4 w-4" />
 					New Config
-				</button>
-			</header>
+				</Button>
+			</CardHeader>
 
-			<div className={styles.configList}>
-				{!configs?.length ? (
-					<div className={styles.emptyState}>
-						<svg className={styles.emptyIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-							<circle cx="12" cy="12" r="10" />
-							<polyline points="12 6 12 12 16 14" />
-						</svg>
-						<p>No SLA configurations defined yet</p>
-					</div>
+			<CardContent className="p-4">
+				{isLoading ? (
+					<LoadingState label="Loading configurations..." />
+				) : isError ? (
+					<ErrorState label="Failed to load SLA configurations." />
+				) : !configs?.length ? (
+					<EmptyState />
 				) : (
-					configs.map(config => (
-						<ConfigCard
-							key={config.id}
-							config={config}
-							isExpanded={expandedId === config.id}
-							onToggle={() => handleToggleExpand(config.id)}
-						/>
-					))
+					<div className="space-y-3">
+						{configs.map(config => (
+							<ConfigCard
+								key={config.id}
+								config={config}
+								isExpanded={expandedId === config.id}
+								onToggle={() => handleToggleExpand(config.id)}
+							/>
+						))}
+					</div>
 				)}
-			</div>
+			</CardContent>
 
 			{isModalOpen && (
 				<ConfigModal
 					onClose={() => setIsModalOpen(false)}
 					onSave={createMutation.mutate}
 					isSaving={createMutation.isPending}
-					workflowId={workflowId}
+					workflowId={effectiveWorkflowId}
 				/>
 			)}
+		</Card>
+	);
+}
+
+function LoadingState({ label }: { label: string }) {
+	return (
+		<div className="flex items-center justify-center gap-2 py-10 text-sm text-slate-400">
+			<Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
+			{label}
+		</div>
+	);
+}
+
+function ErrorState({ label }: { label: string }) {
+	return (
+		<div className="flex items-center justify-center gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-4 py-8 text-sm text-red-300">
+			<AlertCircle className="h-5 w-5" />
+			{label}
+		</div>
+	);
+}
+
+function EmptyState() {
+	return (
+		<div className="flex flex-col items-center justify-center rounded-md border border-dashed border-slate-700 px-4 py-10 text-center text-slate-400">
+			<Clock className="mb-3 h-9 w-9 text-slate-500" />
+			<p className="text-sm">No SLA configurations defined yet</p>
 		</div>
 	);
 }
@@ -119,66 +147,89 @@ interface ConfigCardProps {
 
 function ConfigCard({ config, isExpanded, onToggle }: ConfigCardProps) {
 	return (
-		<div className={styles.configCard}>
-			<div className={styles.configCardHeader} onClick={onToggle}>
-				<div className={styles.configInfo}>
-					<span className={`${styles.statusIndicator} ${!config.is_active ? styles.inactive : ''}`} />
-					<span className={styles.configName}>{config.name}</span>
-					<div className={styles.configMeta}>
-						<span>
-							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-								<circle cx="12" cy="12" r="10" />
-								<polyline points="12 6 12 12 16 14" />
-							</svg>
+		<Card className="border-slate-800 bg-slate-950/70 shadow-none">
+			<button
+				type="button"
+				className="flex w-full items-start justify-between gap-4 p-4 text-left"
+				onClick={onToggle}
+			>
+				<div className="min-w-0 space-y-2">
+					<div className="flex items-center gap-2">
+						<span
+							className={cn(
+								'h-2.5 w-2.5 rounded-full',
+								config.is_active ? 'bg-emerald-400' : 'bg-slate-600',
+							)}
+						/>
+						<span className="truncate font-medium text-slate-100">{config.name}</span>
+					</div>
+					<div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+						<Badge variant="outline" className="border-slate-700 bg-slate-900 text-slate-300">
+							<Clock className="mr-1 h-3 w-3" />
 							{config.target_hours}h target
-						</span>
-						<span>⚠ {config.warning_threshold_percent}%</span>
-						<span>🔴 {config.critical_threshold_percent}%</span>
+						</Badge>
+						<Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-300">
+							{config.warning_threshold_percent}% warning
+						</Badge>
+						<Badge variant="outline" className="border-red-500/40 bg-red-500/10 text-red-300">
+							{config.critical_threshold_percent}% critical
+						</Badge>
 					</div>
 				</div>
-				<div className={styles.configActions}>
-					<button className={styles.actionBtn} onClick={e => { e.stopPropagation(); }}>
-						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-							<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-							<path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-						</svg>
-					</button>
-					<button className={`${styles.actionBtn} ${styles.delete}`} onClick={e => { e.stopPropagation(); }}>
-						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-							<polyline points="3 6 5 6 21 6" />
-							<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-						</svg>
-					</button>
+				<div className="flex shrink-0 items-center gap-1">
+					<Button
+						type="button"
+						variant="ghost"
+						size="icon"
+						className="h-8 w-8 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+						onClick={event => event.stopPropagation()}
+					>
+						<Pencil className="h-4 w-4" />
+					</Button>
+					<Button
+						type="button"
+						variant="ghost"
+						size="icon"
+						className="h-8 w-8 text-slate-400 hover:bg-red-500/10 hover:text-red-300"
+						onClick={event => event.stopPropagation()}
+					>
+						<Trash2 className="h-4 w-4" />
+					</Button>
 				</div>
-			</div>
+			</button>
+
 			{isExpanded && (
-				<div className={styles.configDetails}>
-					<div className={styles.detailItem}>
-						<span className={styles.detailLabel}>Reminders</span>
-						<span className={styles.detailValue}>
-							{config.reminder_enabled ? (
-								<div className={styles.thresholdBadges}>
-									{config.reminder_thresholds?.map(t => (
-										<span key={t} className={styles.thresholdBadge}>{t}%</span>
-									))}
-								</div>
-							) : 'Disabled'}
-						</span>
-					</div>
-					<div className={styles.detailItem}>
-						<span className={styles.detailLabel}>Escalation Chain</span>
-						<span className={styles.detailValue}>
-							{config.escalation_chain_id ? 'Linked' : 'None'}
-						</span>
-					</div>
-					<div className={styles.detailItem}>
-						<span className={styles.detailLabel}>Created</span>
-						<span className={styles.detailValue}>
-							{new Date(config.created_at).toLocaleDateString()}
-						</span>
-					</div>
+				<div className="grid gap-3 border-t border-slate-800 p-4 text-sm sm:grid-cols-3">
+					<DetailItem label="Reminders">
+						{config.reminder_enabled ? (
+							<div className="flex flex-wrap gap-1.5">
+								{config.reminder_thresholds?.map(threshold => (
+									<Badge key={threshold} className="bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20">
+										{threshold}%
+									</Badge>
+								))}
+							</div>
+						) : (
+							<span className="text-slate-500">Disabled</span>
+						)}
+					</DetailItem>
+					<DetailItem label="Escalation Chain">
+						<span className="text-slate-300">{config.escalation_chain_id ? 'Linked' : 'None'}</span>
+					</DetailItem>
+					<DetailItem label="Created">
+						<span className="text-slate-300">{new Date(config.created_at).toLocaleDateString()}</span>
+					</DetailItem>
 				</div>
 			)}
+		</Card>
+	);
+}
+
+function DetailItem({ label, children }: { label: string; children: ReactNode }) {
+	return (
+		<div className="space-y-1">
+			<span className="block text-xs font-medium uppercase tracking-wide text-slate-500">{label}</span>
+			{children}
 		</div>
 	);
 }
@@ -201,9 +252,10 @@ function ConfigModal({ onClose, onSave, isSaving, workflowId }: ConfigModalProps
 		reminder_thresholds: [50, 75, 90],
 	});
 
-	const { data: workflows } = useQuery({
+	const { data: workflows, isError: isWorkflowsError } = useQuery({
 		queryKey: ['workflows'],
 		queryFn: () => listWorkflows(),
+		enabled: !workflowId,
 	});
 
 	const toggleThreshold = (threshold: number) => {
@@ -221,115 +273,147 @@ function ConfigModal({ onClose, onSave, isSaving, workflowId }: ConfigModalProps
 	};
 
 	return (
-		<div className={styles.modalOverlay} onClick={onClose}>
-			<div className={styles.modal} onClick={e => e.stopPropagation()}>
-				<div className={styles.modalHeader}>
-					<h4>New SLA Configuration</h4>
-					<button className={styles.closeBtn} onClick={onClose}>
-						<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-							<line x1="18" y1="6" x2="6" y2="18" />
-							<line x1="6" y1="6" x2="18" y2="18" />
-						</svg>
-					</button>
-				</div>
+		<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4" onClick={onClose}>
+			<Card
+				className="w-full max-w-lg border-slate-700 bg-slate-900 text-slate-200 shadow-xl"
+				onClick={event => event.stopPropagation()}
+			>
+				<CardHeader className="flex-row items-center justify-between space-y-0 border-b border-slate-800 p-4">
+					<CardTitle className="text-base text-slate-100">New SLA Configuration</CardTitle>
+					<Button
+						type="button"
+						variant="ghost"
+						size="icon"
+						className="h-8 w-8 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+						onClick={onClose}
+					>
+						<X className="h-4 w-4" />
+					</Button>
+				</CardHeader>
 
-				<div className={styles.modalBody}>
-					<div className={styles.formGroup}>
-						<label>Configuration Name</label>
+				<CardContent className="space-y-4 p-4">
+					<div className="space-y-2">
+						<label className="text-sm font-medium text-slate-300">Configuration Name</label>
 						<input
 							type="text"
 							value={formData.name}
-							onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
+							onChange={event => setFormData(prev => ({ ...prev, name: event.target.value }))}
 							placeholder="e.g., Standard Review SLA"
+							className={inputClassName}
 						/>
 					</div>
 
 					{!workflowId && (
-						<div className={styles.formGroup}>
-							<label>Workflow (Optional)</label>
+						<div className="space-y-2">
+							<label className="text-sm font-medium text-slate-300">Workflow (Optional)</label>
 							<select
 								value={formData.workflow_id || ''}
-								onChange={e => setFormData(prev => ({ ...prev, workflow_id: e.target.value || undefined }))}
+								onChange={event => setFormData(prev => ({ ...prev, workflow_id: event.target.value || undefined }))}
+								className={inputClassName}
 							>
 								<option value="">All Workflows</option>
-								{workflows?.items.map(wf => (
-									<option key={wf.id} value={wf.id}>{wf.name}</option>
+								{workflows?.items.map(workflow => (
+									<option key={workflow.id} value={workflow.id}>{workflow.name}</option>
 								))}
 							</select>
+							{isWorkflowsError && (
+								<p className="flex items-center gap-1.5 text-xs text-red-300">
+									<AlertCircle className="h-3.5 w-3.5" />
+									Failed to load workflows.
+								</p>
+							)}
 						</div>
 					)}
 
-					<div className={styles.formGroup}>
-						<label>Target Hours</label>
+					<div className="space-y-2">
+						<label className="text-sm font-medium text-slate-300">Target Hours</label>
 						<input
 							type="number"
 							value={formData.target_hours}
-							onChange={e => setFormData(prev => ({ ...prev, target_hours: parseInt(e.target.value) || 0 }))}
+							onChange={event => setFormData(prev => ({ ...prev, target_hours: parseInt(event.target.value, 10) || 0 }))}
 							min="1"
+							className={inputClassName}
 						/>
 					</div>
 
-					<div className={styles.formRow}>
-						<div className={styles.formGroup}>
-							<label>Warning Threshold (%)</label>
+					<div className="grid gap-4 sm:grid-cols-2">
+						<div className="space-y-2">
+							<label className="text-sm font-medium text-slate-300">Warning Threshold (%)</label>
 							<input
 								type="number"
 								value={formData.warning_threshold_percent}
-								onChange={e => setFormData(prev => ({ ...prev, warning_threshold_percent: parseInt(e.target.value) || 75 }))}
+								onChange={event => setFormData(prev => ({ ...prev, warning_threshold_percent: parseInt(event.target.value, 10) || 75 }))}
 								min="1"
 								max="99"
+								className={inputClassName}
 							/>
 						</div>
-						<div className={styles.formGroup}>
-							<label>Critical Threshold (%)</label>
+						<div className="space-y-2">
+							<label className="text-sm font-medium text-slate-300">Critical Threshold (%)</label>
 							<input
 								type="number"
 								value={formData.critical_threshold_percent}
-								onChange={e => setFormData(prev => ({ ...prev, critical_threshold_percent: parseInt(e.target.value) || 90 }))}
+								onChange={event => setFormData(prev => ({ ...prev, critical_threshold_percent: parseInt(event.target.value, 10) || 90 }))}
 								min="1"
 								max="99"
+								className={inputClassName}
 							/>
 						</div>
 					</div>
 
-					<div className={styles.toggleGroup}>
-						<span>Enable Reminders</span>
-						<div
-							className={`${styles.toggle} ${formData.reminder_enabled ? styles.active : ''}`}
-							onClick={() => setFormData(prev => ({ ...prev, reminder_enabled: !prev.reminder_enabled }))}
+					<div className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-950/70 px-3 py-2">
+						<span className="text-sm text-slate-300">Enable Reminders</span>
+						<Switch
+							checked={formData.reminder_enabled}
+							onCheckedChange={checked => setFormData(prev => ({ ...prev, reminder_enabled: checked }))}
+							className="data-[state=checked]:bg-cyan-500 data-[state=unchecked]:bg-slate-700"
 						/>
 					</div>
 
 					{formData.reminder_enabled && (
-						<div className={styles.thresholdGroup}>
-							<label className={styles.formGroup}>Reminder Thresholds</label>
-							<div className={styles.thresholdOptions}>
+						<div className="space-y-2">
+							<label className="text-sm font-medium text-slate-300">Reminder Thresholds</label>
+							<div className="flex flex-wrap gap-2">
 								{REMINDER_THRESHOLDS.map(threshold => (
-									<button
+									<Button
 										key={threshold}
 										type="button"
-										className={`${styles.thresholdOption} ${formData.reminder_thresholds?.includes(threshold) ? styles.selected : ''}`}
+										variant="outline"
+										size="sm"
+										className={cn(
+											'border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800 hover:text-slate-100',
+											formData.reminder_thresholds?.includes(threshold) && 'border-cyan-500 bg-cyan-500/10 text-cyan-300',
+										)}
 										onClick={() => toggleThreshold(threshold)}
 									>
 										{threshold}%
-									</button>
+									</Button>
 								))}
 							</div>
 						</div>
 					)}
-				</div>
+				</CardContent>
 
-				<div className={styles.modalFooter}>
-					<button className={styles.cancelBtn} onClick={onClose}>Cancel</button>
-					<button
-						className={styles.saveBtn}
+				<div className="flex justify-end gap-2 border-t border-slate-800 p-4">
+					<Button
+						type="button"
+						variant="ghost"
+						className="text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+						onClick={onClose}
+					>
+						Cancel
+					</Button>
+					<Button
+						type="button"
+						className="bg-cyan-500 text-slate-950 hover:bg-cyan-400"
 						onClick={handleSubmit}
 						disabled={isSaving || !formData.name}
 					>
+						{isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
 						{isSaving ? 'Saving...' : 'Create Configuration'}
-					</button>
+					</Button>
 				</div>
-			</div>
+			</Card>
 		</div>
 	);
 }
