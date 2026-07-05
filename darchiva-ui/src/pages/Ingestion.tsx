@@ -1,6 +1,7 @@
 // (c) Copyright Datacraft, 2026
 import {
   BatchUploader,
+  BulkImportDialog,
   IngestionTemplates,
   JobQueueDashboard,
   useIngestionJobs,
@@ -24,6 +25,7 @@ import {
   Plus,
   ScanLine,
   Settings,
+  Upload,
   Webhook,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -125,6 +127,7 @@ function SourceCard({ source, onSettings, onOptions }: { source: IngestionSource
 
 export function Ingestion() {
 	const [activeTab, setActiveTab] = useState<'sources' | 'jobs' | 'batch' | 'templates'>('sources');
+	const [bulkImportOpen, setBulkImportOpen] = useState(false);
 	const { openModal } = useStore();
 
 	const { data: sourcesData, isLoading: sourcesLoading } = useIngestionSources();
@@ -161,10 +164,16 @@ export function Ingestion() {
 						Configure automatic document import from folders, email, and APIs
 					</p>
 				</div>
-				<button onClick={handleAddSource} className="btn-primary">
-					<Plus className="w-4 h-4" />
-					Add Source
-				</button>
+				<div className="flex items-center gap-2">
+					<button onClick={() => setBulkImportOpen(true)} className="btn-secondary flex items-center gap-2">
+						<Upload className="w-4 h-4" />
+						Bulk Import
+					</button>
+					<button onClick={handleAddSource} className="btn-primary">
+						<Plus className="w-4 h-4" />
+						Add Source
+					</button>
+				</div>
 			</div>
 
 			{/* Stats */}
@@ -314,6 +323,11 @@ export function Ingestion() {
 					</motion.div>
 				)}
 			</AnimatePresence>
+
+			<BulkImportDialog
+				isOpen={bulkImportOpen}
+				onClose={() => setBulkImportOpen(false)}
+			/>
 		</div>
 	);
 }
