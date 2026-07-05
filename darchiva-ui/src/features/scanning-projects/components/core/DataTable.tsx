@@ -1,6 +1,8 @@
 import { cn } from '@/lib/utils';
+import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { ChevronDownIcon,ChevronsUpDownIcon,ChevronUpIcon } from 'lucide-react';
 import { useId,useMemo,useState,type ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 
 export interface Column<T> {
   key: string;
@@ -27,6 +29,7 @@ interface DataTableProps<T extends { id: string }> {
 }
 
 type SortDirection = 'asc' | 'desc' | null;
+type PersistedSort = { column: string | null; direction: SortDirection };
 
 export function DataTable<T extends { id: string }>({
   columns,
@@ -43,17 +46,26 @@ export function DataTable<T extends { id: string }>({
   className,
 }: DataTableProps<T>) {
   const tableId = useId();
-  const [sortKey, setSortKey] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+  const location = useLocation();
+  const preferences = useUserPreferences();
+  const sortPreferenceKey = `table_sort:${location.pathname}:${caption}`;
+  const [sortState, setSortState] = useState<PersistedSort>(() =>
+    preferences.get<PersistedSort>(sortPreferenceKey, { column: null, direction: null })
+  );
+  const sortKey = sortState.column;
+  const sortDirection = sortState.direction;
 
   const handleSort = (key: string) => {
-    if (sortKey === key) {
-      setSortDirection(prev => (prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc'));
-      if (sortDirection === 'desc') setSortKey(null);
-    } else {
-      setSortKey(key);
-      setSortDirection('asc');
-    }
+    setSortState(prev => {
+      const next: PersistedSort = prev.column === key
+        ? {
+            column: prev.direction === 'desc' ? null : key,
+            direction: prev.direction === 'asc' ? 'desc' : prev.direction === 'desc' ? null : 'asc',
+          }
+        : { column: key, direction: 'asc' };
+      preferences.set(sortPreferenceKey, next);
+      return next;
+    });
   };
 
   const sortedData = useMemo(() => {

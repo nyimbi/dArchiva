@@ -1,7 +1,7 @@
 // (c) Copyright Datacraft, 2026
 import { apiClient } from '@/lib/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { DocumentComment, CreateCommentPayload, UpdateCommentPayload } from './types';
+import type { DocumentComment, CreateCommentPayload, MentionUser, UpdateCommentPayload } from './types';
 
 // ---------------------------------------------------------------------------
 // Query keys
@@ -10,6 +10,7 @@ import type { DocumentComment, CreateCommentPayload, UpdateCommentPayload } from
 export const commentKeys = {
   all: ['document-comments'] as const,
   byDocument: (documentId: string) => ['document-comments', documentId] as const,
+  mentionUsers: (query: string) => ['comment-mention-users', query] as const,
 };
 
 // ---------------------------------------------------------------------------
@@ -76,5 +77,36 @@ export function useDeleteComment(documentId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: commentKeys.byDocument(documentId) });
     },
+  });
+}
+
+export function useReactToComment(documentId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ commentId, emoji }: { commentId: string; emoji: string }) => {
+      const { data } = await apiClient.post<DocumentComment>(
+        `/documents/${documentId}/comments/${commentId}/reactions`,
+        { emoji },
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: commentKeys.byDocument(documentId) });
+    },
+  });
+}
+
+export function useMentionUsers(query: string) {
+  return useQuery({
+    queryKey: commentKeys.mentionUsers(query),
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ items?: MentionUser[] } | MentionUser[]>(
+        '/users/',
+        { params: { search: query } },
+      );
+      return Array.isArray(data) ? data : data.items ?? [];
+    },
+    enabled: query.trim().length > 0,
+    staleTime: 30_000,
   });
 }

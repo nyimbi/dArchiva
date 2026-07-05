@@ -7,18 +7,41 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 export interface LegalHold {
 	id: string;
 	document_id: string;
+	documentId?: string;
 	hold_name: string;
+	holdName?: string;
 	hold_reason: string;
+	holdReason?: string;
 	held_by_id: string;
+	heldById?: string;
 	released_by_id: string | null;
+	releasedById?: string | null;
 	held_at: string;
+	heldAt?: string;
 	released_at: string | null;
+	releasedAt?: string | null;
+	expires_at?: string | null;
+	expiresAt?: string | null;
+	case_id?: string | null;
+	caseId?: string | null;
+	case_reference?: string | null;
+	caseReference?: string | null;
+	release_reason?: string | null;
+	releaseReason?: string | null;
 	tenant_id: string;
+	tenantId?: string;
 }
 
 export interface PlaceHoldPayload {
 	hold_name: string;
 	hold_reason: string;
+	expires_at?: string | null;
+	case_reference?: string | null;
+}
+
+export interface ReleaseHoldPayload {
+	holdId: string;
+	reason: string;
 }
 
 // ── Query keys ────────────────────────────────────────────────────────────────
@@ -63,8 +86,10 @@ export function usePlaceLegalHold(documentId: string) {
 export function useReleaseLegalHold(documentId: string) {
 	const qc = useQueryClient();
 	return useMutation({
-		mutationFn: async (holdId: string): Promise<LegalHold> => {
-			const { data } = await apiClient.delete<LegalHold>(`/legal-holds/${holdId}`);
+		mutationFn: async ({ holdId, reason }: ReleaseHoldPayload): Promise<LegalHold> => {
+			const { data } = await apiClient.delete<LegalHold>(`/legal-holds/${holdId}`, {
+				data: { reason },
+			});
 			return data;
 		},
 		onSuccess: () => {

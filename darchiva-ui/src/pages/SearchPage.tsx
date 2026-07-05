@@ -1,12 +1,14 @@
 // (c) Copyright Datacraft, 2026
 import { useSearchDocuments, useSearchFacets } from '@/features/search/api';
 import { SavedSearchPanel } from '@/features/search/components/SavedSearchPanel';
-import type { ActiveFilter, SearchFilters, SearchSortBy } from '@/features/search/types';
+import type { ActiveFilter, SearchFilters, SearchResult, SearchSortBy } from '@/features/search/types';
 import { cn, formatRelativeTime } from '@/lib/utils';
+import { Switch } from '@/components/ui/switch';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
 	AlertTriangle,
 	BarChart2,
+	Bookmark,
 	Calendar,
 	CheckCircle2,
 	ChevronDown,
@@ -54,6 +56,16 @@ function saveToHistory(query: string): void {
 	}
 }
 
+function removeFromHistory(query: string): string[] {
+	const next = loadHistory().filter(q => q !== query);
+	try {
+		localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+	} catch {
+		// ignore
+	}
+	return next;
+}
+
 function clearHistory(): void {
 	try {
 		localStorage.removeItem(HISTORY_KEY);
@@ -70,12 +82,16 @@ function useSearchHistory() {
 		setHistory(loadHistory());
 	}, []);
 
+	const remove = useCallback((query: string) => {
+		setHistory(removeFromHistory(query));
+	}, []);
+
 	const clear = useCallback(() => {
 		clearHistory();
 		setHistory([]);
 	}, []);
 
-	return { history, push, clear };
+	return { history, push, remove, clear };
 }
 
 // ---------------------------------------------------------------------------
@@ -87,6 +103,15 @@ const SORT_OPTIONS: Array<{ value: SearchSortBy; label: string }> = [
 	{ value: 'date_desc', label: 'Newest first' },
 	{ value: 'date_asc', label: 'Oldest first' },
 	{ value: 'quality_asc', label: 'Quality (low→high)' },
+];
+
+const SEARCH_OPERATORS = [
+	{ token: 'type:invoice', description: 'filter by document type' },
+	{ token: 'tag:important', description: 'filter by tag' },
+	{ token: 'from:2024-01-01', description: 'created after date' },
+	{ token: 'to:2024-12-31', description: 'created before date' },
+	{ token: 'has:annotations', description: 'has annotations' },
+	{ token: 'created_by:john', description: 'by specific user' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -138,6 +163,55 @@ function buildActiveFilters(filters: SearchFilters): ActiveFilter[] {
 	return chips;
 }
 
+interface SearchResultTypeGroup {
+	type: string;
+	items: SearchResult[];
+}
+
+function groupResultsByType(items: SearchResult[]): SearchResultTypeGroup[] {
+	const groups = new Map<string, SearchResult[]>();
+	for (const item of items) {
+		const type = item.documentType ?? item.documentTypeBadge ?? 'Other documents';
+		groups.set(type, [...(groups.get(type) ?? []), item]);
+	}
+	return Array.from(groups.entries()).map(([type, groupItems]) => ({ type, items: groupItems }));
+}
+
+function stripHtml(value: string): string {
+	return value.replace(/<[^>]*>/g, ' ');
+}
+
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getSearchTerms(query: string): string[] {
+	return query
+		.split(/\s+/)
+		.map(term => term.trim())
+		.filter(term => term && !term.includes(':'))
+		.slice(0, 6);
+}
+
+function highlightedText(text: string, query: string): React.ReactNode[] {
+	const cleanText = stripHtml(text);
+	const terms = getSearchTerms(query);
+	if (terms.length === 0) return [cleanText];
+
+	const regex = new RegExp(`(${terms.map(escapeRegExp).join('|')})`, 'ig');
+	return cleanText.split(regex).map((part, index) => {
+		if (!part) return null;
+		const matched = terms.some(term => part.toLowerCase() === term.toLowerCase());
+		return matched ? (
+			<mark key={`${part}-${index}`} className="rounded bg-yellow-300/80 px-0.5 text-slate-950">
+				{part}
+			</mark>
+		) : (
+			<span key={`${part}-${index}`}>{part}</span>
+		);
+	});
+}
+
 // ---------------------------------------------------------------------------
 // SearchPage
 // ---------------------------------------------------------------------------
@@ -151,7 +225,9 @@ export function SearchPage() {
 	const debouncedQuery = useDebounce(inputValue, 300);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const [inputFocused, setInputFocused] = useState(false);
-	const { history, push: pushHistory, clear: clearHistoryFn } = useSearchHistory();
+	const [showAdvanced, setShowAdvanced] = useState(false);
+	const [groupByType, setGroupByType] = useState(false);
+	const { history, push: pushHistory, remove: removeHistory, clear: clearHistoryFn } = useSearchHistory();
 
 	const [filters, setFilters] = useState<SearchFilters>({});
 	const [sortBy, setSortBy] = useState<SearchSortBy>('date_desc');
@@ -190,6 +266,7 @@ export function SearchPage() {
 	const totalItems = results?.total ?? results?.total_items ?? 0;
 	const numPages = results?.num_pages ?? Math.ceil(totalItems / pageSize);
 	const currentPage = results?.page ?? results?.page_number ?? page;
+	const groupedResults = useMemo(() => groupResultsByType(results?.items ?? []), [results?.items]);
 
 	// ---------------------------------------------------------------------------
 	// Filter mutations
@@ -272,6 +349,22 @@ export function SearchPage() {
 		setPage(1);
 	}, []);
 
+	const runSearch = useCallback((query: string) => {
+		setInputValue(query);
+		setSearchParams(query.trim() ? { q: query.trim() } : {}, { replace: true });
+		setPage(1);
+		if (query.trim()) pushHistory(query.trim());
+	}, [pushHistory, setSearchParams]);
+
+	const appendOperator = useCallback((operator: string) => {
+		setInputValue(prev => {
+			const next = prev.trim() ? `${prev.trim()} ${operator}` : operator;
+			setPage(1);
+			inputRef.current?.focus();
+			return next;
+		});
+	}, []);
+
 	return (
 		<div className="flex flex-col h-full gap-0">
 			{/* ------------------------------------------------------------------ Header */}
@@ -308,7 +401,7 @@ export function SearchPage() {
 										<div className="flex items-center justify-between mb-2">
 											<span className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
 												<Clock className="w-3 h-3" />
-												Recent searches
+												Recent Searches
 											</span>
 											<button
 												onClick={clearHistoryFn}
@@ -318,20 +411,76 @@ export function SearchPage() {
 												Clear
 											</button>
 										</div>
-										<div className="flex flex-wrap gap-1.5">
+										<div className="space-y-1">
 											{history.map(q => (
-												<button
+												<div
 													key={q}
-													onMouseDown={() => {
-														setInputValue(q);
-														setInputFocused(false);
-													}}
-													className="flex items-center gap-1 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded-full text-xs text-slate-300 transition-colors"
+													className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-800/80 group"
 												>
-													<Clock className="w-2.5 h-2.5 text-slate-500" />
-													{q}
-												</button>
+													<Clock className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+													<button
+														type="button"
+														onMouseDown={(e) => {
+															e.preventDefault();
+															runSearch(q);
+															setInputFocused(false);
+														}}
+														className="min-w-0 flex-1 text-left text-sm text-slate-300 truncate"
+													>
+														{q}
+													</button>
+													<button
+														type="button"
+														onMouseDown={(e) => {
+															e.preventDefault();
+															e.stopPropagation();
+															removeHistory(q);
+														}}
+														className="w-6 h-6 inline-flex items-center justify-center rounded text-slate-600 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
+														aria-label={`Remove ${q} from recent searches`}
+													>
+														<X className="w-3.5 h-3.5" />
+													</button>
+												</div>
 											))}
+										</div>
+									</motion.div>
+								)}
+							</AnimatePresence>
+						</div>
+						<div className="mt-2">
+							<button
+								type="button"
+								onClick={() => setShowAdvanced(v => !v)}
+								className="inline-flex items-center gap-1.5 text-xs text-brass-400 hover:text-brass-300 transition-colors"
+							>
+								<SlidersHorizontal className="w-3.5 h-3.5" />
+								Advanced
+								{showAdvanced ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+							</button>
+							<AnimatePresence initial={false}>
+								{showAdvanced && (
+									<motion.div
+										initial={{ height: 0, opacity: 0 }}
+										animate={{ height: 'auto', opacity: 1 }}
+										exit={{ height: 0, opacity: 0 }}
+										transition={{ duration: 0.18 }}
+										className="overflow-hidden"
+									>
+										<div className="mt-2 rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+											<div className="grid gap-2 sm:grid-cols-2">
+												{SEARCH_OPERATORS.map(op => (
+													<button
+														key={op.token}
+														type="button"
+														onClick={() => appendOperator(op.token)}
+														className="flex items-center justify-between gap-3 rounded-md border border-slate-800 bg-slate-800/40 px-2.5 py-2 text-left hover:border-brass-500/30 hover:bg-slate-800 transition-colors"
+													>
+														<code className="text-xs text-brass-300">{op.token}</code>
+														<span className="text-2xs text-slate-500">{op.description}</span>
+													</button>
+												))}
+											</div>
 										</div>
 									</motion.div>
 								)}
@@ -390,6 +539,16 @@ export function SearchPage() {
 							Clear all
 						</button>
 					)}
+
+					<div className="ml-auto flex items-center gap-2 text-xs text-slate-500">
+						<span>Group by type</span>
+						<Switch
+							checked={groupByType}
+							onCheckedChange={setGroupByType}
+							className="data-[state=checked]:bg-brass-500 data-[state=unchecked]:bg-slate-700"
+							aria-label="Group results by document type"
+						/>
+					</div>
 				</div>
 			</div>
 
@@ -452,13 +611,22 @@ export function SearchPage() {
 						}}
 					/>
 
-					<SavedSearchPanel
-						currentQuery={inputValue}
-						onApply={(query) => {
-							setInputValue(query);
-							setPage(1);
-						}}
-					/>
+					<CollapsiblePanel
+						title="Saved Searches"
+						icon={<Bookmark className="w-4 h-4" />}
+						defaultOpen={false}
+					>
+						<SavedSearchPanel
+							currentQuery={inputValue}
+							currentFilters={filters}
+							onApply={(query, savedFilters) => {
+								runSearch(query);
+								if (savedFilters) {
+									setFilters(savedFilters);
+								}
+							}}
+						/>
+					</CollapsiblePanel>
 				</aside>
 
 				{/* Main results area */}
@@ -466,19 +634,36 @@ export function SearchPage() {
 					{isLoading ? (
 						<SearchSkeleton />
 					) : !results || results.items.length === 0 ? (
-						<SearchEmpty hasQuery={!!debouncedQuery || activeFilters.length > 0} />
+						<SearchEmpty
+							query={debouncedQuery}
+							hasFilters={activeFilters.length > 0}
+							onClearFilters={clearAllFilters}
+						/>
 					) : (
-						<div className="space-y-2">
-							{results.items.map((item, idx) => (
-								<SearchResultCard
-									key={item.id}
-									item={item}
-									index={idx}
-									query={debouncedQuery}
-									onClick={() => navigate(`/documents?nodeId=${item.id}`)}
-								/>
-							))}
-						</div>
+						groupByType ? (
+							<div className="space-y-3">
+								{groupedResults.map(group => (
+									<SearchResultGroup
+										key={group.type}
+										group={group}
+										query={debouncedQuery}
+										onOpen={(id) => navigate(`/documents?nodeId=${id}`)}
+									/>
+								))}
+							</div>
+						) : (
+							<div className="space-y-2">
+								{results.items.map((item, idx) => (
+									<SearchResultCard
+										key={item.id}
+										item={item}
+										index={idx}
+										query={debouncedQuery}
+										onClick={() => navigate(`/documents?nodeId=${item.id}`)}
+									/>
+								))}
+							</div>
+						)
 					)}
 
 					{/* Pagination */}
@@ -973,22 +1158,59 @@ function FilterPanelOcrStatus({
 // Result Card
 // ---------------------------------------------------------------------------
 
+function SearchResultGroup({
+	group,
+	query,
+	onOpen,
+}: {
+	group: SearchResultTypeGroup;
+	query: string;
+	onOpen: (id: string) => void;
+}) {
+	const [open, setOpen] = useState(true);
+
+	return (
+		<section className="rounded-lg border border-slate-800/80 bg-slate-950/20 overflow-hidden">
+			<button
+				type="button"
+				onClick={() => setOpen(v => !v)}
+				className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-900/70 transition-colors"
+			>
+				<span className="flex items-center gap-2 text-sm font-medium text-slate-200">
+					<FileText className="w-4 h-4 text-slate-500" />
+					{group.type} ({group.items.length})
+				</span>
+				{open ? <ChevronUp className="w-4 h-4 text-slate-600" /> : <ChevronDown className="w-4 h-4 text-slate-600" />}
+			</button>
+			<AnimatePresence initial={false}>
+				{open && (
+					<motion.div
+						initial={{ height: 0, opacity: 0 }}
+						animate={{ height: 'auto', opacity: 1 }}
+						exit={{ height: 0, opacity: 0 }}
+						transition={{ duration: 0.18 }}
+						className="overflow-hidden"
+					>
+						<div className="space-y-2 p-3 pt-0">
+							{group.items.map((item, index) => (
+								<SearchResultCard
+									key={item.id}
+									item={item}
+									index={index}
+									query={query}
+									onClick={() => onOpen(item.id)}
+								/>
+							))}
+						</div>
+					</motion.div>
+				)}
+			</AnimatePresence>
+		</section>
+	);
+}
+
 interface SearchResultCardProps {
-	item: {
-		id: string;
-		title: string;
-		excerpt?: string;
-		highlights?: string[];
-		score?: number;
-		documentType?: string;
-		documentTypeBadge?: string;
-		qualityScore?: number;
-		tags?: Array<{ id: string; name: string; color?: string }>;
-		createdAt?: string;
-		updatedAt?: string;
-		owner?: { id: string; name: string };
-		operator?: { id?: string; name?: string; username?: string } | null;
-	};
+	item: SearchResult;
 	index: number;
 	query: string;
 	onClick: () => void;
@@ -997,9 +1219,9 @@ interface SearchResultCardProps {
 function SearchResultCard({ item, index, query, onClick }: SearchResultCardProps) {
 	const typeLabel = item.documentType ?? item.documentTypeBadge;
 	const operatorName = item.operator
-		? (item.operator.name ?? item.operator.username ?? null)
+		? (item.operator.name ?? (item.operator as { username?: string }).username ?? null)
 		: null;
-	const excerpt = item.highlights?.[0] ?? item.excerpt ?? '';
+	const excerpt = item.ocrExcerpt ?? item.highlights?.[0] ?? item.excerpt ?? '';
 
 	return (
 		<motion.div
@@ -1057,14 +1279,25 @@ function SearchResultCard({ item, index, query, onClick }: SearchResultCardProps
 								{formatRelativeTime(item.updatedAt ?? item.createdAt ?? '')}
 							</span>
 						)}
+						{item.matchedFieldLabel && (
+							<span className="flex items-center gap-1 text-brass-400">
+								<Tag className="w-3 h-3" />
+								Matched field: {item.matchedFieldLabel}
+							</span>
+						)}
+						{item.pageNumber != null && (
+							<span className="flex items-center gap-1 text-slate-400">
+								<FileText className="w-3 h-3" />
+								Found on page {item.pageNumber}
+							</span>
+						)}
 					</div>
 
 					{/* OCR excerpt */}
 					{excerpt && (
-						<p
-							className="mt-1.5 text-sm text-slate-400 line-clamp-2 leading-relaxed"
-							dangerouslySetInnerHTML={{ __html: excerpt }}
-						/>
+						<p className="mt-1.5 text-sm text-slate-400 line-clamp-2 leading-relaxed">
+							{highlightedText(excerpt, query)}
+						</p>
 					)}
 
 					{/* Tags */}
@@ -1133,20 +1366,39 @@ function SearchSkeleton() {
 // Empty state
 // ---------------------------------------------------------------------------
 
-function SearchEmpty({ hasQuery }: { hasQuery: boolean }) {
+function SearchEmpty({
+	query,
+	hasFilters,
+	onClearFilters,
+}: {
+	query: string;
+	hasFilters: boolean;
+	onClearFilters: () => void;
+}) {
+	const trimmedQuery = query.trim();
+
 	return (
 		<div className="flex flex-col items-center justify-center py-20 text-center">
 			<div className="w-16 h-16 rounded-2xl bg-slate-800/60 flex items-center justify-center mb-4">
 				<Search className="w-8 h-8 text-slate-600" />
 			</div>
 			<h3 className="text-base font-medium text-slate-300 mb-2">
-				{hasQuery ? 'No matching documents' : 'Start your search'}
+				{trimmedQuery ? `No results for "${trimmedQuery}"` : 'No results'}
 			</h3>
-			<p className="text-sm text-slate-500 max-w-sm">
-				{hasQuery
-					? 'Try adjusting your filters or search terms.'
-					: 'Type a keyword above, or use the filters on the left to browse documents.'}
-			</p>
+			<ul className="space-y-1 text-sm text-slate-500 max-w-sm">
+				<li>Try: removing filters</li>
+				<li>Check spelling</li>
+				<li>Search all document types</li>
+			</ul>
+			<button
+				type="button"
+				onClick={onClearFilters}
+				disabled={!hasFilters}
+				className="mt-4 inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 hover:border-brass-500/40 hover:text-brass-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+			>
+				<X className="w-4 h-4" />
+				Clear all filters
+			</button>
 		</div>
 	);
 }

@@ -12,6 +12,7 @@ import {
   useRunWorkflow,
   useWorkflows,
 } from '@/features/workflows';
+import { EmptyState } from '@/components/EmptyState';
 import type { PendingTask } from '@/features/workflows/api';
 import type { Workflow, WorkflowEdge, WorkflowExecution, WorkflowNode } from '@/features/workflows/types';
 import {
@@ -1007,11 +1008,11 @@ export function Workflows() {
                 <Loader2 className="w-8 h-8 animate-spin text-slate-500" />
               </div>
             ) : pendingTasks.length === 0 ? (
-              <div className="glass-card p-12 text-center">
-                <CheckCircle2 className="w-12 h-12 mx-auto text-green-500 mb-4" />
-                <h3 className="text-lg font-medium text-slate-200">All caught up!</h3>
-                <p className="mt-2 text-sm text-slate-500">You have no pending workflow tasks.</p>
-              </div>
+              <EmptyState
+                icon={CheckCircle2}
+                title="All caught up"
+                description="You have no pending workflow tasks."
+              />
             ) : (
               pendingTasks.map((task) => (
                 <TaskCard
@@ -1050,20 +1051,12 @@ export function Workflows() {
                 <Loader2 className="w-8 h-8 animate-spin text-slate-500" />
               </div>
             ) : workflows.length === 0 ? (
-              <div className="glass-card p-12 text-center">
-                <GitBranch className="w-12 h-12 mx-auto text-slate-500 mb-4" />
-                <h3 className="text-lg font-medium text-slate-200">No workflows yet</h3>
-                <p className="mt-2 text-sm text-slate-500">
-                  Create your first workflow to automate document processing.
-                </p>
-                <button
-                  className="btn-primary mt-4"
-                  onClick={() => setShowCreateDialog(true)}
-                >
-                  <Plus className="w-4 h-4" />
-                  Create Workflow
-                </button>
-              </div>
+              <EmptyState
+                icon={GitBranch}
+                title="No workflows yet"
+                description="Create your first workflow to automate document processing."
+                action={{ label: 'Create Workflow', onClick: () => setShowCreateDialog(true) }}
+              />
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {workflows.map((workflow) => (

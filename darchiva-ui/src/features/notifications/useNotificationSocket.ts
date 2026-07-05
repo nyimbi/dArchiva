@@ -8,10 +8,10 @@
 // Does not reconnect after component unmount or on code 1008 (policy violation /
 // bad token) — waits 10 s then retries so a fresh login can recover.
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNotificationStore } from './store';
-import type { Notification, NotificationType } from './types';
+import type { Notification, NotificationConnectionStatus, NotificationType } from './types';
 
 const TOKEN_KEY = 'darchiva_token';
 
@@ -42,6 +42,10 @@ const EVENT_TYPE_MAP: Record<string, NotificationType> = {
 	ocr_complete: 'ocr_complete',
 	auto_routing: 'auto_routing',
 	expiry_reminder: 'expiry_reminder',
+	workflow_triggered: 'workflow_triggered',
+	approval_needed: 'approval_needed',
+	document_shared: 'document_shared',
+	system_alert: 'system_alert',
 };
 
 const EVENT_TITLE_MAP: Record<string, string> = {
@@ -53,6 +57,10 @@ const EVENT_TITLE_MAP: Record<string, string> = {
 	ocr_complete: 'OCR Complete',
 	auto_routing: 'Document Auto-Routed',
 	expiry_reminder: 'Document Expiry Reminder',
+	workflow_triggered: 'Workflow Triggered',
+	approval_needed: 'Approval Needed',
+	document_shared: 'Document Shared',
+	system_alert: 'System Alert',
 };
 
 function buildNotification(raw: Record<string, unknown>): Notification {
@@ -74,7 +82,12 @@ function buildNotification(raw: Record<string, unknown>): Notification {
 				: title;
 
 	return {
-		id: `ws-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+		id:
+			typeof raw.id === 'string'
+				? raw.id
+				: typeof data.id === 'string'
+					? data.id
+					: `ws-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
 		type,
 		title,
 		message,
@@ -85,7 +98,12 @@ function buildNotification(raw: Record<string, unknown>): Notification {
 	};
 }
 
-export function useNotificationSocket(): void {
+interface NotificationSocketState {
+	connected: boolean;
+	status: NotificationConnectionStatus;
+}
+
+export function useNotificationSocket(): NotificationSocketState {
 	const queryClient = useQueryClient();
 	const wsRef = useRef<WebSocket | null>(null);
 	// Reconnect delay in ms; reset to 1000 on each successful open.
@@ -93,9 +111,14 @@ export function useNotificationSocket(): void {
 	const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	// Set to true on cleanup so pending retries don't re-open the socket.
 	const destroyedRef = useRef(false);
+	const [status, setStatus] = useState<NotificationConnectionStatus>('disconnected');
 
 	useEffect(() => {
 		destroyedRef.current = false;
+		const publishStatus = (nextStatus: NotificationConnectionStatus) => {
+			setStatus(nextStatus);
+			useNotificationStore.getState().setConnectionStatus(nextStatus);
+		};
 
 		function connect(): void {
 			if (destroyedRef.current) return;
@@ -103,6 +126,7 @@ export function useNotificationSocket(): void {
 			const token = localStorage.getItem(TOKEN_KEY);
 			if (!token) {
 				// Not authenticated yet — retry after a short pause.
+				publishStatus('disconnected');
 				timerRef.current = setTimeout(connect, 5_000);
 				return;
 			}
@@ -115,12 +139,15 @@ export function useNotificationSocket(): void {
 				ws = new WebSocket(url);
 			} catch {
 				// URL construction failed (e.g., invalid protocol) — no point retrying.
+				publishStatus('disconnected');
 				return;
 			}
+			publishStatus('reconnecting');
 			wsRef.current = ws;
 
 			ws.onopen = () => {
 				delayRef.current = 1_000; // reset backoff
+				publishStatus('connected');
 			};
 
 			ws.onmessage = (event) => {
@@ -148,6 +175,7 @@ export function useNotificationSocket(): void {
 			ws.onclose = (evt) => {
 				wsRef.current = null;
 				if (destroyedRef.current) return;
+				publishStatus('reconnecting');
 
 				// 1008 = Policy Violation (server rejected the token).
 				// Back off more aggressively to avoid hammering on bad auth.
@@ -163,6 +191,7 @@ export function useNotificationSocket(): void {
 
 			ws.onerror = () => {
 				// onerror is always followed by onclose — just let close handle retry.
+				publishStatus('reconnecting');
 				ws.close();
 			};
 		}
@@ -179,6 +208,9 @@ export function useNotificationSocket(): void {
 				wsRef.current.close();
 				wsRef.current = null;
 			}
+			useNotificationStore.getState().setConnectionStatus('disconnected');
 		};
 	}, [queryClient]);
+
+	return { connected: status === 'connected', status };
 }

@@ -50,6 +50,8 @@ export interface SearchResult {
 	documentTypeBadge?: string;
 	qualityScore?: number;
 	ocrExcerpt?: string;
+	matchedFieldLabel?: string;
+	pageNumber?: number;
 	tags: Array<{ id: string; name: string; color?: string }>;
 	createdAt: string;
 	updatedAt: string;
@@ -129,7 +131,8 @@ export interface SemanticSearchSuggestion {
 export interface SavedSearch {
 	id: string;
 	name: string;
-	query: SearchQuery;
+	query: string | SearchQuery;
+	filters?: SearchFilters;
 	createdAt: string;
 	lastUsedAt?: string;
 	useCount: number;

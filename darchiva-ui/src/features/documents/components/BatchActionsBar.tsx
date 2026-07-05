@@ -7,14 +7,17 @@
  * All operations call POST /api/v1/documents/batch via useBatchOperation().
  */
 import { useBatchOperation } from '../api/batch';
+import { useBulkTag, useBulkMove, useBulkAssignType, documentKeys } from '../api';
+import { useBulkDownloadZip } from '../api/bulkDownload';
 import { useBatchLabels } from '../api/qr';
-import { useDownloadBundle } from '@/features/data-export/api';
 import { useFolderTree, type TreeNode as APITreeNode } from '../api';
 import { useTags } from '@/features/tags/api';
 import { useDocumentTypes } from '@/features/document-types/api';
 import type { Tag as TagType } from '@/features/tags/types';
 import type { DocumentType } from '@/features/document-types/types';
+import { apiClient } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertTriangle,
@@ -35,6 +38,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { MergeDocumentsDialog, type MergeSourceDocument } from './MergeDocumentsDialog';
 
 // ---------------------------------------------------------------------------
@@ -63,68 +67,59 @@ function TagDialog({
   onClose,
   isPending,
 }: {
-  onApply: (tagIds: string[], action: 'add' | 'remove' | 'set') => void;
+  onApply: (tagNames: string[]) => void;
   onClose: () => void;
   isPending: boolean;
 }) {
   const { data: tagsData } = useTags();
   const tags: TagType[] = tagsData?.items ?? (tagsData as unknown as TagType[]) ?? [];
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [action, setAction] = useState<'add' | 'remove' | 'set'>('add');
+  const [tagInput, setTagInput] = useState('');
 
-  const toggle = (id: string) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+  const tagNames = tagInput
+    .split(',')
+    .map((tag) => tag.trim())
+    .filter(Boolean);
 
   return (
     <Backdrop onClose={onClose}>
       <DialogCard>
         <DialogHeader icon={<Tag className="w-5 h-5 text-brass-400" />} title="Tag Documents" subtitle="Apply tags to selected documents" />
 
-        <div className="flex gap-2 mb-3">
-          {(['add', 'remove', 'set'] as const).map((a) => (
-            <button
-              key={a}
-              onClick={() => setAction(a)}
-              className={cn(
-                'flex-1 py-1.5 text-xs rounded-lg border transition-colors capitalize',
-                action === a
-                  ? 'bg-brass-500/20 border-brass-500 text-brass-400'
-                  : 'border-slate-700 text-slate-400 hover:border-slate-600',
-              )}
-            >
-              {a}
-            </button>
-          ))}
+        <div className="mb-4">
+          <label htmlFor="bulk-tag-input" className="block text-xs text-slate-400 mb-1">
+            Tags
+          </label>
+          <input
+            id="bulk-tag-input"
+            type="text"
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            placeholder="contract, finance, urgent"
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-brass-500"
+            autoFocus
+          />
+          <p className="mt-1 text-xs text-slate-500">Separate multiple tags with commas.</p>
         </div>
 
-        <div className="max-h-48 overflow-y-auto border border-slate-700 rounded-lg py-1 mb-4 bg-slate-800/50">
+        <div className="max-h-32 overflow-y-auto border border-slate-700 rounded-lg py-1 mb-4 bg-slate-800/50">
           {tags.length === 0
             ? <p className="text-sm text-slate-500 text-center py-4">No tags available</p>
             : tags.map((t) => (
-              <button
+              <div
                 key={t.id}
-                onClick={() => toggle(t.id)}
-                className={cn(
-                  'w-full text-left px-3 py-1.5 text-sm flex items-center gap-2 rounded transition-colors',
-                  selected.has(t.id) ? 'bg-brass-500/20 text-brass-400' : 'text-slate-300 hover:bg-slate-700/50',
-                )}
+                className="w-full text-left px-3 py-1.5 text-sm flex items-center gap-2 rounded text-slate-300"
               >
                 <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: t.color ?? '#c41fff' }} />
                 {t.name}
-                {selected.has(t.id) && <Check className="w-3 h-3 ml-auto" />}
-              </button>
+              </div>
             ))
           }
         </div>
 
         <DialogFooter
           onClose={onClose}
-          onConfirm={() => onApply(Array.from(selected), action)}
-          disabled={selected.size === 0 || isPending}
+          onConfirm={() => onApply(tagNames)}
+          disabled={tagNames.length === 0 || isPending}
           isPending={isPending}
           confirmLabel="Apply Tags"
           confirmIcon={<Tag className="w-4 h-4" />}
@@ -468,10 +463,14 @@ function useBatchHold() {
 
 export function BatchActionsBar({ selectedIds, selectedDocuments, onClear, onComplete }: BatchActionsBarProps) {
   const [activeDialog, setActiveDialog] = useState<ActiveDialog>(null);
+  const queryClient = useQueryClient();
   const batch = useBatchOperation();
+  const bulkTag = useBulkTag();
+  const bulkMove = useBulkMove();
+  const bulkAssignType = useBulkAssignType();
+  const bulkDownload = useBulkDownloadZip();
   const batchLabels = useBatchLabels();
   const batchHold = useBatchHold();
-  const bundleDownload = useDownloadBundle();
   const navigate = useNavigate();
 
   // Derive merge sources: use selectedDocuments if provided, else bare id-only stubs
@@ -480,6 +479,104 @@ export function BatchActionsBar({ selectedIds, selectedDocuments, onClear, onCom
     : selectedIds.map((id) => ({ id, title: id }));
 
   const close = () => setActiveDialog(null);
+  const count = selectedIds.length;
+
+  const ensureTags = async (tagNames: string[]) => {
+    const { data } = await apiClient.get<{ items: TagType[] }>('/tags');
+    const existing = data.items ?? [];
+    const tagByName = new Map(existing.map((tag) => [tag.name.toLowerCase(), tag]));
+    const tagIds: string[] = [];
+
+    for (const tagName of tagNames) {
+      const existingTag = tagByName.get(tagName.toLowerCase());
+      if (existingTag) {
+        tagIds.push(existingTag.id);
+        continue;
+      }
+
+      const { data: createdTag } = await apiClient.post<TagType>('/tags', { name: tagName });
+      tagByName.set(createdTag.name.toLowerCase(), createdTag);
+      tagIds.push(createdTag.id);
+    }
+
+    await queryClient.invalidateQueries({ queryKey: ['tags'] });
+    return tagIds;
+  };
+
+  const tagMutation = useMutation({
+    mutationFn: async (tagNames: string[]) => {
+      const tagIds = await ensureTags(tagNames);
+      return bulkTag.mutateAsync({ node_ids: selectedIds, tag_ids: tagIds, action: 'add' });
+    },
+    onSuccess: async () => {
+      close();
+      await queryClient.invalidateQueries({ queryKey: documentKeys.all });
+      toast.success(`Tagged ${count} document${count !== 1 ? 's' : ''}`);
+      onComplete();
+    },
+    onError: (err) => {
+      console.error('Bulk tag failed:', err);
+      toast.error('Failed to tag documents');
+    },
+  });
+
+  const moveMutation = useMutation({
+    mutationFn: (folderId: string) =>
+      bulkMove.mutateAsync({ node_ids: selectedIds, target_folder_id: folderId }),
+    onSuccess: async () => {
+      close();
+      await queryClient.invalidateQueries({ queryKey: documentKeys.all });
+      toast.success(`Moved ${count} document${count !== 1 ? 's' : ''}`);
+      onComplete();
+    },
+    onError: (err) => {
+      console.error('Bulk move failed:', err);
+      toast.error('Failed to move documents');
+    },
+  });
+
+  const classifyMutation = useMutation({
+    mutationFn: (typeId: string) =>
+      bulkAssignType.mutateAsync({ node_ids: selectedIds, document_type_id: typeId }),
+    onSuccess: async () => {
+      close();
+      await queryClient.invalidateQueries({ queryKey: documentKeys.all });
+      toast.success(`Classified ${count} document${count !== 1 ? 's' : ''}`);
+      onComplete();
+    },
+    onError: (err) => {
+      console.error('Bulk classify failed:', err);
+      toast.error('Failed to classify documents');
+    },
+  });
+
+  const downloadMutation = useMutation({
+    mutationFn: () => bulkDownload.mutateAsync(selectedIds),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: documentKeys.all });
+      toast.success(`Downloaded ${count} document${count !== 1 ? 's' : ''}`);
+      onComplete();
+    },
+    onError: (err) => {
+      console.error('Bulk download failed:', err);
+      toast.error('Failed to download documents');
+    },
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: async () => {
+      await Promise.all(selectedIds.map((id) => apiClient.patch(`/nodes/${id}`, { archived: true })));
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: documentKeys.all });
+      toast.success(`Archived ${count} document${count !== 1 ? 's' : ''}`);
+      onComplete();
+    },
+    onError: (err) => {
+      console.error('Bulk archive failed:', err);
+      toast.error('Failed to archive documents');
+    },
+  });
 
   const run = (
     operation: Parameters<typeof batch.mutate>[0]['operation'],
@@ -495,6 +592,7 @@ export function BatchActionsBar({ selectedIds, selectedDocuments, onClear, onCom
             // Trigger download via the bulk-export status endpoint
             window.open(`/api/v1/nodes/bulk-export/${data.operation_id}`, '_blank');
           }
+          toast.success(`${label[0].toUpperCase()}${label.slice(1)}d ${count} document${count !== 1 ? 's' : ''}`);
           onComplete();
         },
         onError: (err) => {
@@ -532,23 +630,35 @@ export function BatchActionsBar({ selectedIds, selectedDocuments, onClear, onCom
 
           <button
             onClick={() => setActiveDialog('tag')}
-            className="btn-ghost text-sm py-1.5 px-3 flex items-center gap-1.5"
+            disabled={tagMutation.isPending}
+            className="btn-ghost text-sm py-1.5 px-3 flex items-center gap-1.5 disabled:opacity-40"
           >
-            <Tag className="w-4 h-4" /> Tag
+            {tagMutation.isPending
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <Tag className="w-4 h-4" />}
+            Tag
           </button>
 
           <button
             onClick={() => setActiveDialog('move')}
-            className="btn-ghost text-sm py-1.5 px-3 flex items-center gap-1.5"
+            disabled={moveMutation.isPending}
+            className="btn-ghost text-sm py-1.5 px-3 flex items-center gap-1.5 disabled:opacity-40"
           >
-            <Move className="w-4 h-4" /> Move
+            {moveMutation.isPending
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <Move className="w-4 h-4" />}
+            Move
           </button>
 
           <button
             onClick={() => setActiveDialog('classify')}
-            className="btn-ghost text-sm py-1.5 px-3 flex items-center gap-1.5"
+            disabled={classifyMutation.isPending}
+            className="btn-ghost text-sm py-1.5 px-3 flex items-center gap-1.5 disabled:opacity-40"
           >
-            <FileType className="w-4 h-4" /> Classify
+            {classifyMutation.isPending
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <FileType className="w-4 h-4" />}
+            Classify
           </button>
 
           <button
@@ -585,30 +695,27 @@ export function BatchActionsBar({ selectedIds, selectedDocuments, onClear, onCom
           </button>
 
           <button
-            onClick={() =>
-              run('export', {}, 'export')
-            }
-            disabled={batch.isPending}
+            onClick={() => downloadMutation.mutate()}
+            disabled={downloadMutation.isPending || selectedIds.length === 0}
             className="btn-ghost text-sm py-1.5 px-3 flex items-center gap-1.5"
+            title="Download selected documents as a ZIP"
           >
-            {batch.isPending
+            {downloadMutation.isPending
               ? <Loader2 className="w-4 h-4 animate-spin" />
-              : <Archive className="w-4 h-4" />}
-            Export ZIP
+              : <Package className="w-4 h-4" />}
+            Download
           </button>
 
           <button
-            onClick={() =>
-              bundleDownload.mutate({ document_ids: selectedIds, include_metadata: true })
-            }
-            disabled={bundleDownload.isPending || selectedIds.length === 0}
+            onClick={() => archiveMutation.mutate()}
+            disabled={archiveMutation.isPending}
             className="btn-ghost text-sm py-1.5 px-3 flex items-center gap-1.5"
-            title="Download selected documents as a bundle ZIP"
+            title="Archive selected documents"
           >
-            {bundleDownload.isPending
+            {archiveMutation.isPending
               ? <Loader2 className="w-4 h-4 animate-spin" />
-              : <Package className="w-4 h-4" />}
-            Export Bundle
+              : <Archive className="w-4 h-4" />}
+            Archive
           </button>
 
           <button
@@ -635,23 +742,23 @@ export function BatchActionsBar({ selectedIds, selectedDocuments, onClear, onCom
       <AnimatePresence>
         {activeDialog === 'tag' && (
           <TagDialog
-            onApply={(tagIds, action) => run('tag', { tag_ids: tagIds, action }, 'tag')}
+            onApply={(tagNames) => tagMutation.mutate(tagNames)}
             onClose={close}
-            isPending={batch.isPending}
+            isPending={tagMutation.isPending}
           />
         )}
         {activeDialog === 'move' && (
           <MoveDialog
-            onApply={(folderId) => run('move', { destination_folder_id: folderId }, 'move')}
+            onApply={(folderId) => moveMutation.mutate(folderId)}
             onClose={close}
-            isPending={batch.isPending}
+            isPending={moveMutation.isPending}
           />
         )}
         {activeDialog === 'classify' && (
           <ClassifyDialog
-            onApply={(typeId) => run('classify', { document_type_id: typeId }, 'classify')}
+            onApply={(typeId) => classifyMutation.mutate(typeId)}
             onClose={close}
-            isPending={batch.isPending}
+            isPending={classifyMutation.isPending}
           />
         )}
         {activeDialog === 'delete' && (

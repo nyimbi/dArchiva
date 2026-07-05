@@ -1,6 +1,8 @@
 // (c) Copyright Datacraft, 2026
 import { useStore } from '@/hooks/useStore';
-import { cn } from '@/lib/utils';
+import { apiClient } from '@/lib/api-client';
+import { cn, formatBytes } from '@/lib/utils';
+import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence,motion } from 'framer-motion';
 import {
   Activity,
@@ -36,6 +38,7 @@ import {
   Share2,
   Shield,
   ShieldAlert,
+  Tag,
   Timer,
   TrendingUp,
   Upload,
@@ -53,6 +56,102 @@ import {
 } from 'lucide-react';
 import { useBranding } from '@/hooks/useBranding';
 import { Link,useLocation } from 'react-router-dom';
+
+interface SidebarStorageStats {
+	usedBytes: number;
+	totalBytes: number;
+}
+
+interface SidebarQueueStats {
+	name: string;
+	pending: number;
+}
+
+interface SidebarStats {
+	documents: number;
+	storage: SidebarStorageStats;
+	pendingOcrTasks: number;
+}
+
+interface StorageStatsResponse {
+	usedBytes?: number;
+	totalBytes?: number;
+	usedStorageBytes?: number;
+	totalStorageBytes?: number;
+	storage?: {
+		usedBytes?: number;
+		totalBytes?: number;
+		usedStorageBytes?: number;
+		totalStorageBytes?: number;
+	};
+}
+
+const API_BASE = '/api/v1';
+const TOKEN_KEY = 'darchiva_token';
+
+function authHeaders(): HeadersInit {
+	const token = localStorage.getItem(TOKEN_KEY);
+	return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function headerNumber(headers: Headers, names: string[]): number | null {
+	for (const name of names) {
+		const value = headers.get(name);
+		if (!value) continue;
+		const parsed = Number.parseInt(value, 10);
+		if (Number.isFinite(parsed)) return parsed;
+	}
+	return null;
+}
+
+async function fetchDocumentCount(): Promise<number> {
+	const response = await fetch(`${API_BASE}/nodes/?ctype=document&page_size=1`, {
+		headers: authHeaders(),
+	});
+	if (!response.ok) return 0;
+
+	const count = headerNumber(response.headers, ['totalCount', 'total-count', 'x-total-count', 'X-Total-Count']);
+	if (count !== null) return count;
+
+	const body = await response.json().catch(() => undefined) as
+		| { totalCount?: number; total?: number; count?: number }
+		| undefined;
+	return body?.totalCount ?? body?.total ?? body?.count ?? 0;
+}
+
+function normalizeStorageStats(data: StorageStatsResponse): SidebarStorageStats {
+	const source = data.storage ?? data;
+	return {
+		usedBytes: source.usedBytes ?? source.usedStorageBytes ?? 0,
+		totalBytes: source.totalBytes ?? source.totalStorageBytes ?? 0,
+	};
+}
+
+async function fetchStorageStats(): Promise<SidebarStorageStats> {
+	try {
+		const { data } = await apiClient.get<StorageStatsResponse>('/system/storage');
+		return normalizeStorageStats(data);
+	} catch {
+		const { data } = await apiClient.get<StorageStatsResponse>('/settings/storage');
+		return normalizeStorageStats(data);
+	}
+}
+
+async function fetchPendingOcrTasks(): Promise<number> {
+	const { data } = await apiClient.get<SidebarQueueStats[]>('/system/queues');
+	return data
+		.filter((queue) => queue.name.toLowerCase().includes('ocr'))
+		.reduce((sum, queue) => sum + queue.pending, 0);
+}
+
+async function fetchSidebarStats(): Promise<SidebarStats> {
+	const [documents, storage, pendingOcrTasks] = await Promise.all([
+		fetchDocumentCount(),
+		fetchStorageStats(),
+		fetchPendingOcrTasks(),
+	]);
+	return { documents, storage, pendingOcrTasks };
+}
 
 export const navItems = [
 	{ id: 'home', label: 'Home', icon: Home, path: '/' },
@@ -89,6 +188,7 @@ export const adminItems = [
 	{ id: 'retention', label: 'Retention', icon: Timer, path: '/retention' },
 	{ id: 'webhooks', label: 'Webhooks', icon: Webhook, path: '/webhooks' },
 	{ id: 'email-ingest', label: 'Email Ingest', icon: Mail, path: '/settings/email-ingest' },
+	{ id: 'tags', label: 'Tag Management', icon: Tag, path: '/tags' },
 	{ id: 'admin-users', label: 'Users', icon: Users, path: '/admin/users' },
 	{ id: 'billing', label: 'Billing & Cost', icon: CreditCard, path: '/billing' },
 	{ id: 'api-keys', label: 'API Keys', icon: Key, path: '/api-keys' },
@@ -111,6 +211,12 @@ export function Sidebar({ onClose }: SidebarProps) {
 	const { sidebarCollapsed, toggleSidebar, pendingTasks } = useStore();
 	const isMobileOverlay = Boolean(onClose);
 	const collapsed = isMobileOverlay ? false : sidebarCollapsed;
+	const { data: sidebarStats, isLoading: sidebarStatsLoading } = useQuery({
+		queryKey: ['sidebar', 'stats'],
+		queryFn: fetchSidebarStats,
+		staleTime: 5 * 60 * 1000,
+		retry: 1,
+	});
 
 	return (
 		<motion.aside
@@ -258,8 +364,40 @@ export function Sidebar({ onClose }: SidebarProps) {
 				</div>
 			</nav>
 
-			{/* Collapse button */}
+			{/* Sidebar stats + collapse button */}
 			<div className={cn('p-2 border-t border-slate-800/50', isMobileOverlay && 'hidden')}>
+				<AnimatePresence>
+					{!collapsed && (
+						<motion.div
+							initial={{ opacity: 0 }}
+							animate={{ opacity: 1 }}
+							exit={{ opacity: 0 }}
+							transition={{ duration: 0.15 }}
+							className="mb-2 rounded-lg bg-slate-900/70 px-3 py-2 text-2xs text-slate-500"
+						>
+							{sidebarStatsLoading ? (
+								<span>Loading stats...</span>
+							) : (
+								<div className="space-y-1">
+									<div className="flex items-center justify-between gap-3">
+										<span>Documents</span>
+										<span className="font-mono text-slate-400">{(sidebarStats?.documents ?? 0).toLocaleString()}</span>
+									</div>
+									<div className="flex items-center justify-between gap-3">
+										<span>Storage</span>
+										<span className="font-mono text-slate-400">
+											{formatBytes(sidebarStats?.storage.usedBytes ?? 0)} / {formatBytes(sidebarStats?.storage.totalBytes ?? 0)}
+										</span>
+									</div>
+									<div className="flex items-center justify-between gap-3">
+										<span>Queue</span>
+										<span className="font-mono text-slate-400">{sidebarStats?.pendingOcrTasks ?? 0}</span>
+									</div>
+								</div>
+							)}
+						</motion.div>
+					)}
+				</AnimatePresence>
 				<button
 					onClick={toggleSidebar}
 					className="w-full flex items-center justify-center p-2 rounded-lg text-slate-400 hover:text-slate-300 hover:bg-slate-800/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500"

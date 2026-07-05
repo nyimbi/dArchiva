@@ -42,6 +42,7 @@ import { BatchKanban } from '@/features/scanning-projects/components/BatchKanban
 import type { OperatorKPI, OperatorLiveStatus } from '@/features/scanning-projects/api/index';
 import { Leaderboard } from '@/features/scanning-ops/components/Leaderboard';
 import { OperatorScorecard } from '@/features/scanning-ops/components/OperatorScorecard';
+import { useUserPreferences } from '@/hooks/useUserPreferences';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -413,18 +414,25 @@ const KPI_COLS: {
 ];
 
 type SortKey = keyof OperatorKPI | null;
+type KpiSortPreference = { column: SortKey; direction: 'asc' | 'desc' };
 
 function KpiTable({ kpis }: { kpis: OperatorKPI[] }) {
-	const [sortKey, setSortKey] = useState<SortKey>('pages_per_hour');
-	const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+	const preferences = useUserPreferences();
+	const [sortPreference, setSortPreference] = useState<KpiSortPreference>(() =>
+		preferences.get<KpiSortPreference>('table_sort:/supervisor:operator-kpis', {
+			column: 'pages_per_hour',
+			direction: 'desc',
+		})
+	);
+	const sortKey = sortPreference.column;
+	const sortDir = sortPreference.direction;
 
 	function handleSort(k: SortKey) {
-		if (sortKey === k) {
-			setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-		} else {
-			setSortKey(k);
-			setSortDir('desc');
-		}
+		const next: KpiSortPreference = sortKey === k
+			? { column: k, direction: sortDir === 'asc' ? 'desc' : 'asc' }
+			: { column: k, direction: 'desc' };
+		setSortPreference(next);
+		preferences.set('table_sort:/supervisor:operator-kpis', next);
 	}
 
 	const sorted = [...kpis].sort((a, b) => {

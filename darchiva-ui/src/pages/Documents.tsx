@@ -13,6 +13,7 @@ import { VirtualDocumentList } from '@/features/documents/components/VirtualDocu
 import { ThumbnailGrid } from '@/features/documents/components/ThumbnailGrid';
 import { ShareDialog } from '@/features/shared-nodes/components/ShareDialog';
 import { useStore } from '@/hooks/useStore';
+import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { cn, formatBytes, formatRelativeTime } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -534,8 +535,9 @@ function DocumentRow({
 // Main Documents page
 // ---------------------------------------------------------------------------
 export function Documents() {
+  const preferences = useUserPreferences();
   const [viewMode, setViewMode] = useState<'list' | 'card' | 'thumbnail'>(() => {
-    const stored = localStorage.getItem('docs_view_mode');
+    const stored = preferences.get<string>('docs_view_mode', 'card');
     if (stored === 'list' || stored === 'card' || stored === 'thumbnail') return stored;
     return 'card';
   });
@@ -563,9 +565,9 @@ export function Documents() {
   const deleteFolder = useDeleteFolder();
 
   const setAndPersistViewMode = useCallback((mode: 'list' | 'card' | 'thumbnail') => {
-    localStorage.setItem('docs_view_mode', mode);
+    preferences.set('docs_view_mode', mode);
     setViewMode(mode);
-  }, []);
+  }, [preferences]);
 
   const documents = infiniteDocs as APIDocument[];
   const [sharingNode, setSharingNode] = useState<APIDocument | null>(null);

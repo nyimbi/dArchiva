@@ -1,10 +1,12 @@
 // Notification Store
 import { create } from 'zustand';
-import type { Notification,Toast } from '../types';
+import type { Notification, NotificationConnectionStatus, Toast } from '../types';
 
 interface NotificationStore {
 	toasts: Toast[];
 	notifications: Notification[];
+	unreadCount: number;
+	connectionStatus: NotificationConnectionStatus;
 
 	// Toast actions
 	addToast: (toast: Omit<Toast, 'id'>) => string;
@@ -15,9 +17,11 @@ interface NotificationStore {
 	setNotifications: (notifications: Notification[]) => void;
 	addNotification: (notification: Notification) => void;
 	markAsRead: (id: string) => void;
+	markAllRead: () => void;
 	markAllAsRead: () => void;
 	removeNotification: (id: string) => void;
 	clearAll: () => void;
+	setConnectionStatus: (status: NotificationConnectionStatus) => void;
 
 	// Convenience methods
 	success: (title: string, message?: string) => string;
@@ -28,10 +32,16 @@ interface NotificationStore {
 
 let toastId = 0;
 const generateId = () => `toast-${++toastId}-${Date.now()}`;
+const withUnreadCount = (notifications: Notification[]) => ({
+	notifications,
+	unreadCount: notifications.filter(n => !n.read).length,
+});
 
 export const useNotificationStore = create<NotificationStore>((set, get) => ({
 	toasts: [],
 	notifications: [],
+	unreadCount: 0,
+	connectionStatus: 'disconnected',
 
 	addToast: (toast) => {
 		const id = generateId();
@@ -55,37 +65,35 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
 
 	clearToasts: () => set({ toasts: [] }),
 
-	setNotifications: (notifications) => set({ notifications }),
+	setNotifications: (notifications) => set(withUnreadCount(notifications)),
 
 	addNotification: (notification) => {
-		set(state => ({
-			notifications: [notification, ...state.notifications],
-		}));
+		set(state => withUnreadCount([notification, ...state.notifications]));
 	},
 
 	markAsRead: (id) => {
-		set(state => ({
-			notifications: state.notifications.map(n =>
+		set(state => withUnreadCount(
+			state.notifications.map(n =>
 				n.id === id ? { ...n, read: true } : n
-			),
-		}));
+			)
+		));
 	},
 
-	markAllAsRead: () => {
-		set(state => ({
-			notifications: state.notifications.map(n => ({ ...n, read: true })),
-		}));
-	},
+	markAllRead: () => set(state => withUnreadCount(
+		state.notifications.map(n => ({ ...n, read: true }))
+	)),
+
+	markAllAsRead: () => get().markAllRead(),
 
 	removeNotification: (id) => {
-		set(state => ({
-			notifications: state.notifications.filter(n => n.id !== id),
-		}));
+		set(state => withUnreadCount(state.notifications.filter(n => n.id !== id)));
 	},
 
 	clearAll: () => {
-		set({ notifications: [] });
+		set(withUnreadCount([]));
 	},
+
+	setConnectionStatus: (status) => set({ connectionStatus: status }),
 
 	success: (title, message) => get().addToast({ type: 'success', title, message }),
 	error: (title, message) => get().addToast({ type: 'error', title, message, duration: 8000 }),

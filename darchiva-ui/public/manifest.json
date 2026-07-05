@@ -1,0 +1,23 @@
+{
+  "name": "dArchiva",
+  "short_name": "dArchiva",
+  "description": "Document Management & Scanning Platform",
+  "theme_color": "#b59a4f",
+  "background_color": "#0f172a",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "start_url": "/scanning",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

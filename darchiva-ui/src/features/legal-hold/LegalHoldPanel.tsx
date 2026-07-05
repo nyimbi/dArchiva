@@ -1,333 +1,494 @@
 // (c) Copyright Datacraft, 2026
-// Named legal hold management panel for a document
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { AlertTriangle, Lock, Plus, Shield, Unlock } from 'lucide-react';
-import React, { useState } from 'react';
+import {
+	AlertTriangle,
+	Briefcase,
+	CalendarClock,
+	Clock,
+	ExternalLink,
+	Loader2,
+	Lock,
+	type LucideIcon,
+	Plus,
+	Shield,
+	Unlock,
+	User,
+} from 'lucide-react';
+import { useState, type FormEvent, type MouseEvent, type ReactNode } from 'react';
 import type { LegalHold, PlaceHoldPayload } from './api';
 import { useLegalHolds, usePlaceLegalHold, useReleaseLegalHold } from './api';
-
-// ── Props ─────────────────────────────────────────────────────────────────────
 
 interface LegalHoldPanelProps {
 	documentId: string;
 }
 
-// ── Place Hold Dialog ─────────────────────────────────────────────────────────
-
-interface PlaceHoldDialogProps {
-	documentId: string;
-	onClose: () => void;
+function holdName(hold: LegalHold): string {
+	return hold.holdName ?? hold.hold_name;
 }
 
-function PlaceHoldDialog({ documentId, onClose }: PlaceHoldDialogProps) {
-	const [holdName, setHoldName] = useState('');
-	const [holdReason, setHoldReason] = useState('');
+function holdReason(hold: LegalHold): string {
+	return hold.holdReason ?? hold.hold_reason;
+}
+
+function heldBy(hold: LegalHold): string {
+	return hold.heldById ?? hold.held_by_id;
+}
+
+function heldAt(hold: LegalHold): string {
+	return hold.heldAt ?? hold.held_at;
+}
+
+function releasedBy(hold: LegalHold): string | null {
+	return hold.releasedById ?? hold.released_by_id;
+}
+
+function releasedAt(hold: LegalHold): string | null {
+	return hold.releasedAt ?? hold.released_at;
+}
+
+function expiresAt(hold: LegalHold): string | null {
+	return hold.expiresAt ?? hold.expires_at ?? null;
+}
+
+function caseId(hold: LegalHold): string | null {
+	return hold.caseId ?? hold.case_id ?? null;
+}
+
+function caseReference(hold: LegalHold): string | null {
+	return hold.caseReference ?? hold.case_reference ?? null;
+}
+
+function releaseReason(hold: LegalHold): string | null {
+	return hold.releaseReason ?? hold.release_reason ?? null;
+}
+
+function formatDateTime(value: string | null | undefined): string {
+	if (!value) return 'Not set';
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return 'Not set';
+	return format(date, 'dd MMM yyyy, HH:mm');
+}
+
+function PlaceHoldDialog({
+	documentId,
+	open,
+	onOpenChange,
+}: {
+	documentId: string;
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+}) {
+	const [name, setName] = useState('');
+	const [reason, setReason] = useState('');
+	const [expiryDate, setExpiryDate] = useState('');
+	const [caseRef, setCaseRef] = useState('');
 	const placeMutation = usePlaceLegalHold(documentId);
+	const valid = name.trim().length > 0 && reason.trim().length > 0;
 
-	const valid = holdName.trim().length > 0 && holdReason.trim().length > 0;
-
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault();
+	async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+		event.preventDefault();
 		if (!valid) return;
+
 		const payload: PlaceHoldPayload = {
-			hold_name: holdName.trim(),
-			hold_reason: holdReason.trim(),
+			hold_name: name.trim(),
+			hold_reason: reason.trim(),
 		};
+		if (expiryDate) payload.expires_at = new Date(`${expiryDate}T23:59:59`).toISOString();
+		if (caseRef.trim()) payload.case_reference = caseRef.trim();
+
 		await placeMutation.mutateAsync(payload);
-		onClose();
-	};
+		onOpenChange(false);
+	}
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-			<div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
-				<form onSubmit={handleSubmit}>
-					<div className="px-6 py-4 border-b border-gray-200 flex items-center gap-2">
-						<Lock className="h-5 w-5 text-red-600 shrink-0" />
-						<h2 className="text-lg font-semibold">Place Legal Hold</h2>
-					</div>
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent className="sm:max-w-lg">
+				<form onSubmit={handleSubmit} className="space-y-4">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2">
+							<Lock className="h-5 w-5 text-red-500" />
+							Place Hold
+						</DialogTitle>
+						<DialogDescription>
+							Prevent disposal, deletion, or expiry while a legal matter is active.
+						</DialogDescription>
+					</DialogHeader>
 
-					<div className="px-6 py-4 flex flex-col gap-4">
-						<div>
-							<label className="block text-sm font-medium text-gray-700 mb-1">
-								Hold Name <span className="text-red-500">*</span>
-							</label>
-							<input
-								type="text"
-								value={holdName}
-								onChange={(e) => setHoldName(e.target.value)}
-								placeholder="e.g. Litigation Hold — Acme Corp v. Widgets Ltd"
-								required
+					<div className="space-y-3">
+						<div className="space-y-1.5">
+							<Label htmlFor="hold-name">Hold name</Label>
+							<Input
+								id="hold-name"
+								value={name}
+								onChange={(event) => setName(event.target.value)}
+								placeholder="Litigation hold"
 								autoFocus
-								className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
 							/>
 						</div>
-
-						<div>
-							<label className="block text-sm font-medium text-gray-700 mb-1">
-								Reason <span className="text-red-500">*</span>
-							</label>
-							<textarea
-								value={holdReason}
-								onChange={(e) => setHoldReason(e.target.value)}
-								placeholder="Describe the legal or regulatory basis for this hold…"
-								required
+						<div className="space-y-1.5">
+							<Label htmlFor="hold-reason">Reason</Label>
+							<Textarea
+								id="hold-reason"
+								value={reason}
+								onChange={(event) => setReason(event.target.value)}
+								placeholder="Describe the legal or regulatory basis for this hold."
 								rows={4}
-								className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-400"
 							/>
 						</div>
-
-						{placeMutation.isError && (
-							<div className="flex items-center gap-2 text-sm text-red-600">
-								<AlertTriangle className="h-4 w-4 shrink-0" />
-								Failed to place hold. Please try again.
+						<div className="grid gap-3 sm:grid-cols-2">
+							<div className="space-y-1.5">
+								<Label htmlFor="hold-expiry">Expiry date</Label>
+								<Input
+									id="hold-expiry"
+									type="date"
+									value={expiryDate}
+									onChange={(event) => setExpiryDate(event.target.value)}
+								/>
 							</div>
-						)}
+							<div className="space-y-1.5">
+								<Label htmlFor="hold-case-ref">Case reference</Label>
+								<Input
+									id="hold-case-ref"
+									value={caseRef}
+									onChange={(event) => setCaseRef(event.target.value)}
+									placeholder="CASE-2026-001"
+								/>
+							</div>
+						</div>
 					</div>
 
-					<div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
-						<button
-							type="button"
-							onClick={onClose}
-							className="px-4 py-1.5 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded"
-						>
+					{placeMutation.isError && (
+						<p className="flex items-center gap-2 text-sm text-destructive">
+							<AlertTriangle className="h-4 w-4" />
+							Failed to place hold. Please try again.
+						</p>
+					)}
+
+					<DialogFooter>
+						<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
 							Cancel
-						</button>
-						<button
-							type="submit"
-							disabled={!valid || placeMutation.isPending}
-							className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
-						>
-							<Lock className="h-3.5 w-3.5" />
-							{placeMutation.isPending ? 'Placing…' : 'Place Hold'}
-						</button>
-					</div>
+						</Button>
+						<Button type="submit" disabled={!valid || placeMutation.isPending}>
+							{placeMutation.isPending ? (
+								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+							) : (
+								<Lock className="mr-2 h-4 w-4" />
+							)}
+							Place Hold
+						</Button>
+					</DialogFooter>
 				</form>
-			</div>
-		</div>
+			</DialogContent>
+		</Dialog>
 	);
 }
 
-// ── Release Confirmation Dialog ───────────────────────────────────────────────
-
-interface ReleaseConfirmDialogProps {
-	hold: LegalHold;
+function ReleaseHoldDialog({
+	hold,
+	documentId,
+	open,
+	onOpenChange,
+}: {
+	hold: LegalHold | null;
 	documentId: string;
-	onClose: () => void;
-}
-
-function ReleaseConfirmDialog({ hold, documentId, onClose }: ReleaseConfirmDialogProps) {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+}) {
+	const [reason, setReason] = useState('');
 	const releaseMutation = useReleaseLegalHold(documentId);
+	const valid = reason.trim().length > 0;
 
-	const handleRelease = async () => {
-		await releaseMutation.mutateAsync(hold.id);
-		onClose();
-	};
+	async function handleRelease(event: MouseEvent<HTMLButtonElement>) {
+		event.preventDefault();
+		if (!hold || !valid) return;
+		await releaseMutation.mutateAsync({ holdId: hold.id, reason: reason.trim() });
+		setReason('');
+		onOpenChange(false);
+	}
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-			<div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4">
-				<div className="px-6 py-4 border-b border-gray-200 flex items-center gap-2">
-					<Unlock className="h-5 w-5 text-yellow-600 shrink-0" />
-					<h2 className="text-lg font-semibold">Release Hold</h2>
-				</div>
+		<AlertDialog open={open} onOpenChange={onOpenChange}>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle className="flex items-center gap-2">
+						<Unlock className="h-5 w-5 text-amber-500" />
+						Release Hold
+					</AlertDialogTitle>
+					<AlertDialogDescription>
+						Record a release reason before lifting the hold.
+					</AlertDialogDescription>
+				</AlertDialogHeader>
 
-				<div className="px-6 py-4">
-					<p className="text-sm text-gray-700">
-						Release the legal hold <span className="font-medium">"{hold.hold_name}"</span>?
-						This will allow the document to be deleted or modified again.
-					</p>
+				<div className="space-y-3">
+					{hold && (
+						<p className="rounded-md border bg-muted/40 p-3 text-sm">
+							Releasing <span className="font-medium">{holdName(hold)}</span>
+						</p>
+					)}
+					<div className="space-y-1.5">
+						<Label htmlFor="release-reason">Release reason</Label>
+						<Textarea
+							id="release-reason"
+							value={reason}
+							onChange={(event) => setReason(event.target.value)}
+							placeholder="Explain why this hold can be released."
+							rows={3}
+						/>
+					</div>
 					{releaseMutation.isError && (
-						<div className="mt-3 flex items-center gap-2 text-sm text-red-600">
-							<AlertTriangle className="h-4 w-4 shrink-0" />
+						<p className="flex items-center gap-2 text-sm text-destructive">
+							<AlertTriangle className="h-4 w-4" />
 							Failed to release hold. Please try again.
-						</div>
+						</p>
 					)}
 				</div>
 
-				<div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
-					<button
-						type="button"
-						onClick={onClose}
-						className="px-4 py-1.5 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded"
-					>
-						Cancel
-					</button>
-					<button
+				<AlertDialogFooter>
+					<AlertDialogCancel>Cancel</AlertDialogCancel>
+					<AlertDialogAction
 						onClick={handleRelease}
-						disabled={releaseMutation.isPending}
-						className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-yellow-600 text-white rounded hover:bg-yellow-700 disabled:opacity-50"
+						disabled={!valid || releaseMutation.isPending}
+						className="bg-amber-600 text-white hover:bg-amber-700"
 					>
-						<Unlock className="h-3.5 w-3.5" />
-						{releaseMutation.isPending ? 'Releasing…' : 'Release Hold'}
-					</button>
-				</div>
+						{releaseMutation.isPending ? (
+							<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+						) : (
+							<Unlock className="mr-2 h-4 w-4" />
+						)}
+						Release Hold
+					</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
+	);
+}
+
+function HoldDetail({ label, value, icon: Icon }: { label: string; value: ReactNode; icon: LucideIcon }) {
+	return (
+		<div className="rounded-md border bg-background/60 p-3">
+			<div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+				<Icon className="h-3.5 w-3.5" />
+				{label}
 			</div>
+			<div className="text-sm">{value}</div>
 		</div>
 	);
 }
 
-// ── Active Hold Row ───────────────────────────────────────────────────────────
+function HoldTimeline({ holds }: { holds: LegalHold[] }) {
+	const events = holds
+		.flatMap((hold) => {
+			const placed = {
+				id: `${hold.id}-placed`,
+				date: heldAt(hold),
+				title: `Placed: ${holdName(hold)}`,
+				description: holdReason(hold),
+				meta: `By ${heldBy(hold)}`,
+				active: releasedAt(hold) === null,
+			};
+			const released = releasedAt(hold)
+				? {
+						id: `${hold.id}-released`,
+						date: releasedAt(hold)!,
+						title: `Released: ${holdName(hold)}`,
+						description: releaseReason(hold) ?? 'No release reason recorded',
+						meta: releasedBy(hold) ? `By ${releasedBy(hold)}` : 'Released',
+						active: false,
+					}
+				: null;
+			return released ? [placed, released] : [placed];
+		})
+		.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-interface ActiveHoldRowProps {
-	hold: LegalHold;
-	documentId: string;
-}
-
-function ActiveHoldRow({ hold, documentId }: ActiveHoldRowProps) {
-	const [showConfirm, setShowConfirm] = useState(false);
+	if (events.length === 0) {
+		return (
+			<div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
+				No hold events recorded.
+			</div>
+		);
+	}
 
 	return (
-		<>
-			<div className="border border-red-200 bg-red-50 rounded-lg px-4 py-3">
-				<div className="flex items-start justify-between gap-2">
-					<div className="flex items-center gap-2 min-w-0">
-						<Shield className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
-						<div className="min-w-0">
-							<div className="flex items-center gap-2 flex-wrap">
-								<span className="font-medium text-sm text-gray-900 truncate">
-									{hold.hold_name}
-								</span>
-								<span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
-									Active
-								</span>
-							</div>
-							<p className="mt-0.5 text-xs text-gray-600 line-clamp-2">{hold.hold_reason}</p>
-							<p className="mt-1 text-xs text-gray-400">
-								Placed {format(new Date(hold.held_at), 'dd MMM yyyy, HH:mm')}
-							</p>
-						</div>
+		<div className="space-y-3">
+			{events.map((event, index) => (
+				<div key={event.id} className="grid grid-cols-[1rem_1fr] gap-3">
+					<div className="flex flex-col items-center">
+						<span
+							className={cn(
+								'mt-1 h-2.5 w-2.5 rounded-full',
+								event.active ? 'bg-red-500' : 'bg-slate-400',
+							)}
+						/>
+						{index < events.length - 1 && <span className="mt-1 h-full w-px bg-border" />}
 					</div>
-
-					<button
-						onClick={() => setShowConfirm(true)}
-						className="flex items-center gap-1 px-2.5 py-1 text-xs text-yellow-700 bg-yellow-100 rounded hover:bg-yellow-200 transition-colors shrink-0"
-						title="Release this hold"
-					>
-						<Unlock className="h-3.5 w-3.5" />
-						Release
-					</button>
-				</div>
-			</div>
-
-			{showConfirm && (
-				<ReleaseConfirmDialog
-					hold={hold}
-					documentId={documentId}
-					onClose={() => setShowConfirm(false)}
-				/>
-			)}
-		</>
-	);
-}
-
-// ── Released Hold Row ─────────────────────────────────────────────────────────
-
-function ReleasedHoldRow({ hold }: { hold: LegalHold }) {
-	return (
-		<div className="border border-gray-100 bg-gray-50 rounded-lg px-4 py-3 opacity-60">
-			<div className="flex items-start gap-2">
-				<Shield className="h-4 w-4 text-gray-400 shrink-0 mt-0.5" />
-				<div className="min-w-0">
-					<div className="flex items-center gap-2 flex-wrap">
-						<span className="font-medium text-sm text-gray-500 truncate line-through">
-							{hold.hold_name}
-						</span>
-						<span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">
-							Released
-						</span>
+					<div className="pb-3">
+						<p className="text-sm font-medium">{event.title}</p>
+						<p className="text-xs text-muted-foreground">{formatDateTime(event.date)} - {event.meta}</p>
+						<p className="mt-1 text-xs text-muted-foreground">{event.description}</p>
 					</div>
-					<p className="mt-0.5 text-xs text-gray-400 line-clamp-2">{hold.hold_reason}</p>
-					<p className="mt-1 text-xs text-gray-400">
-						Released {hold.released_at
-							? format(new Date(hold.released_at), 'dd MMM yyyy, HH:mm')
-							: '—'}
-					</p>
 				</div>
-			</div>
+			))}
 		</div>
 	);
 }
-
-// ── Main panel ────────────────────────────────────────────────────────────────
 
 export function LegalHoldPanel({ documentId }: LegalHoldPanelProps) {
-	const { data: holds, isLoading, error } = useLegalHolds(documentId);
+	const { data: holds = [], isLoading, error } = useLegalHolds(documentId);
 	const [showPlace, setShowPlace] = useState(false);
+	const [releaseTarget, setReleaseTarget] = useState<LegalHold | null>(null);
 
-	const activeHolds = holds?.filter((h) => h.released_at === null) ?? [];
-	const releasedHolds = holds?.filter((h) => h.released_at !== null) ?? [];
+	const activeHolds = holds.filter((hold) => releasedAt(hold) === null);
+	const currentHold = activeHolds[0] ?? null;
+	const currentCaseId = currentHold ? caseId(currentHold) : null;
+	const currentCaseRef = currentHold ? caseReference(currentHold) : null;
 
 	return (
-		<div className="flex flex-col gap-4">
-			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div className="flex items-center gap-2">
-					<h3 className="text-base font-semibold text-gray-900">Legal Holds</h3>
-					{activeHolds.length > 0 && (
-						<span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
-							<Shield className="h-3 w-3 mr-1" />
-							{activeHolds.length} active
-						</span>
-					)}
+		<div className="space-y-4 p-4">
+			<div className="flex items-start justify-between gap-3">
+				<div>
+					<h3 className="text-base font-semibold">Legal Hold</h3>
+					<p className="text-xs text-muted-foreground">Document preservation status</p>
 				</div>
-				<button
-					onClick={() => setShowPlace(true)}
-					className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-				>
-					<Plus className="h-4 w-4" />
+				<Button type="button" size="sm" onClick={() => setShowPlace(true)}>
+					<Plus className="mr-1.5 h-4 w-4" />
 					Place Hold
-				</button>
+				</Button>
 			</div>
 
-			{/* Loading */}
+			<div
+				className={cn(
+					'rounded-lg border p-4 text-center',
+					currentHold
+						? 'border-red-500/40 bg-red-500/10 text-red-200'
+						: 'border-green-500/30 bg-green-500/10 text-green-200',
+				)}
+			>
+				<Badge
+					variant="outline"
+					className={cn(
+						'px-4 py-2 text-base font-semibold tracking-wide',
+						currentHold
+							? 'border-red-500/50 bg-red-500/15 text-red-200'
+							: 'border-green-500/50 bg-green-500/15 text-green-200',
+					)}
+				>
+					<Shield className="mr-2 h-5 w-5" />
+					{currentHold ? 'ON HOLD' : 'NOT HELD'}
+				</Badge>
+			</div>
+
 			{isLoading && (
-				<div className="text-sm text-gray-500 py-4 text-center">Loading holds…</div>
+				<div className="flex items-center gap-2 text-sm text-muted-foreground">
+					<Loader2 className="h-4 w-4 animate-spin" />
+					Loading legal holds...
+				</div>
 			)}
 
-			{/* Error */}
 			{error && (
-				<div className="flex items-center gap-2 text-sm text-red-600 py-2">
+				<div className="flex items-center gap-2 text-sm text-destructive">
 					<AlertTriangle className="h-4 w-4 shrink-0" />
-					Failed to load legal holds. Please try again.
+					Failed to load legal holds.
 				</div>
 			)}
 
-			{/* Empty state */}
-			{!isLoading && !error && activeHolds.length === 0 && releasedHolds.length === 0 && (
-				<div className="flex flex-col items-center justify-center py-8 border border-dashed border-gray-200 rounded-lg text-center gap-2">
-					<Shield className="h-8 w-8 text-gray-300" />
-					<p className="text-sm text-gray-400">No legal holds active</p>
-					<p className="text-xs text-gray-400">
-						Place a hold to prevent deletion or modification of this document.
-					</p>
+			{currentHold ? (
+				<div className="space-y-3">
+					<div className="space-y-2 rounded-lg border bg-card p-4">
+						<div className="flex items-start justify-between gap-3">
+							<div>
+								<p className="font-semibold">{holdName(currentHold)}</p>
+								<p className="mt-1 text-sm text-muted-foreground">{holdReason(currentHold)}</p>
+							</div>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={() => setReleaseTarget(currentHold)}
+							>
+								<Unlock className="mr-1.5 h-4 w-4" />
+								Release
+							</Button>
+						</div>
+					</div>
+
+					<div className="grid gap-2">
+						<HoldDetail label="Placed by" value={heldBy(currentHold)} icon={User} />
+						<HoldDetail label="Placed at" value={formatDateTime(heldAt(currentHold))} icon={Clock} />
+						<HoldDetail label="Expiry" value={formatDateTime(expiresAt(currentHold))} icon={CalendarClock} />
+						<HoldDetail
+							label="Case"
+							icon={Briefcase}
+							value={
+								currentCaseId ? (
+									<a
+										href={`/cases?case_id=${encodeURIComponent(currentCaseId)}`}
+										className="inline-flex items-center gap-1 text-brass-300 hover:text-brass-200"
+									>
+										{currentCaseRef ?? currentCaseId}
+										<ExternalLink className="h-3.5 w-3.5" />
+									</a>
+								) : (
+									currentCaseRef ?? 'Not linked'
+								)
+							}
+						/>
+					</div>
+
+					{activeHolds.length > 1 && (
+						<div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+							{activeHolds.length - 1} additional active hold
+							{activeHolds.length - 1 === 1 ? '' : 's'} recorded in history.
+						</div>
+					)}
+				</div>
+			) : (
+				<div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+					This document is not currently blocked by a legal hold.
 				</div>
 			)}
 
-			{/* Active holds */}
-			{activeHolds.length > 0 && (
-				<div className="flex flex-col gap-2">
-					{activeHolds.map((hold) => (
-						<ActiveHoldRow key={hold.id} hold={hold} documentId={documentId} />
-					))}
-				</div>
-			)}
+			<Separator />
 
-			{/* Released holds */}
-			{releasedHolds.length > 0 && (
-				<div className="flex flex-col gap-2">
-					<p className="text-xs font-medium text-gray-400 uppercase tracking-wide">
-						Released Holds
-					</p>
-					{releasedHolds.map((hold) => (
-						<ReleasedHoldRow key={hold.id} hold={hold} />
-					))}
+			<div className="space-y-3">
+				<div>
+					<p className="text-sm font-semibold">History</p>
+					<p className="text-xs text-muted-foreground">Timeline of hold events for this document</p>
 				</div>
-			)}
+				<HoldTimeline holds={holds} />
+			</div>
 
-			{/* Place hold dialog */}
-			{showPlace && (
-				<PlaceHoldDialog documentId={documentId} onClose={() => setShowPlace(false)} />
-			)}
+			<PlaceHoldDialog documentId={documentId} open={showPlace} onOpenChange={setShowPlace} />
+			<ReleaseHoldDialog
+				hold={releaseTarget}
+				documentId={documentId}
+				open={!!releaseTarget}
+				onOpenChange={(open) => !open && setReleaseTarget(null)}
+			/>
 		</div>
 	);
 }

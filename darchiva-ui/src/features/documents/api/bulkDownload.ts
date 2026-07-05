@@ -6,7 +6,7 @@ export function useBulkDownloadZip() {
   return useMutation({
     mutationFn: async (nodeIds: string[]) => {
       const response = await apiClient.post(
-        '/nodes/bulk/download-zip',
+        '/nodes/bulk-download',
         { node_ids: nodeIds },
         { responseType: 'blob' },
       );

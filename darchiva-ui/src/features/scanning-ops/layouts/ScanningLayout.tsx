@@ -1,12 +1,15 @@
+import { InstallPrompt } from '@/components/InstallPrompt';
 import { useAuth } from '@/features/auth';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useStore } from '@/hooks/useStore';
-import { Box,LogOut,Shield } from 'lucide-react';
+import { AlertTriangle,Box,LogOut,Shield } from 'lucide-react';
 import { Outlet,useNavigate } from 'react-router-dom';
 
 export function ScanningLayout() {
     const { user, setUser } = useStore();
     const { logout } = useAuth();
     const navigate = useNavigate();
+    const online = useOnlineStatus();
 
     const handleSignOut = () => {
         logout();
@@ -43,10 +46,18 @@ export function ScanningLayout() {
                 </div>
             </header>
 
+            {!online && (
+                <div className="flex items-center justify-center gap-2 border-b border-amber-500/30 bg-amber-500/15 px-4 py-2 text-sm font-semibold text-amber-200">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span>You are offline — scans will queue until reconnected</span>
+                </div>
+            )}
+
             {/* Main Content Area - Optimized for Touch */}
-            <main className="p-6 h-[calc(100vh-4rem)] overflow-hidden">
+            <main className={online ? 'p-6 h-[calc(100vh-4rem)] overflow-hidden' : 'p-6 h-[calc(100vh-6.25rem)] overflow-hidden'}>
                 <Outlet />
             </main>
+            <InstallPrompt />
         </div>
     );
 }

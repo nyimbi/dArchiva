@@ -11,18 +11,31 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 export interface DocumentExpiryRecord {
 	document_id: string;
+	documentId?: string;
 	expires_at: string; // ISO 8601
+	expiresAt?: string;
 	reminder_days: number[];
+	reminderDays?: number[];
 	notified_milestones: number[];
+	notifiedMilestones?: number[];
+	action_on_expiry?: ExpiryAction;
+	actionOnExpiry?: ExpiryAction;
 	created_by_id: string | null;
+	createdById?: string | null;
 	tenant_id: string;
+	tenantId?: string;
 	created_at: string;
+	createdAt?: string;
 	updated_at: string;
+	updatedAt?: string;
 }
+
+export type ExpiryAction = 'archive' | 'delete' | 'notify_only' | 'extend_automatically';
 
 export interface ExpiryUpsertPayload {
 	expires_at: string; // ISO 8601
 	reminder_days: number[];
+	action_on_expiry?: ExpiryAction;
 }
 
 export interface UpcomingExpiryItem {

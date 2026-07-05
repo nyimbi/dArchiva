@@ -1,6 +1,7 @@
 // (c) Copyright Datacraft, 2026
 import { useMemo, useState } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
+import { EmptyState } from '@/components/EmptyState';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -701,11 +702,7 @@ export function Inbox() {
                 </div>
               ))
             ) : filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full py-12 px-6 text-center">
-                <InboxIcon className="h-10 w-10 text-slate-700 mb-3" />
-                <p className="text-sm font-medium text-slate-400">{empty.title}</p>
-                <p className="text-xs text-slate-600 mt-1">{empty.desc}</p>
-              </div>
+              <EmptyState icon={InboxIcon} title={empty.title} description={empty.desc} />
             ) : (
               filtered.map((msg) => (
                 <MessageRow

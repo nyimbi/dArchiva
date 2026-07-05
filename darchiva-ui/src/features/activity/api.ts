@@ -18,7 +18,7 @@ const activityKeys = {
 
 export function useDocumentActivity(documentId: string, limit = 50) {
 	return useQuery({
-		queryKey: activityKeys.document(documentId),
+		queryKey: [...activityKeys.document(documentId), limit],
 		queryFn: async () => {
 			const { data } = await apiClient.get<ActivityEvent[]>(
 				`/activity/documents/${documentId}/activity`,

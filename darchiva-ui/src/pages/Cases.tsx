@@ -7,6 +7,7 @@ import {
   type Case,
   type CaseStatus,
 } from '@/features/cases';
+import { EmptyState } from '@/components/EmptyState';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -485,18 +486,16 @@ export function Cases() {
             ) : cases.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-16">
-                  <div className="flex flex-col items-center gap-3">
-                    <Briefcase className="w-10 h-10 text-muted-foreground/40" />
-                    <p className="text-sm text-muted-foreground">
-                      {hasFilters ? 'No cases match your filters' : 'No cases yet'}
-                    </p>
-                    {!hasFilters && (
-                      <Button size="sm" onClick={() => setCreateOpen(true)}>
-                        <Plus className="w-4 h-4 mr-2" />
-                        New Case
-                      </Button>
-                    )}
-                  </div>
+                  <EmptyState
+                    icon={Briefcase}
+                    title={hasFilters ? 'No cases match your filters' : 'No cases yet'}
+                    description={
+                      hasFilters
+                        ? 'Try changing the search or status filters.'
+                        : 'Create a case to organize documents, bundles, and review activity.'
+                    }
+                    action={!hasFilters ? { label: 'New Case', onClick: () => setCreateOpen(true) } : undefined}
+                  />
                 </TableCell>
               </TableRow>
             ) : (

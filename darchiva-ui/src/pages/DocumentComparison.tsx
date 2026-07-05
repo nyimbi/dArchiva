@@ -60,6 +60,7 @@ interface DocumentForComparison {
 	isLoadingMeta: boolean;
 	isLoadingPages: boolean;
 	isError: boolean;
+	versionLabel?: string;
 }
 
 type DiffLine = { text: string; type: 'common' | 'del' | 'add' };
@@ -155,7 +156,20 @@ function fmtMeta(val: unknown): string {
 // Hook
 // ---------------------------------------------------------------------------
 
-export function useDocumentForComparison(docId: string | null): DocumentForComparison {
+function versionPagesEndpoint(docId: string, versionId: string | null): string {
+	if (!versionId || versionId === 'current') return `/documents/${docId}/pages`;
+	return `/documents/${docId}/versions/${versionId}/pages`;
+}
+
+function versionLabel(versionId: string | null): string | undefined {
+	if (!versionId) return undefined;
+	return versionId === 'current' ? 'current' : `v${versionId}`;
+}
+
+export function useDocumentForComparison(
+	docId: string | null,
+	versionId: string | null = null,
+): DocumentForComparison {
 	const { data: meta, isLoading: isLoadingMeta, isError } = useQuery({
 		queryKey: ['document', docId],
 		queryFn: async () => {
@@ -166,10 +180,10 @@ export function useDocumentForComparison(docId: string | null): DocumentForCompa
 	});
 
 	const { data: pagesData, isLoading: isLoadingPages } = useQuery({
-		queryKey: ['document-pages', docId],
+		queryKey: ['document-pages', docId, versionId ?? 'current'],
 		queryFn: async () => {
 			const { data } = await apiClient.get<{ pages: ViewerPage[] }>(
-				`/documents/${docId}/pages`,
+				versionPagesEndpoint(docId!, versionId),
 			);
 			return data;
 		},
@@ -182,6 +196,7 @@ export function useDocumentForComparison(docId: string | null): DocumentForCompa
 		isLoadingMeta,
 		isLoadingPages,
 		isError,
+		versionLabel: versionLabel(versionId),
 	};
 }
 
@@ -276,6 +291,7 @@ interface TextPanelProps {
 	isLoadingMeta: boolean;
 	isLoadingPages: boolean;
 	isError: boolean;
+	versionLabel?: string;
 	/** Pre-filtered lines for this side: common + del (left) or common + add (right) */
 	lines: DiffLine[];
 	hasText: boolean;
@@ -292,6 +308,7 @@ function TextPanel({
 	isLoadingMeta,
 	isLoadingPages,
 	isError,
+	versionLabel,
 	lines,
 	hasText,
 	scrollRef,
@@ -342,12 +359,19 @@ function TextPanel({
 					{isLoadingMeta ? (
 						<Loader2 className="w-4 h-4 animate-spin text-slate-500" />
 					) : (
-						<span
-							className="text-sm text-slate-200 font-medium truncate"
-							title={meta?.title}
-						>
-							{meta?.title ?? docId}
-						</span>
+						<div className="min-w-0">
+							<span
+								className="block truncate text-sm font-medium text-slate-200"
+								title={meta?.title}
+							>
+								{meta?.title ?? docId}
+							</span>
+							{versionLabel && (
+								<span className="text-xs font-mono text-brass-400">
+									{versionLabel}
+								</span>
+							)}
+						</div>
 					)}
 				</div>
 
@@ -547,17 +571,32 @@ function MetadataTable({ metaA, metaB }: MetadataTableProps) {
 export function DocumentComparison() {
 	const [searchParams, setSearchParams] = useSearchParams();
 	const navigate = useNavigate();
+	const versionDocId = searchParams.get('docId');
+	const versionA = searchParams.get('v1');
+	const versionB = searchParams.get('v2');
+	const isVersionMode = Boolean(versionDocId && versionA && versionB);
 
-	const [docA, setDocA] = useState<string | null>(searchParams.get('a'));
-	const [docB, setDocB] = useState<string | null>(searchParams.get('b'));
+	const [docA, setDocA] = useState<string | null>(searchParams.get('a') ?? versionDocId);
+	const [docB, setDocB] = useState<string | null>(searchParams.get('b') ?? versionDocId);
+
+	useEffect(() => {
+		if (isVersionMode) {
+			setDocA(versionDocId);
+			setDocB(versionDocId);
+			return;
+		}
+		setDocA(searchParams.get('a'));
+		setDocB(searchParams.get('b'));
+	}, [isVersionMode, searchParams, versionDocId]);
 
 	// Sync URL params when docs change
 	useEffect(() => {
+		if (isVersionMode) return;
 		const params: Record<string, string> = {};
 		if (docA) params.a = docA;
 		if (docB) params.b = docB;
 		setSearchParams(params, { replace: true });
-	}, [docA, docB, setSearchParams]);
+	}, [docA, docB, isVersionMode, setSearchParams]);
 
 	// Scroll sync refs + guard
 	const scrollRefA = useRef<HTMLDivElement>(null);
@@ -609,8 +648,8 @@ export function DocumentComparison() {
 	}, [docA, docB]);
 
 	// Fetch both documents
-	const docAData = useDocumentForComparison(docA);
-	const docBData = useDocumentForComparison(docB);
+	const docAData = useDocumentForComparison(docA, isVersionMode ? versionA : null);
+	const docBData = useDocumentForComparison(docB, isVersionMode ? versionB : null);
 
 	// Extract OCR text from pages
 	const textA = useMemo(
@@ -643,8 +682,8 @@ export function DocumentComparison() {
 
 	function handleExport() {
 		exportDiff(
-			docAData.meta?.title ?? docA ?? 'Document A',
-			docBData.meta?.title ?? docB ?? 'Document B',
+			`${docAData.meta?.title ?? docA ?? 'Document A'}${docAData.versionLabel ? ` ${docAData.versionLabel}` : ''}`,
+			`${docBData.meta?.title ?? docB ?? 'Document B'}${docBData.versionLabel ? ` ${docBData.versionLabel}` : ''}`,
 			diffLines,
 		);
 	}
@@ -661,7 +700,9 @@ export function DocumentComparison() {
 					>
 						<ArrowLeft className="w-4 h-4" />
 					</button>
-					<span className="text-sm font-medium text-slate-300">Document Comparison</span>
+					<span className="text-sm font-medium text-slate-300">
+						{isVersionMode ? 'Version Comparison' : 'Document Comparison'}
+					</span>
 				</div>
 
 				<div className="flex items-center gap-2">
@@ -724,6 +765,7 @@ export function DocumentComparison() {
 					isLoadingMeta={docAData.isLoadingMeta}
 					isLoadingPages={docAData.isLoadingPages}
 					isError={docAData.isError}
+					versionLabel={docAData.versionLabel}
 					lines={leftLines}
 					hasText={hasTextA}
 					scrollRef={scrollRefA}
@@ -738,6 +780,7 @@ export function DocumentComparison() {
 					isLoadingMeta={docBData.isLoadingMeta}
 					isLoadingPages={docBData.isLoadingPages}
 					isError={docBData.isError}
+					versionLabel={docBData.versionLabel}
 					lines={rightLines}
 					hasText={hasTextB}
 					scrollRef={scrollRefB}

@@ -1,7 +1,9 @@
 // DataTable - Reusable table with sorting, selection, pagination
+import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { cn } from '@/lib/utils';
 import { ChevronDown,ChevronLeft,ChevronRight,ChevronUp,Loader2 } from 'lucide-react';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 
 export interface Column<T> {
 	key: string;
@@ -54,6 +56,12 @@ export function DataTable<T>({
 	pagination,
 	className,
 }: Props<T>) {
+	const location = useLocation();
+	const preferences = useUserPreferences();
+	const sortPreferenceKey = useMemo(
+		() => `table_sort:${location.pathname}:${columns.map((column) => column.key).join('|')}`,
+		[columns, location.pathname]
+	);
 	const allSelected = data.length > 0 && data.every(row => selectedRows?.has(getRowId(row)));
 	const someSelected = data.some(row => selectedRows?.has(getRowId(row)));
 
@@ -79,14 +87,17 @@ export function DataTable<T>({
 
 	const handleSort = (key: string) => {
 		if (!onSortChange) return;
+		let nextSort: SortState;
 		if (sorting?.column === key) {
-			onSortChange({
+			nextSort = {
 				column: key,
 				direction: sorting.direction === 'asc' ? 'desc' : sorting.direction === 'desc' ? null : 'asc',
-			});
+			};
 		} else {
-			onSortChange({ column: key, direction: 'asc' });
+			nextSort = { column: key, direction: 'asc' };
 		}
+		preferences.set(sortPreferenceKey, nextSort);
+		onSortChange(nextSort);
 	};
 
 	const totalPages = pagination ? Math.ceil(pagination.total / pagination.pageSize) : 0;

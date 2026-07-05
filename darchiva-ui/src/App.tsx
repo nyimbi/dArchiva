@@ -103,6 +103,11 @@ const SegmentationPage = lazy(() =>
 		default: module.SegmentationPage,
 	})),
 );
+const TagManagementPage = lazy(() =>
+	import('./features/tags/TagManagementPage').then((module) => ({
+		default: module.TagManagementPage,
+	})),
+);
 
 const queryClient = new QueryClient({
 	defaultOptions: {
@@ -189,6 +194,7 @@ export default function App() {
 									<Route path="admin/users" element={<UserManagement />} />
 									<Route path="admin/roles" element={<RoleManagement />} />
 									<Route path="settings/email-ingest" element={<EmailIngestConfigs />} />
+								<Route path="tags" element={<TagManagementPage />} />
 								<Route path="templates" element={<TemplatesPage />} />
 								<Route path="compare" element={<DocumentComparison />} />
 								<Route path="connectors" element={<ConnectorsPage />} />

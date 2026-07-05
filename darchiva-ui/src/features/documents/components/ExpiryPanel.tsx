@@ -4,8 +4,8 @@
  * Embed in a DocumentDetail sidebar; does NOT modify DocumentDetail.tsx itself.
  */
 import { useState } from 'react';
-import { format, parseISO } from 'date-fns';
-import { CalendarIcon, Clock, Trash2, Pencil, Loader2, AlertCircle } from 'lucide-react';
+import { addYears, format, parseISO } from 'date-fns';
+import { CalendarIcon, Clock, Trash2, Pencil, Loader2, AlertCircle, CalendarPlus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,12 +15,21 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
 import {
 	useDocumentExpiry,
 	useSetDocumentExpiry,
 	useRemoveDocumentExpiry,
+	type DocumentExpiryRecord,
+	type ExpiryAction,
 } from '../api/expiry';
 
 // ---------------------------------------------------------------------------
@@ -32,9 +41,16 @@ interface Props {
 }
 
 const REMINDER_OPTIONS: { days: number; label: string }[] = [
-	{ days: 30, label: '30 days before' },
-	{ days: 7,  label: '7 days before' },
-	{ days: 1,  label: '1 day before' },
+	{ days: 30, label: 'Notify me 30 days before' },
+	{ days: 7,  label: 'Notify me 7 days before' },
+	{ days: 0,  label: 'On expiry' },
+];
+
+const EXPIRY_ACTIONS: { value: ExpiryAction; label: string }[] = [
+	{ value: 'archive', label: 'Archive' },
+	{ value: 'delete', label: 'Delete' },
+	{ value: 'notify_only', label: 'Notify only' },
+	{ value: 'extend_automatically', label: 'Extend automatically' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -53,6 +69,22 @@ function urgencyColorClass(days: number): string {
 	return 'text-green-600 dark:text-green-500';
 }
 
+function expiryDate(record: DocumentExpiryRecord): string {
+	return record.expiresAt ?? record.expires_at;
+}
+
+function reminderDays(record: DocumentExpiryRecord | null | undefined): number[] {
+	return record?.reminderDays ?? record?.reminder_days ?? [];
+}
+
+function notifiedMilestones(record: DocumentExpiryRecord): number[] {
+	return record.notifiedMilestones ?? record.notified_milestones ?? [];
+}
+
+function actionOnExpiry(record: DocumentExpiryRecord | null | undefined): ExpiryAction {
+	return record?.actionOnExpiry ?? record?.action_on_expiry ?? 'notify_only';
+}
+
 // ---------------------------------------------------------------------------
 // Set-expiry form
 // ---------------------------------------------------------------------------
@@ -61,17 +93,20 @@ function SetExpiryForm({
 	documentId,
 	initialDate,
 	initialReminderDays,
+	initialAction,
 	onCancel,
 }: {
 	documentId: string;
 	initialDate: Date | undefined;
 	initialReminderDays: number[];
+	initialAction: ExpiryAction;
 	onCancel?: () => void;
 }) {
 	const [selectedDate, setSelectedDate] = useState<Date | undefined>(initialDate);
 	const [reminderDays, setReminderDays] = useState<number[]>(
-		initialReminderDays.length > 0 ? initialReminderDays : [30, 7, 1],
+		initialReminderDays.length > 0 ? initialReminderDays : [30, 7, 0],
 	);
+	const [action, setAction] = useState<ExpiryAction>(initialAction);
 	const [calOpen, setCalOpen] = useState(false);
 
 	const setExpiry = useSetDocumentExpiry(documentId);
@@ -87,6 +122,7 @@ function SetExpiryForm({
 		await setExpiry.mutateAsync({
 			expires_at: selectedDate.toISOString(),
 			reminder_days: reminderDays,
+			action_on_expiry: action,
 		});
 		onCancel?.();
 	}
@@ -124,9 +160,9 @@ function SetExpiryForm({
 				</Popover>
 			</div>
 
-			{/* Reminder checkboxes */}
+			{/* Notification checkboxes */}
 			<div className="space-y-1.5">
-				<Label className="text-xs font-medium text-muted-foreground">Reminders</Label>
+				<Label className="text-xs font-medium text-muted-foreground">Notification settings</Label>
 				<div className="space-y-2">
 					{REMINDER_OPTIONS.map(({ days, label }) => (
 						<div key={days} className="flex items-center gap-2">
@@ -144,6 +180,24 @@ function SetExpiryForm({
 						</div>
 					))}
 				</div>
+			</div>
+
+			<div className="space-y-1.5">
+				<Label htmlFor="expiry-action" className="text-xs font-medium text-muted-foreground">
+					Action on expiry
+				</Label>
+				<Select value={action} onValueChange={(value) => setAction(value as ExpiryAction)}>
+					<SelectTrigger id="expiry-action">
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						{EXPIRY_ACTIONS.map((option) => (
+							<SelectItem key={option.value} value={option.value}>
+								{option.label}
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
 			</div>
 
 			{/* Actions */}
@@ -182,6 +236,7 @@ export function ExpiryPanel({ documentId }: Props) {
 	const [editMode, setEditMode] = useState(false);
 	const { data: expiry, isLoading, isError } = useDocumentExpiry(documentId);
 	const removeExpiry = useRemoveDocumentExpiry(documentId);
+	const setExpiry = useSetDocumentExpiry(documentId);
 
 	if (isLoading) {
 		return (
@@ -213,18 +268,29 @@ export function ExpiryPanel({ documentId }: Props) {
 				<SetExpiryForm
 					documentId={documentId}
 					initialDate={undefined}
-					initialReminderDays={[30, 7, 1]}
+					initialReminderDays={[30, 7, 0]}
+					initialAction="notify_only"
 				/>
 			</div>
 		);
 	}
 
 	// Expiry exists — show summary or edit form
-	const expiresAt = parseISO(expiry.expires_at);
+	const expiresAt = parseISO(expiryDate(expiry));
 	const daysUntil = Math.max(
 		0,
 		Math.ceil((expiresAt.getTime() - Date.now()) / 86_400_000),
 	);
+	const currentReminderDays = reminderDays(expiry);
+	const currentAction = actionOnExpiry(expiry);
+
+	async function handleExtendOneYear() {
+		await setExpiry.mutateAsync({
+			expires_at: addYears(expiresAt, 1).toISOString(),
+			reminder_days: currentReminderDays,
+			action_on_expiry: currentAction,
+		});
+	}
 
 	if (editMode) {
 		return (
@@ -236,7 +302,8 @@ export function ExpiryPanel({ documentId }: Props) {
 				<SetExpiryForm
 					documentId={documentId}
 					initialDate={expiresAt}
-					initialReminderDays={expiry.reminder_days}
+					initialReminderDays={currentReminderDays}
+					initialAction={currentAction}
 					onCancel={() => setEditMode(false)}
 				/>
 			</div>
@@ -267,46 +334,63 @@ export function ExpiryPanel({ documentId }: Props) {
 
 			<Separator />
 
-			{/* Reminder schedule */}
+			{/* Notification schedule */}
 			<div className="space-y-1">
-				<p className="text-xs font-medium text-muted-foreground">Reminders scheduled</p>
-				<div className="flex flex-wrap gap-1">
-					{expiry.reminder_days.length === 0 ? (
-						<span className="text-xs text-muted-foreground">None</span>
-					) : (
-						expiry.reminder_days.map((d) => {
-							const fired = expiry.notified_milestones.includes(d);
-							return (
-								<Badge
-									key={d}
-									variant={fired ? 'secondary' : 'outline'}
-									className="text-xs"
-								>
-									{d}d {fired ? '(sent)' : ''}
+				<p className="text-xs font-medium text-muted-foreground">Notification settings</p>
+				<div className="space-y-2">
+					{REMINDER_OPTIONS.map(({ days, label }) => {
+						const enabled = currentReminderDays.includes(days);
+						const fired = notifiedMilestones(expiry).includes(days);
+						return (
+							<div key={days} className="flex items-center justify-between gap-2 text-sm">
+								<span className={enabled ? 'text-foreground' : 'text-muted-foreground'}>
+									{label}
+								</span>
+								<Badge variant={enabled ? (fired ? 'secondary' : 'outline') : 'secondary'} className="text-xs">
+									{enabled ? (fired ? 'Sent' : 'Enabled') : 'Off'}
 								</Badge>
-							);
-						})
-					)}
+							</div>
+						);
+					})}
 				</div>
 			</div>
 
+			<div className="space-y-1">
+				<p className="text-xs font-medium text-muted-foreground">Action on expiry</p>
+				<Badge variant="outline">
+					{EXPIRY_ACTIONS.find((option) => option.value === currentAction)?.label ?? 'Notify only'}
+				</Badge>
+			</div>
+
 			{/* Actions */}
-			<div className="flex gap-2 pt-1">
+			<div className="grid grid-cols-2 gap-2 pt-1">
 				<Button
 					size="sm"
 					variant="outline"
 					onClick={() => setEditMode(true)}
-					className="flex-1"
 				>
 					<Pencil className="mr-1.5 h-3.5 w-3.5" />
 					Edit
 				</Button>
 				<Button
 					size="sm"
+					variant="outline"
+					onClick={handleExtendOneYear}
+					disabled={setExpiry.isPending}
+				>
+					{setExpiry.isPending ? (
+						<Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+					) : (
+						<CalendarPlus className="mr-1.5 h-3.5 w-3.5" />
+					)}
+					Extend
+				</Button>
+				<Button
+					size="sm"
 					variant="ghost"
 					onClick={() => removeExpiry.mutate()}
 					disabled={removeExpiry.isPending}
-					className="flex-1 text-destructive hover:text-destructive"
+					className="col-span-2 text-destructive hover:text-destructive"
 				>
 					{removeExpiry.isPending ? (
 						<Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />

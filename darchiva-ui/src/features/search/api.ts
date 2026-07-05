@@ -119,8 +119,8 @@ export function useRecentSearches() {
 export function useSaveSearch() {
 	const queryClient = useQueryClient();
 	return useMutation({
-		mutationFn: async ({ name, query }: { name: string; query: SearchQuery }) => {
-			const { data } = await apiClient.post<SavedSearch>('/search/saved', { name, query });
+		mutationFn: async ({ name, query, filters }: { name: string; query: string; filters: SearchFilters }) => {
+			const { data } = await apiClient.post<SavedSearch>('/search/saved', { name, query, filters });
 			return data;
 		},
 		onSuccess: () => {
@@ -270,24 +270,39 @@ function normalizeSearchResponse(data: SearchResponse): SearchResponse {
 }
 
 function normalizeResult(item: SearchResponse['items'][number]): SearchResponse['items'][number] {
+	const raw = item as unknown as Record<string, unknown>;
+	const matchedField = raw.matched_field as { label?: string; name?: string } | undefined;
+	const customFieldMatch = raw.custom_field_match as { label?: string; name?: string } | undefined;
+	const pageNumber = raw.page_number ?? raw.pageNumber ?? raw.matched_page ?? raw.matchedPage;
+
 	return {
-		id: String((item as unknown as Record<string, unknown>).id ?? ''),
-		title: (item as unknown as Record<string, unknown>).title as string ?? '',
-		excerpt: (item as unknown as Record<string, unknown>).excerpt as string ?? '',
-		highlights: (item as unknown as Record<string, unknown>).highlights as string[] ?? [],
-		score: Number((item as unknown as Record<string, unknown>).score ?? 0),
-		documentType: ((item as unknown as Record<string, unknown>).category as { name?: string } | null)?.name,
-		documentTypeBadge: ((item as unknown as Record<string, unknown>).category as { name?: string } | null)?.name,
-		tags: ((item as unknown as Record<string, unknown>).tags as Array<{ id: string; name: string }> ?? []).map(t => ({
+		id: String(raw.id ?? ''),
+		title: raw.title as string ?? '',
+		excerpt: raw.excerpt as string ?? '',
+		highlights: raw.highlights as string[] ?? [],
+		score: Number(raw.score ?? 0),
+		documentType: (raw.documentType as string | undefined) ?? (raw.document_type as string | undefined) ?? (raw.category as { name?: string } | null)?.name,
+		documentTypeBadge: (raw.documentTypeBadge as string | undefined) ?? (raw.document_type_badge as string | undefined) ?? (raw.category as { name?: string } | null)?.name,
+		qualityScore: Number(raw.qualityScore ?? raw.quality_score ?? 0) || undefined,
+		ocrExcerpt: (raw.ocrExcerpt as string | undefined) ?? (raw.ocr_excerpt as string | undefined),
+		matchedFieldLabel: (raw.matchedFieldLabel as string | undefined)
+			?? (raw.matched_field_label as string | undefined)
+			?? matchedField?.label
+			?? matchedField?.name
+			?? customFieldMatch?.label
+			?? customFieldMatch?.name,
+		pageNumber: pageNumber != null ? Number(pageNumber) : undefined,
+		tags: (raw.tags as Array<{ id: string; name: string; color?: string }> ?? []).map(t => ({
 			id: String(t.id),
 			name: t.name,
+			color: t.color,
 		})),
-		createdAt: (item as unknown as Record<string, unknown>).created_at as string ?? (item as unknown as Record<string, unknown>).createdAt as string ?? '',
-		updatedAt: (item as unknown as Record<string, unknown>).updated_at as string ?? (item as unknown as Record<string, unknown>).updatedAt as string ?? '',
+		createdAt: raw.created_at as string ?? raw.createdAt as string ?? '',
+		updatedAt: raw.updated_at as string ?? raw.updatedAt as string ?? '',
 		owner: {
-			id: String(((item as unknown as Record<string, unknown>).owned_by as { id?: string } | null)?.id ?? ''),
-			name: String(((item as unknown as Record<string, unknown>).owned_by as { name?: string } | null)?.name ?? ''),
+			id: String((raw.owned_by as { id?: string } | null)?.id ?? (raw.owner as { id?: string } | null)?.id ?? ''),
+			name: String((raw.owned_by as { name?: string } | null)?.name ?? (raw.owner as { name?: string } | null)?.name ?? ''),
 		},
-		operator: (item as unknown as Record<string, unknown>).created_by as { id: string; name: string } | undefined,
+		operator: raw.created_by as { id: string; name: string } | undefined,
 	};
 }

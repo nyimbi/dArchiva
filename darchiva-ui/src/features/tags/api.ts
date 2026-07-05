@@ -71,6 +71,19 @@ export function useDeleteTag() {
 	});
 }
 
+export function useMergeTags() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async ({ sourceTagId, targetTagId }: { sourceTagId: string; targetTagId: string }) => {
+			await apiClient.post('/tags/merge', { sourceTagId, targetTagId });
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: TAGS_KEY });
+		},
+	});
+}
+
 export function useTagDocuments(tagId: string) {
 	return useMutation({
 		mutationFn: async (documentIds: string[]) => {

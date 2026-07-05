@@ -1,5 +1,6 @@
 // (c) Copyright Datacraft, 2026
 import { ShareDialog } from '@/features/sharing/ShareDialog';
+import { PublicLinkDialog } from '@/features/sharing/PublicLinkDialog';
 import { WatermarkDialog } from '@/features/documents/components/WatermarkDialog';
 import { AnnotationsPanel } from '@/features/documents/components/AnnotationsPanel';
 import { CustomFieldsPanel } from '@/features/documents/components/CustomFieldsPanel';
@@ -26,10 +27,9 @@ import { SerialPanel } from '@/features/serial-numbers';
 import { OCRCorrectionPanel } from '@/features/ocr-correction';
 import { PageManagementPanel } from '@/features/page-management';
 import {
-	VersionDiffViewer,
-	VersionHistoryWithCompare,
-	type DocVerListItem,
-} from '@/features/documents/components/VersionDiffViewer';
+	VersionHistoryPanel,
+	type DocumentVersion,
+} from '@/features/documents/components/VersionHistoryPanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -44,8 +44,8 @@ import { cn, formatRelativeTime } from '@/lib/utils';
 import type { ViewerPage } from '@/types';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Activity,ArrowLeft,Bell,Calendar,CheckSquare,Copy,Download,Edit2,FileText,FolderInput,GitCompare,Hash,History,Layers,Lightbulb,Loader2,Lock,MessageCircle,MessageSquare,MoreHorizontal,PenTool,Printer,QrCode,ScanLine,ScanText,Scissors,Share2,Shield,Stamp,Star,Tag,Tags,Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { Activity,ArrowLeft,Bell,Calendar,CheckSquare,Copy,Download,Edit2,FileText,FolderInput,GitCompare,Hash,History,Layers,Lightbulb,Link2,Loader2,Lock,MessageCircle,MessageSquare,MoreHorizontal,PenTool,Printer,QrCode,ScanLine,ScanText,Scissors,Share2,Shield,Stamp,Star,Tag,Tags,Trash2,Users } from 'lucide-react';
+import { useMemo,useState } from 'react';
 import { useNavigate,useParams } from 'react-router-dom';
 
 interface DocumentDetail {
@@ -63,6 +63,9 @@ interface DocumentDetail {
 	versions: Array<{
 		id: string;
 		number: number;
+		versionNumber?: number;
+		isCurrent?: boolean;
+		current?: boolean;
 		pages: Array<{
 			id: string;
 			number: number;
@@ -116,15 +119,15 @@ export function DocumentDetail() {
 	const { id } = useParams<{ id: string }>();
 	const navigate = useNavigate();
 
-	// Diff state: null means no diff panel open
-	const [diff, setDiff] = useState<{ versionA: number; versionB: number } | null>(null);
 	const [showVersionHistory, setShowVersionHistory] = useState(false);
+	const [previewVersion, setPreviewVersion] = useState<DocumentVersion | null>(null);
 	// Right-panel tab: null = closed, or one of the named panels
 	type SidePanel = 'custom-fields' | 'related' | 'similar' | 'entities' | 'expiry' | 'annotations' | 'ocr-quality' | 'ocr-correction' | 'signatures' | 'approvals' | 'duplicates' | 'classification' | 'filing' | 'legal-hold' | 'activity' | 'chat' | 'acl' | 'comments' | 'page-management' | 'serial';
 	const [sidePanel, setSidePanel] = useState<SidePanel | null>(null);
 	const [showPageEditor, setShowPageEditor] = useState(false);
 	const [showSplitDialog, setShowSplitDialog] = useState(false);
 	const [showShareDialog, setShowShareDialog] = useState(false);
+	const [showPublicLinkDialog, setShowPublicLinkDialog] = useState(false);
 	const [showWatermarkDialog, setShowWatermarkDialog] = useState(false);
 	const [showQRCodeModal, setShowQRCodeModal] = useState(false);
 	const [isFavorite, setIsFavorite] = useState(false);
@@ -133,7 +136,7 @@ export function DocumentDetail() {
 		setSidePanel((prev) => (prev === panel ? null : panel));
 		// Close version history when opening a side panel
 		if (showVersionHistory) setShowVersionHistory(false);
-		setDiff(null);
+		setPreviewVersion(null);
 	};
 
 	// Fetch document details
@@ -156,14 +159,15 @@ export function DocumentDetail() {
 		enabled: !!id,
 	});
 
-	// Fetch version list (for history panel)
-	const { data: versionsData } = useQuery<DocVerListItem[]>({
-		queryKey: ['document-versions', id],
+	const { data: previewPagesData, isLoading: isPreviewLoading } = useQuery({
+		queryKey: ['document-version-pages', id, previewVersion?.id],
 		queryFn: async () => {
-			const { data } = await apiClient.get<DocVerListItem[]>(`/documents/${id}/versions`);
+			const { data } = await apiClient.get<{ pages: ViewerPage[] }>(
+				`/documents/${id}/versions/${previewVersion?.id}/pages`,
+			);
 			return data;
 		},
-		enabled: !!id && showVersionHistory,
+		enabled: !!id && !!previewVersion?.id,
 	});
 
 	// Handle saving OCR text
@@ -193,6 +197,19 @@ export function DocumentDetail() {
 	}
 
 	const pages = pagesData?.pages || [];
+	const previewPages = useMemo(() => {
+		if (!previewVersion?.id) return [];
+		return (previewPagesData?.pages ?? []).map((page, index) => ({
+			...page,
+			imageUrl:
+				page.imageUrl ??
+				`${API_BASE}/documents/${id}/versions/${previewVersion.id}/pages/${page.pageNumber ?? index + 1}/image`,
+		}));
+	}, [id, previewPagesData?.pages, previewVersion?.id]);
+	const viewerPages = previewVersion ? previewPages : pages;
+	const currentVersionNumber = document.versions?.find((version) => version.isCurrent || version.current)?.versionNumber
+		?? document.versions?.find((version) => version.isCurrent || version.current)?.number
+		?? document.versions?.reduce((max, version) => Math.max(max, version.versionNumber ?? version.number ?? 0), 0);
 	const pageCount = document.pageCount ?? pages.length;
 	const typeLabel = document.documentType?.name ?? document.fileType ?? 'Document';
 	const panelButtonClass = (active: boolean) =>
@@ -201,7 +218,6 @@ export function DocumentDetail() {
 			: 'border-slate-700 text-slate-400 hover:border-slate-600 hover:bg-slate-800 hover:text-slate-200';
 	const toggleHistory = () => {
 		setShowVersionHistory((v) => !v);
-		setDiff(null);
 		setSidePanel(null);
 	};
 
@@ -251,6 +267,11 @@ export function DocumentDetail() {
 										{tag.name}
 									</span>
 								))}
+								{previewVersion && (
+									<Badge variant="outline" className="border-sky-500/40 bg-sky-500/10 text-sky-300">
+										Previewing v{previewVersion.versionNumber ?? previewVersion.number ?? '?'}
+									</Badge>
+								)}
 							</div>
 						</div>
 					</div>
@@ -276,16 +297,29 @@ export function DocumentDetail() {
 							<Printer className="w-4 h-4" />
 							Print
 						</Button>
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							onClick={() => setShowShareDialog(true)}
-							className="border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800"
-						>
-							<Share2 className="w-4 h-4" />
-							Share
-						</Button>
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									className="border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800"
+								>
+									<Share2 className="w-4 h-4" />
+									Share
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" className="border-slate-800 bg-slate-900 text-slate-100">
+								<DropdownMenuItem onSelect={() => setShowShareDialog(true)}>
+									<Users className="mr-2 h-4 w-4" />
+									Share with users
+								</DropdownMenuItem>
+								<DropdownMenuItem onSelect={() => setShowPublicLinkDialog(true)}>
+									<Link2 className="mr-2 h-4 w-4" />
+									Create public link
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
 						<Button
 							type="button"
 							variant="outline"
@@ -419,36 +453,19 @@ export function DocumentDetail() {
 				<div className="flex-1 min-w-0">
 					<Viewer
 						documentId={id}
-						pages={pages}
-						isLoading={!pagesData}
+						pages={viewerPages}
+						isLoading={previewVersion ? isPreviewLoading : !pagesData}
 					/>
 				</div>
 
 				{/* Version history sidebar */}
-				{showVersionHistory && !diff && (
-					<div className="w-64 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto">
-						{versionsData ? (
-							<VersionHistoryWithCompare
-								documentId={id!}
-								versions={versionsData}
-								onCompare={(vA, vB) => setDiff({ versionA: vA, versionB: vB })}
-							/>
-						) : (
-							<div className="flex items-center justify-center h-24">
-								<Loader2 className="w-5 h-5 animate-spin text-slate-600" />
-							</div>
-						)}
-					</div>
-				)}
-
-				{/* Diff panel — replaces history sidebar when a comparison is active */}
-				{diff && (
-					<div className="w-1/2 shrink-0 border-l border-slate-800">
-						<VersionDiffViewer
+				{showVersionHistory && (
+					<div className="w-[28rem] shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto">
+						<VersionHistoryPanel
 							documentId={id!}
-							versionA={diff.versionA}
-							versionB={diff.versionB}
-							onClose={() => setDiff(null)}
+							currentVersionNumber={currentVersionNumber}
+							previewVersionId={previewVersion?.id}
+							onPreview={setPreviewVersion}
 						/>
 					</div>
 				)}
@@ -634,6 +651,16 @@ export function DocumentDetail() {
 					documentId={id!}
 					documentTitle={document?.title ?? ''}
 					onClose={() => setShowShareDialog(false)}
+				/>
+			)}
+
+			{/* Public link dialog */}
+			{showPublicLinkDialog && (
+				<PublicLinkDialog
+					open={showPublicLinkDialog}
+					documentId={id!}
+					documentTitle={document?.title ?? ''}
+					onClose={() => setShowPublicLinkDialog(false)}
 				/>
 			)}
 

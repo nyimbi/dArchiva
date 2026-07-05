@@ -1,9 +1,26 @@
 // (c) Copyright Datacraft, 2026
 // Multi-step document approval workflow panel
 import { useAuth } from '@/features/auth';
+import { useUsers } from '@/features/users/api';
+import type { User } from '@/features/users/types';
+import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { CheckCircle, ChevronDown, ChevronUp, Clock, Plus, Trash2, XCircle } from 'lucide-react';
-import React, { useState } from 'react';
+import {
+	CheckCircle,
+	ChevronDown,
+	ChevronUp,
+	Clock,
+	Loader2,
+	Mail,
+	MessageSquare,
+	Plus,
+	Search,
+	Trash2,
+	UserRound,
+	X,
+	XCircle,
+} from 'lucide-react';
+import React, { useMemo, useState } from 'react';
 import type { ApprovalStep, ApprovalWorkflow, StepIn } from './api';
 import {
 	useApproveStep,
@@ -12,47 +29,96 @@ import {
 	useRejectStep,
 } from './api';
 
-// ── Props ─────────────────────────────────────────────────────────────────────
-
 interface ApprovalPanelProps {
 	documentId: string;
 }
 
-// ── Step status icon ──────────────────────────────────────────────────────────
+type DisplayStatus = 'pending' | 'approved' | 'rejected' | 'expired';
 
-function StepIcon({ status }: { status: ApprovalStep['status'] }) {
-	if (status === 'approved')
-		return <CheckCircle className="h-5 w-5 text-green-500 shrink-0" />;
-	if (status === 'rejected')
-		return <XCircle className="h-5 w-5 text-red-500 shrink-0" />;
-	if (status === 'skipped')
-		return <ChevronDown className="h-5 w-5 text-gray-400 shrink-0" />;
-	return <Clock className="h-5 w-5 text-yellow-500 shrink-0" />;
+function displayNameForUser(user: User) {
+	const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ').trim();
+	return fullName || user.username || user.email;
 }
 
-// ── Status badge ──────────────────────────────────────────────────────────────
+function workflowDisplayStatus(status: ApprovalWorkflow['status']): DisplayStatus {
+	if (status === 'approved' || status === 'rejected' || status === 'expired') return status;
+	return 'pending';
+}
 
-function StatusBadge({ status }: { status: ApprovalWorkflow['status'] }) {
-	const cls = {
-		in_review: 'bg-yellow-100 text-yellow-800',
-		approved: 'bg-green-100 text-green-800',
-		rejected: 'bg-red-100 text-red-800',
-	}[status] ?? 'bg-gray-100 text-gray-700';
+function workflowDate(workflow: ApprovalWorkflow) {
+	return workflow.completed_at ?? workflow.created_at;
+}
 
-	const label = {
-		in_review: 'In Review',
-		approved: 'Approved',
-		rejected: 'Rejected',
-	}[status] ?? status;
+function StepIcon({ status }: { status: ApprovalStep['status'] }) {
+	if (status === 'approved') return <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />;
+	if (status === 'rejected') return <XCircle className="h-4 w-4 text-red-600 shrink-0" />;
+	if (status === 'expired') return <Clock className="h-4 w-4 text-gray-500 shrink-0" />;
+	return <Clock className="h-4 w-4 text-amber-500 shrink-0" />;
+}
+
+function StatusBadge({ status }: { status: DisplayStatus }) {
+	const cls: Record<DisplayStatus, string> = {
+		pending: 'bg-amber-100 text-amber-800 ring-amber-200',
+		approved: 'bg-green-100 text-green-800 ring-green-200',
+		rejected: 'bg-red-100 text-red-800 ring-red-200',
+		expired: 'bg-gray-100 text-gray-700 ring-gray-200',
+	};
 
 	return (
-		<span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${cls}`}>
-			{label}
+		<span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ring-1', cls[status])}>
+			{status}
 		</span>
 	);
 }
 
-// ── Step row ──────────────────────────────────────────────────────────────────
+interface RejectDialogProps {
+	busy: boolean;
+	approver: string;
+	onCancel: () => void;
+	onReject: (comment: string) => void;
+}
+
+function RejectDialog({ busy, approver, onCancel, onReject }: RejectDialogProps) {
+	const [comment, setComment] = useState('');
+
+	return (
+		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+			<div className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
+				<div className="flex items-start justify-between gap-3">
+					<div>
+						<h4 className="text-base font-semibold text-gray-900">Reject approval</h4>
+						<p className="mt-1 text-sm text-gray-500">Add a reason for rejecting {approver}.</p>
+					</div>
+					<button type="button" onClick={onCancel} className="rounded p-1 text-gray-400 hover:text-gray-600">
+						<X className="h-4 w-4" />
+					</button>
+				</div>
+				<textarea
+					value={comment}
+					onChange={(event) => setComment(event.target.value)}
+					rows={4}
+					autoFocus
+					placeholder="Reason for rejection"
+					className="mt-4 w-full resize-none rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-400"
+				/>
+				<div className="mt-4 flex justify-end gap-2">
+					<button type="button" onClick={onCancel} className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900">
+						Cancel
+					</button>
+					<button
+						type="button"
+						onClick={() => onReject(comment.trim())}
+						disabled={busy || !comment.trim()}
+						className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+					>
+						{busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+						Reject
+					</button>
+				</div>
+			</div>
+		</div>
+	);
+}
 
 interface StepRowProps {
 	step: ApprovalStep;
@@ -63,8 +129,7 @@ interface StepRowProps {
 }
 
 function StepRow({ step, workflowId, documentId, currentUserId, isWorkflowActive }: StepRowProps) {
-	const [showAction, setShowAction] = useState(false);
-	const [comment, setComment] = useState('');
+	const [rejectOpen, setRejectOpen] = useState(false);
 	const approveMutation = useApproveStep(documentId);
 	const rejectMutation = useRejectStep(documentId);
 
@@ -73,139 +138,131 @@ function StepRow({ step, workflowId, documentId, currentUserId, isWorkflowActive
 		step.status === 'pending' &&
 		currentUserId &&
 		step.approver_user_id === currentUserId;
+	const busy = approveMutation.isPending || rejectMutation.isPending;
+	const approver = step.approver_email || 'this approver';
 
 	const handleApprove = async () => {
-		await approveMutation.mutateAsync({ workflowId, stepId: step.id, comment: comment || undefined });
-		setComment('');
-		setShowAction(false);
+		await approveMutation.mutateAsync({ workflowId, stepId: step.id });
 	};
 
-	const handleReject = async () => {
-		if (!comment.trim()) return;
+	const handleReject = async (comment: string) => {
+		if (!comment) return;
 		await rejectMutation.mutateAsync({ workflowId, stepId: step.id, comment });
-		setComment('');
-		setShowAction(false);
+		setRejectOpen(false);
 	};
-
-	const busy = approveMutation.isPending || rejectMutation.isPending;
 
 	return (
-		<div className="flex flex-col gap-1">
+		<div className="rounded-md border border-gray-100 bg-white px-3 py-2">
 			<div className="flex items-start gap-3">
-				{/* Step number bubble */}
-				<div className="flex-none flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 text-xs font-semibold text-gray-600">
+				<div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-600">
 					{step.step_order}
 				</div>
-
-				<div className="flex-1 min-w-0">
-					<div className="flex items-center gap-2 flex-wrap">
+				<div className="min-w-0 flex-1">
+					<div className="flex flex-wrap items-center gap-2">
 						<StepIcon status={step.status} />
-						<span className="text-sm font-medium truncate">{step.approver_email}</span>
-						{step.status !== 'pending' && step.decided_at && (
+						<span className="truncate text-sm font-medium text-gray-900">{step.approver_email}</span>
+						<span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium capitalize text-gray-600">
+							{step.status}
+						</span>
+						{step.decided_at && (
 							<span className="text-xs text-gray-400">
 								{format(new Date(step.decided_at), 'dd MMM yyyy, HH:mm')}
 							</span>
 						)}
 					</div>
-
 					{step.comment && (
-						<p className="mt-0.5 text-xs text-gray-500 italic">"{step.comment}"</p>
+						<p className="mt-1 flex gap-1 text-xs text-gray-500">
+							<MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+							<span className="break-words">{step.comment}</span>
+						</p>
 					)}
-
-					{isMyStep && !showAction && (
-						<button
-							onClick={() => setShowAction(true)}
-							className="mt-1 text-xs text-blue-600 hover:underline"
-						>
-							Review…
-						</button>
-					)}
-
-					{isMyStep && showAction && (
-						<div className="mt-2 flex flex-col gap-2">
-							<textarea
-								value={comment}
-								onChange={(e) => setComment(e.target.value)}
-								placeholder="Comment (required for rejection)"
-								rows={2}
-								className="w-full text-xs border border-gray-300 rounded px-2 py-1 resize-none focus:outline-none focus:ring-1 focus:ring-blue-400"
-							/>
-							<div className="flex gap-2">
-								<button
-									onClick={handleApprove}
-									disabled={busy}
-									className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50"
-								>
-									<CheckCircle className="h-3.5 w-3.5" />
-									Approve
-								</button>
-								<button
-									onClick={handleReject}
-									disabled={busy || !comment.trim()}
-									className="flex items-center gap-1 px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 disabled:opacity-50"
-								>
-									<XCircle className="h-3.5 w-3.5" />
-									Reject
-								</button>
-								<button
-									onClick={() => { setShowAction(false); setComment(''); }}
-									className="px-3 py-1 text-xs text-gray-500 hover:text-gray-700"
-								>
-									Cancel
-								</button>
-							</div>
+					{isMyStep && (
+						<div className="mt-2 flex flex-wrap gap-2">
+							<button
+								type="button"
+								onClick={handleApprove}
+								disabled={busy}
+								className="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
+							>
+								<CheckCircle className="h-3.5 w-3.5" />
+								Approve
+							</button>
+							<button
+								type="button"
+								onClick={() => setRejectOpen(true)}
+								disabled={busy}
+								className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+							>
+								<XCircle className="h-3.5 w-3.5" />
+								Reject
+							</button>
 						</div>
 					)}
 				</div>
 			</div>
+			{rejectOpen && (
+				<RejectDialog
+					busy={busy}
+					approver={approver}
+					onCancel={() => setRejectOpen(false)}
+					onReject={handleReject}
+				/>
+			)}
 		</div>
 	);
 }
-
-// ── Workflow card ─────────────────────────────────────────────────────────────
 
 interface WorkflowCardProps {
 	workflow: ApprovalWorkflow;
 	documentId: string;
 	currentUserId: string | undefined;
+	defaultCollapsed?: boolean;
 }
 
-function WorkflowCard({ workflow, documentId, currentUserId }: WorkflowCardProps) {
-	const [collapsed, setCollapsed] = useState(false);
+function WorkflowCard({ workflow, documentId, currentUserId, defaultCollapsed = false }: WorkflowCardProps) {
+	const [collapsed, setCollapsed] = useState(defaultCollapsed);
+	const displayStatus = workflowDisplayStatus(workflow.status);
 
 	return (
-		<div className="border border-gray-200 rounded-lg overflow-hidden">
-			{/* Header */}
+		<div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
 			<button
+				type="button"
 				onClick={() => setCollapsed(!collapsed)}
-				className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+				className="flex w-full items-center justify-between gap-3 bg-gray-50 px-4 py-3 text-left transition-colors hover:bg-gray-100"
 			>
-				<div className="flex items-center gap-2 min-w-0">
-					<span className="font-medium text-sm truncate">{workflow.name}</span>
-					<StatusBadge status={workflow.status} />
+				<div className="min-w-0">
+					<div className="flex flex-wrap items-center gap-2">
+						<span className="truncate text-sm font-semibold text-gray-900">{workflow.name}</span>
+						<StatusBadge status={displayStatus} />
+					</div>
+					<div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+						<span>{workflow.steps.length} approver{workflow.steps.length === 1 ? '' : 's'}</span>
+						<span>Requested {format(new Date(workflow.created_at), 'dd MMM yyyy')}</span>
+						{workflow.deadline_at && <span>Due {format(new Date(workflow.deadline_at), 'dd MMM yyyy')}</span>}
+					</div>
 				</div>
-				<div className="flex items-center gap-2 text-xs text-gray-400 shrink-0">
-					<span>{format(new Date(workflow.created_at), 'dd MMM yyyy')}</span>
-					{collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-				</div>
+				{collapsed ? <ChevronDown className="h-4 w-4 shrink-0 text-gray-500" /> : <ChevronUp className="h-4 w-4 shrink-0 text-gray-500" />}
 			</button>
 
-			{/* Steps */}
 			{!collapsed && (
-				<div className="px-4 py-3 flex flex-col gap-3 divide-y divide-gray-100">
-					{workflow.steps.map((step) => (
-						<div key={step.id} className="pt-3 first:pt-0">
+				<div className="space-y-3 px-4 py-3">
+					{workflow.message && (
+						<p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-600">{workflow.message}</p>
+					)}
+					<div className="space-y-2">
+						{workflow.steps.map((step) => (
 							<StepRow
+								key={step.id}
 								step={step}
 								workflowId={workflow.id}
 								documentId={documentId}
 								currentUserId={currentUserId}
-								isWorkflowActive={workflow.status === 'in_review'}
+								isWorkflowActive={workflowDisplayStatus(workflow.status) === 'pending'}
 							/>
-						</div>
-					))}
+						))}
+					</div>
 					{workflow.completed_at && (
-						<p className="pt-2 text-xs text-gray-400">
+						<p className="text-xs text-gray-400">
 							Completed {format(new Date(workflow.completed_at), 'dd MMM yyyy, HH:mm')}
 						</p>
 					)}
@@ -215,158 +272,181 @@ function WorkflowCard({ workflow, documentId, currentUserId }: WorkflowCardProps
 	);
 }
 
-// ── Create dialog ─────────────────────────────────────────────────────────────
-
 interface CreateDialogProps {
 	documentId: string;
 	onClose: () => void;
 }
 
 function CreateDialog({ documentId, onClose }: CreateDialogProps) {
-	const [name, setName] = useState('');
-	const [steps, setSteps] = useState<StepIn[]>([{ approver_email: '' }]);
+	const [search, setSearch] = useState('');
+	const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
+	const [deadline, setDeadline] = useState('');
+	const [message, setMessage] = useState('');
+	const { data: usersData, isLoading } = useUsers({ search, pageSize: 25, is_active: true });
 	const createMutation = useCreateApprovalWorkflow(documentId);
+	const users = usersData?.items ?? [];
 
-	const addStep = () => setSteps((s) => [...s, { approver_email: '' }]);
+	const selectedIds = useMemo(() => new Set(selectedUsers.map((user) => user.id)), [selectedUsers]);
+	const valid = selectedUsers.length > 0;
 
-	const removeStep = (i: number) =>
-		setSteps((s) => s.filter((_, idx) => idx !== i));
+	const toggleUser = (user: User) => {
+		setSelectedUsers((current) => {
+			if (current.some((item) => item.id === user.id)) return current.filter((item) => item.id !== user.id);
+			return [...current, user];
+		});
+	};
 
-	const moveUp = (i: number) => {
-		if (i === 0) return;
-		setSteps((s) => {
-			const copy = [...s];
-			[copy[i - 1], copy[i]] = [copy[i], copy[i - 1]];
+	const moveSelected = (index: number, direction: -1 | 1) => {
+		setSelectedUsers((current) => {
+			const nextIndex = index + direction;
+			if (nextIndex < 0 || nextIndex >= current.length) return current;
+			const copy = [...current];
+			[copy[index], copy[nextIndex]] = [copy[nextIndex], copy[index]];
 			return copy;
 		});
 	};
 
-	const moveDown = (i: number) => {
-		setSteps((s) => {
-			if (i >= s.length - 1) return s;
-			const copy = [...s];
-			[copy[i], copy[i + 1]] = [copy[i + 1], copy[i]];
-			return copy;
-		});
+	const removeSelected = (userId: string) => {
+		setSelectedUsers((current) => current.filter((user) => user.id !== userId));
 	};
 
-	const updateStep = (i: number, field: keyof StepIn, value: string) =>
-		setSteps((s) => s.map((step, idx) => idx === i ? { ...step, [field]: value } : step));
-
-	const valid = name.trim().length > 0 && steps.every((s) => s.approver_email.trim().length > 0);
-
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault();
+	const handleSubmit = async (event: React.FormEvent) => {
+		event.preventDefault();
 		if (!valid) return;
-		await createMutation.mutateAsync({ name: name.trim(), steps });
+
+		const steps: StepIn[] = selectedUsers.map((user) => ({
+			approver_email: user.email,
+			approver_user_id: user.id,
+		}));
+
+		await createMutation.mutateAsync({
+			name: 'Document Approval',
+			steps,
+			deadline_at: deadline ? new Date(`${deadline}T23:59:59`).toISOString() : null,
+			message: message.trim() || undefined,
+		});
 		onClose();
 	};
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-			<div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4">
-				<form onSubmit={handleSubmit}>
-					<div className="px-6 py-4 border-b border-gray-200">
-						<h2 className="text-lg font-semibold">Create Approval Workflow</h2>
+		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+			<div className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-xl bg-white shadow-xl">
+				<form onSubmit={handleSubmit} className="flex max-h-[90vh] flex-col">
+					<div className="border-b border-gray-200 px-6 py-4">
+						<h2 className="text-lg font-semibold text-gray-900">Request Approval</h2>
+						<p className="mt-1 text-sm text-gray-500">Select approvers in the order they should review this document.</p>
 					</div>
 
-					<div className="px-6 py-4 flex flex-col gap-4">
-						{/* Workflow name */}
-						<div>
-							<label className="block text-sm font-medium text-gray-700 mb-1">
-								Workflow Name
+					<div className="grid min-h-0 flex-1 gap-4 overflow-y-auto px-6 py-4 md:grid-cols-[1fr_1fr]">
+						<div className="space-y-3">
+							<label className="block text-sm font-medium text-gray-700" htmlFor="approval-user-search">
+								Approvers
 							</label>
-							<input
-								type="text"
-								value={name}
-								onChange={(e) => setName(e.target.value)}
-								placeholder="e.g. Legal Review"
-								required
-								className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-							/>
-						</div>
-
-						{/* Steps builder */}
-						<div>
-							<label className="block text-sm font-medium text-gray-700 mb-2">
-								Approval Steps (in order)
-							</label>
-							<div className="flex flex-col gap-2">
-								{steps.map((step, i) => (
-									<div key={i} className="flex items-center gap-2">
-										<span className="w-5 text-xs text-gray-400 text-right shrink-0">
-											{i + 1}.
-										</span>
-										<input
-											type="email"
-											value={step.approver_email}
-											onChange={(e) => updateStep(i, 'approver_email', e.target.value)}
-											placeholder="approver@example.com"
-											required
-											className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
-										/>
-										<input
-											type="text"
-											value={step.approver_user_id ?? ''}
-											onChange={(e) => updateStep(i, 'approver_user_id', e.target.value)}
-											placeholder="User ID (optional)"
-											className="w-32 border border-gray-300 rounded px-2 py-1 text-xs text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400"
-										/>
-										<button
-											type="button"
-											onClick={() => moveUp(i)}
-											disabled={i === 0}
-											className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
-											title="Move up"
-										>
-											<ChevronUp className="h-4 w-4" />
-										</button>
-										<button
-											type="button"
-											onClick={() => moveDown(i)}
-											disabled={i === steps.length - 1}
-											className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
-											title="Move down"
-										>
-											<ChevronDown className="h-4 w-4" />
-										</button>
-										<button
-											type="button"
-											onClick={() => removeStep(i)}
-											disabled={steps.length === 1}
-											className="p-1 text-red-400 hover:text-red-600 disabled:opacity-30"
-											title="Remove step"
-										>
-											<Trash2 className="h-4 w-4" />
-										</button>
-									</div>
-								))}
+							<div className="relative">
+								<Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+								<input
+									id="approval-user-search"
+									type="search"
+									value={search}
+									onChange={(event) => setSearch(event.target.value)}
+									placeholder="Search users"
+									className="w-full rounded-md border border-gray-300 py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+								/>
 							</div>
-							<button
-								type="button"
-								onClick={addStep}
-								className="mt-2 flex items-center gap-1 text-xs text-blue-600 hover:underline"
-							>
-								<Plus className="h-3.5 w-3.5" />
-								Add step
-							</button>
+							<div className="max-h-72 overflow-y-auto rounded-md border border-gray-200">
+								{isLoading ? (
+									<div className="flex items-center gap-2 px-3 py-4 text-sm text-gray-500">
+										<Loader2 className="h-4 w-4 animate-spin" />
+										Loading users
+									</div>
+								) : users.length === 0 ? (
+									<p className="px-3 py-4 text-sm text-gray-400">No users found.</p>
+								) : (
+									users.map((user) => (
+										<label key={user.id} className="flex cursor-pointer items-start gap-3 border-b border-gray-100 px-3 py-2 last:border-b-0 hover:bg-gray-50">
+											<input
+												type="checkbox"
+												checked={selectedIds.has(user.id)}
+												onChange={() => toggleUser(user)}
+												className="mt-1"
+											/>
+											<span className="min-w-0">
+												<span className="block truncate text-sm font-medium text-gray-900">{displayNameForUser(user)}</span>
+												<span className="block truncate text-xs text-gray-500">{user.email}</span>
+											</span>
+										</label>
+									))
+								)}
+							</div>
+						</div>
+
+						<div className="space-y-4">
+							<div>
+								<label className="block text-sm font-medium text-gray-700" htmlFor="approval-deadline">
+									Deadline
+								</label>
+								<input
+									id="approval-deadline"
+									type="date"
+									value={deadline}
+									onChange={(event) => setDeadline(event.target.value)}
+									className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+								/>
+							</div>
+							<div>
+								<label className="block text-sm font-medium text-gray-700" htmlFor="approval-message">
+									Message
+								</label>
+								<textarea
+									id="approval-message"
+									value={message}
+									onChange={(event) => setMessage(event.target.value)}
+									rows={4}
+									placeholder="Add context for approvers"
+									className="mt-1 w-full resize-none rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+								/>
+							</div>
+							<div>
+								<p className="text-sm font-medium text-gray-700">Approval chain</p>
+								<div className="mt-2 space-y-2">
+									{selectedUsers.length === 0 ? (
+										<p className="rounded-md border border-dashed border-gray-200 px-3 py-6 text-center text-sm text-gray-400">No approvers selected.</p>
+									) : (
+										selectedUsers.map((user, index) => (
+											<div key={user.id} className="flex items-center gap-2 rounded-md border border-gray-200 px-2 py-2">
+												<span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-600">{index + 1}</span>
+												<div className="min-w-0 flex-1">
+													<p className="truncate text-sm font-medium text-gray-900">{displayNameForUser(user)}</p>
+													<p className="truncate text-xs text-gray-500">{user.email}</p>
+												</div>
+												<button type="button" onClick={() => moveSelected(index, -1)} disabled={index === 0} className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30">
+													<ChevronUp className="h-4 w-4" />
+												</button>
+												<button type="button" onClick={() => moveSelected(index, 1)} disabled={index === selectedUsers.length - 1} className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30">
+													<ChevronDown className="h-4 w-4" />
+												</button>
+												<button type="button" onClick={() => removeSelected(user.id)} className="p-1 text-red-400 hover:text-red-600">
+													<Trash2 className="h-4 w-4" />
+												</button>
+											</div>
+										))
+									)}
+								</div>
+							</div>
 						</div>
 					</div>
 
-					<div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
-						<button
-							type="button"
-							onClick={onClose}
-							className="px-4 py-1.5 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded"
-						>
+					<div className="flex justify-end gap-2 border-t border-gray-200 px-6 py-4">
+						<button type="button" onClick={onClose} className="rounded-md border border-gray-300 px-4 py-1.5 text-sm text-gray-600 hover:text-gray-900">
 							Cancel
 						</button>
 						<button
 							type="submit"
 							disabled={!valid || createMutation.isPending}
-							className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+							className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
 						>
-							{createMutation.isPending ? 'Creating…' : 'Create Workflow'}
+							{createMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+							Request Approval
 						</button>
 					</div>
 				</form>
@@ -375,61 +455,86 @@ function CreateDialog({ documentId, onClose }: CreateDialogProps) {
 	);
 }
 
-// ── Main panel ────────────────────────────────────────────────────────────────
-
 export function ApprovalPanel({ documentId }: ApprovalPanelProps) {
 	const { user } = useAuth();
 	const { data: workflows, isLoading, error } = useDocumentApprovals(documentId);
 	const [showCreate, setShowCreate] = useState(false);
+	const sortedWorkflows = useMemo(
+		() => [...(workflows ?? [])].sort((a, b) => new Date(workflowDate(b)).getTime() - new Date(workflowDate(a)).getTime()),
+		[workflows],
+	);
+	const currentWorkflow = sortedWorkflows.find((workflow) => workflowDisplayStatus(workflow.status) === 'pending') ?? sortedWorkflows[0];
+	const history = sortedWorkflows.filter((workflow) => workflow.id !== currentWorkflow?.id);
+	const canRequestApproval = !currentWorkflow || workflowDisplayStatus(currentWorkflow.status) !== 'pending';
 
 	return (
 		<div className="flex flex-col gap-4">
-			{/* Header */}
-			<div className="flex items-center justify-between">
-				<h3 className="text-base font-semibold text-gray-900">Approval Workflows</h3>
-				<button
-					onClick={() => setShowCreate(true)}
-					className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-				>
-					<Plus className="h-4 w-4" />
-					Create Workflow
-				</button>
+			<div className="flex flex-wrap items-center justify-between gap-3">
+				<div>
+					<h3 className="text-base font-semibold text-gray-900">Approvals</h3>
+					{currentWorkflow && (
+						<div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-500">
+							<span>Current status</span>
+							<StatusBadge status={workflowDisplayStatus(currentWorkflow.status)} />
+						</div>
+					)}
+				</div>
+				{canRequestApproval && (
+					<button
+						type="button"
+						onClick={() => setShowCreate(true)}
+						className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+					>
+						<Plus className="h-4 w-4" />
+						Request Approval
+					</button>
+				)}
 			</div>
 
-			{/* Content */}
-			{isLoading && (
-				<div className="text-sm text-gray-500 py-4 text-center">Loading workflows…</div>
-			)}
+			{isLoading && <div className="py-4 text-center text-sm text-gray-500">Loading approvals...</div>}
 
-			{error && (
-				<div className="text-sm text-red-600 py-2">
-					Failed to load workflows. Please try again.
+			{error && <div className="py-2 text-sm text-red-600">Failed to load approvals. Please try again.</div>}
+
+			{!isLoading && !error && !currentWorkflow && (
+				<div className="rounded-lg border border-dashed border-gray-200 px-4 py-8 text-center">
+					<UserRound className="mx-auto h-8 w-8 text-gray-300" />
+					<p className="mt-2 text-sm text-gray-500">No approval chain exists for this document.</p>
+					<button
+						type="button"
+						onClick={() => setShowCreate(true)}
+						className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+					>
+						<Mail className="h-4 w-4" />
+						Request Approval
+					</button>
 				</div>
 			)}
 
-			{!isLoading && !error && (!workflows || workflows.length === 0) && (
-				<div className="text-sm text-gray-400 py-6 text-center border border-dashed border-gray-200 rounded-lg">
-					No approval workflows yet. Create one to start the review process.
-				</div>
+			{currentWorkflow && (
+				<section className="space-y-2">
+					<h4 className="text-sm font-semibold text-gray-800">Approval chain</h4>
+					<WorkflowCard workflow={currentWorkflow} documentId={documentId} currentUserId={user?.id} />
+				</section>
 			)}
 
-			{workflows && workflows.length > 0 && (
-				<div className="flex flex-col gap-3">
-					{workflows.map((wf) => (
-						<WorkflowCard
-							key={wf.id}
-							workflow={wf}
-							documentId={documentId}
-							currentUserId={user?.id}
-						/>
-					))}
-				</div>
+			{history.length > 0 && (
+				<section className="space-y-2">
+					<h4 className="text-sm font-semibold text-gray-800">History</h4>
+					<div className="space-y-2">
+						{history.map((workflow) => (
+							<WorkflowCard
+								key={workflow.id}
+								workflow={workflow}
+								documentId={documentId}
+								currentUserId={user?.id}
+								defaultCollapsed
+							/>
+						))}
+					</div>
+				</section>
 			)}
 
-			{/* Create dialog */}
-			{showCreate && (
-				<CreateDialog documentId={documentId} onClose={() => setShowCreate(false)} />
-			)}
+			{showCreate && <CreateDialog documentId={documentId} onClose={() => setShowCreate(false)} />}
 		</div>
 	);
 }

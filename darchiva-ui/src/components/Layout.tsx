@@ -4,8 +4,10 @@ import { useNotificationSocket } from '@/features/notifications/useNotificationS
 import { useStore } from '@/hooks/useStore';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
-import { Suspense, useCallback, useEffect, useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { FilePlus2, FolderPlus, Plus, ScanLine, Search, Upload } from 'lucide-react';
+import { Suspense, useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { Outlet, useNavigate, useParams } from 'react-router-dom';
+import { DropZoneOverlay } from './DropZoneOverlay';
 import { ErrorBoundary } from './ErrorBoundary';
 import { Header } from './Header';
 import { ModalManager } from './ModalManager';
@@ -14,8 +16,17 @@ import { Sidebar } from './Sidebar';
 
 export function Layout() {
 	const { sidebarCollapsed } = useStore();
+	const navigate = useNavigate();
+	const { folderId } = useParams<{ folderId: string }>();
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 	const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+	const [speedDialOpen, setSpeedDialOpen] = useState(false);
+	const [draggingFiles, setDraggingFiles] = useState(false);
+	const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
+	const [uploadId, setUploadId] = useState(0);
+	const dragDepth = useRef(0);
+	const uploadInputRef = useRef<HTMLInputElement | null>(null);
+	const speedDialRef = useRef<HTMLDivElement | null>(null);
 	useNotificationSocket();
 
 	const openCommandPalette = useCallback(() => {
@@ -42,6 +53,112 @@ export function Layout() {
 
 		window.addEventListener('keydown', handleKeyDown);
 		return () => window.removeEventListener('keydown', handleKeyDown);
+	}, []);
+
+	useEffect(() => {
+		if (!speedDialOpen) return;
+
+		const handlePointerDown = (event: PointerEvent) => {
+			if (!speedDialRef.current?.contains(event.target as Node)) setSpeedDialOpen(false);
+		};
+		const handleEscape = (event: KeyboardEvent) => {
+			if (event.key === 'Escape') setSpeedDialOpen(false);
+		};
+
+		document.addEventListener('pointerdown', handlePointerDown);
+		document.addEventListener('keydown', handleEscape);
+		return () => {
+			document.removeEventListener('pointerdown', handlePointerDown);
+			document.removeEventListener('keydown', handleEscape);
+		};
+	}, [speedDialOpen]);
+
+	const handleUploadPicked = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+		const files = Array.from(event.target.files ?? []);
+		if (files.length > 0) {
+			setDroppedFiles(files);
+			setUploadId((id) => id + 1);
+		}
+		event.target.value = '';
+	}, []);
+
+	const runSpeedDialAction = useCallback((action: () => void) => {
+		action();
+		setSpeedDialOpen(false);
+	}, []);
+
+	const speedDialActions = [
+		{
+			label: 'Upload Document',
+			icon: Upload,
+			action: () => uploadInputRef.current?.click(),
+		},
+		{
+			label: 'New Case',
+			icon: FolderPlus,
+			action: () => navigate('/cases?create=true'),
+		},
+		{
+			label: 'Start Scan',
+			icon: ScanLine,
+			action: () => navigate('/scanning-projects?new=true'),
+		},
+		{
+			label: 'Quick Search',
+			icon: Search,
+			action: () => setCommandPaletteOpen(true),
+		},
+	];
+
+	useEffect(() => {
+		const hasFiles = (event: DragEvent) =>
+			Array.from(event.dataTransfer?.types ?? []).includes('Files');
+
+		const handleDragEnter = (event: DragEvent) => {
+			if (!hasFiles(event)) return;
+			event.preventDefault();
+			dragDepth.current += 1;
+			setDraggingFiles(true);
+		};
+
+		const handleDragOver = (event: DragEvent) => {
+			if (!hasFiles(event)) return;
+			event.preventDefault();
+			if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+			setDraggingFiles(true);
+		};
+
+		const handleDragLeave = (event: DragEvent) => {
+			if (!hasFiles(event)) return;
+			event.preventDefault();
+			dragDepth.current = Math.max(0, dragDepth.current - 1);
+			if (dragDepth.current === 0) setDraggingFiles(false);
+		};
+
+		const handleDrop = (event: DragEvent) => {
+			if (!hasFiles(event)) return;
+			event.preventDefault();
+			dragDepth.current = 0;
+			setDraggingFiles(false);
+
+			const files = Array.from(event.dataTransfer?.files ?? []);
+			if (files.length === 0) return;
+			setDroppedFiles(files);
+			setUploadId((id) => id + 1);
+		};
+
+		const target = document.body;
+		target.addEventListener('dragenter', handleDragEnter);
+		target.addEventListener('dragover', handleDragOver);
+		target.addEventListener('dragleave', handleDragLeave);
+		target.addEventListener('drop', handleDrop);
+
+		return () => {
+			target.removeEventListener('dragenter', handleDragEnter);
+			target.removeEventListener('dragover', handleDragOver);
+			target.removeEventListener('dragleave', handleDragLeave);
+			target.removeEventListener('drop', handleDrop);
+		};
 	}, []);
 
 	return (
@@ -113,6 +230,48 @@ export function Layout() {
 			<CommandPalette
 				open={commandPaletteOpen}
 				onClose={() => setCommandPaletteOpen(false)}
+			/>
+			<div ref={speedDialRef} className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3">
+				<input
+					ref={uploadInputRef}
+					type="file"
+					multiple
+					className="hidden"
+					onChange={handleUploadPicked}
+				/>
+				{speedDialOpen && (
+					<div className="flex flex-col items-end gap-2">
+						{speedDialActions.map(({ label, icon: Icon, action }) => (
+							<button
+								key={label}
+								type="button"
+								onClick={() => runSpeedDialAction(action)}
+								className="group flex items-center gap-2 rounded-full bg-slate-900/95 px-3 py-2 text-sm font-medium text-slate-100 shadow-lg ring-1 ring-brass-500/30 transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-400"
+							>
+								<span>{label}</span>
+								<span className="flex h-8 w-8 items-center justify-center rounded-full bg-brass-500 text-slate-950">
+									<Icon className="h-4 w-4" aria-hidden="true" />
+								</span>
+							</button>
+						))}
+					</div>
+				)}
+				<button
+					type="button"
+					onClick={() => setSpeedDialOpen((open) => !open)}
+					aria-expanded={speedDialOpen}
+					aria-label="Quick document actions"
+					className="flex h-14 w-14 items-center justify-center rounded-full bg-brass-500 text-slate-950 shadow-xl shadow-black/30 ring-1 ring-brass-300/80 transition hover:bg-brass-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-200"
+				>
+					{speedDialOpen ? <FilePlus2 className="h-6 w-6" /> : <Plus className="h-6 w-6" />}
+				</button>
+			</div>
+			<DropZoneOverlay
+				files={droppedFiles}
+				isDragging={draggingFiles}
+				parentId={folderId}
+				uploadId={uploadId}
+				onClose={() => setDroppedFiles([])}
 			/>
 			<ModalManager />
 		</div>

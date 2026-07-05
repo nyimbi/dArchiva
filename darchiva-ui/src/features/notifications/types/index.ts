@@ -10,12 +10,18 @@ export type NotificationType =
 	| 'classification_done'
 	| 'batch_complete'
 	| 'auto_routing'
+	| 'workflow_triggered'
+	| 'approval_needed'
+	| 'document_shared'
+	| 'system_alert'
 	| 'system'
 	// legacy generic types — kept for backward compat with toast usage
 	| 'success'
 	| 'error'
 	| 'warning'
 	| 'info';
+
+export type NotificationConnectionStatus = 'connected' | 'reconnecting' | 'disconnected';
 
 export interface Toast {
 	id: string;
@@ -49,4 +55,5 @@ export interface NotificationState {
 	toasts: Toast[];
 	notifications: Notification[];
 	unreadCount: number;
+	connectionStatus: NotificationConnectionStatus;
 }

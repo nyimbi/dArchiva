@@ -7,13 +7,16 @@ import { BookmarkPlus, Loader2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useDeleteSavedSearch, useSavedSearches, useSaveSearch } from '../api';
+import type { SearchFilters, SearchQuery } from '../types';
 
 export function SavedSearchPanel({
 	currentQuery,
+	currentFilters,
 	onApply,
 }: {
 	currentQuery: string;
-	onApply: (query: string) => void;
+	currentFilters: SearchFilters;
+	onApply: (query: string, filters?: SearchFilters) => void;
 }) {
 	const [name, setName] = useState('');
 
@@ -25,7 +28,7 @@ export function SavedSearchPanel({
 		const trimmedName = name.trim();
 		if (!trimmedName || !currentQuery.trim()) return;
 		saveSearch.mutate(
-			{ name: trimmedName, query: { query: currentQuery, mode: 'keyword' } },
+			{ name: trimmedName, query: currentQuery.trim(), filters: currentFilters },
 			{ onSuccess: () => setName('') },
 		);
 	}
@@ -81,16 +84,11 @@ export function SavedSearchPanel({
 							<button
 								type="button"
 								className="flex-1 text-left text-sm truncate"
-								onClick={() => onApply(
-									typeof search.query === 'string'
-										? search.query
-										: search.query.query,
-								)}
-								title={
-									typeof search.query === 'string'
-										? search.query
-										: search.query.query
-								}
+								onClick={() => {
+									const queryValue = getSavedSearchQuery(search.query);
+									onApply(queryValue, search.filters ?? (typeof search.query === 'object' ? search.query.filters : undefined));
+								}}
+								title={getSavedSearchQuery(search.query)}
 							>
 								{search.name}
 							</button>
@@ -110,4 +108,8 @@ export function SavedSearchPanel({
 			)}
 		</div>
 	);
+}
+
+function getSavedSearchQuery(query: string | SearchQuery): string {
+	return typeof query === 'string' ? query : query.query;
 }

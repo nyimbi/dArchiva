@@ -8,8 +8,23 @@ export interface DocumentComment {
   content: string;
   is_resolved: boolean;
   parent_id: string | null;
+  reactions?: CommentReaction[] | Record<string, number>;
   created_at: string;
   updated_at: string;
+}
+
+export interface CommentReaction {
+  emoji: string;
+  count: number;
+  reacted_by_me?: boolean;
+}
+
+export interface MentionUser {
+  id: string;
+  username: string;
+  email: string;
+  first_name?: string;
+  last_name?: string;
 }
 
 export interface CreateCommentPayload {

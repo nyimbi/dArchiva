@@ -9,7 +9,7 @@ export interface ApprovalStep {
 	step_order: number;
 	approver_email: string;
 	approver_user_id: string | null;
-	status: 'pending' | 'approved' | 'rejected' | 'skipped';
+	status: 'pending' | 'approved' | 'rejected' | 'skipped' | 'expired';
 	comment: string | null;
 	decided_at: string | null;
 }
@@ -18,11 +18,13 @@ export interface ApprovalWorkflow {
 	id: string;
 	document_id: string;
 	name: string;
-	status: 'in_review' | 'approved' | 'rejected';
+	status: 'in_review' | 'pending' | 'approved' | 'rejected' | 'expired';
 	created_by_id: string;
 	tenant_id: string;
 	created_at: string;
 	completed_at: string | null;
+	deadline_at?: string | null;
+	message?: string | null;
 	steps: ApprovalStep[];
 }
 
@@ -34,6 +36,8 @@ export interface StepIn {
 export interface CreateWorkflowPayload {
 	name: string;
 	steps: StepIn[];
+	deadline_at?: string | null;
+	message?: string;
 }
 
 export interface ApproveStepPayload {
