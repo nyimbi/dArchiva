@@ -9,7 +9,8 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, User, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Loader2, User, AlertTriangle, CheckCircle2, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
 type BatchStatus = 'pending' | 'assigned' | 'scanning' | 'qc_review' | 'completed' | 'on_hold';
 type BatchPriority = 0 | 1 | 2;
@@ -131,7 +132,7 @@ export function BatchKanban({ projectId }: BatchKanbanProps) {
   const qc = useQueryClient();
   const [dragOver, setDragOver] = useState<string | null>(null);
 
-  const { data: batches, isLoading } = useQuery<Batch[]>({
+  const { data: batches, isLoading, isError } = useQuery<Batch[]>({
     queryKey: ['project-batches-kanban', projectId],
     queryFn: async () => {
       const { data } = await apiClient.get<{ items?: Batch[] } | Batch[]>(
@@ -147,13 +148,21 @@ export function BatchKanban({ projectId }: BatchKanbanProps) {
       apiClient.patch(`/scanning-projects/${projectId}/batches/${batchId}`, {
         status: newStatus,
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['project-batches-kanban', projectId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['project-batches-kanban', projectId] });
+      toast.success('Batch status updated');
+    },
+    onError: () => toast.error('Failed to update batch status'),
   });
 
   const priorityMutation = useMutation({
     mutationFn: ({ batchId, priority }: { batchId: string; priority: BatchPriority }) =>
       apiClient.patch(`/scanning-projects/batches/${batchId}/priority`, { priority }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['project-batches-kanban', projectId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['project-batches-kanban', projectId] });
+      toast.success('Batch priority updated');
+    },
+    onError: () => toast.error('Failed to update batch priority'),
   });
 
   const handlePriorityChange = (batchId: string, priority: BatchPriority) => {
@@ -178,6 +187,15 @@ export function BatchKanban({ projectId }: BatchKanbanProps) {
     return (
       <div className="flex items-center justify-center h-48 text-muted-foreground">
         <Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading batches…
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex items-center justify-center h-48 gap-2 text-sm text-destructive">
+        <AlertCircle className="w-5 h-5" />
+        <span>Failed to load batches.</span>
       </div>
     );
   }

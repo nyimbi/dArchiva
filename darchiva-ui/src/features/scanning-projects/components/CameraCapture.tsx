@@ -26,7 +26,9 @@ import {
   Loader2,
   CheckCircle2,
   AlertTriangle,
+  AlertCircle,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface Corner {
   x: number;
@@ -70,7 +72,7 @@ export function CameraCapture({ onAccept, onClose }: CameraCaptureProps) {
   const [targetDpi, setTargetDpi] = useState<number>(300);
   const [autoDetect, setAutoDetect] = useState(true);
 
-  const { data: devices } = useQuery<CameraDevice[]>({
+  const { data: devices, isError: devicesIsError } = useQuery<CameraDevice[]>({
     queryKey: ['camera-devices'],
     queryFn: async () => {
       const { data } = await apiClient.get<CameraDevice[]>('/scanning-projects/camera/devices');
@@ -98,7 +100,11 @@ export function CameraCapture({ onAccept, onClose }: CameraCaptureProps) {
       }
       return res.json() as Promise<CaptureResult>;
     },
-    onSuccess: (data) => setResult(data),
+    onSuccess: (data) => {
+      setResult(data);
+      toast.success('Image processed');
+    },
+    onError: () => toast.error('Processing failed'),
   });
 
   const calibrateMutation = useMutation({
@@ -112,6 +118,8 @@ export function CameraCapture({ onAccept, onClose }: CameraCaptureProps) {
       if (!res.ok) throw new Error('Calibration failed');
       return res.json() as Promise<CalibrationResult>;
     },
+    onSuccess: () => toast.success('Camera calibrated'),
+    onError: () => toast.error('Calibration failed'),
   });
 
   const handleFileChange = (file: File) => {
@@ -135,6 +143,15 @@ export function CameraCapture({ onAccept, onClose }: CameraCaptureProps) {
     if (score > 0.4) return 'secondary';
     return 'destructive';
   };
+
+  if (devicesIsError) {
+    return (
+      <div className="flex items-center justify-center gap-2 p-6 text-sm text-destructive">
+        <AlertCircle className="w-4 h-4" />
+        <span>Failed to load camera devices.</span>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4 p-4 max-h-[80vh] overflow-y-auto">

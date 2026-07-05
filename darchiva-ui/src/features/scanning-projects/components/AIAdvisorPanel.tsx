@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import {
   Activity,
+  AlertCircle,
   AlertTriangle,
   ArrowRight,
   BarChart3,
@@ -28,6 +29,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useMemo,useState } from 'react';
+import { toast } from 'sonner';
 
 // Types matching backend views.py
 type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
@@ -128,7 +130,9 @@ function useRequestAnalysis(projectId: string) {
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['ai-advisor', projectId] });
+			toast.success('AI analysis updated');
 		},
+		onError: () => toast.error('Failed to update AI analysis'),
 	});
 }
 
@@ -151,7 +155,9 @@ function useApplyRecommendation(projectId: string) {
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['ai-advisor', projectId] });
+			toast.success('Recommendation applied');
 		},
+		onError: () => toast.error('Failed to apply recommendation'),
 	});
 }
 
@@ -638,8 +644,8 @@ function PredictionHistoryCard({ history }: { history: PredictionAccuracy[] }) {
 export function AIAdvisorPanel({ projectId, className }: AIAdvisorPanelProps) {
 	const [activeSection, setActiveSection] = useState<'overview' | 'timeline' | 'resources' | 'recommendations'>('overview');
 
-	const { data: advisor, isLoading, error } = useAIAdvisor(projectId);
-	const { data: history } = usePredictionHistory(projectId);
+	const { data: advisor, isLoading, isError: advisorIsError } = useAIAdvisor(projectId);
+	const { data: history, isError: historyIsError } = usePredictionHistory(projectId);
 	const requestAnalysis = useRequestAnalysis(projectId);
 	const applyRecommendation = useApplyRecommendation(projectId);
 
@@ -666,11 +672,11 @@ export function AIAdvisorPanel({ projectId, className }: AIAdvisorPanelProps) {
 		);
 	}
 
-	if (error) {
+	if (advisorIsError || historyIsError) {
 		return (
 			<div className={cn('bg-slate-900/50 border border-rose-500/30 rounded-lg p-6', className)}>
 				<div className="flex items-center gap-3 text-rose-400">
-					<AlertTriangle className="w-5 h-5" />
+					<AlertCircle className="w-5 h-5" />
 					<span>Failed to load AI advisor data</span>
 				</div>
 				<button

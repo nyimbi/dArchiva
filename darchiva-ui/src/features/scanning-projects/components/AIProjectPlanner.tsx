@@ -5,6 +5,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { useMutation,useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence,motion } from 'framer-motion';
 import {
+  AlertCircle,
   AlertTriangle,
   ArrowRight,
   BrainCircuit,
@@ -25,6 +26,7 @@ import {
   X
 } from 'lucide-react';
 import { useCallback,useMemo,useRef,useState } from 'react';
+import { toast } from 'sonner';
 import * as api from '../api';
 import { useAIAnalysis } from '../api/hooks';
 import { scanningProjectKeys } from '../hooks';
@@ -674,7 +676,7 @@ export function AIProjectPlanner({
 	const [isGenerating, setIsGenerating] = useState(false);
 	const [aiAnalysis, setAiAnalysis] = useState<AIAdvisorResponse | null>(null);
 	const [aiEnabled, setAiEnabled] = useState(false);
-	const { data: aiData, isLoading: aiLoading } = useAIAnalysis(projectId, aiEnabled);
+	const { data: aiData, isLoading: aiLoading, isError: aiIsError } = useAIAnalysis(projectId, aiEnabled);
 
 	// Create milestones mutation
 	const createMilestones = useMutation({
@@ -693,7 +695,9 @@ export function AIProjectPlanner({
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: scanningProjectKeys.milestones(projectId) });
+			toast.success('Milestones created');
 		},
+		onError: () => toast.error('Failed to create milestones'),
 	});
 
 	const createShifts = useMutation({
@@ -714,7 +718,9 @@ export function AIProjectPlanner({
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: scanningProjectKeys.all });
+			toast.success('Shifts created');
 		},
+		onError: () => toast.error('Failed to create shifts'),
 	});
 
 	// Generate plan — local arithmetic + AI analysis in parallel
@@ -892,6 +898,13 @@ export function AIProjectPlanner({
 
 					{/* Content */}
 					<div className="p-4 overflow-y-auto max-h-[calc(90vh-200px)]">
+						{aiIsError ? (
+							<div className="flex items-center justify-center gap-2 py-8 text-sm text-rose-400">
+								<AlertCircle className="w-4 h-4" />
+								<span>Failed to load AI analysis.</span>
+							</div>
+						) : (
+							<>
 						{step === 'config' && (
 							<div className="space-y-4">
 								<ConfigForm
@@ -929,6 +942,8 @@ export function AIProjectPlanner({
 									/>
 								</div>
 							</div>
+						)}
+							</>
 						)}
 					</div>
 

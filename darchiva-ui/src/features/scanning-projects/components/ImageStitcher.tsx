@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Upload, X, ArrowRight, Layers, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface StitchResult {
   status: 'ok' | 'failed' | 'need_more_images' | 'not_enough_overlap';
@@ -68,7 +69,13 @@ export function ImageStitcher({ batchId, onAccept, onClose }: ImageStitcherProps
       const json = await res.json();
       return { status: json.status ?? 'failed', errorMessage: json.detail } as StitchResult;
     },
-    onSuccess: (data) => setResult(data),
+    onSuccess: (data) => {
+      setResult(data);
+      if (data.status === 'ok') {
+        toast.success('Images stitched successfully');
+      }
+    },
+    onError: () => toast.error('Failed to stitch images'),
   });
 
   const addFile = useCallback((newFiles: File[]) => {
