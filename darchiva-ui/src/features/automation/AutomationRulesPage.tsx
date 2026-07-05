@@ -5,6 +5,16 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
 	Dialog,
 	DialogClose,
 	DialogContent,
@@ -597,15 +607,14 @@ export function AutomationRulesPage() {
 
 	const [dialogOpen, setDialogOpen] = useState(false);
 	const [editing, setEditing] = useState<AutomationRule | null>(null);
+	const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
 	const handleToggle = (rule: AutomationRule) => {
 		updateMutation.mutate({ id: rule.id, payload: { is_active: !rule.is_active } });
 	};
 
 	const handleDelete = (id: string) => {
-		if (confirm('Delete this automation rule?')) {
-			deleteMutation.mutate(id);
-		}
+		setConfirmDialog({ message: 'Delete this automation rule?', onConfirm: () => deleteMutation.mutate(id) });
 	};
 
 	const openNew = () => {
@@ -743,6 +752,23 @@ export function AutomationRulesPage() {
 					existing={editing}
 				/>
 			)}
+			<AlertDialog open={!!confirmDialog} onOpenChange={() => setConfirmDialog(null)}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Confirm</AlertDialogTitle>
+						<AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={() => { confirmDialog?.onConfirm(); setConfirmDialog(null); }}
+							className="bg-red-600 hover:bg-red-700"
+						>
+							Confirm
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }

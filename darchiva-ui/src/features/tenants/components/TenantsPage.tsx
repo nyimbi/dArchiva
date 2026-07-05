@@ -1,5 +1,15 @@
 // (c) Copyright Datacraft, 2026
 import { useCallback,useEffect,useState } from 'react';
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import {
   activateTenant,
@@ -25,6 +35,7 @@ export function TenantsPage() {
 	const [tenants, setTenants] = useState<Tenant[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [selectedTenant, setSelectedTenant] = useState<TenantDetail | null>(null);
+	const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
 	// Filters
 	const [statusFilter, setStatusFilter] = useState<TenantStatus | ''>('');
@@ -64,15 +75,17 @@ export function TenantsPage() {
 	};
 
 	const handleSuspendTenant = async (tenant: Tenant) => {
-		if (!confirm(`Suspend ${tenant.name}? Users will not be able to access this organization.`)) {
-			return;
-		}
-		try {
-			await suspendTenant(tenant.id);
-			await loadTenants();
-		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Failed to suspend tenant');
-		}
+		setConfirmDialog({
+			message: `Suspend ${tenant.name}? Users will not be able to access this organization.`,
+			onConfirm: async () => {
+				try {
+					await suspendTenant(tenant.id);
+					await loadTenants();
+				} catch (err) {
+					toast.error(err instanceof Error ? err.message : 'Failed to suspend tenant');
+				}
+			},
+		});
 	};
 
 	const handleActivateTenant = async (tenant: Tenant) => {
@@ -85,15 +98,17 @@ export function TenantsPage() {
 	};
 
 	const handleDeleteTenant = async (tenant: Tenant) => {
-		if (!confirm(`Delete ${tenant.name}? This action cannot be undone.`)) {
-			return;
-		}
-		try {
-			await deleteTenant(tenant.id);
-			await loadTenants();
-		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Failed to delete tenant');
-		}
+		setConfirmDialog({
+			message: `Delete ${tenant.name}? This action cannot be undone.`,
+			onConfirm: async () => {
+				try {
+					await deleteTenant(tenant.id);
+					await loadTenants();
+				} catch (err) {
+					toast.error(err instanceof Error ? err.message : 'Failed to delete tenant');
+				}
+			},
+		});
 	};
 
 	const handleUpdateTenant = async (data: TenantUpdate) => {
@@ -287,8 +302,25 @@ export function TenantsPage() {
 						onComplete={handleCreateComplete}
 						onCancel={() => setViewMode('list')}
 					/>
-				</>
-			)}
+					</>
+				)}
+			<AlertDialog open={!!confirmDialog} onOpenChange={() => setConfirmDialog(null)}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Confirm</AlertDialogTitle>
+						<AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={() => { confirmDialog?.onConfirm(); setConfirmDialog(null); }}
+							className="bg-red-600 hover:bg-red-700"
+						>
+							Confirm
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }

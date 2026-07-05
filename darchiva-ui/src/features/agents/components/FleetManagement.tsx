@@ -1,5 +1,15 @@
 // (c) Copyright Datacraft, 2026
 import { useMemo, useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -693,6 +703,7 @@ export function FleetManagement() {
   >({});
   const [registerOpen, setRegisterOpen] = useState(false);
   const [configAgent, setConfigAgent] = useState<Agent | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
   const online = agents.filter((a) => agentStatus(a) === "online").length;
   const offline = agents.filter((a) => agentStatus(a) === "offline").length;
@@ -747,11 +758,12 @@ export function FleetManagement() {
   }
 
   function handleRetire(agent: Agent) {
-    if (!window.confirm(`Retire "${agent.name}"? This cannot be undone.`))
-      return;
-    deleteAgent.mutate(agent.id, {
-      onSuccess: () => toast.success(`${agent.name} retired`),
-      onError: () => toast.error("Failed to retire scanner"),
+    setConfirmDialog({
+      message: `Retire "${agent.name}"? This cannot be undone.`,
+      onConfirm: () => deleteAgent.mutate(agent.id, {
+        onSuccess: () => toast.success(`${agent.name} retired`),
+        onError: () => toast.error("Failed to retire scanner"),
+      }),
     });
   }
 
@@ -897,6 +909,23 @@ export function FleetManagement() {
           onClose={() => setConfigAgent(null)}
         />
       )}
+      <AlertDialog open={!!confirmDialog} onOpenChange={() => setConfirmDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm</AlertDialogTitle>
+            <AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { confirmDialog?.onConfirm(); setConfirmDialog(null); }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

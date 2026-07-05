@@ -16,6 +16,16 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
 	Dialog,
 	DialogContent,
 	DialogFooter,
@@ -441,6 +451,7 @@ export function ScheduledReportsPage() {
 	const [editTarget, setEditTarget] = useState<ScheduledReport | null>(null);
 	const [sendingId, setSendingId] = useState<string | null>(null);
 	const [toastMsg, setToastMsg] = useState<string | null>(null);
+	const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
 	function openCreate() {
 		setEditTarget(null);
@@ -462,8 +473,10 @@ export function ScheduledReportsPage() {
 	}
 
 	async function handleDelete(r: ScheduledReport) {
-		if (!window.confirm(`Delete scheduled report "${r.name}"?`)) return;
-		await deleteReport.mutateAsync(r.id);
+		setConfirmDialog({
+			message: `Delete scheduled report "${r.name}"?`,
+			onConfirm: () => deleteReport.mutate(r.id),
+		});
 	}
 
 	async function handleSendNow(r: ScheduledReport) {
@@ -645,6 +658,23 @@ export function ScheduledReportsPage() {
 
 			{/* Create / edit dialog */}
 			<ReportDialog open={dialogOpen} initial={editTarget} onClose={closeDialog} />
+			<AlertDialog open={!!confirmDialog} onOpenChange={() => setConfirmDialog(null)}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Confirm</AlertDialogTitle>
+						<AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={() => { confirmDialog?.onConfirm(); setConfirmDialog(null); }}
+							className="bg-red-600 hover:bg-red-700"
+						>
+							Confirm
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }

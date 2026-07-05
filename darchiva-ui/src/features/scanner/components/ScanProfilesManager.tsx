@@ -1,6 +1,16 @@
 // Scan Profiles Manager - CRUD for Scan Presets
 import { cn } from '@/lib/utils';
 import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   DocumentDuplicateIcon,
   PencilIcon,
   PlusIcon,
@@ -22,6 +32,7 @@ interface ScanProfilesManagerProps {
 export function ScanProfilesManager({ onProfileSelect, className }: ScanProfilesManagerProps) {
 	const [editingProfile, setEditingProfile] = useState<ScanProfile | null>(null);
 	const [isCreating, setIsCreating] = useState(false);
+	const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
 	const { data: profiles, isLoading } = useScanProfiles();
 	const createMutation = useCreateScanProfile();
@@ -44,9 +55,7 @@ export function ScanProfilesManager({ onProfileSelect, className }: ScanProfiles
 	};
 
 	const handleDelete = (id: string) => {
-		if (confirm('Delete this profile?')) {
-			deleteMutation.mutate(id);
-		}
+		setConfirmDialog({ message: 'Delete this profile?', onConfirm: () => deleteMutation.mutate(id) });
 	};
 
 	return (
@@ -117,6 +126,23 @@ export function ScanProfilesManager({ onProfileSelect, className }: ScanProfiles
 					isSaving={createMutation.isPending || updateMutation.isPending}
 				/>
 			)}
+			<AlertDialog open={!!confirmDialog} onOpenChange={() => setConfirmDialog(null)}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Confirm</AlertDialogTitle>
+						<AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={() => { confirmDialog?.onConfirm(); setConfirmDialog(null); }}
+							className="bg-red-600 hover:bg-red-700"
+						>
+							Confirm
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }

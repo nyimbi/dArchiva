@@ -3,6 +3,16 @@
 
 import { useState } from 'react';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   useProjectMembers,
   useAddProjectMember,
   useUpdateMemberRole,
@@ -95,6 +105,7 @@ export function ProjectMembersTab({ projectId, currentUserId }: ProjectMembersTa
   const [newUserId, setNewUserId]   = useState('');
   const [newRole, setNewRole]       = useState<ProjectRole>('operator');
   const [addError, setAddError]     = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
   // Derive current actor's role for permission gating
   const actorMember = members.find((m) => m.user_id === currentUserId);
@@ -135,8 +146,10 @@ export function ProjectMembersTab({ projectId, currentUserId }: ProjectMembersTa
   }
 
   async function handleRemove(member: ProjectMember) {
-    if (!window.confirm(`Remove ${member.email ?? member.user_id} from this project?`)) return;
-    await removeMutation.mutateAsync(member.id);
+    setConfirmDialog({
+      message: `Remove ${member.email ?? member.user_id} from this project?`,
+      onConfirm: () => removeMutation.mutate(member.id),
+    });
   }
 
   // ─── Render ─────────────────────────────────────────────────────────────────
@@ -301,6 +314,23 @@ export function ProjectMembersTab({ projectId, currentUserId }: ProjectMembersTa
           No members are configured — this project is currently open to all tenant users.
         </p>
       )}
+      <AlertDialog open={!!confirmDialog} onOpenChange={() => setConfirmDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm</AlertDialogTitle>
+            <AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { confirmDialog?.onConfirm(); setConfirmDialog(null); }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

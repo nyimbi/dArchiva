@@ -4,6 +4,16 @@
  */
 import { AnimatePresence,motion } from 'framer-motion';
 import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   ChevronDown,ChevronUp,
   Copy,
   Edit2,
@@ -185,6 +195,7 @@ export function PolicyList({ onEdit, onCreate }: PolicyListProps) {
 	const [effectFilter, setEffectFilter] = useState<PolicyEffect | 'all'>('all');
 	const [sortField, setSortField] = useState<'name' | 'priority' | 'updated_at'>('updated_at');
 	const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+	const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
 	const loadPolicies = useCallback(async () => {
 		setLoading(true);
@@ -206,13 +217,17 @@ export function PolicyList({ onEdit, onCreate }: PolicyListProps) {
 	}, [loadPolicies]);
 
 	const handleDelete = async (id: string) => {
-		if (!confirm('Are you sure you want to delete this policy?')) return;
-		try {
-			await deletePolicy(id);
-			setPolicies(p => p.filter(policy => policy.id !== id));
-		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Failed to delete policy');
-		}
+		setConfirmDialog({
+			message: 'Are you sure you want to delete this policy?',
+			onConfirm: async () => {
+				try {
+					await deletePolicy(id);
+					setPolicies(p => p.filter(policy => policy.id !== id));
+				} catch (err) {
+					toast.error(err instanceof Error ? err.message : 'Failed to delete policy');
+				}
+			},
+		});
 	};
 
 	const handleSubmitForApproval = async (id: string) => {
@@ -362,7 +377,24 @@ export function PolicyList({ onEdit, onCreate }: PolicyListProps) {
 						</tbody>
 					</table>
 				</div>
-			)}
-		</div>
-	);
-}
+				)}
+				<AlertDialog open={!!confirmDialog} onOpenChange={() => setConfirmDialog(null)}>
+					<AlertDialogContent>
+						<AlertDialogHeader>
+							<AlertDialogTitle>Confirm</AlertDialogTitle>
+							<AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
+						</AlertDialogHeader>
+						<AlertDialogFooter>
+							<AlertDialogCancel>Cancel</AlertDialogCancel>
+							<AlertDialogAction
+								onClick={() => { confirmDialog?.onConfirm(); setConfirmDialog(null); }}
+								className="bg-red-600 hover:bg-red-700"
+							>
+								Confirm
+							</AlertDialogAction>
+						</AlertDialogFooter>
+					</AlertDialogContent>
+				</AlertDialog>
+			</div>
+		);
+	}

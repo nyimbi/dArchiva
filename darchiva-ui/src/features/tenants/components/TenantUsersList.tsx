@@ -1,5 +1,15 @@
 // (c) Copyright Datacraft, 2026
 import { useCallback,useEffect,useState } from 'react';
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { getTenantUsers,inviteUserToTenant,removeUserFromTenant } from '../api';
 import styles from '../tenants.module.css';
@@ -24,6 +34,7 @@ export function TenantUsersList({ tenantId }: TenantUsersListProps) {
 	const [showInviteModal, setShowInviteModal] = useState(false);
 	const [inviteEmail, setInviteEmail] = useState('');
 	const [inviting, setInviting] = useState(false);
+	const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
 	const loadUsers = useCallback(async () => {
 		setLoading(true);
@@ -61,13 +72,17 @@ export function TenantUsersList({ tenantId }: TenantUsersListProps) {
 	};
 
 	const handleRemove = async (userId: string) => {
-		if (!confirm('Are you sure you want to remove this user from the tenant?')) return;
-		try {
-			await removeUserFromTenant(tenantId, userId);
-			await loadUsers();
-		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Failed to remove user');
-		}
+		setConfirmDialog({
+			message: 'Are you sure you want to remove this user from the tenant?',
+			onConfirm: async () => {
+				try {
+					await removeUserFromTenant(tenantId, userId);
+					await loadUsers();
+				} catch (err) {
+					toast.error(err instanceof Error ? err.message : 'Failed to remove user');
+				}
+			},
+		});
 	};
 
 	if (loading) {
@@ -235,6 +250,23 @@ export function TenantUsersList({ tenantId }: TenantUsersListProps) {
 					</div>
 				</div>
 			)}
+			<AlertDialog open={!!confirmDialog} onOpenChange={() => setConfirmDialog(null)}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Confirm</AlertDialogTitle>
+						<AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={() => { confirmDialog?.onConfirm(); setConfirmDialog(null); }}
+							className="bg-red-600 hover:bg-red-700"
+						>
+							Confirm
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }

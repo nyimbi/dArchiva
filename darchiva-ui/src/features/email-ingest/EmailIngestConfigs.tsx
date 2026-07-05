@@ -20,6 +20,16 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
 	Dialog,
 	DialogContent,
 	DialogFooter,
@@ -550,6 +560,7 @@ export function EmailIngestConfigs() {
 	const [dialogOpen, setDialogOpen] = useState(false);
 	const [editing, setEditing] = useState<EmailIngestConfig | undefined>();
 	const [triggerMsg, setTriggerMsg] = useState<Record<string, string>>({});
+	const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
 	function openCreate() {
 		setEditing(undefined);
@@ -562,8 +573,10 @@ export function EmailIngestConfigs() {
 	}
 
 	async function handleDelete(c: EmailIngestConfig) {
-		if (!window.confirm(`Delete config "${c.name}"? This cannot be undone.`)) return;
-		await deleteConfig.mutateAsync(c.id);
+		setConfirmDialog({
+			message: `Delete config "${c.name}"? This cannot be undone.`,
+			onConfirm: () => deleteConfig.mutate(c.id),
+		});
 	}
 
 	async function handleToggle(c: EmailIngestConfig) {
@@ -656,6 +669,23 @@ export function EmailIngestConfigs() {
 				existing={editing}
 				onClose={() => { setDialogOpen(false); setEditing(undefined); }}
 			/>
+			<AlertDialog open={!!confirmDialog} onOpenChange={() => setConfirmDialog(null)}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Confirm</AlertDialogTitle>
+						<AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={() => { confirmDialog?.onConfirm(); setConfirmDialog(null); }}
+							className="bg-red-600 hover:bg-red-700"
+						>
+							Confirm
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }

@@ -10,6 +10,16 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -116,6 +126,7 @@ function CommentRow({ comment, documentId, currentPage, isReply = false }: Comme
   const [pinReply, setPinReply] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(comment.content);
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
   const updateComment = useUpdateComment(documentId);
   const deleteComment = useDeleteComment(documentId);
@@ -135,8 +146,7 @@ function CommentRow({ comment, documentId, currentPage, isReply = false }: Comme
   }
 
   function handleDelete() {
-    if (!window.confirm('Delete this comment?')) return;
-    deleteComment.mutate(comment.id);
+    setConfirmDialog({ message: 'Delete this comment?', onConfirm: () => deleteComment.mutate(comment.id) });
   }
 
   function handleReplySubmit() {
@@ -335,6 +345,23 @@ function CommentRow({ comment, documentId, currentPage, isReply = false }: Comme
           </div>
         </div>
       )}
+      <AlertDialog open={!!confirmDialog} onOpenChange={() => setConfirmDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm</AlertDialogTitle>
+            <AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { confirmDialog?.onConfirm(); setConfirmDialog(null); }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

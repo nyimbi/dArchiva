@@ -1,10 +1,21 @@
 // (c) Copyright Datacraft, 2026
 import { useState } from 'react';
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useCreateTemplate,useDeleteTemplate,useIngestionTemplates } from '../api';
 import styles from './IngestionTemplates.module.css';
 
 export function IngestionTemplates() {
 	const [isCreating, setIsCreating] = useState(false);
+	const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 	const [newTemplate, setNewTemplate] = useState({
 		name: '',
 		description: '',
@@ -25,9 +36,7 @@ export function IngestionTemplates() {
 	};
 
 	const handleDelete = async (id: string) => {
-		if (confirm('Delete this template?')) {
-			await deleteTemplate.mutateAsync(id);
-		}
+		setConfirmDialog({ message: 'Delete this template?', onConfirm: () => deleteTemplate.mutate(id) });
 	};
 
 	if (isLoading) {
@@ -115,6 +124,23 @@ export function IngestionTemplates() {
 					</div>
 				))}
 			</div>
+			<AlertDialog open={!!confirmDialog} onOpenChange={() => setConfirmDialog(null)}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Confirm</AlertDialogTitle>
+						<AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={() => { confirmDialog?.onConfirm(); setConfirmDialog(null); }}
+							className="bg-red-600 hover:bg-red-700"
+						>
+							Confirm
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }

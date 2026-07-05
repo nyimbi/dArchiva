@@ -3,6 +3,16 @@
  * Department access matrix showing user cross-department permissions.
  */
 import { AnimatePresence,motion } from 'framer-motion';
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Building2,CheckCircle,Plus,Search,User,X } from 'lucide-react';
 import { useEffect,useMemo,useState } from 'react';
 import {
@@ -168,15 +178,20 @@ interface AccessRowProps {
 
 function AccessRow({ access, onRevoke }: AccessRowProps) {
 	const [revoking, setRevoking] = useState(false);
+	const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
 	const handleRevoke = async () => {
-		if (!confirm('Revoke this department access?')) return;
-		setRevoking(true);
-		try {
-			await onRevoke(access.user_id, access.department_id);
-		} finally {
-			setRevoking(false);
-		}
+		setConfirmDialog({
+			message: 'Revoke this department access?',
+			onConfirm: async () => {
+				setRevoking(true);
+				try {
+					await onRevoke(access.user_id, access.department_id);
+				} finally {
+					setRevoking(false);
+				}
+			},
+		});
 	};
 
 	const formatDate = (dateStr?: string) => {
@@ -187,53 +202,72 @@ function AccessRow({ access, onRevoke }: AccessRowProps) {
 	const isExpiringSoon = access.expires_at && new Date(access.expires_at).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000;
 
 	return (
-		<motion.tr
-			initial={{ opacity: 0 }}
-			animate={{ opacity: 1 }}
-			exit={{ opacity: 0 }}
-			className="border-b border-charcoal/5 transition-colors hover:bg-cream/50"
-		>
-			<td className="py-4 pl-4">
-				<div className="flex items-center gap-3">
-					<div className="flex h-9 w-9 items-center justify-center rounded-full bg-charcoal/5">
-						<User className="h-4 w-4 text-charcoal/60" />
+		<>
+			<motion.tr
+				initial={{ opacity: 0 }}
+				animate={{ opacity: 1 }}
+				exit={{ opacity: 0 }}
+				className="border-b border-charcoal/5 transition-colors hover:bg-cream/50"
+			>
+				<td className="py-4 pl-4">
+					<div className="flex items-center gap-3">
+						<div className="flex h-9 w-9 items-center justify-center rounded-full bg-charcoal/5">
+							<User className="h-4 w-4 text-charcoal/60" />
+						</div>
+						<div>
+							<span className="font-['DM_Sans'] text-sm font-medium text-charcoal">
+								{access.user_name || access.user_id.slice(0, 8)}
+							</span>
+						</div>
 					</div>
-					<div>
-						<span className="font-['DM_Sans'] text-sm font-medium text-charcoal">
-							{access.user_name || access.user_id.slice(0, 8)}
+				</td>
+				<td className="py-4">
+					<div className="flex items-center gap-2">
+						<Building2 className="h-4 w-4 text-charcoal/40" />
+						<span className="font-['DM_Sans'] text-sm text-charcoal">
+							{access.department_name || access.department_id.slice(0, 8)}
 						</span>
 					</div>
-				</div>
-			</td>
-			<td className="py-4">
-				<div className="flex items-center gap-2">
-					<Building2 className="h-4 w-4 text-charcoal/40" />
-					<span className="font-['DM_Sans'] text-sm text-charcoal">
-						{access.department_name || access.department_id.slice(0, 8)}
+				</td>
+				<td className="py-4">
+					<span className={`font-['DM_Sans'] text-sm ${isExpiringSoon ? 'text-gold' : 'text-charcoal/60'}`}>
+						{formatDate(access.expires_at)}
+						{isExpiringSoon && (
+							<span className="ml-1 text-xs">(soon)</span>
+						)}
 					</span>
-				</div>
-			</td>
-			<td className="py-4">
-				<span className={`font-['DM_Sans'] text-sm ${isExpiringSoon ? 'text-gold' : 'text-charcoal/60'}`}>
-					{formatDate(access.expires_at)}
-					{isExpiringSoon && (
-						<span className="ml-1 text-xs">(soon)</span>
-					)}
-				</span>
-			</td>
-			<td className="py-4 font-['DM_Sans'] text-sm text-charcoal/50">
-				{formatDate(access.granted_at)}
-			</td>
-			<td className="py-4 pr-4">
-				<button
-					onClick={handleRevoke}
-					disabled={revoking}
-					className="rounded-lg px-3 py-1.5 font-['DM_Sans'] text-xs font-medium text-terracotta transition-colors hover:bg-terracotta/10 disabled:opacity-50"
-				>
-					{revoking ? 'Revoking...' : 'Revoke'}
-				</button>
-			</td>
-		</motion.tr>
+				</td>
+				<td className="py-4 font-['DM_Sans'] text-sm text-charcoal/50">
+					{formatDate(access.granted_at)}
+				</td>
+				<td className="py-4 pr-4">
+					<button
+						onClick={handleRevoke}
+						disabled={revoking}
+						className="rounded-lg px-3 py-1.5 font-['DM_Sans'] text-xs font-medium text-terracotta transition-colors hover:bg-terracotta/10 disabled:opacity-50"
+					>
+						{revoking ? 'Revoking...' : 'Revoke'}
+					</button>
+				</td>
+			</motion.tr>
+			<AlertDialog open={!!confirmDialog} onOpenChange={() => setConfirmDialog(null)}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Confirm</AlertDialogTitle>
+						<AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={() => { confirmDialog?.onConfirm(); setConfirmDialog(null); }}
+							className="bg-red-600 hover:bg-red-700"
+						>
+							Confirm
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+		</>
 	);
 }
 

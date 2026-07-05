@@ -1,6 +1,17 @@
 // (c) Copyright Datacraft, 2026
 import { useDeletePortfolio, type Portfolio } from '@/features/portfolios/api';
 import { useStore } from '@/hooks/useStore';
+import { useState } from 'react';
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Archive, Eye, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -12,16 +23,21 @@ interface Props {
 export function PortfolioOptionsModal({ onClose, portfolio }: Props) {
 	const { openModal } = useStore();
 	const deletePortfolio = useDeletePortfolio();
+	const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
 	const handleDelete = async () => {
-		if (!confirm(`Delete portfolio "${portfolio.name}"? This cannot be undone.`)) return;
-		try {
-			await deletePortfolio.mutateAsync(portfolio.id);
-			toast.success('Portfolio deleted');
-			onClose();
-		} catch {
-			toast.error('Failed to delete portfolio');
-		}
+		setConfirmDialog({
+			message: `Delete portfolio "${portfolio.name}"? This cannot be undone.`,
+			onConfirm: async () => {
+				try {
+					await deletePortfolio.mutateAsync(portfolio.id);
+					toast.success('Portfolio deleted');
+					onClose();
+				} catch {
+					toast.error('Failed to delete portfolio');
+				}
+			},
+		});
 	};
 
 	return (
@@ -46,6 +62,23 @@ export function PortfolioOptionsModal({ onClose, portfolio }: Props) {
 					</button>
 				</div>
 			</div>
+			<AlertDialog open={!!confirmDialog} onOpenChange={() => setConfirmDialog(null)}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Confirm</AlertDialogTitle>
+						<AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={() => { confirmDialog?.onConfirm(); setConfirmDialog(null); }}
+							className="bg-red-600 hover:bg-red-700"
+						>
+							Confirm
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }

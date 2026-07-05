@@ -6,6 +6,16 @@
 import { useState, useRef, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -46,6 +56,7 @@ export function VirtualRebundler({ projectId, batchId, onClose }: VirtualRebundl
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [pages, setPages] = useState<BatchDocument[]>([]);
   const [isDirty, setIsDirty] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
   const dragNode = useRef<HTMLDivElement | null>(null);
 
   const { data: batch, isLoading } = useQuery<Batch>({
@@ -185,9 +196,10 @@ export function VirtualRebundler({ projectId, batchId, onClose }: VirtualRebundl
           {otherBatches.length > 0 && (
             <Select
               onValueChange={(sourceBatchId) => {
-                if (window.confirm(`Merge selected batch into ${batch?.name}?`)) {
-                  mergeMutation.mutate(sourceBatchId);
-                }
+                setConfirmDialog({
+                  message: `Merge selected batch into ${batch?.name}?`,
+                  onConfirm: () => mergeMutation.mutate(sourceBatchId),
+                });
               }}
             >
               <SelectTrigger className="w-44 h-8">
@@ -279,9 +291,10 @@ export function VirtualRebundler({ projectId, batchId, onClose }: VirtualRebundl
                   <button
                     className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-muted-foreground hover:text-primary flex items-center gap-1"
                     onClick={() => {
-                      if (window.confirm(`Split batch after document ${index + 1}?`)) {
-                        splitMutation.mutate(index + 1);
-                      }
+                      setConfirmDialog({
+                        message: `Split batch after document ${index + 1}?`,
+                        onConfirm: () => splitMutation.mutate(index + 1),
+                      });
                     }}
                   >
                     <Scissors className="w-3 h-3" />
@@ -298,6 +311,23 @@ export function VirtualRebundler({ projectId, batchId, onClose }: VirtualRebundl
       {(reorderMutation.isError || moveMutation.isError || splitMutation.isError || mergeMutation.isError) && (
         <p className="text-sm text-destructive">Operation failed. Please try again.</p>
       )}
+      <AlertDialog open={!!confirmDialog} onOpenChange={() => setConfirmDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm</AlertDialogTitle>
+            <AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { confirmDialog?.onConfirm(); setConfirmDialog(null); }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

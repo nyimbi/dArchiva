@@ -1,6 +1,17 @@
 // (c) Copyright Datacraft, 2026
 import { useDeleteSource, useToggleSource, type IngestionSource } from '@/features/ingestion/api';
 import { useStore } from '@/hooks/useStore';
+import { useState } from 'react';
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { AlertTriangle, Pause, Play, Settings, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -13,6 +24,7 @@ export function IngestionSourceOptionsModal({ onClose, source }: Props) {
 	const { openModal } = useStore();
 	const toggleSource = useToggleSource();
 	const deleteSource = useDeleteSource();
+	const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
 	const handleToggle = async () => {
 		try {
@@ -25,14 +37,18 @@ export function IngestionSourceOptionsModal({ onClose, source }: Props) {
 	};
 
 	const handleDelete = async () => {
-		if (!confirm(`Delete source "${source.name}"?`)) return;
-		try {
-			await deleteSource.mutateAsync(source.id);
-			toast.success('Source deleted');
-			onClose();
-		} catch {
-			toast.error('Failed to delete source');
-		}
+		setConfirmDialog({
+			message: `Delete source "${source.name}"?`,
+			onConfirm: async () => {
+				try {
+					await deleteSource.mutateAsync(source.id);
+					toast.success('Source deleted');
+					onClose();
+				} catch {
+					toast.error('Failed to delete source');
+				}
+			},
+		});
 	};
 
 	return (
@@ -58,6 +74,23 @@ export function IngestionSourceOptionsModal({ onClose, source }: Props) {
 					</button>
 				</div>
 			</div>
+			<AlertDialog open={!!confirmDialog} onOpenChange={() => setConfirmDialog(null)}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Confirm</AlertDialogTitle>
+						<AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={() => { confirmDialog?.onConfirm(); setConfirmDialog(null); }}
+							className="bg-red-600 hover:bg-red-700"
+						>
+							Confirm
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }

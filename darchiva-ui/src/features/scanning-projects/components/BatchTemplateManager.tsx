@@ -4,6 +4,16 @@
  * Used as a "Templates" tab inside ProjectDetails.
  */
 import * as Dialog from '@radix-ui/react-dialog';
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Copy, Edit2, Plus, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -276,6 +286,7 @@ export function BatchTemplateManager() {
 
 	const [showCreate, setShowCreate] = useState(false);
 	const [editing, setEditing] = useState<BatchTemplate | null>(null);
+	const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
 	const handleCreate = async (values: CreateBatchTemplateInput) => {
 		try {
@@ -320,13 +331,17 @@ export function BatchTemplateManager() {
 	};
 
 	const handleDelete = async (id: string) => {
-		if (!confirm('Delete this template?')) return;
-		try {
-			await deleteMut.mutateAsync(id);
-			toast.success('Template deleted');
-		} catch {
-			toast.error('Failed to delete template');
-		}
+		setConfirmDialog({
+			message: 'Delete this template?',
+			onConfirm: async () => {
+				try {
+					await deleteMut.mutateAsync(id);
+					toast.success('Template deleted');
+				} catch {
+					toast.error('Failed to delete template');
+				}
+			},
+		});
 	};
 
 	if (isLoading) {
@@ -463,6 +478,23 @@ export function BatchTemplateManager() {
 					isPending={updateMut.isPending}
 				/>
 			)}
+			<AlertDialog open={!!confirmDialog} onOpenChange={() => setConfirmDialog(null)}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Confirm</AlertDialogTitle>
+						<AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={() => { confirmDialog?.onConfirm(); setConfirmDialog(null); }}
+							className="bg-red-600 hover:bg-red-700"
+						>
+							Confirm
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }
