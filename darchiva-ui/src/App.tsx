@@ -112,6 +112,7 @@ const TagManagementPage = lazy(() =>
 		default: module.TagManagementPage,
 	})),
 );
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 
 const queryClient = new QueryClient({
 	defaultOptions: {
@@ -171,6 +172,7 @@ export default function App() {
 								<Route path="inbox" element={<Inbox />} />
 								<Route path="shared" element={<SharedDocuments />} />
 								<Route path="profile" element={<UserProfile />} />
+								<Route path="notifications" element={<NotificationsPage />} />
 
 								<Route path="dashboard" element={<Dashboard />} />
 								<Route path="documents" element={<Documents />} />

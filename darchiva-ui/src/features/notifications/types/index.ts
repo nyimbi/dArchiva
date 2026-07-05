@@ -5,6 +5,9 @@ export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
 /** Domain notification types stored in the database */
 export type NotificationType =
+	| 'batch_status_changed'
+	| 'sla_breach'
+	| 'exception_raised'
 	| 'expiry_reminder'
 	| 'ocr_complete'
 	| 'classification_done'

@@ -13,7 +13,6 @@ import { VirtualDocumentList } from '@/features/documents/components/VirtualDocu
 import { ThumbnailGrid } from '@/features/documents/components/ThumbnailGrid';
 import { ShareDialog } from '@/features/shared-nodes/components/ShareDialog';
 import { useStore } from '@/hooks/useStore';
-import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { cn, formatBytes, formatRelativeTime } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -55,6 +54,17 @@ interface ContextMenuState {
   x: number;
   y: number;
   node: APITreeNode;
+}
+
+type ViewMode = 'list' | 'card' | 'thumbnail';
+
+const VIEW_MODE_STORAGE_KEY = 'darchiva-view-mode';
+
+function getStoredViewMode(): ViewMode {
+  const stored = localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+  if (stored === 'list' || stored === 'thumbnail') return stored;
+  if (stored === 'grid' || stored === 'card') return 'card';
+  return 'card';
 }
 
 const FOCUSABLE_SELECTOR = [
@@ -535,12 +545,7 @@ function DocumentRow({
 // Main Documents page
 // ---------------------------------------------------------------------------
 export function Documents() {
-  const preferences = useUserPreferences();
-  const [viewMode, setViewMode] = useState<'list' | 'card' | 'thumbnail'>(() => {
-    const stored = preferences.get<string>('docs_view_mode', 'card');
-    if (stored === 'list' || stored === 'card' || stored === 'thumbnail') return stored;
-    return 'card';
-  });
+  const [viewMode, setViewMode] = useState<ViewMode>(getStoredViewMode);
   const [selectionMode, setSelectionMode] = useState(false);
 
   const { selectedNodeIds, clearNodeSelection, selectNodes, toggleNodeSelection, currentFolderId, setCurrentFolderId, openModal } = useStore();
@@ -564,10 +569,10 @@ export function Documents() {
   const updateFolder = useUpdateFolder();
   const deleteFolder = useDeleteFolder();
 
-  const setAndPersistViewMode = useCallback((mode: 'list' | 'card' | 'thumbnail') => {
-    preferences.set('docs_view_mode', mode);
+  const handleSetViewMode = useCallback((mode: ViewMode) => {
     setViewMode(mode);
-  }, [preferences]);
+    localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode === 'card' ? 'grid' : mode);
+  }, []);
 
   const documents = infiniteDocs as APIDocument[];
   const [sharingNode, setSharingNode] = useState<APIDocument | null>(null);
@@ -763,7 +768,7 @@ export function Documents() {
             </button>
             <div className="flex border border-slate-700 rounded-lg overflow-hidden">
               <button
-                onClick={() => setAndPersistViewMode('list')}
+                onClick={() => handleSetViewMode('list')}
                 className={cn('p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500', viewMode === 'list' ? 'bg-slate-700 text-slate-200' : 'text-slate-400 hover:text-slate-300')}
                 title="List view"
                 aria-label="List view"
@@ -772,7 +777,7 @@ export function Documents() {
                 <LayoutList className="w-4 h-4" />
               </button>
               <button
-                onClick={() => setAndPersistViewMode('card')}
+                onClick={() => handleSetViewMode('card')}
                 className={cn('p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500', viewMode === 'card' ? 'bg-slate-700 text-slate-200' : 'text-slate-400 hover:text-slate-300')}
                 title="Grid view"
                 aria-label="Grid view"
@@ -781,7 +786,7 @@ export function Documents() {
                 <LayoutGrid className="w-4 h-4" />
               </button>
               <button
-                onClick={() => setAndPersistViewMode('thumbnail')}
+                onClick={() => handleSetViewMode('thumbnail')}
                 className={cn('p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500', viewMode === 'thumbnail' ? 'bg-slate-700 text-slate-200' : 'text-slate-400 hover:text-slate-300')}
                 title="Thumbnail view"
                 aria-label="Thumbnail view"

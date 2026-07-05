@@ -220,7 +220,7 @@ export function NotificationCenter({ className }: Props) {
 						)}
 					</div>
 					<div className="notif-footer">
-						<Link to="/inbox" onClick={() => setOpen(false)} className="notif-view-all">
+						<Link to="/notifications" onClick={() => setOpen(false)} className="notif-view-all">
 							View all
 						</Link>
 					</div>
