@@ -2,13 +2,14 @@
 import { cn } from '@/lib/utils';
 import { KeyIcon,LinkIcon,PlusIcon,TrashIcon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
-import { useCreateWebhook,useDeleteWebhook,useIntegrationSettings,useUpdateOAuthProvider,useWebhooks } from '../../api/hooks';
+import { useCreateWebhook,useDeleteWebhook,useIntegrationSettings,useUpdateIntegrationSettings,useUpdateOAuthProvider,useWebhooks } from '../../api/hooks';
 import type { OAuthProvider,WebhookConfig } from '../../types';
 import { SettingsBadge,SettingsButton,SettingsCard,SettingsField,SettingsToggle } from '../ui/SettingsControls';
 
 export function IntegrationSettings() {
 	const { data: settings } = useIntegrationSettings();
 	const { data: webhooks } = useWebhooks();
+	const updateIntegrationMutation = useUpdateIntegrationSettings();
 	const updateOAuthMutation = useUpdateOAuthProvider();
 	const createWebhookMutation = useCreateWebhook();
 	const deleteWebhookMutation = useDeleteWebhook();
@@ -42,7 +43,8 @@ export function IntegrationSettings() {
 					label="Enable API Keys"
 					description="Allow API access via keys"
 					checked={settings?.api_key_enabled ?? true}
-					onChange={() => {}}
+					onChange={(api_key_enabled) => updateIntegrationMutation.mutate({ api_key_enabled })}
+					disabled={updateIntegrationMutation.isPending}
 				/>
 				<div className="flex items-center justify-between py-2">
 					<div>

@@ -7,12 +7,15 @@ import type { LucideIcon } from 'lucide-react';
 import {
 	Briefcase,
 	FileText,
+	Key,
 	Keyboard,
 	ScanLine,
 	Search,
 	Settings,
+	ShieldCheck,
 	Upload,
 	User,
+	Webhook,
 	Workflow,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -186,6 +189,42 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 				shortcut: 'S',
 				keywords: ['scan', 'ocr'],
 				run: go('/scanning/interface'),
+			},
+			{
+				id: 'action-create-api-key',
+				category: 'actions',
+				label: 'Create API Key',
+				description: 'Open API key management',
+				icon: Key,
+				keywords: ['api', 'key', 'token', 'credential'],
+				run: go('/api-keys'),
+			},
+			{
+				id: 'action-add-webhook',
+				category: 'actions',
+				label: 'Add Webhook',
+				description: 'Open webhook management',
+				icon: Webhook,
+				keywords: ['webhook', 'integration', 'callback'],
+				run: go('/webhooks'),
+			},
+			{
+				id: 'action-rotate-encryption-key',
+				category: 'actions',
+				label: 'Rotate Encryption Key',
+				description: 'Open encryption key management',
+				icon: ShieldCheck,
+				keywords: ['encryption', 'rotate', 'key', 'security'],
+				run: go('/encryption'),
+			},
+			{
+				id: 'action-apply-saved-search',
+				category: 'actions',
+				label: 'Apply Saved Search',
+				description: 'Open search',
+				icon: Search,
+				keywords: ['saved search', 'filter', 'query'],
+				run: go('/search'),
 			},
 		];
 

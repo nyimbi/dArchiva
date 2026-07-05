@@ -6,6 +6,7 @@ import {
 	CheckCircle2,
 	ClipboardCopy,
 	Key,
+	Pencil,
 	Plus,
 	ShieldOff,
 	Trash2,
@@ -21,6 +22,7 @@ import {
 	useApiKeyStats,
 	useCreateApiKey,
 	useRevokeApiKey,
+	useUpdateApiKey,
 	type ApiKey,
 	type ApiKeyCreated,
 } from '@/features/api-keys/api';
@@ -360,10 +362,101 @@ function CreateDialog({ onClose, onCreated }: CreateDialogProps) {
 }
 
 // ---------------------------------------------------------------------------
+// Edit scopes dialog
+// ---------------------------------------------------------------------------
+
+interface EditScopesDialogProps {
+	apiKey: ApiKey;
+	onClose: () => void;
+}
+
+function EditScopesDialog({ apiKey, onClose }: EditScopesDialogProps) {
+	const [selectedScopes, setSelectedScopes] = useState<string[]>(apiKey.scopes);
+	const updateMutation = useUpdateApiKey();
+
+	function toggleScope(scope: string) {
+		setSelectedScopes(prev =>
+			prev.includes(scope) ? prev.filter(s => s !== scope) : [...prev, scope]
+		);
+	}
+
+	async function handleSubmit(e: React.FormEvent) {
+		e.preventDefault();
+		try {
+			await updateMutation.mutateAsync({
+				id: apiKey.id,
+				input: { scopes: selectedScopes },
+			});
+			toast.success('API key scopes updated');
+			onClose();
+		} catch {
+			toast.error('Failed to update API key scopes');
+		}
+	}
+
+	return (
+		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+			<div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 space-y-5">
+				<h2 className="text-lg font-semibold text-white flex items-center gap-2">
+					<Pencil className="w-5 h-5 text-indigo-400" />
+					Edit Scopes
+				</h2>
+
+				<div className="text-sm text-slate-400">
+					<span className="text-slate-500">Key:</span> {apiKey.name}
+				</div>
+
+				<form onSubmit={handleSubmit} className="space-y-4">
+					<div className="space-y-2">
+						{ALL_SCOPES.map(s => (
+							<label key={s.value} className="flex items-start gap-2.5 cursor-pointer group">
+								<input
+									type="checkbox"
+									checked={selectedScopes.includes(s.value)}
+									onChange={() => toggleScope(s.value)}
+									className="mt-0.5 accent-indigo-500"
+								/>
+								<div>
+									<span className="text-sm text-white font-medium">{s.label}</span>
+									<p className="text-xs text-slate-500">{s.description}</p>
+								</div>
+							</label>
+						))}
+					</div>
+
+					{updateMutation.isError && (
+						<p className="text-sm text-red-400">
+							Failed to update API key scopes. Please try again.
+						</p>
+					)}
+
+					<div className="flex items-center justify-end gap-3 pt-1">
+						<button
+							type="button"
+							onClick={onClose}
+							className="px-4 py-2 text-sm text-slate-400 hover:text-white transition-colors"
+						>
+							Cancel
+						</button>
+						<button
+							type="submit"
+							disabled={updateMutation.isPending}
+							className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
+						>
+							{updateMutation.isPending ? 'Saving…' : 'Save Scopes'}
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	);
+}
+
+// ---------------------------------------------------------------------------
 // Key row
 // ---------------------------------------------------------------------------
 
-function KeyRow({ apiKey }: { apiKey: ApiKey }) {
+function KeyRow({ apiKey, onEditScopes }: { apiKey: ApiKey; onEditScopes: (apiKey: ApiKey) => void }) {
 	const revoke = useRevokeApiKey();
 	const [confirming, setConfirming] = useState(false);
 
@@ -410,19 +503,28 @@ function KeyRow({ apiKey }: { apiKey: ApiKey }) {
 			</td>
 			<td className="px-4 py-3 text-right">
 				{apiKey.is_active && (
-					<button
-						onClick={handleRevoke}
-						disabled={revoke.isPending}
-						className={cn(
-							'inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-50',
-							confirming
-								? 'bg-red-600 hover:bg-red-500 text-white'
-								: 'bg-slate-700 hover:bg-red-900/60 text-slate-300 hover:text-red-300',
-						)}
-					>
-						<Trash2 className="w-3 h-3" />
-						{confirming ? 'Confirm revoke' : 'Revoke'}
-					</button>
+					<div className="flex justify-end gap-2">
+						<button
+							onClick={() => onEditScopes(apiKey)}
+							className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg font-medium bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white transition-colors"
+						>
+							<Pencil className="w-3 h-3" />
+							Edit Scopes
+						</button>
+						<button
+							onClick={handleRevoke}
+							disabled={revoke.isPending}
+							className={cn(
+								'inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-50',
+								confirming
+									? 'bg-red-600 hover:bg-red-500 text-white'
+									: 'bg-slate-700 hover:bg-red-900/60 text-slate-300 hover:text-red-300',
+							)}
+						>
+							<Trash2 className="w-3 h-3" />
+							{confirming ? 'Confirm revoke' : 'Revoke'}
+						</button>
+					</div>
 				)}
 			</td>
 		</tr>
@@ -437,6 +539,7 @@ export function ApiKeys() {
 	const { data: keys = [], isLoading, isError } = useApiKeys();
 	const [showCreate, setShowCreate] = useState(false);
 	const [createdKey, setCreatedKey] = useState<ApiKeyCreated | null>(null);
+	const [editingKey, setEditingKey] = useState<ApiKey | null>(null);
 
 	function handleCreated(key: ApiKeyCreated) {
 		setShowCreate(false);
@@ -511,7 +614,7 @@ export function ApiKeys() {
 							</thead>
 							<tbody>
 								{keys.map(key => (
-									<KeyRow key={key.id} apiKey={key} />
+									<KeyRow key={key.id} apiKey={key} onEditScopes={setEditingKey} />
 								))}
 							</tbody>
 						</table>
@@ -531,6 +634,13 @@ export function ApiKeys() {
 				<RevealModal
 					created={createdKey}
 					onClose={() => setCreatedKey(null)}
+				/>
+			)}
+
+			{editingKey && (
+				<EditScopesDialog
+					apiKey={editingKey}
+					onClose={() => setEditingKey(null)}
 				/>
 			)}
 		</div>

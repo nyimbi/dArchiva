@@ -27,7 +27,6 @@ import {
   Routing,
   SearchPage,
   Security,
-  Settings,
   SharedDocuments,
   SystemHealth,
   UnauthorizedPage,
@@ -55,6 +54,7 @@ import { RoleManagement } from './features/admin/RoleManagement';
 import { EmailIngestConfigs } from './features/email-ingest/EmailIngestConfigs';
 import { ConnectorsPage } from './features/connectors/ConnectorsPage';
 import { TenantsPage } from './features/tenants';
+import { SettingsPage } from './features/settings';
 import { NotificationToaster } from './components/NotificationToaster';
 import { ShortcutsProvider } from './features/shortcuts/ShortcutsProvider';
 import { AutomationRulesPage } from './features/automation/AutomationRulesPage';
@@ -188,7 +188,7 @@ export default function App() {
 								<Route path="auto-routing" element={<AutoRoutingRules />} />
 								<Route path="audit" element={<AuditLogs />} />
 								<Route path="search" element={<SearchPage />} />
-								<Route path="settings" element={<Settings />} />
+								<Route path="settings" element={<SettingsPage isAdmin />} />
 								<Route path="encryption" element={<Encryption />} />
 								<Route path="security" element={<Security />} />
 								{/* Scanning Projects */}

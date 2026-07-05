@@ -28,6 +28,10 @@ export interface CreateApiKeyInput {
 	expires_at?: string | null;
 }
 
+export interface UpdateApiKeyInput {
+	scopes: string[];
+}
+
 // ---------------------------------------------------------------------------
 // Query keys
 // ---------------------------------------------------------------------------
@@ -53,6 +57,17 @@ export function useCreateApiKey() {
 	return useMutation({
 		mutationFn: async (input: CreateApiKeyInput) => {
 			const { data } = await apiClient.post<ApiKeyCreated>('/api-keys', input);
+			return data;
+		},
+		onSuccess: () => qc.invalidateQueries({ queryKey: API_KEYS_KEY }),
+	});
+}
+
+export function useUpdateApiKey() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: async ({ id, input }: { id: string; input: UpdateApiKeyInput }) => {
+			const { data } = await apiClient.patch<ApiKey>(`/api-keys/${id}`, input);
 			return data;
 		},
 		onSuccess: () => qc.invalidateQueries({ queryKey: API_KEYS_KEY }),

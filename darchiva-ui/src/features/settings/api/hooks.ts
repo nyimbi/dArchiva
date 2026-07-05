@@ -214,6 +214,19 @@ export function useIntegrationSettings() {
 	});
 }
 
+export function useUpdateIntegrationSettings() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: (data: Partial<IntegrationSettings>) =>
+			fetchApi<IntegrationSettings>(`${API_BASE}/integrations`, { method: 'PATCH', body: JSON.stringify(data) }),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ['settings', 'integrations'] });
+			toast.success('Settings saved');
+		},
+		onError: () => toast.error('Failed to save settings'),
+	});
+}
+
 export function useUpdateOAuthProvider() {
 	const qc = useQueryClient();
 	return useMutation({
