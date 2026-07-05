@@ -14,6 +14,11 @@ export interface Case {
 	title: string;
 	description?: string;
 	status: CaseStatus;
+	type?: string | null;
+	priority?: string | null;
+	assignee?: string | null;
+	dueDate?: string | null;
+	resolution?: string | null;
 	portfolioId?: string;
 	portfolioName?: string;
 	documentCount: number;
@@ -60,14 +65,15 @@ export const caseKeys = {
 	bundle: (id: string) => [...caseKeys.all, 'bundle', id] as const,
 };
 
-export function useCases(page = 1, pageSize = 20, status?: CaseStatus, portfolioId?: string, search?: string) {
+export function useCases(page = 1, pageSize = 20, status?: CaseStatus, portfolioId?: string, search?: string, type?: string) {
 	return useQuery({
-		queryKey: caseKeys.list({ page, status, portfolioId, search }),
+		queryKey: caseKeys.list({ page, status, portfolioId, search, type }),
 		queryFn: async () => {
 			const params: Record<string, unknown> = { page, page_size: pageSize };
 			if (status) params.status = status;
 			if (portfolioId) params.portfolio_id = portfolioId;
 			if (search) params.search = search;
+			if (type) params.type = type;
 			const { data } = await apiClient.get<CaseListResponse>('/cases', { params });
 			return data;
 		},

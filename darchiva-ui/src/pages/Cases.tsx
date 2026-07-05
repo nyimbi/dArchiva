@@ -90,6 +90,15 @@ type CreateCasePayload = {
   description?: string;
   type: string;
   priority: string;
+  assignee?: string | null;
+  dueDate?: string | null;
+};
+
+type UpdateCasePayload = {
+  title: string;
+  status: CaseStatus;
+  assignee?: string | null;
+  dueDate?: string | null;
 };
 
 function useCreateCaseMutation() {
@@ -110,7 +119,7 @@ function useUpdateCaseMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: { title: string; status: CaseStatus } }) => {
+    mutationFn: async ({ id, data }: { id: string; data: UpdateCasePayload }) => {
       const { data: updatedCase } = await apiClient.patch<Case>(`/cases/${id}`, data);
       return updatedCase;
     },
@@ -165,6 +174,8 @@ function CreateCaseDialog({
   const [priority, setPriority] = useState('medium');
   const [description, setDescription] = useState('');
   const [docIds, setDocIds] = useState('');
+  const [assignee, setAssignee] = useState('');
+  const [dueDate, setDueDate] = useState('');
 
   const reset = () => {
     setTitle('');
@@ -172,6 +183,8 @@ function CreateCaseDialog({
     setPriority('medium');
     setDescription('');
     setDocIds('');
+    setAssignee('');
+    setDueDate('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -182,6 +195,8 @@ function CreateCaseDialog({
       description: description.trim() || undefined,
       type: caseType,
       priority,
+      assignee: assignee.trim() || null,
+      dueDate: dueDate || null,
     });
     reset();
     onOpenChange(false);
@@ -250,6 +265,24 @@ function CreateCaseDialog({
             />
           </div>
           <div className="space-y-2">
+            <Label htmlFor="case-assignee">Assignee</Label>
+            <Input
+              id="case-assignee"
+              placeholder="Name or email"
+              value={assignee}
+              onChange={(e) => setAssignee(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="case-due-date">Due Date</Label>
+            <Input
+              id="case-due-date"
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
             <Label htmlFor="case-docs">Document IDs</Label>
             <Input
               id="case-docs"
@@ -297,11 +330,15 @@ function EditCaseDialog({
   const updateCase = useUpdateCaseMutation();
   const [title, setTitle] = useState('');
   const [status, setStatus] = useState<CaseStatus>('open');
+  const [assignee, setAssignee] = useState('');
+  const [dueDate, setDueDate] = useState('');
 
   useEffect(() => {
     if (!caseData) return;
     setTitle(caseData.title);
     setStatus(caseData.status);
+    setAssignee(caseData.assignee ?? '');
+    setDueDate(caseData.dueDate ?? '');
   }, [caseData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -310,7 +347,12 @@ function EditCaseDialog({
 
     const updatedCase = await updateCase.mutateAsync({
       id: caseData.id,
-      data: { title: title.trim(), status },
+      data: {
+        title: title.trim(),
+        status,
+        assignee: assignee.trim() || null,
+        dueDate: dueDate || null,
+      },
     });
     onUpdated(updatedCase);
     onOpenChange(false);
@@ -348,6 +390,24 @@ function EditCaseDialog({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-case-assignee">Assignee</Label>
+            <Input
+              id="edit-case-assignee"
+              placeholder="Name or email"
+              value={assignee}
+              onChange={(e) => setAssignee(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-case-due-date">Due Date</Label>
+            <Input
+              id="edit-case-due-date"
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
@@ -565,6 +625,7 @@ function CaseDetailSheet({
 
 export function Cases() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
@@ -589,10 +650,11 @@ export function Cases() {
     statusFilter !== 'all' ? (statusFilter as CaseStatus) : undefined,
     undefined,
     debouncedSearch || undefined,
+    typeFilter !== 'all' ? typeFilter : undefined,
   );
 
   const cases = casesData?.items || [];
-  const hasFilters = statusFilter !== 'all' || !!debouncedSearch;
+  const hasFilters = statusFilter !== 'all' || typeFilter !== 'all' || !!debouncedSearch;
 
   const handleRowClick = (c: Case) => {
     setSelectedCase(c);
@@ -659,7 +721,7 @@ export function Cases() {
             <SelectItem value="on_hold">On Hold</SelectItem>
           </SelectContent>
         </Select>
-        <Select>
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
           <SelectTrigger className="w-40">
             <SelectValue placeholder="All types" />
           </SelectTrigger>
