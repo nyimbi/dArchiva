@@ -23,6 +23,7 @@ import { ActivityPanel } from '@/features/activity/ActivityPanel';
 import { ChatPanel } from '@/features/document-chat';
 import { ACLPanel } from '@/features/acl/ACLPanel';
 import { CommentsPanel } from '@/features/comments/CommentsPanel';
+import { SerialPanel } from '@/features/serial-numbers';
 import { OCRCorrectionPanel } from '@/features/ocr-correction';
 import { PageManagementPanel } from '@/features/page-management';
 import {
@@ -35,7 +36,7 @@ import { formatRelativeTime } from '@/lib/utils';
 import type { ViewerPage } from '@/types';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Activity,ArrowLeft,Bell,Calendar,CheckSquare,Copy,Download,Edit2,FileText,GitCompare,History,Layers,Lightbulb,Loader2,Lock,MessageCircle,MessageSquare,PenTool,QrCode,ScanLine,ScanText,Scissors,Share2,Shield,Stamp,Tag,Tags } from 'lucide-react';
+import { Activity,ArrowLeft,Bell,Calendar,CheckSquare,Copy,Download,Edit2,FileText,GitCompare,Hash,History,Layers,Lightbulb,Loader2,Lock,MessageCircle,MessageSquare,PenTool,QrCode,ScanLine,ScanText,Scissors,Share2,Shield,Stamp,Tag,Tags } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate,useParams } from 'react-router-dom';
 
@@ -68,7 +69,7 @@ export function DocumentDetail() {
 	const [diff, setDiff] = useState<{ versionA: number; versionB: number } | null>(null);
 	const [showVersionHistory, setShowVersionHistory] = useState(false);
 	// Right-panel tab: null = closed, or one of the named panels
-	type SidePanel = 'custom-fields' | 'related' | 'similar' | 'entities' | 'expiry' | 'annotations' | 'ocr-quality' | 'ocr-correction' | 'signatures' | 'approvals' | 'duplicates' | 'classification' | 'filing' | 'legal-hold' | 'activity' | 'chat' | 'acl' | 'comments' | 'page-management';
+	type SidePanel = 'custom-fields' | 'related' | 'similar' | 'entities' | 'expiry' | 'annotations' | 'ocr-quality' | 'ocr-correction' | 'signatures' | 'approvals' | 'duplicates' | 'classification' | 'filing' | 'legal-hold' | 'activity' | 'chat' | 'acl' | 'comments' | 'page-management' | 'serial';
 	const [sidePanel, setSidePanel] = useState<SidePanel | null>(null);
 	const [showPageEditor, setShowPageEditor] = useState(false);
 	const [showSplitDialog, setShowSplitDialog] = useState(false);
@@ -487,6 +488,18 @@ export function DocumentDetail() {
 						<Edit2 className="w-3.5 h-3.5" />
 						Edit Pages
 					</button>
+					<button
+						onClick={() => togglePanel('serial')}
+						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+							sidePanel === 'serial'
+								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
+								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+						}`}
+						title="Serial number"
+					>
+						<Hash className="w-3.5 h-3.5" />
+						Serial
+					</button>
 				</div>
 			</div>
 
@@ -663,6 +676,13 @@ export function DocumentDetail() {
 				{sidePanel === 'page-management' && (
 					<div className="w-80 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto flex flex-col">
 						<PageManagementPanel documentId={id!} pages={pages} />
+					</div>
+				)}
+
+				{/* Serial number panel */}
+				{sidePanel === 'serial' && (
+					<div className="w-72 shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto">
+						<SerialPanel documentId={id!} />
 					</div>
 				)}
 			</div>

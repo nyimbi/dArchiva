@@ -62,6 +62,8 @@ import { EntityGraphPage } from './features/entity-graph/EntityGraphPage';
 import { CostDashboard } from './features/billing';
 import { QualityDashboard } from './features/quality';
 import { IAMDashboard } from './features/iam';
+import { ComplianceDashboard } from './features/compliance';
+import { SerialNumbersPage } from './features/serial-numbers';
 
 import { ScanningLayout } from './features/scanning-ops/layouts/ScanningLayout';
 import { OperatorDashboard } from './features/scanning-ops/pages/OperatorDashboard';
@@ -156,6 +158,8 @@ export default function App() {
 								<Route path="billing" element={<CostDashboard />} />
 								<Route path="quality" element={<QualityDashboard />} />
 								<Route path="iam" element={<IAMDashboard />} />
+								<Route path="compliance" element={<ComplianceDashboard />} />
+								<Route path="serial-numbers" element={<SerialNumbersPage />} />
 								<Route path="onboarding" element={<OnboardingWizard />} />
 							</Route>
 						</Route>

@@ -44,6 +44,8 @@ import {
   Webhook,
   Zap,
   BookOpen,
+  Scale,
+  Hash,
 } from 'lucide-react';
 import { useBranding } from '@/hooks/useBranding';
 import { Link,useLocation } from 'react-router-dom';
@@ -71,10 +73,12 @@ const navItems = [
 	{ id: 'automation', label: 'Automation', icon: Zap, path: '/automation' },
 	{ id: 'reports-scheduled', label: 'Scheduled Reports', icon: CalendarClock, path: '/reports/scheduled' },
 	{ id: 'quality', label: 'Quality Control', icon: ShieldCheck, path: '/quality' },
+	{ id: 'serial-numbers', label: 'Serial Numbers', icon: Hash, path: '/serial-numbers' },
 ];
 
 const adminItems = [
 	{ id: 'agents', label: 'Scan Agents', icon: MonitorPlay, path: '/agents' },
+	{ id: 'compliance', label: 'Compliance', icon: Scale, path: '/compliance' },
 	{ id: 'retention', label: 'Retention', icon: Timer, path: '/retention' },
 	{ id: 'webhooks', label: 'Webhooks', icon: Webhook, path: '/webhooks' },
 	{ id: 'email-ingest', label: 'Email Ingest', icon: Mail, path: '/settings/email-ingest' },
