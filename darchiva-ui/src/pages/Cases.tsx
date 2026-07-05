@@ -24,7 +24,7 @@ import {
   Tag,
   User,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 function CaseCard({ caseData, onViewCase, onMoreOptions }: { caseData: Case; onViewCase: (c: Case) => void; onMoreOptions: (c: Case) => void }) {
 	const statusConfig: Record<CaseStatus, { label: string; color: string }> = {
@@ -126,9 +126,22 @@ function BundleRow({ bundle }: { bundle: Bundle }) {
 export function Cases() {
 	const [selectedCase, setSelectedCase] = useState<Case | null>(null);
 	const [statusFilter, setStatusFilter] = useState<string>('all');
+	const [searchQuery, setSearchQuery] = useState('');
+	const [debouncedSearch, setDebouncedSearch] = useState('');
 	const { openModal } = useStore();
 
-	const { data: casesData, isLoading: casesLoading } = useCases(1, 50, statusFilter !== 'all' ? statusFilter as CaseStatus : undefined);
+	useEffect(() => {
+		const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+		return () => clearTimeout(timer);
+	}, [searchQuery]);
+
+	const { data: casesData, isLoading: casesLoading } = useCases(
+		1,
+		50,
+		statusFilter !== 'all' ? statusFilter as CaseStatus : undefined,
+		undefined,
+		debouncedSearch || undefined,
+	);
 	const { data: bundlesData, isLoading: bundlesLoading } = useBundles(selectedCase?.id);
 
 	const handleNewCase = () => openModal('create-case');
@@ -169,6 +182,8 @@ export function Cases() {
 						type="text"
 						placeholder="Search cases..."
 						className="input-field pl-10"
+						value={searchQuery}
+						onChange={(e) => setSearchQuery(e.target.value)}
 					/>
 				</div>
 				<select
