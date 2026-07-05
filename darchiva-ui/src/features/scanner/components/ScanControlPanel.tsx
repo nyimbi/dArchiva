@@ -412,17 +412,31 @@ export function ScanControlPanel({
 					<TechPanel title="Scanning">
 						<div className="space-y-3">
 							<ActivityDisplay active />
-							<div className="flex justify-between text-sm">
-								<span className="text-[var(--scan-text-muted)]">Pages scanned</span>
-								<span className="font-mono text-[var(--scan-accent)]">
-									{activeJob.pages_scanned}
-								</span>
-							</div>
-							<Gauge
-								value={activeJob.pages_scanned}
-								max={options.max_pages || 100}
-								variant="default"
-							/>
+							{options.input_source === 'adf' || options.input_source === 'adf_duplex' ? (
+								// ADF: total page count unknown until tray empties — show open-ended counter
+								<div className="flex justify-between items-baseline text-sm">
+									<span className="text-[var(--scan-text-muted)]">Pages fetched</span>
+									<span className="font-mono text-[var(--scan-accent)] text-lg">
+										{activeJob.pages_scanned}
+										<span className="text-xs text-[var(--scan-text-muted)] ml-1">of ?</span>
+									</span>
+								</div>
+							) : (
+								// Platen / known-count scan
+								<>
+									<div className="flex justify-between text-sm">
+										<span className="text-[var(--scan-text-muted)]">Pages scanned</span>
+										<span className="font-mono text-[var(--scan-accent)]">
+											{activeJob.pages_scanned}
+										</span>
+									</div>
+									<Gauge
+										value={activeJob.pages_scanned}
+										max={options.max_pages || 100}
+										variant="default"
+									/>
+								</>
+							)}
 						</div>
 					</TechPanel>
 				)}
