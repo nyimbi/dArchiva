@@ -118,6 +118,42 @@ export function ShortcutsProvider({ children }: ShortcutsProviderProps) {
 		}, [navigate]),
 	);
 
+	// g → w : workflows
+	useKeyboardShortcut(
+		['g', 'w'],
+		useCallback(() => {
+			setShortcutsHelpOpen(false);
+			navigate('/workflows');
+		}, [navigate]),
+	);
+
+	// g → c : cases
+	useKeyboardShortcut(
+		['g', 'c'],
+		useCallback(() => {
+			setShortcutsHelpOpen(false);
+			navigate('/cases');
+		}, [navigate]),
+	);
+
+	// g → n : notifications
+	useKeyboardShortcut(
+		['g', 'n'],
+		useCallback(() => {
+			setShortcutsHelpOpen(false);
+			navigate('/notifications');
+		}, [navigate]),
+	);
+
+	// g → r : routing rules
+	useKeyboardShortcut(
+		['g', 'r'],
+		useCallback(() => {
+			setShortcutsHelpOpen(false);
+			navigate('/routing');
+		}, [navigate]),
+	);
+
 	return (
 		<ShortcutsContext.Provider
 			value={{ shortcutsHelpOpen, setShortcutsHelpOpen }}

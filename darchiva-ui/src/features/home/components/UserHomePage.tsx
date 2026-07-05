@@ -57,12 +57,23 @@ import type {
 // Main Component
 // ═══════════════════════════════════════════════════════════════════════════
 export function UserHomePage() {
-	const { data: homeData, isLoading } = useUserHome();
+	const { data: homeData, isLoading, isError } = useUserHome();
 	const [searchQuery, setSearchQuery] = useState('');
 	const [showNotifications, setShowNotifications] = useState(false);
 
 	if (isLoading) {
 		return <HomePageSkeleton />;
+	}
+
+	if (isError) {
+		return (
+			<div className="flex min-h-[40vh] items-center justify-center">
+				<div className="text-center space-y-2">
+					<p className="text-red-400 text-sm">Failed to load your home page.</p>
+					<p className="text-slate-500 text-xs">Check your connection and refresh the page.</p>
+				</div>
+			</div>
+		);
 	}
 
 	const user = homeData?.user;

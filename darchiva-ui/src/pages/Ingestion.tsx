@@ -15,6 +15,7 @@ import { useStore } from '@/hooks/useStore';
 import { cn,formatRelativeTime } from '@/lib/utils';
 import { AnimatePresence,motion } from 'framer-motion';
 import {
+  AlertCircle,
   Cloud,
   FolderOpen,
   Loader2,
@@ -130,7 +131,7 @@ export function Ingestion() {
 	const [bulkImportOpen, setBulkImportOpen] = useState(false);
 	const { openModal } = useStore();
 
-	const { data: sourcesData, isLoading: sourcesLoading } = useIngestionSources();
+	const { data: sourcesData, isLoading: sourcesLoading, isError: sourcesError } = useIngestionSources();
 
 	const handleAddSource = () => openModal('add-ingestion-source');
 	const handleSourceSettings = (s: IngestionSource) => openModal('ingestion-source-settings', s);
@@ -269,6 +270,11 @@ export function Ingestion() {
 						{sourcesLoading ? (
 							<div className="col-span-full flex items-center justify-center py-12">
 								<Loader2 className="w-8 h-8 animate-spin text-slate-500" />
+							</div>
+						) : sourcesError ? (
+							<div className="col-span-full flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+								<AlertCircle className="h-4 w-4 shrink-0" />
+								Failed to load ingestion sources. Check your connection and try refreshing.
 							</div>
 						) : sources.length === 0 ? (
 							<div className="col-span-full text-center py-12 text-slate-500">

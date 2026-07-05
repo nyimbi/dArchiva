@@ -27,6 +27,10 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
 			{ keys: ['G', 'D'],        label: 'Go to Documents' },
 			{ keys: ['G', 'S'],        label: 'Go to Search' },
 			{ keys: ['G', 'A'],        label: 'Go to Analytics' },
+			{ keys: ['G', 'W'],        label: 'Go to Workflows' },
+			{ keys: ['G', 'C'],        label: 'Go to Cases' },
+			{ keys: ['G', 'N'],        label: 'Go to Notifications' },
+			{ keys: ['G', 'R'],        label: 'Go to Routing' },
 		],
 	},
 	{
