@@ -3,10 +3,27 @@
  * Workflow Alerts List - Filterable alert management console
  * with bulk actions and expandable detail views.
  */
-import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
-import { useCallback,useState } from 'react';
-import { acknowledgeSLAAlert,getSLAAlerts,type SLAAlert } from '../api';
-import styles from './WorkflowAlertsList.module.css';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { cn } from '@/lib/utils';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+	AlertCircle,
+	Bell,
+	Check,
+	CheckCircle2,
+	ChevronDown,
+	ChevronLeft,
+	ChevronRight,
+	Clock,
+	Loader2,
+	TriangleAlert,
+} from 'lucide-react';
+import { useCallback, useState } from 'react';
+import { toast } from 'sonner';
+import { acknowledgeSLAAlert, getSLAAlerts, type SLAAlert } from '../api';
 
 interface WorkflowAlertsListProps {
 	className?: string;
@@ -23,7 +40,7 @@ export function WorkflowAlertsList({ className }: WorkflowAlertsListProps) {
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 	const queryClient = useQueryClient();
 
-	const { data, isLoading } = useQuery({
+	const { data, isLoading, isError } = useQuery({
 		queryKey: ['sla-alerts', page, severityFilter, showAcknowledged],
 		queryFn: () => getSLAAlerts(page, 20, showAcknowledged ? undefined : false, severityFilter || undefined),
 	});
@@ -33,15 +50,24 @@ export function WorkflowAlertsList({ className }: WorkflowAlertsListProps) {
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['sla-alerts'] });
 			queryClient.invalidateQueries({ queryKey: ['sla-dashboard'] });
+			toast.success('Alert acknowledged');
+		},
+		onError: () => {
+			toast.error('Failed to acknowledge alert');
 		},
 	});
 
 	const handleAcknowledgeBulk = useCallback(async () => {
-		const promises = Array.from(selectedIds).map(id => acknowledgeSLAAlert(id));
-		await Promise.all(promises);
-		setSelectedIds(new Set());
-		queryClient.invalidateQueries({ queryKey: ['sla-alerts'] });
-		queryClient.invalidateQueries({ queryKey: ['sla-dashboard'] });
+		try {
+			const promises = Array.from(selectedIds).map(id => acknowledgeSLAAlert(id));
+			await Promise.all(promises);
+			setSelectedIds(new Set());
+			queryClient.invalidateQueries({ queryKey: ['sla-alerts'] });
+			queryClient.invalidateQueries({ queryKey: ['sla-dashboard'] });
+			toast.success('Selected alerts acknowledged');
+		} catch {
+			toast.error('Failed to acknowledge selected alerts');
+		}
 	}, [selectedIds, queryClient]);
 
 	const toggleSelect = (id: string) => {
@@ -53,129 +79,133 @@ export function WorkflowAlertsList({ className }: WorkflowAlertsListProps) {
 		});
 	};
 
-	const unackCount = data?.items.filter(a => !a.acknowledged).length || 0;
-
-	if (isLoading) {
-		return (
-			<div className={`${styles.container} ${className || ''}`}>
-				<div className={styles.loading}>
-					<span className={styles.spinner} />
-					Loading alerts...
-				</div>
-			</div>
-		);
-	}
+	const unackCount = data?.items.filter(alert => !alert.acknowledged).length || 0;
 
 	return (
-		<div className={`${styles.container} ${className || ''}`}>
-			<header className={styles.header}>
-				<div className={styles.headerLeft}>
-					<div className={styles.headerIcon}>
-						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-							<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-							<path d="M13.73 21a2 2 0 0 1-3.46 0" />
-						</svg>
+		<Card className={cn('border-slate-800 bg-slate-900/80 text-slate-200 shadow-none', className)}>
+			<CardHeader className="flex-row items-center justify-between gap-4 space-y-0 border-b border-slate-800 p-4">
+				<div className="flex items-center gap-3">
+					<div className="flex h-9 w-9 items-center justify-center rounded-md border border-cyan-500/30 bg-cyan-500/10 text-cyan-400">
+						<Bell className="h-4 w-4" />
 					</div>
-					<h3 className={styles.headerTitle}>
+					<CardTitle className="flex items-center gap-2 text-base text-slate-100">
 						Workflow Alerts
-						<span className={`${styles.alertCount} ${unackCount === 0 ? styles.none : ''}`}>
+						<Badge
+							className={cn(
+								'bg-red-500/10 text-red-300 hover:bg-red-500/20',
+								unackCount === 0 && 'bg-slate-800 text-slate-400 hover:bg-slate-800',
+							)}
+						>
 							{unackCount}
-						</span>
-					</h3>
+						</Badge>
+					</CardTitle>
 				</div>
-			</header>
+			</CardHeader>
 
-			<div className={styles.filters}>
-				<div className={styles.filterGroup}>
-					<span className={styles.filterLabel}>Severity</span>
-					<div className={styles.severityFilters}>
-						{SEVERITIES.map(sev => (
-							<button
-								key={sev}
-								className={`${styles.severityBtn} ${styles[sev]} ${severityFilter === sev ? styles.active : ''}`}
-								onClick={() => setSeverityFilter(prev => prev === sev ? null : sev)}
+			<CardContent className="space-y-4 p-4">
+				<div className="flex flex-col gap-3 rounded-md border border-slate-800 bg-slate-950/70 p-3 lg:flex-row lg:items-center lg:justify-between">
+					<div className="flex flex-wrap items-center gap-2">
+						<span className="mr-1 text-sm font-medium text-slate-400">Severity</span>
+						{SEVERITIES.map(severity => (
+							<Button
+								key={severity}
+								type="button"
+								variant="outline"
+								size="sm"
+								className={cn(
+									'capitalize',
+									severityButtonClass(severity, severityFilter === severity),
+								)}
+								onClick={() => setSeverityFilter(prev => prev === severity ? null : severity)}
 							>
-								{sev}
-							</button>
+								{severity}
+							</Button>
 						))}
 					</div>
-				</div>
 
-				<div
-					className={`${styles.ackToggle} ${showAcknowledged ? styles.active : ''}`}
-					onClick={() => setShowAcknowledged(!showAcknowledged)}
-				>
-					<span className={styles.checkbox}>
-						<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3">
-							<polyline points="20 6 9 17 4 12" />
-						</svg>
-					</span>
-					<span>Show Acknowledged</span>
-				</div>
+					<div className="flex flex-wrap items-center gap-3">
+						<label className="flex items-center gap-2 text-sm text-slate-300">
+							<Switch
+								checked={showAcknowledged}
+								onCheckedChange={setShowAcknowledged}
+								className="data-[state=checked]:bg-cyan-500 data-[state=unchecked]:bg-slate-700"
+							/>
+							Show Acknowledged
+						</label>
 
-				{selectedIds.size > 0 && (
-					<div className={styles.bulkActions}>
-						<button className={styles.bulkBtn} onClick={handleAcknowledgeBulk}>
-							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-								<polyline points="20 6 9 17 4 12" />
-							</svg>
-							Acknowledge ({selectedIds.size})
-						</button>
+						{selectedIds.size > 0 && (
+							<Button
+								type="button"
+								size="sm"
+								className="bg-cyan-500 text-slate-950 hover:bg-cyan-400"
+								onClick={handleAcknowledgeBulk}
+							>
+								<Check className="h-4 w-4" />
+								Acknowledge ({selectedIds.size})
+							</Button>
+						)}
 					</div>
-				)}
-			</div>
+				</div>
 
-			<div className={styles.alertList}>
-				{!data?.items.length ? (
-					<div className={styles.emptyState}>
-						<svg className={styles.emptyIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-							<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-							<path d="M13.73 21a2 2 0 0 1-3.46 0" />
-						</svg>
-						<p>No alerts match your filters</p>
+				{isLoading ? (
+					<div className="flex items-center justify-center gap-2 py-10 text-sm text-slate-400">
+						<Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
+						Loading alerts...
+					</div>
+				) : isError ? (
+					<div className="flex items-center justify-center gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-4 py-8 text-sm text-red-300">
+						<AlertCircle className="h-5 w-5" />
+						Failed to load workflow alerts.
+					</div>
+				) : !data?.items.length ? (
+					<div className="flex flex-col items-center justify-center rounded-md border border-dashed border-slate-700 px-4 py-10 text-center text-slate-400">
+						<Bell className="mb-3 h-9 w-9 text-slate-500" />
+						<p className="text-sm">No alerts match your filters</p>
 					</div>
 				) : (
-					data.items.map(alert => (
-						<AlertCard
-							key={alert.id}
-							alert={alert}
-							isExpanded={expandedId === alert.id}
-							isSelected={selectedIds.has(alert.id)}
-							onToggleExpand={() => setExpandedId(prev => prev === alert.id ? null : alert.id)}
-							onToggleSelect={() => toggleSelect(alert.id)}
-							onAcknowledge={() => acknowledgeMutation.mutate(alert.id)}
-							isAcknowledging={acknowledgeMutation.isPending}
-						/>
-					))
+					<div className="space-y-3">
+						{data.items.map(alert => (
+							<AlertCard
+								key={alert.id}
+								alert={alert}
+								isExpanded={expandedId === alert.id}
+								isSelected={selectedIds.has(alert.id)}
+								onToggleExpand={() => setExpandedId(prev => prev === alert.id ? null : alert.id)}
+								onToggleSelect={() => toggleSelect(alert.id)}
+								onAcknowledge={() => acknowledgeMutation.mutate(alert.id)}
+								isAcknowledging={acknowledgeMutation.isPending}
+							/>
+						))}
+					</div>
 				)}
-			</div>
 
-			{data && data.total > 20 && (
-				<div className={styles.pagination}>
-					<button
-						className={styles.pageBtn}
-						onClick={() => setPage(p => Math.max(1, p - 1))}
-						disabled={page === 1}
-					>
-						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-							<polyline points="15 18 9 12 15 6" />
-						</svg>
-					</button>
-					<span className={styles.pageInfo}>
-						Page {page} of {Math.ceil(data.total / 20)}
-					</span>
-					<button
-						className={styles.pageBtn}
-						onClick={() => setPage(p => p + 1)}
-						disabled={page >= Math.ceil(data.total / 20)}
-					>
-						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-							<polyline points="9 18 15 12 9 6" />
-						</svg>
-					</button>
-				</div>
-			)}
-		</div>
+				{data && data.total > 20 && (
+					<div className="flex items-center justify-end gap-2">
+						<Button
+							type="button"
+							variant="outline"
+							size="icon"
+							className="h-8 w-8 border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800 hover:text-slate-100"
+							onClick={() => setPage(current => Math.max(1, current - 1))}
+							disabled={page === 1}
+						>
+							<ChevronLeft className="h-4 w-4" />
+						</Button>
+						<span className="text-sm text-slate-400">Page {page} of {Math.ceil(data.total / 20)}</span>
+						<Button
+							type="button"
+							variant="outline"
+							size="icon"
+							className="h-8 w-8 border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800 hover:text-slate-100"
+							onClick={() => setPage(current => current + 1)}
+							disabled={page >= Math.ceil(data.total / 20)}
+						>
+							<ChevronRight className="h-4 w-4" />
+						</Button>
+					</div>
+				)}
+			</CardContent>
+		</Card>
 	);
 }
 
@@ -192,117 +222,150 @@ interface AlertCardProps {
 function AlertCard({
 	alert,
 	isExpanded,
+	isSelected,
 	onToggleExpand,
+	onToggleSelect,
 	onAcknowledge,
 	isAcknowledging,
 }: AlertCardProps) {
-	const formatDate = (dateStr: string) => {
-		const date = new Date(dateStr);
-		return date.toLocaleString(undefined, {
-			month: 'short',
-			day: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit',
-		});
-	};
-
-	const formatAlertType = (type: string) => {
-		return type.replace(/_/g, ' ');
-	};
-
 	return (
-		<div className={`${styles.alertCard} ${styles[alert.severity]} ${alert.acknowledged ? styles.acknowledged : ''}`}>
-			<div className={styles.alertCardHeader} onClick={onToggleExpand}>
-				<div className={styles.alertMain}>
-					<div className={styles.alertTitleRow}>
-						<span className={`${styles.severityIndicator} ${styles[alert.severity]}`} />
-						<span className={styles.alertTitle}>{alert.title}</span>
-					</div>
-					<div className={styles.alertMeta}>
-						<span className={styles.alertType}>
-							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-								<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-								<line x1="12" y1="9" x2="12" y2="13" />
-								<line x1="12" y1="17" x2="12.01" y2="17" />
-							</svg>
-							{formatAlertType(alert.alert_type)}
-						</span>
-						<span className={styles.alertTime}>
-							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-								<circle cx="12" cy="12" r="10" />
-								<polyline points="12 6 12 12 16 14" />
-							</svg>
-							{formatDate(alert.created_at)}
-						</span>
-					</div>
-				</div>
-
-				<div className={styles.alertActions}>
-					{!alert.acknowledged ? (
-						<button
-							className={styles.acknowledgeBtn}
-							onClick={e => { e.stopPropagation(); onAcknowledge(); }}
-							disabled={isAcknowledging}
-						>
-							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-								<polyline points="20 6 9 17 4 12" />
-							</svg>
-							Ack
-						</button>
-					) : (
-						<span className={styles.acknowledgedBadge}>
-							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-								<polyline points="20 6 9 17 4 12" />
-							</svg>
-							Acknowledged
-						</span>
-					)}
+		<Card className={cn('border-slate-800 bg-slate-950/70 shadow-none', alert.acknowledged && 'opacity-70')}>
+			<div className={cn('border-l-2', severityBorderClass(alert.severity))}>
+				<div className="flex items-start gap-3 p-4">
 					<button
-						className={`${styles.expandBtn} ${isExpanded ? styles.expanded : ''}`}
-						onClick={e => { e.stopPropagation(); onToggleExpand(); }}
+						type="button"
+						className={cn(
+							'mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded border border-slate-600 text-transparent',
+							isSelected && 'border-cyan-500 bg-cyan-500 text-slate-950',
+						)}
+						onClick={event => {
+							event.stopPropagation();
+							onToggleSelect();
+						}}
 					>
-						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-							<polyline points="6 9 12 15 18 9" />
-						</svg>
+						<Check className="h-3 w-3" />
 					</button>
-				</div>
-			</div>
 
-			{isExpanded && (
-				<div className={styles.alertDetails}>
-					{alert.message && (
-						<div className={styles.alertMessage}>{alert.message}</div>
-					)}
-					<div className={styles.detailsGrid}>
-						{alert.workflow_id && (
-							<div className={styles.detailItem}>
-								<span className={styles.detailLabel}>Workflow</span>
-								<span className={styles.detailValue}>{alert.workflow_id}</span>
-							</div>
+					<button type="button" className="min-w-0 flex-1 text-left" onClick={onToggleExpand}>
+						<div className="flex flex-wrap items-center gap-2">
+							<span className="font-medium text-slate-100">{alert.title}</span>
+							<SeverityBadge severity={alert.severity} />
+						</div>
+						<div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+							<span className="inline-flex items-center gap-1 capitalize">
+								<TriangleAlert className="h-3.5 w-3.5" />
+								{formatAlertType(alert.alert_type)}
+							</span>
+							<span className="inline-flex items-center gap-1">
+								<Clock className="h-3.5 w-3.5" />
+								{formatDate(alert.created_at)}
+							</span>
+						</div>
+					</button>
+
+					<div className="flex shrink-0 items-center gap-1">
+						{!alert.acknowledged ? (
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								className="border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800 hover:text-slate-100"
+								onClick={event => { event.stopPropagation(); onAcknowledge(); }}
+								disabled={isAcknowledging}
+							>
+								{isAcknowledging ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+								Ack
+							</Button>
+						) : (
+							<Badge className="bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20">
+								<Check className="mr-1 h-3 w-3" />
+								Acknowledged
+							</Badge>
 						)}
-						{alert.instance_id && (
-							<div className={styles.detailItem}>
-								<span className={styles.detailLabel}>Instance</span>
-								<span className={styles.detailValue}>{alert.instance_id.slice(0, 8)}...</span>
-							</div>
-						)}
-						{alert.assignee_id && (
-							<div className={styles.detailItem}>
-								<span className={styles.detailLabel}>Assignee</span>
-								<span className={styles.detailValue}>{alert.assignee_id}</span>
-							</div>
-						)}
-						{alert.acknowledged_at && (
-							<div className={styles.detailItem}>
-								<span className={styles.detailLabel}>Acknowledged At</span>
-								<span className={styles.detailValue}>{formatDate(alert.acknowledged_at)}</span>
-							</div>
-						)}
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon"
+							className="h-8 w-8 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+							onClick={event => { event.stopPropagation(); onToggleExpand(); }}
+						>
+							<ChevronDown className={cn('h-4 w-4 transition-transform', isExpanded && 'rotate-180')} />
+						</Button>
 					</div>
 				</div>
-			)}
+
+				{isExpanded && (
+					<div className="space-y-4 border-t border-slate-800 p-4">
+						{alert.message && (
+							<div className="rounded-md border border-slate-800 bg-slate-900/70 p-3 text-sm text-slate-300">
+								{alert.message}
+							</div>
+						)}
+						<div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+							{alert.workflow_id && <DetailItem label="Workflow" value={alert.workflow_id} />}
+							{alert.instance_id && <DetailItem label="Instance" value={`${alert.instance_id.slice(0, 8)}...`} />}
+							{alert.assignee_id && <DetailItem label="Assignee" value={alert.assignee_id} />}
+							{alert.acknowledged_at && <DetailItem label="Acknowledged At" value={formatDate(alert.acknowledged_at)} />}
+						</div>
+					</div>
+				)}
+			</div>
+		</Card>
+	);
+}
+
+function DetailItem({ label, value }: { label: string; value: string }) {
+	return (
+		<div className="space-y-1">
+			<span className="block text-xs font-medium uppercase tracking-wide text-slate-500">{label}</span>
+			<span className="block break-all text-slate-300">{value}</span>
 		</div>
 	);
+}
+
+function SeverityBadge({ severity }: { severity: Severity }) {
+	const classes = {
+		low: 'border-blue-500/30 bg-blue-500/10 text-blue-300',
+		medium: 'border-amber-500/30 bg-amber-500/10 text-amber-300',
+		high: 'border-orange-500/30 bg-orange-500/10 text-orange-300',
+		critical: 'border-red-500/30 bg-red-500/10 text-red-300',
+	};
+
+	return <Badge variant="outline" className={cn('capitalize', classes[severity])}>{severity}</Badge>;
+}
+
+function severityButtonClass(severity: Severity, isActive: boolean) {
+	const inactive = 'border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800 hover:text-slate-100';
+	if (!isActive) return inactive;
+	return {
+		low: 'border-blue-500 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20',
+		medium: 'border-amber-500 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20',
+		high: 'border-orange-500 bg-orange-500/10 text-orange-300 hover:bg-orange-500/20',
+		critical: 'border-red-500 bg-red-500/10 text-red-300 hover:bg-red-500/20',
+	}[severity];
+}
+
+function severityBorderClass(severity: Severity) {
+	return {
+		low: 'border-l-blue-500',
+		medium: 'border-l-amber-500',
+		high: 'border-l-orange-500',
+		critical: 'border-l-red-500',
+	}[severity];
+}
+
+function formatDate(dateStr: string) {
+	const date = new Date(dateStr);
+	return date.toLocaleString(undefined, {
+		month: 'short',
+		day: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit',
+	});
+}
+
+function formatAlertType(type: string) {
+	return type.replace(/_/g, ' ');
 }
 
 export default WorkflowAlertsList;

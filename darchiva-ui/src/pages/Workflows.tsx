@@ -12,6 +12,12 @@ import {
   useRunWorkflow,
   useWorkflows,
 } from '@/features/workflows';
+import {
+  EscalationChainBuilder,
+  SLAConfigManager,
+  SLADashboard,
+  WorkflowAlertsList,
+} from '@/features/workflows/components';
 import { EmptyState } from '@/components/EmptyState';
 import type { PendingTask } from '@/features/workflows/api';
 import type { Workflow, WorkflowEdge, WorkflowExecution, WorkflowNode } from '@/features/workflows/types';
@@ -746,7 +752,7 @@ function RunWorkflowDialog({
 // ── Workflows (main page) ─────────────────────────────────────────────────────
 
 export function Workflows() {
-  const [activeTab, setActiveTab] = useState<'tasks' | 'workflows' | 'instances'>('tasks');
+  const [activeTab, setActiveTab] = useState<'tasks' | 'workflows' | 'instances' | 'sla' | 'alerts'>('tasks');
   const [showDesigner, setShowDesigner] = useState(false);
   const [togglingWorkflowId, setTogglingWorkflowId] = useState<string | null>(null);
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
@@ -959,6 +965,8 @@ export function Workflows() {
             label: 'Active',
             count: executions.filter((e) => e.status === 'running' || e.status === 'pending').length,
           },
+          { id: 'sla', label: 'SLA & Config', count: 0 },
+          { id: 'alerts', label: 'Alerts & Escalation', count: 0 },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -1211,6 +1219,34 @@ export function Workflows() {
                 </table>
               </div>
             )}
+          </motion.div>
+        )}
+
+        {/* SLA & Config */}
+        {activeTab === 'sla' && (
+          <motion.div
+            key="sla"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-4"
+          >
+            <SLADashboard />
+            <SLAConfigManager workflowId="all" />
+          </motion.div>
+        )}
+
+        {/* Alerts & Escalation */}
+        {activeTab === 'alerts' && (
+          <motion.div
+            key="alerts"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-4"
+          >
+            <WorkflowAlertsList />
+            <EscalationChainBuilder workflowId="all" />
           </motion.div>
         )}
       </AnimatePresence>

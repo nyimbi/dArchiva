@@ -3,12 +3,30 @@
  * Escalation Chain Builder - Visual builder for multi-level escalation chains.
  * Supports drag-and-drop reordering and configurable targets per level.
  */
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
 import { apiClient } from '@/lib/api-client';
-import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
-import { useCallback,useState } from 'react';
-import styles from './EscalationChainBuilder.module.css';
+import { cn } from '@/lib/utils';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+	AlertCircle,
+	Clock,
+	GripVertical,
+	Layers,
+	Loader2,
+	Pencil,
+	Plus,
+	SquareUser,
+	Trash2,
+	User,
+	Users,
+	X,
+} from 'lucide-react';
+import { useCallback, useState, type ReactNode } from 'react';
+import { toast } from 'sonner';
 
-// Types
 interface EscalationLevel {
 	id: string;
 	level_order: number;
@@ -28,10 +46,13 @@ interface EscalationChain {
 }
 
 interface EscalationChainBuilderProps {
+	workflowId?: string;
 	className?: string;
 }
 
-// API Functions
+const inputClassName =
+	'w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500';
+
 async function getEscalationChains(): Promise<EscalationChain[]> {
 	const response = await apiClient.get<EscalationChain[]>('/workflows/escalation-chains');
 	return response.data;
@@ -48,7 +69,7 @@ export function EscalationChainBuilder({ className }: EscalationChainBuilderProp
 	const [editingChain, setEditingChain] = useState<EscalationChain | null>(null);
 	const queryClient = useQueryClient();
 
-	const { data: chains, isLoading } = useQuery({
+	const { data: chains, isLoading, isError } = useQuery({
 		queryKey: ['escalation-chains'],
 		queryFn: getEscalationChains,
 	});
@@ -59,6 +80,10 @@ export function EscalationChainBuilder({ className }: EscalationChainBuilderProp
 			queryClient.invalidateQueries({ queryKey: ['escalation-chains'] });
 			setIsModalOpen(false);
 			setEditingChain(null);
+			toast.success('Escalation chain saved');
+		},
+		onError: () => {
+			toast.error('Failed to save escalation chain');
 		},
 	});
 
@@ -71,64 +96,54 @@ export function EscalationChainBuilder({ className }: EscalationChainBuilderProp
 		setIsModalOpen(true);
 	};
 
-	if (isLoading) {
-		return (
-			<div className={`${styles.container} ${className || ''}`}>
-				<div className={styles.loading}>
-					<span className={styles.spinner} />
-					Loading escalation chains...
-				</div>
-			</div>
-		);
-	}
-
 	return (
-		<div className={`${styles.container} ${className || ''}`}>
-			<header className={styles.header}>
-				<div className={styles.headerTitle}>
-					<div className={styles.headerIcon}>
-						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-							<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-							<circle cx="9" cy="7" r="4" />
-							<path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-							<path d="M16 3.13a4 4 0 0 1 0 7.75" />
-						</svg>
+		<Card className={cn('border-slate-800 bg-slate-900/80 text-slate-200 shadow-none', className)}>
+			<CardHeader className="flex-row items-center justify-between gap-4 space-y-0 border-b border-slate-800 p-4">
+				<div className="flex items-center gap-3">
+					<div className="flex h-9 w-9 items-center justify-center rounded-md border border-cyan-500/30 bg-cyan-500/10 text-cyan-400">
+						<Users className="h-4 w-4" />
 					</div>
-					<h3>Escalation Chains</h3>
+					<CardTitle className="text-base text-slate-100">Escalation Chains</CardTitle>
 				</div>
-				<div className={styles.headerActions}>
-					<button className={styles.addButton} onClick={handleNewChain}>
-						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-							<line x1="12" y1="5" x2="12" y2="19" />
-							<line x1="5" y1="12" x2="19" y2="12" />
-						</svg>
-						New Chain
-					</button>
-				</div>
-			</header>
+				<Button
+					size="sm"
+					className="bg-cyan-500 text-slate-950 hover:bg-cyan-400"
+					onClick={handleNewChain}
+				>
+					<Plus className="h-4 w-4" />
+					New Chain
+				</Button>
+			</CardHeader>
 
-			<div className={styles.chainList}>
-				{!chains?.length ? (
-					<div className={styles.emptyState}>
-						<svg className={styles.emptyIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-							<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-							<circle cx="9" cy="7" r="4" />
-							<path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-							<path d="M16 3.13a4 4 0 0 1 0 7.75" />
-						</svg>
-						<p>No escalation chains defined</p>
+			<CardContent className="p-4">
+				{isLoading ? (
+					<div className="flex items-center justify-center gap-2 py-10 text-sm text-slate-400">
+						<Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
+						Loading escalation chains...
+					</div>
+				) : isError ? (
+					<div className="flex items-center justify-center gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-4 py-8 text-sm text-red-300">
+						<AlertCircle className="h-5 w-5" />
+						Failed to load escalation chains.
+					</div>
+				) : !chains?.length ? (
+					<div className="flex flex-col items-center justify-center rounded-md border border-dashed border-slate-700 px-4 py-10 text-center text-slate-400">
+						<Users className="mb-3 h-9 w-9 text-slate-500" />
+						<p className="text-sm">No escalation chains defined</p>
 					</div>
 				) : (
-					chains.map(chain => (
-						<ChainCard
-							key={chain.id}
-							chain={chain}
-							isExpanded={expandedId === chain.id}
-							onToggle={() => handleToggleExpand(chain.id)}
-						/>
-					))
+					<div className="space-y-3">
+						{chains.map(chain => (
+							<ChainCard
+								key={chain.id}
+								chain={chain}
+								isExpanded={expandedId === chain.id}
+								onToggle={() => handleToggleExpand(chain.id)}
+							/>
+						))}
+					</div>
 				)}
-			</div>
+			</CardContent>
 
 			{isModalOpen && (
 				<ChainModal
@@ -138,7 +153,7 @@ export function EscalationChainBuilder({ className }: EscalationChainBuilderProp
 					isSaving={createMutation.isPending}
 				/>
 			)}
-		</div>
+		</Card>
 	);
 }
 
@@ -150,34 +165,48 @@ interface ChainCardProps {
 
 function ChainCard({ chain, isExpanded, onToggle }: ChainCardProps) {
 	return (
-		<div className={styles.chainCard}>
-			<div className={styles.chainCardHeader} onClick={onToggle}>
-				<div className={styles.chainInfo}>
-					<span className={styles.chainName}>{chain.name}</span>
-					<span className={styles.levelCount}>{chain.levels.length} levels</span>
+		<Card className="border-slate-800 bg-slate-950/70 shadow-none">
+			<button
+				type="button"
+				className="flex w-full items-center justify-between gap-4 p-4 text-left"
+				onClick={onToggle}
+			>
+				<div className="min-w-0 space-y-1">
+					<span className="block truncate font-medium text-slate-100">{chain.name}</span>
+					<span className="text-sm text-slate-400">{chain.levels.length} levels</span>
 				</div>
-				<span className={`${styles.statusBadge} ${chain.is_active ? styles.active : styles.inactive}`}>
+				<Badge
+					variant="outline"
+					className={cn(
+						'shrink-0',
+						chain.is_active
+							? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+							: 'border-slate-700 bg-slate-900 text-slate-400',
+					)}
+				>
 					{chain.is_active ? 'Active' : 'Inactive'}
-				</span>
-			</div>
+				</Badge>
+			</button>
 
 			{isExpanded && (
-				<div className={styles.levelsContainer}>
-					<div className={styles.levels}>
-						{chain.levels.map((level, idx) => (
-							<LevelCard key={level.id} level={level} index={idx} />
+				<div className="space-y-3 border-t border-slate-800 p-4">
+					<div className="space-y-2">
+						{chain.levels.map((level, index) => (
+							<LevelCard key={level.id} level={level} index={index} />
 						))}
 					</div>
-					<button className={styles.addLevelBtn}>
-						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-							<line x1="12" y1="5" x2="12" y2="19" />
-							<line x1="5" y1="12" x2="19" y2="12" />
-						</svg>
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						className="border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800 hover:text-slate-100"
+					>
+						<Plus className="h-4 w-4" />
 						Add Level
-					</button>
+					</Button>
 				</div>
 			)}
-		</div>
+		</Card>
 	);
 }
 
@@ -187,72 +216,60 @@ interface LevelCardProps {
 }
 
 function LevelCard({ level, index }: LevelCardProps) {
-	const targetIcons: Record<string, JSX.Element> = {
-		user: (
-			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-				<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-				<circle cx="12" cy="7" r="4" />
-			</svg>
-		),
-		role: (
-			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-				<path d="M12 2L2 7l10 5 10-5-10-5z" />
-				<path d="M2 17l10 5 10-5" />
-				<path d="M2 12l10 5 10-5" />
-			</svg>
-		),
-		manager: (
-			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-				<rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-				<line x1="3" y1="9" x2="21" y2="9" />
-				<line x1="9" y1="21" x2="9" y2="9" />
-			</svg>
-		),
+	const targetIcons: Record<EscalationLevel['target_type'], ReactNode> = {
+		user: <User className="h-4 w-4" />,
+		role: <Layers className="h-4 w-4" />,
+		manager: <SquareUser className="h-4 w-4" />,
 	};
 
 	return (
-		<div className={styles.levelCard}>
-			<div className={styles.dragHandle}>
-				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-					<circle cx="9" cy="6" r="1" fill="currentColor" />
-					<circle cx="15" cy="6" r="1" fill="currentColor" />
-					<circle cx="9" cy="12" r="1" fill="currentColor" />
-					<circle cx="15" cy="12" r="1" fill="currentColor" />
-					<circle cx="9" cy="18" r="1" fill="currentColor" />
-					<circle cx="15" cy="18" r="1" fill="currentColor" />
-				</svg>
-			</div>
-			<span className={styles.levelNumber}>{index + 1}</span>
-			<div className={styles.levelContent}>
-				<div className={styles.levelTarget}>
-					<span className={styles.targetIcon}>{targetIcons[level.target_type]}</span>
-					<span className={styles.targetType}>{level.target_type}</span>
-					<span className={styles.targetName}>{level.target_name || 'Not assigned'}</span>
+		<div className="flex items-center gap-3 rounded-md border border-slate-800 bg-slate-900/70 p-3">
+			<GripVertical className="h-4 w-4 shrink-0 text-slate-600" />
+			<span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-cyan-500/10 text-sm font-semibold text-cyan-300">
+				{index + 1}
+			</span>
+			<div className="min-w-0 flex-1 space-y-2">
+				<div className="flex flex-wrap items-center gap-2">
+					<span className="inline-flex items-center gap-1.5 text-sm font-medium capitalize text-slate-200">
+						{targetIcons[level.target_type]}
+						{level.target_type}
+					</span>
+					<span className="text-sm text-slate-400">{level.target_name || 'Not assigned'}</span>
 				</div>
-				<span className={styles.waitTime}>
-					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-						<circle cx="12" cy="12" r="10" />
-						<polyline points="12 6 12 12 16 14" />
-					</svg>
-					{level.wait_hours}h wait
-				</span>
-				<span className={`${styles.notifyBadge} ${!level.notify_on_escalation ? styles.off : ''}`}>
-					{level.notify_on_escalation ? 'Notify' : 'Silent'}
-				</span>
+				<div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+					<Badge variant="outline" className="border-slate-700 bg-slate-950 text-slate-300">
+						<Clock className="mr-1 h-3 w-3" />
+						{level.wait_hours}h wait
+					</Badge>
+					<Badge
+						variant="outline"
+						className={cn(
+							level.notify_on_escalation
+								? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-300'
+								: 'border-slate-700 bg-slate-950 text-slate-500',
+						)}
+					>
+						{level.notify_on_escalation ? 'Notify' : 'Silent'}
+					</Badge>
+				</div>
 			</div>
-			<div className={styles.levelActions}>
-				<button className={styles.levelActionBtn}>
-					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-						<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-						<path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-					</svg>
-				</button>
-				<button className={`${styles.levelActionBtn} ${styles.delete}`}>
-					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-						<line x1="18" y1="6" x2="6" y2="18" />
-						<line x1="6" y1="6" x2="18" y2="18" />
-					</svg>
-				</button>
+			<div className="flex shrink-0 items-center gap-1">
+				<Button
+					type="button"
+					variant="ghost"
+					size="icon"
+					className="h-8 w-8 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+				>
+					<Pencil className="h-4 w-4" />
+				</Button>
+				<Button
+					type="button"
+					variant="ghost"
+					size="icon"
+					className="h-8 w-8 text-slate-400 hover:bg-red-500/10 hover:text-red-300"
+				>
+					<Trash2 className="h-4 w-4" />
+				</Button>
 			</div>
 		</div>
 	);
@@ -277,59 +294,77 @@ function ChainModal({ chain, onClose, onSave, isSaving }: ChainModalProps) {
 	};
 
 	return (
-		<div className={styles.modalOverlay} onClick={onClose}>
-			<div className={styles.modal} onClick={e => e.stopPropagation()}>
-				<div className={styles.modalHeader}>
-					<h4>{chain ? 'Edit Chain' : 'New Escalation Chain'}</h4>
-					<button className={styles.closeBtn} onClick={onClose}>
-						<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-							<line x1="18" y1="6" x2="6" y2="18" />
-							<line x1="6" y1="6" x2="18" y2="18" />
-						</svg>
-					</button>
-				</div>
+		<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4" onClick={onClose}>
+			<Card
+				className="w-full max-w-lg border-slate-700 bg-slate-900 text-slate-200 shadow-xl"
+				onClick={event => event.stopPropagation()}
+			>
+				<CardHeader className="flex-row items-center justify-between space-y-0 border-b border-slate-800 p-4">
+					<CardTitle className="text-base text-slate-100">{chain ? 'Edit Chain' : 'New Escalation Chain'}</CardTitle>
+					<Button
+						type="button"
+						variant="ghost"
+						size="icon"
+						className="h-8 w-8 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+						onClick={onClose}
+					>
+						<X className="h-4 w-4" />
+					</Button>
+				</CardHeader>
 
-				<div className={styles.modalBody}>
-					<div className={styles.formGroup}>
-						<label>Chain Name</label>
+				<CardContent className="space-y-4 p-4">
+					<div className="space-y-2">
+						<label className="text-sm font-medium text-slate-300">Chain Name</label>
 						<input
 							type="text"
 							value={name}
-							onChange={e => setName(e.target.value)}
+							onChange={event => setName(event.target.value)}
 							placeholder="e.g., Management Escalation"
+							className={inputClassName}
 						/>
 					</div>
 
-					<div className={styles.formGroup}>
-						<label>Description (Optional)</label>
+					<div className="space-y-2">
+						<label className="text-sm font-medium text-slate-300">Description (Optional)</label>
 						<input
 							type="text"
 							value={description}
-							onChange={e => setDescription(e.target.value)}
+							onChange={event => setDescription(event.target.value)}
 							placeholder="Brief description"
+							className={inputClassName}
 						/>
 					</div>
 
-					<div className={styles.toggleGroup}>
-						<span>Active</span>
-						<div
-							className={`${styles.toggle} ${isActive ? styles.active : ''}`}
-							onClick={() => setIsActive(!isActive)}
+					<div className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-950/70 px-3 py-2">
+						<span className="text-sm text-slate-300">Active</span>
+						<Switch
+							checked={isActive}
+							onCheckedChange={setIsActive}
+							className="data-[state=checked]:bg-cyan-500 data-[state=unchecked]:bg-slate-700"
 						/>
 					</div>
-				</div>
+				</CardContent>
 
-				<div className={styles.modalFooter}>
-					<button className={styles.cancelBtn} onClick={onClose}>Cancel</button>
-					<button
-						className={styles.saveBtn}
+				<div className="flex justify-end gap-2 border-t border-slate-800 p-4">
+					<Button
+						type="button"
+						variant="ghost"
+						className="text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+						onClick={onClose}
+					>
+						Cancel
+					</Button>
+					<Button
+						type="button"
+						className="bg-cyan-500 text-slate-950 hover:bg-cyan-400"
 						onClick={handleSubmit}
 						disabled={isSaving || !name}
 					>
+						{isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
 						{isSaving ? 'Saving...' : 'Save Chain'}
-					</button>
+					</Button>
 				</div>
-			</div>
+			</Card>
 		</div>
 	);
 }
