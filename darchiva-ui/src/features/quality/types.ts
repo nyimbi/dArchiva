@@ -184,6 +184,14 @@ export const SEVERITY_CONFIG: Record<
 	},
 };
 
+export interface ScannerStat {
+	scannerId: string;
+	scannerName: string;
+	docsScanned: number;
+	avgQualityScore: number;
+	errorRate: number;
+}
+
 export const GRADE_CONFIG: Record<
 	QualityGrade,
 	{ label: string; color: string; bgColor: string; emoji: string }

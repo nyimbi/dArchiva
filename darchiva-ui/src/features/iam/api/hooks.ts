@@ -279,6 +279,16 @@ export function useDepartmentTree() {
 	});
 }
 
+// All active sessions (admin view)
+export function useActiveSessions(params?: { page?: number; pageSize?: number }) {
+	return useQuery({
+		queryKey: ['iam', 'sessions', 'active', params] as const,
+		queryFn: () => apiClient.get<{ items: UserSession[]; total: number }>('/iam/sessions', {
+			params: { ...params, active: true },
+		}).then(r => r.data),
+	});
+}
+
 // Access Events / Audit
 export function useAccessEvents(params?: { page?: number; pageSize?: number; user_id?: string; action?: string; start_date?: string; end_date?: string }) {
 	return useQuery({

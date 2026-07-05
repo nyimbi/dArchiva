@@ -9,6 +9,7 @@ import type {
   QualityIssueDetail,
   QualityRule,
   QualityStats,
+  ScannerStat,
 } from './types';
 
 const API_BASE = '/quality';
@@ -159,6 +160,19 @@ export function useUpdateQualityIssue() {
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['quality-issues'] });
 			queryClient.invalidateQueries({ queryKey: ['quality-stats'] });
+		},
+	});
+}
+
+// Scanner Performance Statistics
+export function useQualityScannerStats(days: number = 7) {
+	return useQuery({
+		queryKey: ['quality-scanner-stats', days],
+		queryFn: async () => {
+			const { data } = await apiClient.get<ScannerStat[]>(`${API_BASE}/scanner-stats`, {
+				params: { days },
+			});
+			return data;
 		},
 	});
 }
