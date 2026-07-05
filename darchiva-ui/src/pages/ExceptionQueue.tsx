@@ -178,7 +178,7 @@ function ExceptionsTab() {
 		offset: page * PAGE_SIZE,
 	};
 
-	const { data, isLoading } = useExceptions(filters);
+	const { data, isLoading, isError } = useExceptions(filters);
 
 	const items = data?.items ?? [];
 	const total = data?.total ?? 0;
@@ -372,7 +372,17 @@ function ExceptionsTab() {
 									</td>
 								</tr>
 							)}
-							{!isLoading && filteredItems.length === 0 && (
+							{isError && !isLoading && (
+								<tr>
+									<td colSpan={8} className="px-4 py-10 text-center">
+										<div className="flex items-center justify-center gap-2 text-red-400 text-sm">
+											<AlertTriangle className="w-4 h-4" />
+											Failed to load exceptions. Try refreshing.
+										</div>
+									</td>
+								</tr>
+							)}
+							{!isLoading && !isError && filteredItems.length === 0 && (
 								<tr>
 									<td colSpan={8} className="px-4 py-10 text-center text-slate-500">
 										No exceptions found.

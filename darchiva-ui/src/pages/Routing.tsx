@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   FolderOpen,
   GitBranch,
+  AlertCircle,
   GripVertical,
   Loader2,
   MoreVertical,
@@ -226,7 +227,7 @@ export function Routing() {
 
   const { openModal } = useStore();
 
-  const { data: rulesData, isLoading: rulesLoading } = useRoutingRules();
+  const { data: rulesData, isLoading: rulesLoading, isError: rulesError } = useRoutingRules();
   const { data: stats, isLoading: statsLoading } = useRoutingStats();
   const testRules = useTestRoutingRules();
 
@@ -500,6 +501,11 @@ export function Routing() {
         {rulesLoading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="w-8 h-8 animate-spin text-slate-500" />
+          </div>
+        ) : rulesError ? (
+          <div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            Failed to load routing rules. Check your connection and try refreshing.
           </div>
         ) : rules.length === 0 ? (
           <div className="text-center py-16 text-slate-500">

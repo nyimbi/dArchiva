@@ -61,6 +61,7 @@ import { apiClient } from '@/lib/api-client';
 import { formatDate } from '@/lib/utils';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
+  AlertCircle,
   Briefcase,
   Calendar,
   FileText,
@@ -665,7 +666,7 @@ function PortfolioCard({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function Portfolios() {
-  const { data: portfoliosData, isLoading: portfoliosLoading } = usePortfolios();
+  const { data: portfoliosData, isLoading: portfoliosLoading, isError: portfoliosError } = usePortfolios();
   const { data: stats, isLoading: statsLoading } = usePortfolioStats();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -770,6 +771,12 @@ export function Portfolios() {
       </div>
 
       {/* Portfolio grid */}
+      {portfoliosError && !portfoliosLoading && (
+        <div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          Failed to load portfolios. Check your connection and try refreshing.
+        </div>
+      )}
       {portfoliosLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (

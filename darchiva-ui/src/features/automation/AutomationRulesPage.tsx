@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckCircle2, Clock, Loader2, Pencil, Play, Plus, Trash2, X } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock, Loader2, Pencil, Play, Plus, Trash2, X } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -591,7 +591,7 @@ function ExecutionLog({ rules }: ExecutionLogProps) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export function AutomationRulesPage() {
-	const { data: rules, isLoading } = useAutomationRules();
+	const { data: rules, isLoading, isError } = useAutomationRules();
 	const updateMutation = useUpdateAutomationRule();
 	const deleteMutation = useDeleteAutomationRule();
 
@@ -635,8 +635,16 @@ export function AutomationRulesPage() {
 				</div>
 			)}
 
+			{/* Error */}
+			{isError && !isLoading && (
+				<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+					<AlertCircle className="h-4 w-4 shrink-0" />
+					Failed to load automation rules. Check your connection and try refreshing.
+				</div>
+			)}
+
 			{/* Empty */}
-			{!isLoading && (!rules || rules.length === 0) && (
+			{!isLoading && !isError && (!rules || rules.length === 0) && (
 				<div className="flex flex-col items-center gap-2 py-8">
 					<span className="text-muted-foreground">No automation rules yet.</span>
 					<Button variant="outline" onClick={openNew}>
