@@ -2,16 +2,21 @@
 import { useState } from 'react';
 import {
 	AlertTriangle,
+	Activity,
 	CheckCircle2,
 	ClipboardCopy,
 	Key,
 	Plus,
 	ShieldOff,
 	Trash2,
+	Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
 	useApiKeys,
+	useApiKeyStats,
 	useCreateApiKey,
 	useRevokeApiKey,
 	type ApiKey,
@@ -87,6 +92,57 @@ function StatusBadge({ isActive, expiresAt }: { isActive: boolean; expiresAt: st
 			<CheckCircle2 className="w-3 h-3" />
 			Active
 		</span>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Usage stats cards
+// ---------------------------------------------------------------------------
+
+function UsageStats() {
+	const { data, isLoading } = useApiKeyStats();
+
+	return (
+		<div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-6 pt-4">
+			<Card className="bg-slate-900 border-slate-800">
+				<CardHeader className="pb-2 pt-4 px-4">
+					<CardTitle className="text-xs font-medium text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+						<Activity className="w-3.5 h-3.5" />
+						API Calls This Month
+					</CardTitle>
+				</CardHeader>
+				<CardContent className="px-4 pb-4">
+					{isLoading ? (
+						<Skeleton className="h-8 w-24 bg-slate-800" />
+					) : (
+						<div className="text-2xl font-bold text-white tabular-nums">
+							{(data?.total_calls_this_month ?? 0).toLocaleString()}
+						</div>
+					)}
+				</CardContent>
+			</Card>
+
+			<Card className="bg-slate-900 border-slate-800">
+				<CardHeader className="pb-2 pt-4 px-4">
+					<CardTitle className="text-xs font-medium text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+						<Zap className="w-3.5 h-3.5 text-amber-400" />
+						Rate Limit Hits This Month
+					</CardTitle>
+				</CardHeader>
+				<CardContent className="px-4 pb-4">
+					{isLoading ? (
+						<Skeleton className="h-8 w-24 bg-slate-800" />
+					) : (
+						<div className={cn(
+							'text-2xl font-bold tabular-nums',
+							(data?.rate_limit_hits_this_month ?? 0) > 0 ? 'text-amber-400' : 'text-white',
+						)}>
+							{(data?.rate_limit_hits_this_month ?? 0).toLocaleString()}
+						</div>
+					)}
+				</CardContent>
+			</Card>
+		</div>
 	);
 }
 
@@ -327,6 +383,9 @@ function KeyRow({ apiKey }: { apiKey: ApiKey }) {
 				</div>
 			</td>
 			<td className="px-4 py-3 text-sm text-slate-400">
+				{formatDate(apiKey.created_at)}
+			</td>
+			<td className="px-4 py-3 text-sm text-slate-400">
 				{formatDate(apiKey.last_used_at)}
 			</td>
 			<td className="px-4 py-3 text-sm text-slate-400">
@@ -392,6 +451,9 @@ export function ApiKeys() {
 				</button>
 			</div>
 
+			{/* Usage stats */}
+			<UsageStats />
+
 			{/* Body */}
 			<div className="flex-1 overflow-auto px-6 py-4">
 				{isLoading && (
@@ -428,6 +490,7 @@ export function ApiKeys() {
 									<th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Name</th>
 									<th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Key prefix</th>
 									<th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Scopes</th>
+									<th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Created</th>
 									<th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Last used</th>
 									<th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Expires</th>
 									<th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>

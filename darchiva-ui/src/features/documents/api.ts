@@ -102,6 +102,20 @@ export function useCreateFolder() {
 	});
 }
 
+export function useDocumentSearch(query: string) {
+	return useQuery({
+		queryKey: [...documentKeys.all, 'search', query],
+		queryFn: async () => {
+			const { data } = await apiClient.get<DocumentListResponse>('/nodes/', {
+				params: { search: query, page_size: 20, ctype: 'document' },
+			});
+			return data.items;
+		},
+		enabled: query.trim().length >= 2,
+		staleTime: 30_000,
+	});
+}
+
 export function useUploadDocument() {
 	const queryClient = useQueryClient();
 	return useMutation({

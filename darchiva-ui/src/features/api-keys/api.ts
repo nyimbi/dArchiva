@@ -68,3 +68,23 @@ export function useRevokeApiKey() {
 		onSuccess: () => qc.invalidateQueries({ queryKey: API_KEYS_KEY }),
 	});
 }
+
+// ---------------------------------------------------------------------------
+// Usage stats
+// ---------------------------------------------------------------------------
+
+export interface ApiKeyStats {
+	total_calls_this_month: number;
+	rate_limit_hits_this_month: number;
+}
+
+export function useApiKeyStats() {
+	return useQuery({
+		queryKey: [...API_KEYS_KEY, 'stats'],
+		queryFn: async () => {
+			const { data } = await apiClient.get<ApiKeyStats>('/api-keys/stats');
+			return data;
+		},
+		staleTime: 60_000,
+	});
+}

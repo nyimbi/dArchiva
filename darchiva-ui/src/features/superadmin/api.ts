@@ -134,3 +134,128 @@ export function useCreateSuperAdminTenant() {
 		},
 	});
 }
+
+// ── System Config ─────────────────────────────────────────────────────────────
+
+export interface SystemConfigEntry {
+	key: string;
+	value: string;
+	description?: string;
+	category?: string;
+}
+
+const systemConfigKey = [...superAdminKeys.all, 'system-config'] as const;
+
+export function useSystemConfig() {
+	return useQuery({
+		queryKey: systemConfigKey,
+		queryFn: async () => {
+			const { data } = await apiClient.get<SystemConfigEntry[]>('/superadmin/system-config');
+			return data;
+		},
+	});
+}
+
+export function useUpdateSystemConfig() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: async (entries: SystemConfigEntry[]) => {
+			const { data } = await apiClient.put<SystemConfigEntry[]>(
+				'/superadmin/system-config',
+				entries,
+			);
+			return data;
+		},
+		onSuccess: () => qc.invalidateQueries({ queryKey: systemConfigKey }),
+	});
+}
+
+// ── Background Jobs ───────────────────────────────────────────────────────────
+
+export interface BackgroundJob {
+	id: string;
+	name: string;
+	worker: string;
+	queue: string;
+	eta: string | null;
+	retries: number;
+	max_retries: number;
+	state: 'pending' | 'running' | 'failed' | 'success';
+	progress?: number;
+}
+
+const jobsKey = [...superAdminKeys.all, 'jobs'] as const;
+
+export function useBackgroundJobs() {
+	return useQuery({
+		queryKey: jobsKey,
+		queryFn: async () => {
+			const { data } = await apiClient.get<BackgroundJob[]>('/superadmin/jobs');
+			return data;
+		},
+		refetchInterval: 5_000,
+	});
+}
+
+export function usePurgeQueue() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: async (queue: string) => {
+			await apiClient.delete(`/superadmin/jobs/queue/${queue}`);
+		},
+		onSuccess: () => qc.invalidateQueries({ queryKey: jobsKey }),
+	});
+}
+
+// ── Feature Flags ─────────────────────────────────────────────────────────────
+
+export interface FeatureFlag {
+	key: string;
+	label: string;
+	description?: string;
+	enabled: boolean;
+}
+
+const featureFlagsKey = [...superAdminKeys.all, 'feature-flags'] as const;
+
+export function useFeatureFlags() {
+	return useQuery({
+		queryKey: featureFlagsKey,
+		queryFn: async () => {
+			const { data } = await apiClient.get<FeatureFlag[]>('/superadmin/feature-flags');
+			return data;
+		},
+	});
+}
+
+export function useToggleFeatureFlag() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: async ({ key, enabled }: { key: string; enabled: boolean }) => {
+			const { data } = await apiClient.patch<FeatureFlag>(
+				`/superadmin/feature-flags/${key}`,
+				{ enabled },
+			);
+			return data;
+		},
+		onSettled: () => qc.invalidateQueries({ queryKey: featureFlagsKey }),
+	});
+}
+
+// ── System actions ────────────────────────────────────────────────────────────
+
+export function useRebuildSearchIndex() {
+	return useMutation({
+		mutationFn: async () => {
+			await apiClient.post('/superadmin/actions/rebuild-search-index');
+		},
+	});
+}
+
+export function useClearCaches() {
+	return useMutation({
+		mutationFn: async () => {
+			await apiClient.post('/superadmin/actions/clear-caches');
+		},
+	});
+}

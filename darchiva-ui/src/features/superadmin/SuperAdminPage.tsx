@@ -3,6 +3,17 @@
  * Super-Admin Panel — platform-wide tenant management.
  * Gated: renders "Access denied" if current user is not a superuser.
  */
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,6 +36,7 @@ import {
 	TableHeader,
 	TableRow,
 } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useCurrentUser } from '@/features/users/api';
 import {
@@ -33,19 +45,51 @@ import {
 	HardDrive,
 	Plus,
 	RefreshCw,
+	Search,
 	ShieldAlert,
+	Trash2,
 	Users,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-	TenantDetail,
-	TenantStats,
+	type BackgroundJob,
+	type FeatureFlag,
+	type SystemConfigEntry,
+	type TenantStats,
+	useBackgroundJobs,
+	useClearCaches,
 	useCreateSuperAdminTenant,
+	useFeatureFlags,
+	usePurgeQueue,
+	useRebuildSearchIndex,
+	useSystemConfig,
 	useSystemStats,
 	useTenantDetail,
 	useTenants,
+	useToggleFeatureFlag,
+	useUpdateSystemConfig,
 	useUpdateTenant,
 } from './api';
+
+// ── Default data for tabs when API returns empty ───────────────────────────────
+
+const DEFAULT_CONFIG: SystemConfigEntry[] = [
+	{ key: 'ocr_engine', value: 'tesseract', description: 'OCR engine (tesseract | google | azure)' },
+	{ key: 'max_file_size_mb', value: '50', description: 'Maximum upload size in MB' },
+	{ key: 'allowed_file_types', value: 'pdf,jpg,png,tiff,docx', description: 'Comma-separated allowed upload types' },
+	{ key: 'default_retention_days', value: '365', description: 'Default document retention in days' },
+	{ key: 'max_ocr_concurrent', value: '4', description: 'Max concurrent OCR jobs' },
+	{ key: 'thumbnail_quality', value: '85', description: 'JPEG quality for thumbnails (1–100)' },
+];
+
+const DEFAULT_FLAGS: FeatureFlag[] = [
+	{ key: 'bulk_ocr', label: 'Bulk OCR', description: 'Process multiple documents simultaneously', enabled: false },
+	{ key: 'ai_classification', label: 'AI Classification', description: 'Auto-classify documents using AI', enabled: false },
+	{ key: 'smart_search', label: 'Smart Search', description: 'Semantic search powered by embeddings', enabled: false },
+	{ key: 'version_diff', label: 'Version Diff Viewer', description: 'Side-by-side document version comparison', enabled: true },
+	{ key: 'document_chat', label: 'Document Chat', description: 'Converse with documents using LLM', enabled: false },
+	{ key: 'auto_tagging', label: 'Auto Tagging', description: 'Suggest tags based on content analysis', enabled: false },
+];
 
 // ── KPI tile ──────────────────────────────────────────────────────────────────
 
@@ -105,7 +149,6 @@ function EditTenantDialog({ tenantId, onClose }: EditTenantDialogProps) {
 	const [featureFlagsRaw, setFeatureFlagsRaw] = useState('');
 	const [flagsError, setFlagsError] = useState('');
 
-	// Initialise form from fetched detail
 	const initialised =
 		detail &&
 		isActive === undefined &&
@@ -160,7 +203,6 @@ function EditTenantDialog({ tenantId, onClose }: EditTenantDialogProps) {
 					</div>
 				) : detail ? (
 					<div className="space-y-5 py-2">
-						{/* Active toggle */}
 						<div className="flex items-center justify-between">
 							<Label htmlFor="active-toggle">Active</Label>
 							<Switch
@@ -170,7 +212,6 @@ function EditTenantDialog({ tenantId, onClose }: EditTenantDialogProps) {
 							/>
 						</div>
 
-						{/* Storage quota */}
 						<div className="space-y-1">
 							<Label htmlFor="quota-input">Storage quota (GB)</Label>
 							<Input
@@ -183,7 +224,6 @@ function EditTenantDialog({ tenantId, onClose }: EditTenantDialogProps) {
 							/>
 						</div>
 
-						{/* Feature flags */}
 						<div className="space-y-1">
 							<Label htmlFor="flags-input">Feature flags (JSON)</Label>
 							<Textarea
@@ -201,7 +241,6 @@ function EditTenantDialog({ tenantId, onClose }: EditTenantDialogProps) {
 							)}
 						</div>
 
-						{/* Recent activity */}
 						{detail.recent_activity.length > 0 && (
 							<div className="space-y-1">
 								<Label>Recent activity</Label>
@@ -336,6 +375,7 @@ function TenantsTable({ tenants, onEdit, onToggleActive, isUpdating }: TenantsTa
 						<TableHead className="text-right">Users</TableHead>
 						<TableHead className="text-right">Documents</TableHead>
 						<TableHead>Storage</TableHead>
+						<TableHead>Created</TableHead>
 						<TableHead>Status</TableHead>
 						<TableHead className="text-right">Actions</TableHead>
 					</TableRow>
@@ -343,7 +383,7 @@ function TenantsTable({ tenants, onEdit, onToggleActive, isUpdating }: TenantsTa
 				<TableBody>
 					{tenants.length === 0 && (
 						<TableRow>
-							<TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+							<TableCell colSpan={8} className="text-center text-muted-foreground py-8">
 								No tenants found.
 							</TableCell>
 						</TableRow>
@@ -363,6 +403,9 @@ function TenantsTable({ tenants, onEdit, onToggleActive, isUpdating }: TenantsTa
 							<TableCell className="text-right tabular-nums">{t.document_count}</TableCell>
 							<TableCell>
 								<StorageBar mb={t.storage_mb} quotaGb={null} />
+							</TableCell>
+							<TableCell className="text-xs text-muted-foreground">
+								{t.created_at ? new Date(t.created_at).toLocaleDateString() : '—'}
 							</TableCell>
 							<TableCell>
 								<Switch
@@ -385,6 +428,357 @@ function TenantsTable({ tenants, onEdit, onToggleActive, isUpdating }: TenantsTa
 	);
 }
 
+// ── System Config tab ─────────────────────────────────────────────────────────
+
+function SystemConfigTab() {
+	const { data: remoteConfig = [], isLoading } = useSystemConfig();
+	const updateConfig = useUpdateSystemConfig();
+	const [entries, setEntries] = useState<SystemConfigEntry[]>([]);
+	const [dirty, setDirty] = useState(false);
+
+	useEffect(() => {
+		if (remoteConfig.length > 0) {
+			setEntries(remoteConfig);
+			setDirty(false);
+		}
+	}, [remoteConfig]);
+
+	const displayEntries = entries.length > 0 ? entries : DEFAULT_CONFIG;
+
+	function handleValueChange(key: string, value: string) {
+		setEntries((prev) =>
+			prev.length > 0
+				? prev.map((e) => (e.key === key ? { ...e, value } : e))
+				: DEFAULT_CONFIG.map((e) => (e.key === key ? { ...e, value } : e)),
+		);
+		setDirty(true);
+	}
+
+	function handleSave() {
+		updateConfig.mutate(displayEntries, { onSuccess: () => setDirty(false) });
+	}
+
+	if (isLoading) {
+		return (
+			<div className="space-y-2">
+				{Array.from({ length: 6 }).map((_, i) => (
+					<Skeleton key={i} className="h-10 w-full" />
+				))}
+			</div>
+		);
+	}
+
+	return (
+		<div className="space-y-4">
+			<div className="flex items-center justify-between">
+				<p className="text-sm text-muted-foreground">
+					Global settings applied platform-wide. Changes take effect immediately.
+				</p>
+				<Button
+					size="sm"
+					disabled={!dirty || updateConfig.isPending}
+					onClick={handleSave}
+				>
+					{updateConfig.isPending ? 'Saving…' : 'Save Changes'}
+				</Button>
+			</div>
+			<div className="rounded-md border overflow-hidden">
+				<Table>
+					<TableHeader>
+						<TableRow>
+							<TableHead className="w-56">Key</TableHead>
+							<TableHead className="w-64">Value</TableHead>
+							<TableHead>Description</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{displayEntries.map((entry) => (
+							<TableRow key={entry.key}>
+								<TableCell>
+									<code className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">
+										{entry.key}
+									</code>
+								</TableCell>
+								<TableCell>
+									<Input
+										value={entry.value}
+										onChange={(e) => handleValueChange(entry.key, e.target.value)}
+										className="h-7 text-sm"
+									/>
+								</TableCell>
+								<TableCell className="text-sm text-muted-foreground">
+									{entry.description ?? '—'}
+								</TableCell>
+							</TableRow>
+						))}
+					</TableBody>
+				</Table>
+			</div>
+		</div>
+	);
+}
+
+// ── Background Jobs tab ───────────────────────────────────────────────────────
+
+function JobStateBadge({ state }: { state: BackgroundJob['state'] }) {
+	const styles: Record<BackgroundJob['state'], string> = {
+		pending: 'bg-muted text-muted-foreground',
+		running: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+		failed: 'bg-destructive/20 text-destructive',
+		success: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+	};
+	return (
+		<span
+			className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${styles[state]}`}
+		>
+			{state}
+		</span>
+	);
+}
+
+function BackgroundJobsTab() {
+	const { data: jobs = [], isLoading } = useBackgroundJobs();
+	const purgeQueue = usePurgeQueue();
+
+	const queues = [...new Set(jobs.map((j) => j.queue))];
+
+	if (isLoading) {
+		return (
+			<div className="space-y-2">
+				{Array.from({ length: 4 }).map((_, i) => (
+					<Skeleton key={i} className="h-10 w-full" />
+				))}
+			</div>
+		);
+	}
+
+	return (
+		<div className="space-y-4">
+			<div className="flex items-center justify-between">
+				<p className="text-sm text-muted-foreground">
+					Live Celery task queue — auto-refreshes every 5 s.
+				</p>
+				{queues.length > 0 && (
+					<div className="flex gap-2">
+						{queues.map((q) => (
+							<AlertDialog key={q}>
+								<AlertDialogTrigger asChild>
+									<Button variant="destructive" size="sm">
+										<Trash2 className="h-3.5 w-3.5 mr-1" />
+										Purge {q}
+									</Button>
+								</AlertDialogTrigger>
+								<AlertDialogContent>
+									<AlertDialogHeader>
+										<AlertDialogTitle>Purge queue "{q}"?</AlertDialogTitle>
+										<AlertDialogDescription>
+											All pending tasks in this queue will be removed. Running tasks
+											are not affected.
+										</AlertDialogDescription>
+									</AlertDialogHeader>
+									<AlertDialogFooter>
+										<AlertDialogCancel>Cancel</AlertDialogCancel>
+										<AlertDialogAction
+											onClick={() => purgeQueue.mutate(q)}
+											className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+										>
+											Purge
+										</AlertDialogAction>
+									</AlertDialogFooter>
+								</AlertDialogContent>
+							</AlertDialog>
+						))}
+					</div>
+				)}
+			</div>
+
+			{jobs.length === 0 ? (
+				<div className="flex items-center justify-center h-32 text-muted-foreground text-sm border rounded-md">
+					No active tasks.
+				</div>
+			) : (
+				<div className="rounded-md border overflow-hidden">
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>Task</TableHead>
+								<TableHead>Worker</TableHead>
+								<TableHead>Queue</TableHead>
+								<TableHead>ETA</TableHead>
+								<TableHead className="text-right">Retries</TableHead>
+								<TableHead className="w-32">Progress</TableHead>
+								<TableHead>State</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{jobs.map((job) => (
+								<TableRow key={job.id}>
+									<TableCell>
+										<div className="font-medium text-sm">{job.name}</div>
+										<div className="text-xs text-muted-foreground font-mono">{job.id.slice(0, 8)}…</div>
+									</TableCell>
+									<TableCell className="text-sm text-muted-foreground">{job.worker}</TableCell>
+									<TableCell>
+										<Badge variant="outline">{job.queue}</Badge>
+									</TableCell>
+									<TableCell className="text-sm text-muted-foreground">
+										{job.eta ? new Date(job.eta).toLocaleString() : '—'}
+									</TableCell>
+									<TableCell className="text-right tabular-nums text-sm">
+										{job.retries}/{job.max_retries}
+									</TableCell>
+									<TableCell>
+										{job.progress != null ? (
+											<div className="flex items-center gap-2">
+												<div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+													<div
+														className="h-full bg-primary transition-all"
+														style={{ width: `${job.progress}%` }}
+													/>
+												</div>
+												<span className="text-xs text-muted-foreground tabular-nums w-8">
+													{job.progress}%
+												</span>
+											</div>
+										) : (
+											<span className="text-xs text-muted-foreground">—</span>
+										)}
+									</TableCell>
+									<TableCell>
+										<JobStateBadge state={job.state} />
+									</TableCell>
+								</TableRow>
+							))}
+						</TableBody>
+					</Table>
+				</div>
+			)}
+		</div>
+	);
+}
+
+// ── Feature Flags tab ─────────────────────────────────────────────────────────
+
+function FeatureFlagsTab() {
+	const { data: flags, isLoading } = useFeatureFlags();
+	const toggleFlag = useToggleFeatureFlag();
+
+	const displayFlags = flags && flags.length > 0 ? flags : DEFAULT_FLAGS;
+
+	if (isLoading) {
+		return (
+			<div className="space-y-3">
+				{Array.from({ length: 6 }).map((_, i) => (
+					<Skeleton key={i} className="h-16 w-full rounded-lg" />
+				))}
+			</div>
+		);
+	}
+
+	return (
+		<div className="space-y-3">
+			{displayFlags.map((flag) => (
+				<div
+					key={flag.key}
+					className="flex items-center justify-between p-4 rounded-lg border bg-card"
+				>
+					<div className="space-y-0.5">
+						<div className="font-medium">{flag.label}</div>
+						{flag.description && (
+							<div className="text-sm text-muted-foreground">{flag.description}</div>
+						)}
+						<code className="text-xs text-muted-foreground/70 font-mono">{flag.key}</code>
+					</div>
+					<Switch
+						checked={flag.enabled}
+						onCheckedChange={(enabled) => toggleFlag.mutate({ key: flag.key, enabled })}
+						disabled={toggleFlag.isPending}
+						aria-label={flag.label}
+					/>
+				</div>
+			))}
+		</div>
+	);
+}
+
+// ── Danger Zone ───────────────────────────────────────────────────────────────
+
+function DangerZone() {
+	const rebuildIndex = useRebuildSearchIndex();
+	const clearCaches = useClearCaches();
+
+	return (
+		<div className="rounded-lg border border-destructive/40 p-5 space-y-4">
+			<div>
+				<h3 className="text-base font-semibold text-destructive">Danger Zone</h3>
+				<p className="text-sm text-muted-foreground mt-0.5">
+					These actions affect the entire platform and cannot be easily undone.
+				</p>
+			</div>
+			<div className="flex flex-wrap gap-3">
+				<AlertDialog>
+					<AlertDialogTrigger asChild>
+						<Button
+							variant="outline"
+							className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:border-destructive"
+							disabled={rebuildIndex.isPending}
+						>
+							<Search className="h-4 w-4 mr-1.5" />
+							{rebuildIndex.isPending ? 'Rebuilding…' : 'Rebuild Search Index'}
+						</Button>
+					</AlertDialogTrigger>
+					<AlertDialogContent>
+						<AlertDialogHeader>
+							<AlertDialogTitle>Rebuild search index?</AlertDialogTitle>
+							<AlertDialogDescription>
+								This re-indexes all documents. The process may take several minutes and will
+								temporarily degrade search performance for all users.
+							</AlertDialogDescription>
+						</AlertDialogHeader>
+						<AlertDialogFooter>
+							<AlertDialogCancel>Cancel</AlertDialogCancel>
+							<AlertDialogAction onClick={() => rebuildIndex.mutate()}>
+								Rebuild
+							</AlertDialogAction>
+						</AlertDialogFooter>
+					</AlertDialogContent>
+				</AlertDialog>
+
+				<AlertDialog>
+					<AlertDialogTrigger asChild>
+						<Button
+							variant="outline"
+							className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:border-destructive"
+							disabled={clearCaches.isPending}
+						>
+							<Trash2 className="h-4 w-4 mr-1.5" />
+							{clearCaches.isPending ? 'Clearing…' : 'Clear All Caches'}
+						</Button>
+					</AlertDialogTrigger>
+					<AlertDialogContent>
+						<AlertDialogHeader>
+							<AlertDialogTitle>Clear all caches?</AlertDialogTitle>
+							<AlertDialogDescription>
+								Flushes Redis and in-memory application caches platform-wide. Users may see
+								slower responses for a few minutes until caches warm up again.
+							</AlertDialogDescription>
+						</AlertDialogHeader>
+						<AlertDialogFooter>
+							<AlertDialogCancel>Cancel</AlertDialogCancel>
+							<AlertDialogAction
+								onClick={() => clearCaches.mutate()}
+								className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+							>
+								Clear
+							</AlertDialogAction>
+						</AlertDialogFooter>
+					</AlertDialogContent>
+				</AlertDialog>
+			</div>
+		</div>
+	);
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export function SuperAdminPage() {
@@ -396,7 +790,6 @@ export function SuperAdminPage() {
 	const [editingTenantId, setEditingTenantId] = useState<string | null>(null);
 	const [showCreateDialog, setShowCreateDialog] = useState(false);
 
-	// ── Access gate ──────────────────────────────────────────────────────────
 	if (userLoading) {
 		return (
 			<div className="p-8 space-y-4">
@@ -484,25 +877,49 @@ export function SuperAdminPage() {
 				)}
 			</div>
 
-			{/* Tenants table */}
-			{tenantsLoading ? (
-				<Skeleton className="h-64 w-full rounded-lg" />
-			) : (
-				<TenantsTable
-					tenants={tenants ?? []}
-					onEdit={setEditingTenantId}
-					onToggleActive={handleToggleActive}
-					isUpdating={updateTenant.isPending}
-				/>
-			)}
+			{/* Tabs */}
+			<Tabs defaultValue="tenants">
+				<TabsList className="mb-4">
+					<TabsTrigger value="tenants">Tenants</TabsTrigger>
+					<TabsTrigger value="system-config">System Config</TabsTrigger>
+					<TabsTrigger value="jobs">Background Jobs</TabsTrigger>
+					<TabsTrigger value="feature-flags">Feature Flags</TabsTrigger>
+				</TabsList>
 
-			{/* Edit dialog */}
+				<TabsContent value="tenants">
+					{tenantsLoading ? (
+						<Skeleton className="h-64 w-full rounded-lg" />
+					) : (
+						<TenantsTable
+							tenants={tenants ?? []}
+							onEdit={setEditingTenantId}
+							onToggleActive={handleToggleActive}
+							isUpdating={updateTenant.isPending}
+						/>
+					)}
+				</TabsContent>
+
+				<TabsContent value="system-config">
+					<SystemConfigTab />
+				</TabsContent>
+
+				<TabsContent value="jobs">
+					<BackgroundJobsTab />
+				</TabsContent>
+
+				<TabsContent value="feature-flags">
+					<FeatureFlagsTab />
+				</TabsContent>
+			</Tabs>
+
+			{/* Danger zone */}
+			<DangerZone />
+
+			{/* Dialogs */}
 			<EditTenantDialog
 				tenantId={editingTenantId}
 				onClose={() => setEditingTenantId(null)}
 			/>
-
-			{/* Create dialog */}
 			<CreateTenantDialog
 				open={showCreateDialog}
 				onClose={() => setShowCreateDialog(false)}
