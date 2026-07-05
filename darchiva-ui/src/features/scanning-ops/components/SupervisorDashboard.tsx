@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import {
 	Activity,
+	AlertCircle,
 	AlertTriangle,
 	Clock,
 	FileText,
@@ -295,8 +296,8 @@ function OperatorKPITable({ scores }: { scores: OperatorKPI[] }) {
 // Main component
 
 export function SupervisorDashboard() {
-	const { data: operatorKpis = [], isLoading: loadingKpis, refetch } = useOperatorKpis(7);
-	const { data: batches = [], isLoading: loadingBatches } = useAssignedBatches();
+	const { data: operatorKpis = [], isLoading: loadingKpis, isError: kpisError, refetch } = useOperatorKpis(7);
+	const { data: batches = [], isLoading: loadingBatches, isError: batchesError } = useAssignedBatches();
 	const { data: shiftStats } = useShiftStats();
 
 	const activeOperators = operatorKpis.filter((op) => op.pages_scanned > 0).length;
@@ -359,6 +360,13 @@ export function SupervisorDashboard() {
 					delay={0.1}
 				/>
 			</div>
+
+			{(kpisError || batchesError) && (
+				<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+					<AlertCircle className="h-4 w-4 shrink-0" />
+					Failed to load supervisor dashboard data. Check your connection and try refreshing.
+				</div>
+			)}
 
 			{/* Operator KPI Table */}
 			{loadingKpis ? (

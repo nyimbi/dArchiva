@@ -1,4 +1,4 @@
-import { Activity, AlertTriangle, RefreshCw, Target, TrendingUp, Users } from 'lucide-react';
+import { Activity, AlertCircle, AlertTriangle, RefreshCw, Target, TrendingUp, Users } from 'lucide-react';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { useOperatorKpis } from '@/features/scanning-projects/api/hooks';
 import type { OperatorKPI } from '@/features/scanning-projects/api/index';
@@ -61,7 +61,7 @@ function SummaryCard({
 
 export function OperatorDashboard() {
     const { user } = useAuth();
-    const { data: operatorKpis = [], isLoading, refetch } = useOperatorKpis(undefined, user?.id);
+    const { data: operatorKpis = [], isLoading, isError, refetch } = useOperatorKpis(undefined, user?.id);
     const { data: shiftStats } = useShiftStats();
 
     const activeCount   = operatorKpis.filter(op => op.pages_per_hour > 0).length;
@@ -151,6 +151,11 @@ export function OperatorDashboard() {
                 {isLoading ? (
                     <div className="px-6 py-12 text-center text-slate-500 animate-pulse">
                         Loading operator data…
+                    </div>
+                ) : isError ? (
+                    <div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                        Failed to load operator data. Check your connection and try refreshing.
                     </div>
                 ) : operatorKpis.length === 0 ? (
                     <div className="px-6 py-12 text-center text-slate-500">

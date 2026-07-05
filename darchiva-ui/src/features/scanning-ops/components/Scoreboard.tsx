@@ -1,14 +1,21 @@
 import { motion } from 'framer-motion';
-import { Trophy } from 'lucide-react';
+import { AlertCircle, Trophy } from 'lucide-react';
 import { useLeaderboard } from '../api/hooks';
 
 export function Scoreboard() {
-    const { data: scores = [], isLoading } = useLeaderboard();
+    const { data: scores = [], isLoading, isError } = useLeaderboard();
 
     if (isLoading) {
         return (
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 h-full flex items-center justify-center">
                 <div className="animate-pulse text-slate-500">Loading leaderboard...</div>
+            </div>
+        );
+    } else if (isError) {
+        return (
+            <div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                Failed to load leaderboard. Check your connection and try refreshing.
             </div>
         );
     }

@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useState } from 'react';
-import { Activity, Award, Clock, TrendingDown, TrendingUp, Users, Loader2 } from 'lucide-react';
+import { Activity, AlertCircle, Award, Clock, TrendingDown, TrendingUp, Users, Loader2 } from 'lucide-react';
 
 interface OperatorKPI {
   operatorId: string;
@@ -74,7 +74,7 @@ function StatusDot({ status }: { status: LiveOperator['status'] }) {
 export function OperatorAnalytics() {
   const [period, setPeriod] = useState<Period>('today');
 
-  const { data: kpis, isLoading: loadingKpis } = useQuery<OperatorKPI[]>({
+  const { data: kpis, isLoading: loadingKpis, isError: kpisError } = useQuery<OperatorKPI[]>({
     queryKey: ['operator-kpis', period],
     queryFn: async () => {
       const { data } = await apiClient.get<OperatorKPI[]>(
@@ -85,7 +85,7 @@ export function OperatorAnalytics() {
     refetchInterval: 60_000,
   });
 
-  const { data: liveOps, isLoading: loadingLive } = useQuery<{ operators: LiveOperator[] }>({
+  const { data: liveOps, isLoading: loadingLive, isError: liveOpsError } = useQuery<{ operators: LiveOperator[] }>({
     queryKey: ['live-ops'],
     queryFn: async () => {
       const { data } = await apiClient.get<{ operators: LiveOperator[] }>(
@@ -120,7 +120,12 @@ export function OperatorAnalytics() {
       </div>
 
       {/* Live status strip */}
-      {loadingLive ? null : (liveOps?.operators ?? []).length > 0 && (
+      {loadingLive ? null : liveOpsError ? (
+        <div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          Failed to load live operator status. Check your connection and try refreshing.
+        </div>
+      ) : (liveOps?.operators ?? []).length > 0 && (
         <>
           <div>
             <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
@@ -149,6 +154,11 @@ export function OperatorAnalytics() {
       {loadingKpis ? (
         <div className="flex items-center justify-center h-32 text-muted-foreground">
           <Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading…
+        </div>
+      ) : kpisError ? (
+        <div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          Failed to load operator analytics. Check your connection and try refreshing.
         </div>
       ) : (kpis ?? []).length === 0 ? (
         <p className="text-center text-muted-foreground py-10">No operator data for this period.</p>

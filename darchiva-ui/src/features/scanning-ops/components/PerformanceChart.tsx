@@ -1,13 +1,21 @@
+import { AlertCircle } from 'lucide-react';
 import { Bar,BarChart,Cell,ResponsiveContainer,Tooltip,XAxis,YAxis } from 'recharts';
 import { useOperatorPerformance } from '../api/hooks';
 
 export function PerformanceChart() {
-    const { data = [], isLoading } = useOperatorPerformance();
+    const { data = [], isLoading, isError } = useOperatorPerformance();
 
     if (isLoading) {
         return (
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 h-full flex items-center justify-center">
                 <div className="animate-pulse text-slate-500">Loading performance data...</div>
+            </div>
+        );
+    } else if (isError) {
+        return (
+            <div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                Failed to load performance data. Check your connection and try refreshing.
             </div>
         );
     }

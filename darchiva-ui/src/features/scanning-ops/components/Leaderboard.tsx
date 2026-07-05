@@ -1,5 +1,5 @@
 // (c) Copyright Datacraft, 2026
-import { RefreshCw, TrendingUp } from 'lucide-react';
+import { AlertCircle, RefreshCw, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
 import {
 	useLeaderboard,
@@ -152,8 +152,9 @@ export function Leaderboard({ period: defaultPeriod = 'today' }: LeaderboardProp
 					<span className="text-sm">Loading leaderboard…</span>
 				</div>
 			) : error ? (
-				<div className="flex items-center justify-center h-40 text-red-400 text-sm">
-					Failed to load leaderboard.
+				<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+					<AlertCircle className="h-4 w-4 shrink-0" />
+					Failed to load leaderboard. Check your connection and try refreshing.
 				</div>
 			) : !data || data.entries.length === 0 ? (
 				<div className="flex flex-col items-center justify-center h-40 gap-2 text-slate-500">

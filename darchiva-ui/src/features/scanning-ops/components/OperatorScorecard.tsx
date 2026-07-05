@@ -1,5 +1,5 @@
 // (c) Copyright Datacraft, 2026
-import { Flame, RefreshCw, Target } from 'lucide-react';
+import { AlertCircle, Flame, RefreshCw, Target } from 'lucide-react';
 import { useLeaderboard } from '../api/leaderboard';
 import { useOperatorTargets } from '../api/leaderboard';
 import { useShiftStats } from '../api/hooks';
@@ -118,8 +118,8 @@ interface OperatorScorecardProps {
 
 export function OperatorScorecard({ userId }: OperatorScorecardProps) {
 	// All hooks must be called unconditionally before any early return.
-	const { data: stats, isLoading: statsLoading } = useShiftStats();
-	const { data: targets, isLoading: targetsLoading } = useOperatorTargets(userId);
+	const { data: stats, isLoading: statsLoading, isError: statsError } = useShiftStats();
+	const { data: targets, isLoading: targetsLoading, isError: targetsError } = useOperatorTargets(userId);
 	const { data: leaderboardData } = useLeaderboard('today');
 	const { data: weekData } = useLeaderboard('week');
 	const { data: monthData } = useLeaderboard('month');
@@ -131,6 +131,13 @@ export function OperatorScorecard({ userId }: OperatorScorecardProps) {
 			<div className="glass-card flex items-center justify-center h-36 gap-2 text-slate-500">
 				<RefreshCw className="w-4 h-4 animate-spin" />
 				<span className="text-sm">Loading scorecard…</span>
+			</div>
+		);
+	} else if (statsError || targetsError) {
+		return (
+			<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+				<AlertCircle className="h-4 w-4 shrink-0" />
+				Failed to load scorecard data. Check your connection and try refreshing.
 			</div>
 		);
 	}

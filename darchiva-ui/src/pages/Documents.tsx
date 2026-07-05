@@ -17,6 +17,7 @@ import { useStore } from '@/hooks/useStore';
 import { cn, formatBytes, formatRelativeTime } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
+  AlertCircle,
   AlertTriangle,
   Check,
   CheckSquare,
@@ -587,10 +588,11 @@ export function Documents() {
   const navigate = useNavigate();
   const [folderSearch, setFolderSearch] = useState('');
 
-  const { data: folderTree, isLoading: treeLoading } = useFolderTree();
+  const { data: folderTree, isLoading: treeLoading, isError: treeError } = useFolderTree();
   const {
     documents: infiniteDocs,
     isLoading: docsLoading,
+    isError: docsError,
     hasNextPage,
     isFetchingNextPage,
     fetchNextPage,
@@ -703,6 +705,11 @@ export function Documents() {
           {treeLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+            </div>
+          ) : treeError ? (
+            <div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              Failed to load folders. Check your connection and try refreshing.
             </div>
           ) : folderTree && folderTree.length > 0 ? (
             <>
@@ -865,6 +872,11 @@ export function Documents() {
           {docsLoading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+            </div>
+          ) : docsError ? (
+            <div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              Failed to load documents. Check your connection and try refreshing.
             </div>
           ) : documents.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-slate-400">

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { AlertCircle } from 'lucide-react';
 import {
 	useSignatureRequests,
 	useDeclineSignature,
@@ -137,7 +138,10 @@ export function SignaturePanel({ documentId }: Props) {
 			)}
 
 			{error && (
-				<p className="text-sm text-destructive">Failed to load signature requests.</p>
+				<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+					<AlertCircle className="h-4 w-4 shrink-0" />
+					Failed to load signature requests. Check your connection and try refreshing.
+				</div>
 			)}
 
 			{!isLoading && !error && requests?.length === 0 && (
