@@ -44,6 +44,8 @@ import {
 	Tag,
 	TrendingUp,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -75,6 +77,37 @@ interface DashboardWidgetLayoutItem {
 
 interface HealthResponse { status: string }
 interface WorkersResponse { active: number; total?: number }
+interface OcrStatsResponse { [key: string]: unknown }
+interface AnalyticsCapacityResponse {
+	avgProcessingTimeSeconds?: number;
+	avgProcessingTimePreviousWeekSeconds?: number;
+	avgProcessingTimeTrendPercent?: number;
+	[key: string]: unknown;
+}
+interface HealthMetric {
+	name: string;
+	value: number;
+	unit?: string;
+	trend?: 'up' | 'down' | 'stable' | null;
+}
+interface HealthMetricsResponse {
+	metrics: HealthMetric[];
+}
+
+interface TrendData {
+	percent: number;
+	direction: 'up' | 'down' | 'stable';
+}
+
+interface StatCardProps {
+	label: string;
+	value: string;
+	trend: TrendData;
+	icon: LucideIcon;
+	isLoading: boolean;
+	error?: JSX.Element | null;
+	children?: ReactNode;
+}
 
 const DASHBOARD_LAYOUT_KEY = 'darchiva_dashboard_layout';
 
@@ -158,6 +191,96 @@ function moveWidget(items: DashboardWidgetLayoutItem[], index: number, direction
 	return next;
 }
 
+function toNumber(value: unknown): number | undefined {
+	const numericValue = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
+	return Number.isFinite(numericValue) ? numericValue : undefined;
+}
+
+function pickNumber(source: Record<string, unknown> | null | undefined, keys: string[]): number | undefined {
+	if (!source) return undefined;
+	for (const key of keys) {
+		const value = toNumber(source[key]);
+		if (value !== undefined) return value;
+	}
+	return undefined;
+}
+
+function calculateTrendPercent(current: number, previous?: number): number {
+	if (previous === undefined) return 0;
+	if (previous === 0) return current > 0 ? 100 : 0;
+	return ((current - previous) / Math.abs(previous)) * 100;
+}
+
+function trendFrom(
+	current: number,
+	source: Record<string, unknown> | null | undefined,
+	percentKeys: string[],
+	previousKeys: string[],
+	fallbackPrevious?: number,
+): TrendData {
+	const explicitPercent = pickNumber(source, percentKeys);
+	const previous = pickNumber(source, previousKeys) ?? fallbackPrevious;
+	const percent = explicitPercent ?? calculateTrendPercent(current, previous);
+	const rounded = Math.abs(percent) < 0.05 ? 0 : percent;
+	return {
+		percent: rounded,
+		direction: rounded > 0 ? 'up' : rounded < 0 ? 'down' : 'stable',
+	};
+}
+
+function formatTrendPercent(percent: number): string {
+	const abs = Math.abs(percent);
+	return `${abs >= 10 || Number.isInteger(abs) ? abs.toFixed(0) : abs.toFixed(1)}%`;
+}
+
+function formatProcessingTime(seconds?: number): string {
+	if (seconds === undefined) return '0s';
+	if (seconds < 60) return `${seconds.toFixed(seconds < 10 ? 1 : 0)}s`;
+	const minutes = Math.floor(seconds / 60);
+	const remainingSeconds = Math.round(seconds % 60);
+	return remainingSeconds > 0 ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
+}
+
+function TrendIndicator({ trend }: { trend: TrendData }) {
+	const isDown = trend.direction === 'down';
+	const Icon = isDown ? ArrowDown : ArrowUp;
+	return (
+		<p className={cn(
+			'mt-1 flex items-center gap-1 text-xs font-medium',
+			isDown ? 'text-red-500' : 'text-green-500',
+		)}>
+			<Icon className="w-3 h-3" />
+			{formatTrendPercent(trend.percent)} vs last week
+		</p>
+	);
+}
+
+function StatCard({ label, value, trend, icon: Icon, isLoading, error, children }: StatCardProps) {
+	return (
+		<div className="stat-card group">
+			<div className="flex items-start justify-between">
+				<div className="flex-1 min-w-0">
+					<p className="text-sm text-slate-400">{label}</p>
+					{isLoading ? (
+						<Loader2 className="w-6 h-6 animate-spin text-slate-400 mt-2" />
+					) : error ? error : (
+						<>
+							<p className="mt-2 text-3xl font-display font-semibold text-slate-100">
+								{value}
+							</p>
+							<TrendIndicator trend={trend} />
+							{children}
+						</>
+					)}
+				</div>
+				<div className="p-2 rounded-lg bg-brass-500/10 text-brass-400 group-hover:bg-brass-500/20 transition-colors">
+					<Icon className="w-5 h-5" />
+				</div>
+			</div>
+		</div>
+	);
+}
+
 function RetryButton({ onRetry }: { onRetry: () => void }) {
 	return (
 		<button
@@ -213,6 +336,34 @@ export function Dashboard() {
 		retry: 1,
 	});
 
+	const { data: ocrStatsData, isLoading: ocrStatsLoading } = useQuery({
+		queryKey: ['dashboard', 'ocr-stats'],
+		queryFn: async () => {
+			try {
+				const { data } = await apiClient.get<OcrStatsResponse>('/ocr/stats');
+				return data;
+			} catch {
+				const { data } = await apiClient.get<HealthMetricsResponse>('/admin/health/metrics');
+				const failedMetric = data.metrics.find((metric) =>
+					metric.name === 'failed_ocr_today' || metric.name === 'failed_ocr'
+				);
+				return { failedJobs: Math.max(failedMetric?.value ?? 0, 0) };
+			}
+		},
+		refetchInterval: 60_000,
+		retry: 1,
+	});
+
+	const { data: capacityData, isLoading: capacityLoading } = useQuery({
+		queryKey: ['dashboard', 'analytics-capacity'],
+		queryFn: async () => {
+			const { data } = await apiClient.get<AnalyticsCapacityResponse>('/analytics/capacity');
+			return data;
+		},
+		refetchInterval: 60_000,
+		retry: 1,
+	});
+
 	const pendingTasks = tasksData?.tasks ?? [];
 
 	const displayStats = stats ?? {
@@ -223,6 +374,65 @@ export function Dashboard() {
 		storageQuotaBytes: 1,
 		activeWorkflows: 0,
 		ocrProcessed: 0,
+	};
+	const statsRecord = stats as Record<string, unknown> | undefined;
+	const tasksRecord = tasksData as Record<string, unknown> | undefined;
+	const ocrStatsRecord = ocrStatsData as Record<string, unknown> | undefined;
+	const capacityRecord = capacityData as Record<string, unknown> | undefined;
+	const failedOcrJobs = pickNumber(ocrStatsRecord, [
+		'failedJobs',
+		'failedOcrJobs',
+		'failedOcr',
+		'failedOcrToday',
+		'failed',
+	]) ?? 0;
+	const avgProcessingSeconds = pickNumber(capacityRecord, ['avgProcessingTimeSeconds']) ?? 0;
+	const pendingReviewCount = tasksData?.total ?? pendingTasks.length;
+
+	const statTrends = {
+		totalDocuments: trendFrom(
+			displayStats.totalDocuments,
+			statsRecord,
+			['totalDocumentsTrendPercent', 'documentsTrendPercent'],
+			['totalDocumentsLastWeek', 'documentsLastWeek', 'totalDocumentsPreviousWeek', 'documentsPreviousWeek'],
+			Math.max(displayStats.totalDocuments - displayStats.documentsThisMonth, 0),
+		),
+		activeWorkflows: trendFrom(
+			displayStats.activeWorkflows,
+			statsRecord,
+			['activeWorkflowsTrendPercent'],
+			['activeWorkflowsLastWeek', 'activeWorkflowsPreviousWeek'],
+		),
+		ocrProcessed: trendFrom(
+			displayStats.ocrProcessed,
+			statsRecord,
+			['ocrProcessedTrendPercent', 'ocrTrendPercent'],
+			['ocrProcessedLastWeek', 'ocrProcessedPreviousWeek'],
+		),
+		storageUsed: trendFrom(
+			displayStats.storageUsedBytes,
+			statsRecord,
+			['storageUsedTrendPercent', 'storageTrendPercent'],
+			['storageUsedBytesLastWeek', 'storageUsedBytesPreviousWeek'],
+		),
+		failedOcr: trendFrom(
+			failedOcrJobs,
+			ocrStatsRecord,
+			['failedJobsTrendPercent', 'failedOcrTrendPercent', 'trendPercent'],
+			['failedJobsLastWeek', 'failedOcrLastWeek', 'failedJobsPreviousWeek', 'failedOcrPreviousWeek'],
+		),
+		avgProcessingTime: trendFrom(
+			avgProcessingSeconds,
+			capacityRecord,
+			['avgProcessingTimeTrendPercent'],
+			['avgProcessingTimePreviousWeekSeconds', 'avgProcessingTimeLastWeekSeconds'],
+		),
+		pendingReview: trendFrom(
+			pendingReviewCount,
+			tasksRecord,
+			['pendingReviewTrendPercent', 'pendingTasksTrendPercent'],
+			['pendingReviewLastWeek', 'pendingTasksLastWeek', 'pendingReviewPreviousWeek', 'pendingTasksPreviousWeek'],
+		),
 	};
 
 	const storagePercentage = displayStats.storageQuotaBytes > 0
@@ -284,102 +494,92 @@ export function Dashboard() {
 			variants={itemVariants}
 			className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
 		>
-			<div className="stat-card group">
-				<div className="flex items-start justify-between">
-					<div className="flex-1">
-						<p className="text-sm text-slate-400">Total Documents</p>
-						{statsLoading ? (
-							<Loader2 className="w-6 h-6 animate-spin text-slate-400 mt-2" />
-						) : statsError ? statError : (
-							<>
-								<p className="mt-2 text-3xl font-display font-semibold text-slate-100">
-									{displayStats.totalDocuments.toLocaleString()}
-								</p>
-								<p className="mt-1 flex items-center gap-1 text-xs text-emerald-400">
-									<TrendingUp className="w-3 h-3" />
-									+{displayStats.documentsThisMonth} this month
-								</p>
-							</>
-						)}
-					</div>
-					<div className="p-2 rounded-lg bg-brass-500/10 text-brass-400 group-hover:bg-brass-500/20 transition-colors">
-						<FileText className="w-5 h-5" />
-					</div>
-				</div>
-			</div>
+			<StatCard
+				label="Total Documents"
+				value={displayStats.totalDocuments.toLocaleString()}
+				trend={statTrends.totalDocuments}
+				icon={FileText}
+				isLoading={statsLoading}
+				error={statsError ? statError : null}
+			>
+				<p className="mt-1 flex items-center gap-1 text-xs text-slate-400">
+					<TrendingUp className="w-3 h-3" />
+					+{displayStats.documentsThisMonth} this month
+				</p>
+			</StatCard>
 
-			<div className="stat-card group">
-				<div className="flex items-start justify-between">
-					<div className="flex-1">
-						<p className="text-sm text-slate-400">Active Workflows</p>
-						{statsLoading ? (
-							<Loader2 className="w-6 h-6 animate-spin text-slate-400 mt-2" />
-						) : statsError ? statError : (
-							<>
-								<p className="mt-2 text-3xl font-display font-semibold text-slate-100">
-									{displayStats.activeWorkflows}
-								</p>
-								<p className="mt-1 flex items-center gap-1 text-xs text-brass-400">
-									<Clock className="w-3 h-3" />
-									{displayStats.pendingTasks} pending tasks
-								</p>
-							</>
-						)}
-					</div>
-					<div className="p-2 rounded-lg bg-brass-500/10 text-brass-400 group-hover:bg-brass-500/20 transition-colors">
-						<GitBranch className="w-5 h-5" />
-					</div>
-				</div>
-			</div>
+			<StatCard
+				label="Active Workflows"
+				value={displayStats.activeWorkflows.toLocaleString()}
+				trend={statTrends.activeWorkflows}
+				icon={GitBranch}
+				isLoading={statsLoading}
+				error={statsError ? statError : null}
+			>
+				<p className="mt-1 flex items-center gap-1 text-xs text-slate-400">
+					<Clock className="w-3 h-3" />
+					{displayStats.pendingTasks} pending tasks
+				</p>
+			</StatCard>
 
-			<div className="stat-card group">
-				<div className="flex items-start justify-between">
-					<div className="flex-1">
-						<p className="text-sm text-slate-400">OCR Processed</p>
-						{statsLoading ? (
-							<Loader2 className="w-6 h-6 animate-spin text-slate-400 mt-2" />
-						) : statsError ? statError : (
-							<>
-								<p className="mt-2 text-3xl font-display font-semibold text-slate-100">
-									{displayStats.ocrProcessed.toLocaleString()}
-								</p>
-								<p className="mt-1 text-xs text-slate-400">Documents this month</p>
-							</>
-						)}
-					</div>
-					<div className="p-2 rounded-lg bg-brass-500/10 text-brass-400 group-hover:bg-brass-500/20 transition-colors">
-						<FileSearch className="w-5 h-5" />
-					</div>
-				</div>
-			</div>
+			<StatCard
+				label="OCR Processed"
+				value={displayStats.ocrProcessed.toLocaleString()}
+				trend={statTrends.ocrProcessed}
+				icon={FileSearch}
+				isLoading={statsLoading}
+				error={statsError ? statError : null}
+			>
+				<p className="mt-1 text-xs text-slate-400">Documents this month</p>
+			</StatCard>
 
-			<div className="stat-card group">
-				<div className="flex items-start justify-between">
-					<div className="flex-1">
-						<p className="text-sm text-slate-400">Storage Used</p>
-						{statsLoading ? (
-							<Loader2 className="w-6 h-6 animate-spin text-slate-400 mt-2" />
-						) : statsError ? statError : (
-							<>
-								<p className="mt-2 text-3xl font-display font-semibold text-slate-100">
-									{formatBytes(displayStats.storageUsedBytes)}
-								</p>
-								<div className="mt-3">
-									<div className="progress-bar">
-										<div className="progress-bar-fill" style={{ width: `${storagePercentage}%` }} />
-									</div>
-									<p className="mt-1 text-xs text-slate-400">
-										{storagePercentage.toFixed(1)}% of {formatBytes(displayStats.storageQuotaBytes)}
-									</p>
-								</div>
-							</>
-						)}
+			<StatCard
+				label="Storage Used"
+				value={formatBytes(displayStats.storageUsedBytes)}
+				trend={statTrends.storageUsed}
+				icon={HardDrive}
+				isLoading={statsLoading}
+				error={statsError ? statError : null}
+			>
+				<div className="mt-3">
+					<div className="progress-bar">
+						<div className="progress-bar-fill" style={{ width: `${storagePercentage}%` }} />
 					</div>
-					<div className="p-2 rounded-lg bg-brass-500/10 text-brass-400 group-hover:bg-brass-500/20 transition-colors">
-						<HardDrive className="w-5 h-5" />
-					</div>
+					<p className="mt-1 text-xs text-slate-400">
+						{storagePercentage.toFixed(1)}% of {formatBytes(displayStats.storageQuotaBytes)}
+					</p>
 				</div>
-			</div>
+			</StatCard>
+
+			<StatCard
+				label="Failed OCR Jobs"
+				value={failedOcrJobs.toLocaleString()}
+				trend={statTrends.failedOcr}
+				icon={AlertCircle}
+				isLoading={ocrStatsLoading}
+			/>
+
+			<StatCard
+				label="Avg Processing Time"
+				value={formatProcessingTime(avgProcessingSeconds)}
+				trend={statTrends.avgProcessingTime}
+				icon={Clock}
+				isLoading={capacityLoading}
+			/>
+
+			<StatCard
+				label="Pending Review"
+				value={pendingReviewCount.toLocaleString()}
+				trend={statTrends.pendingReview}
+				icon={CheckSquare}
+				isLoading={tasksLoading}
+				error={tasksError ? (
+					<div className="mt-2 flex items-center gap-1.5 text-xs text-red-400">
+						<AlertCircle className="w-3.5 h-3.5" />
+						<button onClick={() => void refetchTasks()} className="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500 rounded">Retry</button>
+					</div>
+				) : null}
+			/>
 		</motion.div>
 	);
 
