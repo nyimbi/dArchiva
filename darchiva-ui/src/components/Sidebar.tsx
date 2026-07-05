@@ -236,6 +236,7 @@ export function Sidebar({ onClose }: SidebarProps) {
 	const location = useLocation();
 	const { sidebarCollapsed, toggleSidebar, pendingTasks } = useStore();
 	const connectionStatus = useNotificationStore(s => s.connectionStatus);
+	const unreadCount = useNotificationStore(s => s.unreadCount);
 	const isMobileOverlay = Boolean(onClose);
 	const collapsed = isMobileOverlay ? false : sidebarCollapsed;
 	const { data: sidebarStats, isLoading: sidebarStatsLoading } = useQuery({
@@ -294,7 +295,11 @@ export function Sidebar({ onClose }: SidebarProps) {
 					{navItems.map((item) => {
 						const isActive = location.pathname === item.path;
 						const Icon = item.icon;
-						const taskCount = item.id === 'workflows' ? pendingTasks.length : 0;
+						const taskCount = item.id === 'workflows'
+							? pendingTasks.length
+							: item.id === 'inbox'
+							? unreadCount
+							: 0;
 
 						return (
 							<Link
@@ -329,9 +334,13 @@ export function Sidebar({ onClose }: SidebarProps) {
 											'bg-brass-500 text-slate-900',
 											collapsed ? 'top-0 right-0' : 'right-2'
 										)}
-										aria-label={`${taskCount} pending tasks`}
+										aria-label={
+											item.id === 'inbox'
+												? `${taskCount} unread`
+												: `${taskCount} pending tasks`
+										}
 									>
-										{taskCount}
+										{taskCount > 99 ? '99+' : taskCount}
 									</span>
 								)}
 							</Link>
