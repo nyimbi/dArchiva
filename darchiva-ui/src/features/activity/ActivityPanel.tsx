@@ -187,7 +187,7 @@ const PAGE_SIZE = 50;
 export function ActivityPanel({ documentId }: ActivityPanelProps) {
 	const [limit, setLimit] = useState(PAGE_SIZE);
 	const [filter, setFilter] = useState<ActivityFilter>('all');
-	const { data: events, isLoading, isError } = useDocumentActivity(documentId, limit);
+	const { data: events, isLoading, isError, refetch } = useDocumentActivity(documentId, limit);
 	const filteredEvents = useMemo(() => {
 		if (!events) return [];
 		if (filter === 'all') return events;
@@ -204,8 +204,14 @@ export function ActivityPanel({ documentId }: ActivityPanelProps) {
 
 	if (isError) {
 		return (
-			<div className="p-6 text-center text-sm text-red-400">
-				Failed to load activity.
+			<div className="p-6 text-center space-y-2">
+				<p className="text-sm text-red-400">Failed to load activity.</p>
+				<button
+					onClick={() => void refetch()}
+					className="text-xs text-slate-400 hover:text-slate-200 underline transition-colors"
+				>
+					Retry
+				</button>
 			</div>
 		);
 	}

@@ -370,7 +370,7 @@ export function EntityGraphPage() {
   const [selectedNode, setSelectedNode] = useState<PositionedNode | null>(null);
   const [bannerDismissed, setBannerDismissed] = useState(false);
 
-  const { data, isLoading, isError } = useEntityGraph(
+  const { data, isLoading, isError, refetch } = useEntityGraph(
     activeType === 'all' ? undefined : activeType,
   );
 
@@ -396,8 +396,14 @@ export function EntityGraphPage() {
   if (isLoading) return <LoadingSkeleton />;
   if (isError) {
     return (
-      <div className="flex items-center justify-center h-full text-red-400 text-sm">
-        Failed to load entity graph.
+      <div className="flex flex-col items-center justify-center h-full gap-3">
+        <p className="text-red-400 text-sm">Failed to load entity graph.</p>
+        <button
+          onClick={() => void refetch()}
+          className="px-3 py-1.5 text-xs rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+        >
+          Retry
+        </button>
       </div>
     );
   }
