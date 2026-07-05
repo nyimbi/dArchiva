@@ -113,6 +113,7 @@ export interface QualityBucket {
 
 export interface SearchFacetsResponse {
 	document_types: FacetItem[];
+	tags?: FacetItem[];
 	date_histogram: DateHistogramBucket[];
 	quality_buckets: QualityBucket[];
 	operators: FacetItem[];

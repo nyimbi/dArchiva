@@ -404,7 +404,7 @@ export function SearchPage() {
 					/>
 
 					<FilterPanelTags
-						items={facets?.document_types ?? []}
+						items={facets?.tags ?? []}
 						selected={filters.tags ?? []}
 						onToggle={toggleTag}
 					/>

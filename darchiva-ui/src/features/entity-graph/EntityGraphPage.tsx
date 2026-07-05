@@ -1,7 +1,8 @@
 // (c) Copyright Datacraft, 2026
-import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
-import { useEntityGraph, useEntityDocuments } from './api';
-import type { EntityNode, EntityEdge } from './types';
+import { Info, X } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEntityDocuments, useEntityGraph } from './api';
+import type { EntityEdge, EntityNode } from './types';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -99,15 +100,15 @@ function computeLayout(
 function LoadingSkeleton() {
   return (
     <div className="flex flex-col h-full gap-3 p-4 animate-pulse">
-      <div className="h-9 w-96 bg-gray-200 rounded-lg" />
-      <div className="flex-1 bg-gray-100 rounded-xl" />
+      <div className="h-9 w-96 bg-slate-800 rounded-lg" />
+      <div className="flex-1 bg-slate-800/60 rounded-xl" />
     </div>
   );
 }
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center h-full gap-3 text-gray-400">
+    <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-500">
       <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
         <circle cx="32" cy="32" r="30" stroke="currentColor" strokeWidth="2" strokeDasharray="6 4" />
         <circle cx="20" cy="28" r="6" stroke="currentColor" strokeWidth="2" />
@@ -116,8 +117,8 @@ function EmptyState() {
         <line x1="26" y1="28" x2="40" y2="24" stroke="currentColor" strokeWidth="1.5" />
         <line x1="44" y1="28" x2="40" y2="40" stroke="currentColor" strokeWidth="1.5" />
       </svg>
-      <p className="text-sm font-medium">No entity relationships found</p>
-      <p className="text-xs">Process some documents to extract entities</p>
+      <p className="text-sm font-medium text-slate-400">No entity relationships found</p>
+      <p className="text-xs text-slate-500">Process some documents to extract entities</p>
     </div>
   );
 }
@@ -132,27 +133,25 @@ function SidePanel({ node, onClose }: SidePanelProps) {
   const color = COLOR_MAP[node.type as EntityType] ?? COLOR_MAP.other;
 
   return (
-    <div className="w-72 shrink-0 border-l border-gray-200 bg-white flex flex-col overflow-hidden">
+    <div className="w-72 shrink-0 border-l border-slate-800 bg-slate-900 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-800">
         <span
           className="inline-block w-3 h-3 rounded-full shrink-0"
           style={{ background: color }}
         />
-        <span className="font-semibold text-gray-800 truncate flex-1">{node.label}</span>
+        <span className="font-semibold text-slate-100 truncate flex-1">{node.label}</span>
         <button
           onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 transition-colors ml-1"
+          className="text-slate-500 hover:text-slate-300 transition-colors ml-1"
           aria-label="Close panel"
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M12 4L4 12M4 4l8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" />
-          </svg>
+          <X className="w-4 h-4" />
         </button>
       </div>
 
       {/* Meta */}
-      <div className="px-4 py-2 text-xs text-gray-500 border-b border-gray-50 flex gap-4">
+      <div className="px-4 py-2 text-xs text-slate-500 border-b border-slate-800/60 flex gap-4">
         <span className="capitalize">{node.type}</span>
         <span>{node.document_count} document{node.document_count !== 1 ? 's' : ''}</span>
       </div>
@@ -162,17 +161,17 @@ function SidePanel({ node, onClose }: SidePanelProps) {
         {isLoading ? (
           <div className="p-4 space-y-2 animate-pulse">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-10 bg-gray-100 rounded" />
+              <div key={i} className="h-10 bg-slate-800 rounded" />
             ))}
           </div>
         ) : !data?.documents.length ? (
-          <p className="p-4 text-xs text-gray-400">No documents linked.</p>
+          <p className="p-4 text-xs text-slate-500">No documents linked.</p>
         ) : (
-          <ul className="divide-y divide-gray-50">
+          <ul className="divide-y divide-slate-800">
             {data.documents.map(doc => (
-              <li key={doc.id} className="px-4 py-2.5 hover:bg-gray-50 transition-colors">
-                <p className="text-sm font-medium text-gray-700 truncate">{doc.title || doc.id}</p>
-                <p className="text-xs text-gray-400 mt-0.5">
+              <li key={doc.id} className="px-4 py-2.5 hover:bg-slate-800/50 transition-colors">
+                <p className="text-sm font-medium text-slate-200 truncate">{doc.title || doc.id}</p>
+                <p className="text-xs text-slate-500 mt-0.5">
                   {new Date(doc.created_at).toLocaleDateString()}
                 </p>
               </li>
@@ -242,7 +241,7 @@ function GraphCanvas({ nodes, edges, selectedId, onNodeClick }: GraphCanvasProps
 
   // Pan
   const onMouseDown = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
-    if ((e.target as SVGElement).closest('circle')) return; // node click — don't start pan
+    if ((e.target as SVGElement).closest('circle')) return;
     isPanning.current = true;
     panStart.current = { x: e.clientX, y: e.clientY, tx: transform.tx, ty: transform.ty };
   }, [transform]);
@@ -263,7 +262,7 @@ function GraphCanvas({ nodes, edges, selectedId, onNodeClick }: GraphCanvasProps
       ref={svgRef}
       width="100%"
       height="100%"
-      style={{ display: 'block', background: '#f9fafb', cursor: 'grab', userSelect: 'none' }}
+      style={{ display: 'block', background: '#0f172a', cursor: 'grab', userSelect: 'none' }}
       onWheel={onWheel}
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
@@ -284,7 +283,7 @@ function GraphCanvas({ nodes, edges, selectedId, onNodeClick }: GraphCanvasProps
               y1={src.y}
               x2={tgt.x}
               y2={tgt.y}
-              stroke="#94a3b8"
+              stroke="#475569"
               strokeWidth={1 + 2 * (edge.weight / maxWeight)}
               strokeOpacity={opacity}
             />
@@ -315,7 +314,7 @@ function GraphCanvas({ nodes, edges, selectedId, onNodeClick }: GraphCanvasProps
                 r={node.r}
                 fill={color}
                 fillOpacity={isSelected ? 1 : 0.8}
-                stroke={isSelected ? '#1e293b' : 'white'}
+                stroke={isSelected ? '#f1f5f9' : '#1e293b'}
                 strokeWidth={isSelected ? 2 : 1.5}
               />
               <text
@@ -323,7 +322,7 @@ function GraphCanvas({ nodes, edges, selectedId, onNodeClick }: GraphCanvasProps
                 dominantBaseline="hanging"
                 y={node.r + 4}
                 fontSize={10}
-                fill="#374151"
+                fill="#cbd5e1"
                 style={{ pointerEvents: 'none' }}
               >
                 {node.label.length > 18 ? node.label.slice(0, 17) + '…' : node.label}
@@ -337,12 +336,39 @@ function GraphCanvas({ nodes, edges, selectedId, onNodeClick }: GraphCanvasProps
 }
 
 // ---------------------------------------------------------------------------
+// Description banner (dismissible)
+// ---------------------------------------------------------------------------
+
+function DescriptionBanner({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div className="mx-4 mt-4 mb-0 shrink-0 flex items-start gap-3 px-4 py-3 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sm">
+      <Info className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
+      <p className="flex-1 text-slate-400 leading-relaxed">
+        <span className="text-sky-300 font-medium">Entity Graph</span>
+        {' '}— entities (people, organizations, locations, dates, amounts) are automatically
+        extracted from your documents via NLP. Node size reflects mention frequency; edges
+        connect co-occurring entities. Scroll to zoom, drag to pan, click a node to see
+        which documents reference it.
+      </p>
+      <button
+        onClick={onDismiss}
+        className="text-slate-600 hover:text-slate-400 transition-colors shrink-0"
+        aria-label="Dismiss"
+      >
+        <X className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
 export function EntityGraphPage() {
   const [activeType, setActiveType] = useState<EntityType | 'all'>('all');
   const [selectedNode, setSelectedNode] = useState<PositionedNode | null>(null);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   const { data, isLoading, isError } = useEntityGraph(
     activeType === 'all' ? undefined : activeType,
@@ -370,17 +396,22 @@ export function EntityGraphPage() {
   if (isLoading) return <LoadingSkeleton />;
   if (isError) {
     return (
-      <div className="flex items-center justify-center h-full text-red-500 text-sm">
+      <div className="flex items-center justify-center h-full text-red-400 text-sm">
         Failed to load entity graph.
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-white">
+    <div className="flex flex-col h-full overflow-hidden bg-slate-950">
+      {/* Description banner */}
+      {!bannerDismissed && (
+        <DescriptionBanner onDismiss={() => setBannerDismissed(true)} />
+      )}
+
       {/* Filter bar */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 shrink-0 flex-wrap">
-        <span className="text-xs font-medium text-gray-500 mr-1">Entity type:</span>
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-800 shrink-0 flex-wrap">
+        <span className="text-xs font-medium text-slate-500 mr-1">Entity type:</span>
         {ENTITY_TYPES.map(et => (
           <button
             key={et.value}
@@ -388,8 +419,8 @@ export function EntityGraphPage() {
             className={[
               'px-3 py-1 rounded-full text-xs font-medium transition-colors',
               activeType === et.value
-                ? 'bg-gray-800 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+                ? 'bg-slate-100 text-slate-900'
+                : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-300',
             ].join(' ')}
           >
             {et.label}
@@ -397,7 +428,7 @@ export function EntityGraphPage() {
         ))}
 
         {/* Stats */}
-        <span className="ml-auto text-xs text-gray-400">
+        <span className="ml-auto text-xs text-slate-500">
           {nodes.length} entities · {edges.length} connections
         </span>
       </div>
@@ -418,7 +449,7 @@ export function EntityGraphPage() {
           )}
 
           {/* Zoom hint */}
-          <div className="absolute bottom-3 left-3 text-xs text-gray-400 bg-white/80 px-2 py-1 rounded shadow-sm pointer-events-none">
+          <div className="absolute bottom-3 left-3 text-xs text-slate-500 bg-slate-900/80 px-2 py-1 rounded shadow-sm pointer-events-none">
             Scroll to zoom · Drag to pan · Click node for details
           </div>
         </div>
