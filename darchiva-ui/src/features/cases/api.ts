@@ -65,15 +65,26 @@ export const caseKeys = {
 	bundle: (id: string) => [...caseKeys.all, 'bundle', id] as const,
 };
 
-export function useCases(page = 1, pageSize = 20, status?: CaseStatus, portfolioId?: string, search?: string, type?: string) {
+export function useCases(
+	page = 1,
+	pageSize = 20,
+	status?: CaseStatus,
+	portfolioId?: string,
+	search?: string,
+	type?: string,
+	createdAfter?: string,
+	createdBefore?: string,
+) {
 	return useQuery({
-		queryKey: caseKeys.list({ page, status, portfolioId, search, type }),
+		queryKey: caseKeys.list({ page, status, portfolioId, search, type, createdAfter, createdBefore }),
 		queryFn: async () => {
 			const params: Record<string, unknown> = { page, page_size: pageSize };
-			if (status) params.status = status;
+			if (status) params.status_filter = status;
 			if (portfolioId) params.portfolio_id = portfolioId;
 			if (search) params.search = search;
 			if (type) params.type = type;
+			if (createdAfter) params.created_after = createdAfter;
+			if (createdBefore) params.created_before = createdBefore;
 			const { data } = await apiClient.get<CaseListResponse>('/cases', { params });
 			return data;
 		},

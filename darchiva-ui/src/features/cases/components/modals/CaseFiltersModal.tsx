@@ -6,6 +6,16 @@ interface Props {
 	onClose: () => void;
 }
 
+export interface CaseFiltersAppliedDetail {
+	status: string;
+	portfolioId: string;
+	portfolio: string;
+	createdAfter: string;
+	createdBefore: string;
+	dateFrom: string;
+	dateTo: string;
+}
+
 export function CaseFiltersModal({ onClose }: Props) {
 	const [status, setStatus] = useState('');
 	const [portfolioId, setPortfolioId] = useState('');
@@ -13,9 +23,17 @@ export function CaseFiltersModal({ onClose }: Props) {
 	const [createdBefore, setCreatedBefore] = useState('');
 
 	const handleApply = () => {
-		// Filters are applied via URL params or parent state; emit an event
-		const event = new CustomEvent('case-filters-applied', {
-			detail: { status, portfolioId, createdAfter, createdBefore },
+		const detail: CaseFiltersAppliedDetail = {
+			status,
+			portfolioId,
+			portfolio: portfolioId,
+			createdAfter,
+			createdBefore,
+			dateFrom: createdAfter,
+			dateTo: createdBefore,
+		};
+		const event = new CustomEvent<CaseFiltersAppliedDetail>('case-filters-applied', {
+			detail,
 		});
 		window.dispatchEvent(event);
 		onClose();

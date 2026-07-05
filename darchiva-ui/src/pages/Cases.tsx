@@ -54,6 +54,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { useStore } from '@/hooks/useStore';
 import { formatDate } from '@/lib/utils';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -70,8 +71,10 @@ import {
   Search,
   Trash2,
   User,
+  X,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import type { CaseFiltersAppliedDetail } from '@/features/cases/components/modals/CaseFiltersModal';
 
 const STATUS_CONFIG: Record<
   CaseStatus,
@@ -624,8 +627,12 @@ function CaseDetailSheet({
 }
 
 export function Cases() {
+  const { openModal } = useStore();
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [portfolioFilter, setPortfolioFilter] = useState('');
+  const [createdAfterFilter, setCreatedAfterFilter] = useState('');
+  const [createdBeforeFilter, setCreatedBeforeFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
@@ -639,6 +646,23 @@ export function Cases() {
     return () => clearTimeout(t);
   }, [searchQuery]);
 
+  useEffect(() => {
+    const handleCaseFiltersApplied = (event: Event) => {
+      const detail = (event as CustomEvent<Partial<CaseFiltersAppliedDetail>>).detail ?? {};
+      const nextStatus = detail.status && CASE_STATUSES.includes(detail.status as CaseStatus)
+        ? detail.status
+        : 'all';
+
+      setStatusFilter(nextStatus);
+      setPortfolioFilter(detail.portfolioId || detail.portfolio || '');
+      setCreatedAfterFilter(detail.createdAfter || detail.dateFrom || '');
+      setCreatedBeforeFilter(detail.createdBefore || detail.dateTo || '');
+    };
+
+    window.addEventListener('case-filters-applied', handleCaseFiltersApplied);
+    return () => window.removeEventListener('case-filters-applied', handleCaseFiltersApplied);
+  }, []);
+
   const {
     data: casesData,
     isLoading,
@@ -648,13 +672,33 @@ export function Cases() {
     1,
     50,
     statusFilter !== 'all' ? (statusFilter as CaseStatus) : undefined,
-    undefined,
+    portfolioFilter || undefined,
     debouncedSearch || undefined,
     typeFilter !== 'all' ? typeFilter : undefined,
+    createdAfterFilter || undefined,
+    createdBeforeFilter || undefined,
   );
 
   const cases = casesData?.items || [];
-  const hasFilters = statusFilter !== 'all' || typeFilter !== 'all' || !!debouncedSearch;
+  const activeFilterCount = [
+    statusFilter !== 'all',
+    typeFilter !== 'all',
+    !!portfolioFilter,
+    !!createdAfterFilter,
+    !!createdBeforeFilter,
+    !!debouncedSearch,
+  ].filter(Boolean).length;
+  const hasFilters = activeFilterCount > 0;
+
+  const clearFilters = () => {
+    setStatusFilter('all');
+    setTypeFilter('all');
+    setPortfolioFilter('');
+    setCreatedAfterFilter('');
+    setCreatedBeforeFilter('');
+    setSearchQuery('');
+    setDebouncedSearch('');
+  };
 
   const handleRowClick = (c: Case) => {
     setSelectedCase(c);
@@ -733,6 +777,21 @@ export function Cases() {
             <SelectItem value="compliance">Compliance</SelectItem>
           </SelectContent>
         </Select>
+        <Button variant="outline" onClick={() => openModal('case-filters')} className="relative">
+          <Filter className="w-4 h-4 mr-2" />
+          Filters
+          {activeFilterCount > 0 && (
+            <Badge variant="secondary" className="ml-2 h-5 min-w-5 justify-center px-1.5">
+              {activeFilterCount}
+            </Badge>
+          )}
+        </Button>
+        {hasFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters}>
+            <X className="w-4 h-4 mr-1" />
+            Clear
+          </Button>
+        )}
       </div>
 
       {/* Cases table */}
