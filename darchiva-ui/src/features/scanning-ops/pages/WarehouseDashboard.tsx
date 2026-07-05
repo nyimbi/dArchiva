@@ -126,7 +126,7 @@ function FloorPlan({ batches }: { batches: AssignedBatch[] }) {
         return null;
     };
 
-    const activeByStation = new Map<string, AssignedBatch>();
+    const activeByStation = new globalThis.Map<string, AssignedBatch>();
     for (const batch of active) {
         const stationId = getStationId(batch);
         if (stationId && !activeByStation.has(stationId)) {
