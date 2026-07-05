@@ -156,6 +156,7 @@ export default function App() {
 								<Route path="billing" element={<CostDashboard />} />
 								<Route path="quality" element={<QualityDashboard />} />
 								<Route path="iam" element={<IAMDashboard />} />
+								<Route path="onboarding" element={<OnboardingWizard />} />
 							</Route>
 						</Route>
 

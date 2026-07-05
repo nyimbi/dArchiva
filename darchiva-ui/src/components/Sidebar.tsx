@@ -43,6 +43,7 @@ import {
   Users,
   Webhook,
   Zap,
+  BookOpen,
 } from 'lucide-react';
 import { useBranding } from '@/hooks/useBranding';
 import { Link,useLocation } from 'react-router-dom';
@@ -87,6 +88,7 @@ const adminItems = [
 	{ id: 'iam', label: 'IAM', icon: UserCog, path: '/iam' },
 	{ id: 'data-export', label: 'Data Export', icon: DatabaseZap, path: '/admin/data-export' },
 	{ id: 'superadmin', label: 'Super Admin', icon: ShieldAlert, path: '/superadmin' },
+	{ id: 'onboarding', label: 'Onboarding', icon: BookOpen, path: '/onboarding' },
 ];
 
 export function Sidebar() {
