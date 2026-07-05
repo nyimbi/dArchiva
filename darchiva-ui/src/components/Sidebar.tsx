@@ -47,6 +47,7 @@ import {
   Scale,
   Hash,
   Package,
+  Scissors,
 } from 'lucide-react';
 import { useBranding } from '@/hooks/useBranding';
 import { Link,useLocation } from 'react-router-dom';
@@ -59,6 +60,7 @@ const navItems = [
 	{ id: 'search', label: 'Search', icon: Search, path: '/search' },
 	{ id: 'shared', label: 'Shared Documents', icon: Share2, path: '/shared' },
 	{ id: 'scanning', label: 'Scanning Projects', icon: ScanLine, path: '/scanning-projects' },
+	{ id: 'segmentation', label: 'Segmentation', icon: Scissors, path: '/segmentation' },
 	{ id: 'supervisor', label: 'Supervisor', icon: MonitorDot, path: '/supervisor' },
 	{ id: 'workflows', label: 'Workflows', icon: GitBranch, path: '/workflows' },
 	{ id: 'forms', label: 'Form Recognition', icon: FileSearch, path: '/forms' },
