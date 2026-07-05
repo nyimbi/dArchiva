@@ -431,3 +431,68 @@ export function useClockOut() {
         },
     });
 }
+
+// =====================================================
+// Recent Sessions
+// =====================================================
+
+export interface RecentSession {
+    session_id: string;
+    project_name: string;
+    pages_scanned: number;
+    started_at: string;
+    ended_at: string | null;
+    duration_minutes: number;
+}
+
+export function useRecentSessions(limit = 5) {
+    return useQuery<RecentSession[]>({
+        queryKey: [...sessionKeys.all, 'recent', limit],
+        queryFn: async () => {
+            try {
+                const { data } = await apiClient.get<RecentSession[]>('/scanning-projects/sessions', {
+                    params: { limit, ordering: '-started_at' },
+                });
+                return Array.isArray(data) ? data : [];
+            } catch {
+                return [];
+            }
+        },
+        refetchInterval: 60000,
+    });
+}
+
+// =====================================================
+// Throughput (hourly pages for last 8 hours)
+// =====================================================
+
+export interface ThroughputHour {
+    hour: string;
+    pages: number;
+}
+
+function generateEmptyHours(): ThroughputHour[] {
+    const now = new Date();
+    return Array.from({ length: 8 }, (_, i) => {
+        const h = new Date(now.getTime() - (7 - i) * 60 * 60 * 1000);
+        return {
+            hour: h.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+            pages: 0,
+        };
+    });
+}
+
+export function useThroughputData() {
+    return useQuery<ThroughputHour[]>({
+        queryKey: [...warehouseKeys.all, 'throughput'],
+        queryFn: async () => {
+            try {
+                const { data } = await apiClient.get<ThroughputHour[]>('/scanning-projects/throughput/hourly');
+                return Array.isArray(data) ? data : generateEmptyHours();
+            } catch {
+                return generateEmptyHours();
+            }
+        },
+        refetchInterval: 60000,
+    });
+}
