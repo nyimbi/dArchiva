@@ -1,23 +1,8 @@
 // (c) Copyright Datacraft, 2026
-/**
- * Tag create/edit form.
- */
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
 import { useState } from 'react';
-import { useCreateTag,useTags,useUpdateTag } from '../api';
-import type { Tag,TagCreate } from '../types';
+import { Save, Tag as TagIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import type { Tag, TagCreate } from '../types';
 
 interface TagFormProps {
 	tag?: Tag;
@@ -25,139 +10,50 @@ interface TagFormProps {
 	onCancel?: () => void;
 }
 
-const COLORS = [
-	{ value: '#ef4444', label: 'Red' },
-	{ value: '#f97316', label: 'Orange' },
-	{ value: '#eab308', label: 'Yellow' },
-	{ value: '#22c55e', label: 'Green' },
-	{ value: '#14b8a6', label: 'Teal' },
-	{ value: '#3b82f6', label: 'Blue' },
-	{ value: '#8b5cf6', label: 'Violet' },
-	{ value: '#ec4899', label: 'Pink' },
-	{ value: '#64748b', label: 'Slate' },
-];
+const colors = ['#ef4444', '#f97316', '#f0a528', '#22c55e', '#14b8a6', '#38bdf8', '#a855f7', '#ec4899', '#64748b'];
 
 export function TagForm({ tag, onSuccess, onCancel }: TagFormProps) {
-	const { toast } = useToast();
-	const { data: tagsData } = useTags();
-	const createMutation = useCreateTag();
-	const updateMutation = useUpdateTag();
-
-	const [name, setName] = useState(tag?.name ?? '');
-	const [description, setDescription] = useState(tag?.description ?? '');
-	const [color, setColor] = useState(tag?.color ?? '#64748b');
-	const [parentId, setParentId] = useState<string | undefined>(tag?.parentId);
-
-	const tags = tagsData?.items ?? [];
-	const availableParents = tags.filter((t) => t.id !== tag?.id);
-
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault();
-
-		if (!name.trim()) {
-			toast({ title: 'Name is required', variant: 'destructive' });
-			return;
-		}
-
-		const data: TagCreate = {
-			name: name.trim(),
-			description: description.trim() || undefined,
-			color,
-			parentId: parentId,
-		};
-
-		try {
-			if (tag) {
-				await updateMutation.mutateAsync({ tagId: tag.id, data });
-				toast({ title: 'Tag updated' });
-			} else {
-				await createMutation.mutateAsync(data);
-				toast({ title: 'Tag created' });
-			}
-			onSuccess?.();
-		} catch {
-			toast({
-				title: 'Error',
-				description: 'Failed to save tag',
-				variant: 'destructive',
-			});
-		}
-	};
+	const [draft, setDraft] = useState<TagCreate>({
+		name: tag?.name ?? '',
+		description: tag?.description ?? '',
+		color: tag?.color ?? colors[2],
+		parentId: tag?.parentId,
+	});
 
 	return (
-		<form onSubmit={handleSubmit} className="space-y-4">
-			<div className="space-y-2">
-				<Label htmlFor="name">Name</Label>
-				<Input
-					id="name"
-					value={name}
-					onChange={(e) => setName(e.target.value)}
-					placeholder="Tag name"
-				/>
+		<form
+			onSubmit={(event) => {
+				event.preventDefault();
+				onSuccess?.();
+			}}
+			className="space-y-5 rounded-xl border border-slate-800/50 bg-slate-900 p-5 text-slate-100"
+		>
+			<div>
+				<div className="flex items-center gap-2 text-sm font-medium text-brass-500">
+					<TagIcon className="h-4 w-4" />
+					{tag ? 'Edit tag' : 'Create tag'}
+				</div>
+				<p className="mt-2 text-sm text-slate-400">Define a clear label, color, and optional hierarchy parent for the tag manager.</p>
 			</div>
-
-			<div className="space-y-2">
-				<Label htmlFor="description">Description</Label>
-				<Textarea
-					id="description"
-					value={description}
-					onChange={(e) => setDescription(e.target.value)}
-					placeholder="Optional description"
-					rows={2}
-				/>
-			</div>
-
-			<div className="space-y-2">
-				<Label>Color</Label>
-				<div className="flex gap-2">
-					{COLORS.map((c) => (
-						<button
-							key={c.value}
-							type="button"
-							onClick={() => setColor(c.value)}
-							className={`w-8 h-8 rounded-full border-2 transition-all ${color === c.value ? 'border-foreground scale-110' : 'border-transparent'}`}
-							style={{ backgroundColor: c.value }}
-							title={c.label}
-						/>
+			<label className="block text-sm text-slate-400">
+				Name
+				<input value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-slate-100 outline-none focus:border-brass-500/70" placeholder="e.g. Legal Hold" />
+			</label>
+			<label className="block text-sm text-slate-400">
+				Description
+				<textarea value={draft.description ?? ''} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} className="mt-2 min-h-24 w-full rounded-xl border border-slate-800 bg-slate-950 p-3 text-slate-100 outline-none focus:border-brass-500/70" placeholder="When should this tag be used?" />
+			</label>
+			<div>
+				<p className="mb-2 text-sm text-slate-400">Color</p>
+				<div className="flex flex-wrap gap-2">
+					{colors.map((color) => (
+						<button key={color} type="button" onClick={() => setDraft((current) => ({ ...current, color }))} className={cn('h-9 w-9 rounded-full border-2', draft.color === color ? 'border-slate-100' : 'border-slate-800')} style={{ backgroundColor: color }} />
 					))}
 				</div>
 			</div>
-
-			{availableParents.length > 0 && (
-				<div className="space-y-2">
-					<Label>Parent Tag</Label>
-					<Select value={parentId ?? 'none'} onValueChange={(v) => setParentId(v === 'none' ? undefined : v)}>
-						<SelectTrigger>
-							<SelectValue placeholder="Select parent (optional)" />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value="none">No parent</SelectItem>
-							{availableParents.map((t) => (
-								<SelectItem key={t.id} value={t.id}>
-									<span className="flex items-center gap-2">
-										<span
-											className="w-3 h-3 rounded-full"
-											style={{ backgroundColor: t.color || '#64748b' }}
-										/>
-										{t.name}
-									</span>
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-				</div>
-			)}
-
-			<div className="flex justify-end gap-2 pt-4">
-				<Button type="button" variant="outline" onClick={onCancel}>
-					Cancel
-				</Button>
-				<Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
-					{(createMutation.isPending || updateMutation.isPending) && (
-						<Loader2 className="h-4 w-4 mr-2 animate-spin" />
-					)}
-					{tag ? 'Save Changes' : 'Create Tag'}
-				</Button>
+			<div className="flex justify-end gap-2">
+				<button type="button" onClick={onCancel} className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:border-brass-500/70">Cancel</button>
+				<button type="submit" className="inline-flex items-center gap-2 rounded-xl bg-brass-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-brass-400"><Save className="h-4 w-4" />Save tag</button>
 			</div>
 		</form>
 	);

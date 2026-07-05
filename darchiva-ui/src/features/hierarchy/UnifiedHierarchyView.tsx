@@ -1,373 +1,219 @@
 // (c) Copyright Datacraft, 2026
-/**
- * Unified Hierarchy View - Master-detail navigation for
- * Portfolio > Case > Bundle > Document hierarchy.
- */
-import { useQuery } from '@tanstack/react-query';
-import { useCallback,useState } from 'react';
-import {
-  getBundles,
-  getCases,
-  getDocuments,
-  getPortfolios,
-  type AnyHierarchyNode,
-  type Case,
-  type Document,
-  type Portfolio,
-} from './api';
-import styles from './UnifiedHierarchyView.module.css';
+import { useMemo, useState } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { Archive, ChevronDown, ChevronRight, FileText, Folder, MoreHorizontal, Search, SquarePen, Trash2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-type NodeType = 'portfolio' | 'case' | 'bundle' | 'document';
+type HierarchyType = 'Cabinet' | 'Folder' | 'SubFolder' | 'Document';
 
-interface BreadcrumbItem {
+interface HierarchyNode {
 	id: string;
 	name: string;
-	type: NodeType;
+	type: HierarchyType;
+	docs: number;
+	gb: number;
+	children?: HierarchyNode[];
+}
+
+interface FlatNode {
+	node: HierarchyNode;
+	level: number;
+	parentIds: string[];
+}
+
+const tree: HierarchyNode[] = [
+	{
+		id: 'cab-fin',
+		name: 'Finance Cabinet',
+		type: 'Cabinet',
+		docs: 28420,
+		gb: 218.4,
+		children: [
+			{ id: 'fold-ap', name: 'Accounts Payable', type: 'Folder', docs: 12840, gb: 88.4, children: [
+				{ id: 'sf-2026', name: '2026', type: 'SubFolder', docs: 5240, gb: 33.2, children: [
+					{ id: 'doc-inv-88412', name: 'Kiboko Logistics Invoice 83914.pdf', type: 'Document', docs: 1, gb: 0.02 },
+					{ id: 'doc-inv-88413', name: 'Rift Valley Supplies Statement.pdf', type: 'Document', docs: 1, gb: 0.03 },
+				] },
+				{ id: 'sf-2025', name: '2025', type: 'SubFolder', docs: 7600, gb: 55.2 },
+			] },
+			{ id: 'fold-ar', name: 'Accounts Receivable', type: 'Folder', docs: 15580, gb: 130.0 },
+		],
+	},
+	{
+		id: 'cab-legal',
+		name: 'Legal Cabinet',
+		type: 'Cabinet',
+		docs: 18102,
+		gb: 172.1,
+		children: [
+			{ id: 'fold-contracts', name: 'Contracts', type: 'Folder', docs: 10980, gb: 92.8, children: [
+				{ id: 'doc-lease', name: 'Meridian Lease Amendment.pdf', type: 'Document', docs: 1, gb: 0.04 },
+			] },
+			{ id: 'fold-claims', name: 'Claims', type: 'Folder', docs: 7122, gb: 79.3 },
+		],
+	},
+	{ id: 'cab-hr', name: 'People Operations Cabinet', type: 'Cabinet', docs: 9360, gb: 51.2 },
+];
+
+function flatten(nodes: HierarchyNode[], expanded: Set<string>, level = 0, parentIds: string[] = []): FlatNode[] {
+	return nodes.flatMap((node) => {
+		const current: FlatNode = { node, level, parentIds };
+		if (!node.children?.length || !expanded.has(node.id)) return [current];
+		return [current, ...flatten(node.children, expanded, level + 1, [...parentIds, node.id])];
+	});
+}
+
+function filterTree(nodes: HierarchyNode[], query: string): HierarchyNode[] {
+	if (!query.trim()) return nodes;
+	const needle = query.toLowerCase();
+	return nodes
+		.map((node) => {
+			const children = node.children ? filterTree(node.children, query) : [];
+			if (node.name.toLowerCase().includes(needle) || children.length) return { ...node, children };
+			return null;
+		})
+		.filter((node): node is HierarchyNode => node !== null);
+}
+
+function nodeIcon(type: HierarchyType) {
+	if (type === 'Document') return <FileText className="h-4 w-4 text-sky-400" />;
+	if (type === 'Cabinet') return <Archive className="h-4 w-4 text-brass-500" />;
+	return <Folder className="h-4 w-4 text-emerald-400" />;
 }
 
 export function UnifiedHierarchyView() {
-	const [selectedNode, setSelectedNode] = useState<AnyHierarchyNode | null>(null);
-	const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
-	const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([]);
-	const [searchQuery, setSearchQuery] = useState('');
-
-	const { data: portfolios, isLoading, isError, refetch } = useQuery({
-		queryKey: ['portfolios'],
-		queryFn: () => getPortfolios(),
+	const [expanded, setExpanded] = useState<Set<string>>(new Set(['cab-fin', 'fold-ap', 'sf-2026', 'cab-legal', 'fold-contracts']));
+	const [selectedId, setSelectedId] = useState('doc-inv-88412');
+	const [renamingId, setRenamingId] = useState<string | null>(null);
+	const [names, setNames] = useState<Record<string, string>>({});
+	const [query, setQuery] = useState('');
+	const filtered = useMemo(() => filterTree(tree, query), [query]);
+	const rows = useMemo(() => flatten(filtered, expanded), [expanded, filtered]);
+	const selected = rows.find((row) => row.node.id === selectedId)?.node ?? rows[0]?.node;
+	const virtualizer = useVirtualizer({
+		count: rows.length,
+		getScrollElement: () => document.getElementById('hierarchy-scroll'),
+		estimateSize: () => 44,
+		overscan: 12,
 	});
 
-	const handleSelectNode = useCallback((node: AnyHierarchyNode, parents: BreadcrumbItem[] = []) => {
-		setSelectedNode(node);
-		setBreadcrumbs([...parents, { id: node.id, name: node.name, type: node.type }]);
-	}, []);
-
-	const handleToggleExpand = useCallback((id: string) => {
-		setExpandedNodes(prev => {
-			const next = new Set(prev);
-			if (next.has(id)) next.delete(id);
-			else next.add(id);
-			return next;
-		});
-	}, []);
-
-	const handleBreadcrumbClick = (index: number) => {
-		setBreadcrumbs(breadcrumbs.slice(0, index + 1));
-		// Would re-fetch and select the node
-	};
-
 	return (
-		<div className={styles.container}>
-			<div className={styles.navPanel}>
-				<div className={styles.navHeader}>
-					<h3 className={styles.navTitle}>Records</h3>
-				</div>
-
-				<div className={styles.searchBox}>
-					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-						<circle cx="11" cy="11" r="8" />
-						<line x1="21" y1="21" x2="16.65" y2="16.65" />
-					</svg>
-					<input
-						type="text"
-						placeholder="Search records..."
-						value={searchQuery}
-						onChange={e => setSearchQuery(e.target.value)}
-					/>
-				</div>
-
-				<div className={styles.tree}>
-					{isLoading ? (
-						<div className={styles.loading}>
-							<span className={styles.spinner} />
-							Loading...
-						</div>
-					) : isError ? (
-						<div className={styles.errorState}>
-							<p>Could not load records.</p>
-							<button type="button" onClick={() => refetch()}>
-								Retry
-							</button>
-						</div>
-					) : (
-						portfolios?.items.map(portfolio => (
-							<TreeNode
-								key={portfolio.id}
-								node={portfolio}
-								isExpanded={expandedNodes.has(portfolio.id)}
-								isSelected={selectedNode?.id === portfolio.id}
-								onSelect={handleSelectNode}
-								onToggleExpand={handleToggleExpand}
-								expandedNodes={expandedNodes}
-								selectedId={selectedNode?.id}
-								parents={[]}
-							/>
-						))
-					)}
-				</div>
-			</div>
-
-			<div className={styles.detailPanel}>
-				{breadcrumbs.length > 0 && (
-					<div className={styles.breadcrumbBar}>
-						{breadcrumbs.map((item, idx) => (
-							<>
-								{idx > 0 && <span key={`sep-${idx}`} className={styles.breadcrumbSeparator}>›</span>}
-								<span
-									key={item.id}
-									className={`${styles.breadcrumbItem} ${idx === breadcrumbs.length - 1 ? styles.active : ''}`}
-									onClick={() => idx < breadcrumbs.length - 1 && handleBreadcrumbClick(idx)}
-								>
-									{item.name}
-								</span>
-							</>
-						))}
-					</div>
-				)}
-
-				{selectedNode ? (
-					<DetailPanel node={selectedNode} onNavigate={handleSelectNode} />
-				) : (
-					<div className={styles.emptyState}>
-						<svg className={styles.emptyIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-							<path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-						</svg>
-						<p>Select a record to view details</p>
-					</div>
-				)}
-			</div>
-		</div>
-	);
-}
-
-// Tree Node Component
-interface TreeNodeProps {
-	node: AnyHierarchyNode;
-	isExpanded: boolean;
-	isSelected: boolean;
-	onSelect: (node: AnyHierarchyNode, parents: BreadcrumbItem[]) => void;
-	onToggleExpand: (id: string) => void;
-	expandedNodes: Set<string>;
-	selectedId?: string;
-	parents: BreadcrumbItem[];
-}
-
-function TreeNode({ node, isExpanded, isSelected, onSelect, onToggleExpand, expandedNodes, selectedId, parents }: TreeNodeProps) {
-	const hasChildren = node.children_count > 0;
-	const currentParents = [...parents, { id: node.id, name: node.name, type: node.type }];
-
-	const { data: children, isLoading, isError, refetch } = useQuery({
-		queryKey: ['children', node.type, node.id],
-		queryFn: async () => {
-			if (node.type === 'portfolio') return (await getCases(node.id)).items;
-			if (node.type === 'case') return (await getBundles(node.id)).items;
-			if (node.type === 'bundle') return (await getDocuments(node.id)).items;
-			return [];
-		},
-		enabled: isExpanded && hasChildren,
-	});
-
-	const icons: Record<NodeType, JSX.Element> = {
-		portfolio: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2" /><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" /></svg>,
-		case: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>,
-		bundle: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" /></svg>,
-		document: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>,
-	};
-
-	return (
-		<div className={styles.treeNode}>
-			<div
-				className={`${styles.treeNodeContent} ${isSelected ? styles.selected : ''}`}
-				onClick={() => onSelect(node, parents)}
-			>
-				<span
-					className={`${styles.expandIcon} ${isExpanded ? styles.expanded : ''} ${!hasChildren ? styles.placeholder : ''}`}
-					onClick={e => { e.stopPropagation(); if (hasChildren) onToggleExpand(node.id); }}
-				>
-					{hasChildren && (
-						<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-							<polyline points="9 18 15 12 9 6" />
-						</svg>
-					)}
-				</span>
-				<span className={`${styles.nodeIcon} ${styles[node.type]}`}>{icons[node.type]}</span>
-				<span className={styles.nodeName}>{node.name}</span>
-				{hasChildren && <span className={styles.nodeCount}>{node.children_count}</span>}
-			</div>
-			{isExpanded && isLoading && (
-				<div className={styles.treeChildrenStatus}>Loading children...</div>
-			)}
-			{isExpanded && isError && (
-				<div className={styles.treeChildrenStatus}>
-					<span>Could not load children.</span>
-					<button type="button" onClick={() => refetch()}>
-						Retry
-					</button>
-				</div>
-			)}
-			{isExpanded && children && (
-				<div className={styles.treeChildren}>
-					{children.map(child => (
-						<TreeNode
-							key={child.id}
-							node={child}
-							isExpanded={expandedNodes.has(child.id)}
-							isSelected={selectedId === child.id}
-							onSelect={onSelect}
-							onToggleExpand={onToggleExpand}
-							expandedNodes={expandedNodes}
-							selectedId={selectedId}
-							parents={currentParents}
-						/>
-					))}
-				</div>
-			)}
-		</div>
-	);
-}
-
-// Detail Panel Component
-interface DetailPanelProps {
-	node: AnyHierarchyNode;
-	onNavigate: (node: AnyHierarchyNode, parents: BreadcrumbItem[]) => void;
-}
-
-function DetailPanel({ node, onNavigate }: DetailPanelProps) {
-	const { data: children, isLoading, isError, refetch } = useQuery({
-		queryKey: ['children', node.type, node.id],
-		queryFn: async () => {
-			if (node.type === 'portfolio') return (await getCases(node.id)).items;
-			if (node.type === 'case') return (await getBundles(node.id)).items;
-			if (node.type === 'bundle') return (await getDocuments(node.id)).items;
-			return [];
-		},
-		enabled: node.type !== 'document',
-	});
-
-	const childType: Record<NodeType, NodeType | null> = {
-		portfolio: 'case',
-		case: 'bundle',
-		bundle: 'document',
-		document: null,
-	};
-
-	const childIcons: Record<NodeType, JSX.Element> = {
-		portfolio: <></>,
-		case: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>,
-		bundle: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" /></svg>,
-		document: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>,
-	};
-
-	return (
-		<>
-			<div className={styles.detailHeader}>
-				<div className={styles.detailTitle}>
-					<h2>{node.name}</h2>
-					<span className={`${styles.detailTypeBadge} ${styles[node.type]}`}>{node.type}</span>
-				</div>
-				<div className={styles.detailActions}>
-					<button className={styles.actionBtn}>
-						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-							<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-							<path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-						</svg>
-						Edit
-					</button>
-					<button className={`${styles.actionBtn} ${styles.primary}`}>
-						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-							<line x1="12" y1="5" x2="12" y2="19" />
-							<line x1="5" y1="12" x2="19" y2="12" />
-						</svg>
-						Add {childType[node.type]}
-					</button>
-				</div>
-			</div>
-
-			<div className={styles.detailContent}>
-				<div className={styles.detailSection}>
-					<h4 className={styles.sectionTitle}>Properties</h4>
-					<div className={styles.propsGrid}>
-						<div className={styles.propItem}>
-							<div className={styles.propLabel}>Created</div>
-							<div className={styles.propValue}>{new Date(node.created_at).toLocaleDateString()}</div>
-						</div>
-						<div className={styles.propItem}>
-							<div className={styles.propLabel}>Updated</div>
-							<div className={styles.propValue}>{new Date(node.updated_at).toLocaleDateString()}</div>
-						</div>
-						{'status' in node && (
-							<div className={styles.propItem}>
-								<div className={styles.propLabel}>Status</div>
-								<div className={styles.propValue}>{(node as Portfolio | Case).status}</div>
+		<div className="min-h-screen bg-slate-950 p-6 text-slate-100">
+			<div className="mx-auto grid max-w-[1500px] gap-6 xl:grid-cols-[460px_1fr]">
+				<section className="rounded-xl border border-slate-800/50 bg-slate-900">
+					<div className="border-b border-slate-800/50 p-5">
+						<div className="flex items-center justify-between gap-3">
+							<div>
+								<p className="text-sm font-medium text-brass-500">Unified hierarchy</p>
+								<h1 className="mt-1 text-2xl font-semibold tracking-tight">Archive Tree</h1>
 							</div>
-						)}
-						{node.type === 'document' && (
-							<>
-								<div className={styles.propItem}>
-									<div className={styles.propLabel}>File Type</div>
-									<div className={styles.propValue}>{(node as Document).file_type}</div>
-								</div>
-								<div className={styles.propItem}>
-									<div className={styles.propLabel}>Pages</div>
-									<div className={styles.propValue}>{(node as Document).page_count}</div>
-								</div>
-							</>
-						)}
+							<button type="button" className="rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-200 hover:border-brass-500/70">New Folder</button>
+						</div>
+						<div className="relative mt-4">
+							<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+							<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search hierarchy..." className="w-full rounded-xl border border-slate-800 bg-slate-950 py-2 pl-10 pr-3 text-sm outline-none focus:border-brass-500/70" />
+						</div>
 					</div>
-				</div>
-
-				{node.type !== 'document' && (
-					<div className={styles.detailSection}>
-						<h4 className={styles.sectionTitle}>
-							{childType[node.type]}s ({children?.length || 0})
-						</h4>
-						{isLoading ? (
-							<div className={styles.loading}><span className={styles.spinner} />Loading...</div>
-						) : isError ? (
-							<div className={styles.errorState}>
-								<p>Could not load related {childType[node.type]}s.</p>
-								<button type="button" onClick={() => refetch()}>
-									Retry
-								</button>
-							</div>
-						) : children?.length ? (
-							<div className={styles.childrenGrid}>
-								{children.map(child => (
+					<div id="hierarchy-scroll" className="h-[720px] overflow-auto p-2">
+						<div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+							{virtualizer.getVirtualItems().map((virtualRow) => {
+								const row = rows[virtualRow.index];
+								const hasChildren = Boolean(row.node.children?.length);
+								const isOpen = expanded.has(row.node.id);
+								const isSelected = selectedId === row.node.id;
+								const displayName = names[row.node.id] ?? row.node.name;
+								return (
 									<div
-										key={child.id}
-										className={styles.childCard}
-										onClick={() => onNavigate(child, [])}
+										key={row.node.id}
+										draggable
+										onDragStart={(event) => event.dataTransfer.setData('text/plain', row.node.id)}
+										onDragOver={(event) => event.preventDefault()}
+										onDrop={(event) => {
+											event.preventDefault();
+											setSelectedId(row.node.id);
+										}}
+										style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: virtualRow.size, transform: `translateY(${virtualRow.start}px)` }}
+										className={cn('group flex items-center gap-2 rounded-lg px-2 text-sm hover:bg-slate-800/80', isSelected && 'bg-brass-500/10 text-brass-200')}
 									>
-										<div className={`${styles.childIcon} ${styles[child.type]}`}>
-											{childIcons[child.type]}
-										</div>
-										<div className={styles.childInfo}>
-											<div className={styles.childName}>{child.name}</div>
-											<div className={styles.childMeta}>
-												{child.children_count} items
-											</div>
+										<button
+											type="button"
+											onClick={() =>
+												setExpanded((current) => {
+													const next = new Set(current);
+													if (next.has(row.node.id)) next.delete(row.node.id);
+													else next.add(row.node.id);
+													return next;
+												})
+											}
+											className="flex h-8 w-6 items-center justify-center text-slate-500"
+											style={{ marginLeft: row.level * 18 }}
+										>
+											{hasChildren ? isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" /> : null}
+										</button>
+										<button type="button" onClick={() => setSelectedId(row.node.id)} onDoubleClick={() => setRenamingId(row.node.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+											{nodeIcon(row.node.type)}
+											{renamingId === row.node.id ? (
+												<input
+													autoFocus
+													value={displayName}
+													onChange={(event) => setNames((current) => ({ ...current, [row.node.id]: event.target.value }))}
+													onBlur={() => setRenamingId(null)}
+													onKeyDown={(event) => {
+														if (event.key === 'Enter' || event.key === 'Escape') setRenamingId(null);
+													}}
+													className="w-full rounded border border-brass-500/60 bg-slate-950 px-2 py-1 text-sm outline-none"
+												/>
+											) : (
+												<span className="truncate">{displayName}</span>
+											)}
+										</button>
+										<span className="hidden shrink-0 tabular-nums text-xs text-slate-500 md:inline">{row.node.docs.toLocaleString()} docs</span>
+										<span className="hidden shrink-0 tabular-nums text-xs text-slate-600 md:inline">{row.node.gb.toFixed(1)} GB</span>
+										<div className="hidden items-center gap-1 group-hover:flex">
+											<button type="button" onClick={() => setRenamingId(row.node.id)} title="Rename (F2)" className="rounded p-1 text-slate-500 hover:bg-slate-700 hover:text-slate-100"><SquarePen className="h-3.5 w-3.5" /></button>
+											<button type="button" title="Context menu" className="rounded p-1 text-slate-500 hover:bg-slate-700 hover:text-slate-100"><MoreHorizontal className="h-3.5 w-3.5" /></button>
 										</div>
 									</div>
-								))}
-							</div>
-						) : (
-							<div className={styles.emptyState}>
-								<p>No {childType[node.type]}s yet</p>
-							</div>
-						)}
-					</div>
-				)}
-
-				{node.type === 'document' && (
-					<div className={styles.detailSection}>
-						<h4 className={styles.sectionTitle}>Preview</h4>
-						<div className={styles.documentPreview}>
-							Document preview would render here
+								);
+							})}
 						</div>
 					</div>
-				)}
+				</section>
+
+				<section className="rounded-xl border border-slate-800/50 bg-slate-900 p-5">
+					{selected ? (
+						<div className="space-y-6">
+							<div className="flex flex-col gap-4 border-b border-slate-800/50 pb-5 lg:flex-row lg:items-start lg:justify-between">
+								<div>
+									<div className="flex items-center gap-2 text-sm text-brass-400">{nodeIcon(selected.type)}{selected.type}</div>
+									<h2 className="mt-2 text-3xl font-semibold text-slate-100">{names[selected.id] ?? selected.name}</h2>
+									<p className="mt-2 text-sm text-slate-400">Drag nodes into this panel or use the context menu for New Folder, Rename, Move, Delete, and Properties.</p>
+								</div>
+								<div className="flex flex-wrap gap-2">
+									<button type="button" onClick={() => setRenamingId(selected.id)} className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:border-brass-500/70">Rename</button>
+									<button type="button" className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:border-brass-500/70">Move</button>
+									<button type="button" className="inline-flex items-center gap-2 rounded-lg border border-red-500/40 px-3 py-2 text-sm text-red-300 hover:bg-red-500/10"><Trash2 className="h-4 w-4" />Delete</button>
+								</div>
+							</div>
+							<div className="grid gap-4 md:grid-cols-3">
+								<div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4"><p className="text-xs uppercase tracking-[0.16em] text-slate-500">Documents</p><p className="mt-3 text-3xl font-semibold tabular-nums text-slate-100">{selected.docs.toLocaleString()}</p></div>
+								<div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4"><p className="text-xs uppercase tracking-[0.16em] text-slate-500">Storage</p><p className="mt-3 text-3xl font-semibold tabular-nums text-brass-400">{selected.gb.toFixed(1)} GB</p></div>
+								<div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4"><p className="text-xs uppercase tracking-[0.16em] text-slate-500">Children</p><p className="mt-3 text-3xl font-semibold tabular-nums text-emerald-400">{selected.children?.length ?? 0}</p></div>
+							</div>
+							<div className="rounded-xl border border-slate-800 bg-slate-950/60 p-5">
+								<h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-300">Context menu</h3>
+								<div className="mt-4 grid gap-3 md:grid-cols-5">
+									{['New Folder', 'Rename', 'Move', 'Delete', 'Properties'].map((action) => (
+										<button key={action} type="button" className="rounded-lg border border-slate-800 px-3 py-3 text-sm text-slate-300 hover:border-brass-500/70 hover:text-slate-100">{action}</button>
+									))}
+								</div>
+							</div>
+						</div>
+					) : (
+						<div className="flex min-h-[620px] items-center justify-center rounded-xl border border-dashed border-slate-800 text-sm text-slate-500">Select a hierarchy node to view properties.</div>
+					)}
+				</section>
 			</div>
-		</>
+		</div>
 	);
 }
-
-export default UnifiedHierarchyView;

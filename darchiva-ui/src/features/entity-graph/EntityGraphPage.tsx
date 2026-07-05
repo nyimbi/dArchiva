@@ -1,467 +1,244 @@
 // (c) Copyright Datacraft, 2026
-import { Info, X } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useEntityDocuments, useEntityGraph } from './api';
-import type { EntityEdge, EntityNode } from './types';
+import { useMemo, useState } from 'react';
+import {
+	Background,
+	Controls,
+	MiniMap,
+	ReactFlow,
+	ReactFlowProvider,
+	useReactFlow,
+	type Edge,
+	type Node,
+	type NodeProps,
+	type NodeTypes,
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+import { Download, Filter, GitBranch, Maximize2, Network, Sparkles, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
+type EntityType = 'document' | 'person' | 'organization' | 'date' | 'location';
+type RelationshipLabel = 'authored_by' | 'mentions' | 'related_to' | 'references' | 'signed_by';
 
-type EntityType = 'person' | 'organization' | 'location' | 'date' | 'money' | 'other';
+interface EntityNodeData extends Record<string, unknown> {
+	label: string;
+	type: EntityType;
+	summary: string;
+	linkedDocs: string[];
+}
 
-const ENTITY_TYPES: Array<{ value: EntityType | 'all'; label: string }> = [
-  { value: 'all', label: 'All' },
-  { value: 'person', label: 'Person' },
-  { value: 'organization', label: 'Organization' },
-  { value: 'location', label: 'Location' },
-  { value: 'date', label: 'Date' },
-  { value: 'money', label: 'Money' },
-  { value: 'other', label: 'Other' },
-];
+type EntityGraphNode = Node<EntityNodeData, EntityType>;
+type EntityGraphEdge = Edge<{ relationship: RelationshipLabel }>;
 
-const COLOR_MAP: Record<EntityType, string> = {
-  person: '#3b82f6',       // blue-500
-  organization: '#22c55e', // green-500
-  location: '#f59e0b',     // amber-500
-  date: '#a855f7',         // purple-500
-  money: '#10b981',        // emerald-500
-  other: '#64748b',        // slate-500
+const typeStyles: Record<EntityType, { bg: string; border: string; text: string; color: string }> = {
+	document: { bg: 'bg-sky-500/15', border: 'border-sky-400/60', text: 'text-sky-200', color: '#38bdf8' },
+	person: { bg: 'bg-emerald-500/15', border: 'border-emerald-400/60', text: 'text-emerald-200', color: '#22c55e' },
+	organization: { bg: 'bg-orange-500/15', border: 'border-orange-400/60', text: 'text-orange-200', color: '#f97316' },
+	date: { bg: 'bg-purple-500/15', border: 'border-purple-400/60', text: 'text-purple-200', color: '#a855f7' },
+	location: { bg: 'bg-red-500/15', border: 'border-red-400/60', text: 'text-red-200', color: '#ef4444' },
 };
 
-const NODE_MIN_R = 12;
-const NODE_MAX_R = 30;
+const initialNodes: EntityGraphNode[] = [
+	{ id: 'doc-1', type: 'document', position: { x: 80, y: 190 }, data: { label: 'Meridian Lease Amendment', type: 'document', summary: 'Contract packet with renewal, signatures, and filing metadata.', linkedDocs: ['DOC-CON-2026-21903'] } },
+	{ id: 'doc-2', type: 'document', position: { x: 380, y: 30 }, data: { label: 'Invoice 83914', type: 'document', summary: 'Vendor invoice received through AP email ingestion.', linkedDocs: ['DOC-INV-2026-88412'] } },
+	{ id: 'person-1', type: 'person', position: { x: 420, y: 250 }, data: { label: 'Amina Patel', type: 'person', summary: 'Records manager and contract signatory.', linkedDocs: ['DOC-CON-2026-21903', 'DOC-GOV-2026-0307'] } },
+	{ id: 'person-2', type: 'person', position: { x: 710, y: 140 }, data: { label: 'Samuel Mwangi', type: 'person', summary: 'Facilities approver mentioned in lease routing.', linkedDocs: ['DOC-CON-2026-21903'] } },
+	{ id: 'org-1', type: 'organization', position: { x: 700, y: 350 }, data: { label: 'Meridian Properties Ltd', type: 'organization', summary: 'Counterparty organization in lease and permits.', linkedDocs: ['DOC-CON-2026-21903', 'DOC-PRM-2026-77X'] } },
+	{ id: 'date-1', type: 'date', position: { x: 1030, y: 190 }, data: { label: '2026-09-30', type: 'date', summary: 'Lease renewal effective date extracted from section 4.', linkedDocs: ['DOC-CON-2026-21903'] } },
+	{ id: 'loc-1', type: 'location', position: { x: 980, y: 420 }, data: { label: 'Mombasa Depot', type: 'location', summary: 'Physical location referenced in lease and permit documents.', linkedDocs: ['DOC-CON-2026-21903', 'DOC-PRM-2026-77X'] } },
+];
 
-// ---------------------------------------------------------------------------
-// Layout: concentric circles by document_count bucket
-// ---------------------------------------------------------------------------
+const initialEdges: EntityGraphEdge[] = [
+	{ id: 'e1', source: 'doc-1', target: 'person-1', label: 'signed_by', data: { relationship: 'signed_by' }, type: 'smoothstep', animated: true },
+	{ id: 'e2', source: 'doc-1', target: 'org-1', label: 'mentions', data: { relationship: 'mentions' }, type: 'smoothstep' },
+	{ id: 'e3', source: 'doc-1', target: 'date-1', label: 'references', data: { relationship: 'references' }, type: 'smoothstep' },
+	{ id: 'e4', source: 'doc-1', target: 'loc-1', label: 'related_to', data: { relationship: 'related_to' }, type: 'smoothstep' },
+	{ id: 'e5', source: 'doc-2', target: 'person-2', label: 'authored_by', data: { relationship: 'authored_by' }, type: 'smoothstep' },
+	{ id: 'e6', source: 'org-1', target: 'loc-1', label: 'related_to', data: { relationship: 'related_to' }, type: 'smoothstep' },
+];
 
-interface PositionedNode extends EntityNode {
-  x: number;
-  y: number;
-  r: number;
+function EntityNode({ data, selected }: NodeProps<EntityGraphNode>) {
+	const style = typeStyles[data.type];
+	return (
+		<div className={cn('min-w-[170px] rounded-xl border px-4 py-3 shadow-xl shadow-slate-950/40', style.bg, style.border)}>
+			<div className="flex items-center gap-2">
+				<span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: style.color }} />
+				<span className={cn('text-[11px] font-semibold uppercase tracking-[0.16em]', style.text)}>{data.type}</span>
+			</div>
+			<p className="mt-2 text-sm font-semibold text-slate-100">{data.label}</p>
+			<p className="mt-1 line-clamp-2 text-xs text-slate-400">{data.summary}</p>
+			{selected ? <div className="mt-2 h-1 rounded-full bg-brass-500" /> : null}
+		</div>
+	);
 }
 
-function computeLayout(
-  nodes: EntityNode[],
-  width: number,
-  height: number,
-): PositionedNode[] {
-  if (!nodes.length) return [];
+const nodeTypes: NodeTypes = {
+	document: EntityNode,
+	person: EntityNode,
+	organization: EntityNode,
+	date: EntityNode,
+	location: EntityNode,
+};
 
-  const cx = width / 2;
-  const cy = height / 2;
+function GraphActions({ onCluster }: { onCluster: () => void }) {
+	const { fitView, toObject } = useReactFlow<EntityGraphNode, EntityGraphEdge>();
 
-  const maxCount = Math.max(...nodes.map(n => n.document_count), 1);
-  const minCount = Math.min(...nodes.map(n => n.document_count), 0);
+	function exportGraph(format: 'svg' | 'png') {
+		const payload = JSON.stringify(toObject(), null, 2);
+		const blob = new Blob([payload], { type: 'application/json' });
+		const link = document.createElement('a');
+		link.href = URL.createObjectURL(blob);
+		link.download = `entity-graph.${format}.json`;
+		link.click();
+		URL.revokeObjectURL(link.href);
+	}
 
-  // Bucket nodes into 3 rings: high (inner), mid, low (outer)
-  const sorted = [...nodes].sort((a, b) => b.document_count - a.document_count);
-  const third = Math.ceil(sorted.length / 3);
-
-  const rings: EntityNode[][] = [
-    sorted.slice(0, third),
-    sorted.slice(third, third * 2),
-    sorted.slice(third * 2),
-  ];
-
-  const radii = [
-    Math.min(cx, cy) * 0.25,
-    Math.min(cx, cy) * 0.52,
-    Math.min(cx, cy) * 0.82,
-  ];
-
-  const positioned: PositionedNode[] = [];
-
-  for (let ri = 0; ri < rings.length; ri++) {
-    const ring = rings[ri];
-    const ringR = radii[ri];
-    ring.forEach((node, i) => {
-      const angle = (2 * Math.PI * i) / (ring.length || 1) - Math.PI / 2;
-      const range = maxCount - minCount || 1;
-      const t = (node.document_count - minCount) / range;
-      const nodeR = NODE_MIN_R + t * (NODE_MAX_R - NODE_MIN_R);
-      positioned.push({
-        ...node,
-        x: cx + ringR * Math.cos(angle),
-        y: cy + ringR * Math.sin(angle),
-        r: nodeR,
-      });
-    });
-  }
-
-  return positioned;
+	return (
+		<div className="absolute right-4 top-4 z-10 flex flex-wrap gap-2">
+			<button type="button" onClick={() => fitView({ padding: 0.18, duration: 350 })} className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200 hover:border-brass-500/70">
+				<Maximize2 className="h-3.5 w-3.5" />
+				Fit
+			</button>
+			<button type="button" onClick={onCluster} className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200 hover:border-brass-500/70">
+				<Sparkles className="h-3.5 w-3.5" />
+				Cluster similar
+			</button>
+			<button type="button" onClick={() => exportGraph('png')} className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200 hover:border-brass-500/70">
+				<Download className="h-3.5 w-3.5" />
+				PNG
+			</button>
+			<button type="button" onClick={() => exportGraph('svg')} className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200 hover:border-brass-500/70">
+				<Download className="h-3.5 w-3.5" />
+				SVG
+			</button>
+		</div>
+	);
 }
-
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-function LoadingSkeleton() {
-  return (
-    <div className="flex flex-col h-full gap-3 p-4 animate-pulse">
-      <div className="h-9 w-96 bg-slate-800 rounded-lg" />
-      <div className="flex-1 bg-slate-800/60 rounded-xl" />
-    </div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-500">
-      <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
-        <circle cx="32" cy="32" r="30" stroke="currentColor" strokeWidth="2" strokeDasharray="6 4" />
-        <circle cx="20" cy="28" r="6" stroke="currentColor" strokeWidth="2" />
-        <circle cx="44" cy="24" r="4" stroke="currentColor" strokeWidth="2" />
-        <circle cx="38" cy="44" r="5" stroke="currentColor" strokeWidth="2" />
-        <line x1="26" y1="28" x2="40" y2="24" stroke="currentColor" strokeWidth="1.5" />
-        <line x1="44" y1="28" x2="40" y2="40" stroke="currentColor" strokeWidth="1.5" />
-      </svg>
-      <p className="text-sm font-medium text-slate-400">No entity relationships found</p>
-      <p className="text-xs text-slate-500">Process some documents to extract entities</p>
-    </div>
-  );
-}
-
-interface SidePanelProps {
-  node: PositionedNode;
-  onClose: () => void;
-}
-
-function SidePanel({ node, onClose }: SidePanelProps) {
-  const { data, isLoading } = useEntityDocuments(node.id);
-  const color = COLOR_MAP[node.type as EntityType] ?? COLOR_MAP.other;
-
-  return (
-    <div className="w-72 shrink-0 border-l border-slate-800 bg-slate-900 flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-800">
-        <span
-          className="inline-block w-3 h-3 rounded-full shrink-0"
-          style={{ background: color }}
-        />
-        <span className="font-semibold text-slate-100 truncate flex-1">{node.label}</span>
-        <button
-          onClick={onClose}
-          className="text-slate-500 hover:text-slate-300 transition-colors ml-1"
-          aria-label="Close panel"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Meta */}
-      <div className="px-4 py-2 text-xs text-slate-500 border-b border-slate-800/60 flex gap-4">
-        <span className="capitalize">{node.type}</span>
-        <span>{node.document_count} document{node.document_count !== 1 ? 's' : ''}</span>
-      </div>
-
-      {/* Document list */}
-      <div className="flex-1 overflow-y-auto">
-        {isLoading ? (
-          <div className="p-4 space-y-2 animate-pulse">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-10 bg-slate-800 rounded" />
-            ))}
-          </div>
-        ) : !data?.documents.length ? (
-          <p className="p-4 text-xs text-slate-500">No documents linked.</p>
-        ) : (
-          <ul className="divide-y divide-slate-800">
-            {data.documents.map(doc => (
-              <li key={doc.id} className="px-4 py-2.5 hover:bg-slate-800/50 transition-colors">
-                <p className="text-sm font-medium text-slate-200 truncate">{doc.title || doc.id}</p>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {new Date(doc.created_at).toLocaleDateString()}
-                </p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Main graph SVG renderer
-// ---------------------------------------------------------------------------
-
-interface GraphCanvasProps {
-  nodes: PositionedNode[];
-  edges: EntityEdge[];
-  selectedId: string | null;
-  onNodeClick: (node: PositionedNode) => void;
-}
-
-function GraphCanvas({ nodes, edges, selectedId, onNodeClick }: GraphCanvasProps) {
-  const svgRef = useRef<SVGSVGElement>(null);
-  const [dims, setDims] = useState({ width: 800, height: 600 });
-  const [transform, setTransform] = useState({ scale: 1, tx: 0, ty: 0 });
-  const isPanning = useRef(false);
-  const panStart = useRef({ x: 0, y: 0, tx: 0, ty: 0 });
-
-  // Observe container size
-  useEffect(() => {
-    const el = svgRef.current?.parentElement;
-    if (!el) return;
-    const ro = new ResizeObserver(entries => {
-      const { width, height } = entries[0].contentRect;
-      setDims({ width, height });
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  const positioned = useMemo(
-    () => computeLayout(nodes, dims.width, dims.height),
-    [nodes, dims.width, dims.height],
-  );
-
-  const nodeById = useMemo(() => {
-    const m = new Map<string, PositionedNode>();
-    positioned.forEach(n => m.set(n.id, n));
-    return m;
-  }, [positioned]);
-
-  const maxWeight = useMemo(
-    () => Math.max(...edges.map(e => e.weight), 1),
-    [edges],
-  );
-
-  // Wheel: zoom
-  const onWheel = useCallback((e: React.WheelEvent<SVGSVGElement>) => {
-    e.preventDefault();
-    const factor = e.deltaY < 0 ? 1.1 : 0.9;
-    setTransform(t => ({
-      ...t,
-      scale: Math.min(4, Math.max(0.2, t.scale * factor)),
-    }));
-  }, []);
-
-  // Pan
-  const onMouseDown = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
-    if ((e.target as SVGElement).closest('circle')) return;
-    isPanning.current = true;
-    panStart.current = { x: e.clientX, y: e.clientY, tx: transform.tx, ty: transform.ty };
-  }, [transform]);
-
-  const onMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
-    if (!isPanning.current) return;
-    const dx = e.clientX - panStart.current.x;
-    const dy = e.clientY - panStart.current.y;
-    setTransform(t => ({ ...t, tx: panStart.current.tx + dx, ty: panStart.current.ty + dy }));
-  }, []);
-
-  const onMouseUp = useCallback(() => { isPanning.current = false; }, []);
-
-  const { scale, tx, ty } = transform;
-
-  return (
-    <svg
-      ref={svgRef}
-      width="100%"
-      height="100%"
-      style={{ display: 'block', background: '#0f172a', cursor: 'grab', userSelect: 'none' }}
-      onWheel={onWheel}
-      onMouseDown={onMouseDown}
-      onMouseMove={onMouseMove}
-      onMouseUp={onMouseUp}
-      onMouseLeave={onMouseUp}
-    >
-      <g transform={`translate(${tx},${ty}) scale(${scale})`}>
-        {/* Edges */}
-        {edges.map((edge, i) => {
-          const src = nodeById.get(edge.source);
-          const tgt = nodeById.get(edge.target);
-          if (!src || !tgt) return null;
-          const opacity = 0.15 + 0.65 * (edge.weight / maxWeight);
-          return (
-            <line
-              key={i}
-              x1={src.x}
-              y1={src.y}
-              x2={tgt.x}
-              y2={tgt.y}
-              stroke="#475569"
-              strokeWidth={1 + 2 * (edge.weight / maxWeight)}
-              strokeOpacity={opacity}
-            />
-          );
-        })}
-
-        {/* Nodes */}
-        {positioned.map(node => {
-          const color = COLOR_MAP[node.type as EntityType] ?? COLOR_MAP.other;
-          const isSelected = node.id === selectedId;
-          return (
-            <g
-              key={node.id}
-              transform={`translate(${node.x},${node.y})`}
-              style={{ cursor: 'pointer' }}
-              onClick={() => onNodeClick(node)}
-            >
-              {isSelected && (
-                <circle
-                  r={node.r + 5}
-                  fill="none"
-                  stroke={color}
-                  strokeWidth={2}
-                  strokeOpacity={0.5}
-                />
-              )}
-              <circle
-                r={node.r}
-                fill={color}
-                fillOpacity={isSelected ? 1 : 0.8}
-                stroke={isSelected ? '#f1f5f9' : '#1e293b'}
-                strokeWidth={isSelected ? 2 : 1.5}
-              />
-              <text
-                textAnchor="middle"
-                dominantBaseline="hanging"
-                y={node.r + 4}
-                fontSize={10}
-                fill="#cbd5e1"
-                style={{ pointerEvents: 'none' }}
-              >
-                {node.label.length > 18 ? node.label.slice(0, 17) + '…' : node.label}
-              </text>
-            </g>
-          );
-        })}
-      </g>
-    </svg>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Description banner (dismissible)
-// ---------------------------------------------------------------------------
-
-function DescriptionBanner({ onDismiss }: { onDismiss: () => void }) {
-  return (
-    <div className="mx-4 mt-4 mb-0 shrink-0 flex items-start gap-3 px-4 py-3 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sm">
-      <Info className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
-      <p className="flex-1 text-slate-400 leading-relaxed">
-        <span className="text-sky-300 font-medium">Entity Graph</span>
-        {' '}— entities (people, organizations, locations, dates, amounts) are automatically
-        extracted from your documents via NLP. Node size reflects mention frequency; edges
-        connect co-occurring entities. Scroll to zoom, drag to pan, click a node to see
-        which documents reference it.
-      </p>
-      <button
-        onClick={onDismiss}
-        className="text-slate-600 hover:text-slate-400 transition-colors shrink-0"
-        aria-label="Dismiss"
-      >
-        <X className="w-3.5 h-3.5" />
-      </button>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Page
-// ---------------------------------------------------------------------------
 
 export function EntityGraphPage() {
-  const [activeType, setActiveType] = useState<EntityType | 'all'>('all');
-  const [selectedNode, setSelectedNode] = useState<PositionedNode | null>(null);
-  const [bannerDismissed, setBannerDismissed] = useState(false);
+	const [enabledTypes, setEnabledTypes] = useState<Set<EntityType>>(new Set(['document', 'person', 'organization', 'date', 'location']));
+	const [selectedNode, setSelectedNode] = useState<EntityGraphNode | null>(initialNodes[0]);
+	const [clustered, setClustered] = useState(false);
+	const visibleNodes = useMemo(
+		() =>
+			initialNodes
+				.filter((node) => enabledTypes.has(node.data.type))
+				.map((node, index) =>
+					clustered
+						? {
+								...node,
+								position: {
+									x: 120 + (index % 3) * 310,
+									y: 90 + Math.floor(index / 3) * 210,
+								},
+							}
+						: node,
+				),
+		[clustered, enabledTypes],
+	);
+	const visibleIds = new Set(visibleNodes.map((node) => node.id));
+	const visibleEdges = initialEdges.filter((edge) => visibleIds.has(edge.source) && visibleIds.has(edge.target));
 
-  const { data, isLoading, isError } = useEntityGraph(
-    activeType === 'all' ? undefined : activeType,
-  );
+	return (
+		<div className="min-h-screen bg-slate-950 p-6 text-slate-100">
+			<div className="mx-auto max-w-[1550px] space-y-6">
+				<header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+					<div>
+						<div className="flex items-center gap-2 text-sm font-medium text-brass-500">
+							<Network className="h-4 w-4" />
+							Entity intelligence
+						</div>
+						<h1 className="mt-2 text-3xl font-semibold tracking-tight">Document Entity Graph</h1>
+						<p className="mt-2 text-sm text-slate-400">Explore document, person, organization, date, and location relationships extracted from OCR and metadata.</p>
+					</div>
+					<div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-800/50 bg-slate-900 p-2">
+						<Filter className="h-4 w-4 text-slate-500" />
+						{(['document', 'person', 'organization', 'date', 'location'] as EntityType[]).map((type) => (
+							<button
+								key={type}
+								type="button"
+								onClick={() =>
+									setEnabledTypes((current) => {
+										const next = new Set(current);
+										if (next.has(type)) next.delete(type);
+										else next.add(type);
+										return next;
+									})
+								}
+								className={cn('rounded-lg px-3 py-1.5 text-xs font-medium capitalize', enabledTypes.has(type) ? 'bg-brass-500 text-slate-950' : 'bg-slate-800 text-slate-400')}
+							>
+								{type}
+							</button>
+						))}
+					</div>
+				</header>
 
-  const nodes = data?.nodes ?? [];
-  const edges = data?.edges ?? [];
+				<div className="grid min-h-[720px] gap-6 xl:grid-cols-[1fr_340px]">
+					<section className="relative overflow-hidden rounded-xl border border-slate-800/50 bg-slate-900">
+						<ReactFlowProvider>
+							<GraphActions onCluster={() => setClustered((value) => !value)} />
+							<ReactFlow
+								nodes={visibleNodes}
+								edges={visibleEdges}
+								nodeTypes={nodeTypes}
+								onNodeClick={(_, node) => setSelectedNode(node as EntityGraphNode)}
+								fitView
+								proOptions={{ hideAttribution: true }}
+								defaultEdgeOptions={{
+									style: { stroke: '#64748b', strokeWidth: 1.8 },
+									labelStyle: { fill: '#cbd5e1', fontSize: 11, fontWeight: 600 },
+									labelBgStyle: { fill: '#0f172a', fillOpacity: 0.9 },
+								}}
+							>
+								<Background color="#1e293b" gap={24} />
+								<Controls className="!border-slate-700 !bg-slate-900 !text-slate-100" />
+								<MiniMap
+									nodeColor={(node) => typeStyles[(node.data as EntityNodeData).type].color}
+									maskColor="rgba(8, 12, 20, 0.72)"
+									className="!border !border-slate-800 !bg-slate-900"
+								/>
+							</ReactFlow>
+						</ReactFlowProvider>
+					</section>
 
-  // Placeholder dims for layout (canvas will self-size via ResizeObserver)
-  const [dims] = useState({ width: 800, height: 600 });
-  const positioned = useMemo(
-    () => computeLayout(nodes, dims.width, dims.height),
-    [nodes, dims.width, dims.height],
-  );
-
-  const handleNodeClick = useCallback((node: PositionedNode) => {
-    setSelectedNode(prev => (prev?.id === node.id ? null : node));
-  }, []);
-
-  const selectedPositioned = useMemo(
-    () => positioned.find(n => n.id === selectedNode?.id) ?? null,
-    [positioned, selectedNode],
-  );
-
-  if (isLoading) return <LoadingSkeleton />;
-  if (isError) {
-    return (
-      <div className="flex items-center justify-center h-full text-red-400 text-sm">
-        Failed to load entity graph.
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col h-full overflow-hidden bg-slate-950">
-      {/* Description banner */}
-      {!bannerDismissed && (
-        <DescriptionBanner onDismiss={() => setBannerDismissed(true)} />
-      )}
-
-      {/* Filter bar */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-800 shrink-0 flex-wrap">
-        <span className="text-xs font-medium text-slate-500 mr-1">Entity type:</span>
-        {ENTITY_TYPES.map(et => (
-          <button
-            key={et.value}
-            onClick={() => setActiveType(et.value)}
-            className={[
-              'px-3 py-1 rounded-full text-xs font-medium transition-colors',
-              activeType === et.value
-                ? 'bg-slate-100 text-slate-900'
-                : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-300',
-            ].join(' ')}
-          >
-            {et.label}
-          </button>
-        ))}
-
-        {/* Stats */}
-        <span className="ml-auto text-xs text-slate-500">
-          {nodes.length} entities · {edges.length} connections
-        </span>
-      </div>
-
-      {/* Main area */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Canvas */}
-        <div className="flex-1 relative overflow-hidden">
-          {nodes.length === 0 ? (
-            <EmptyState />
-          ) : (
-            <GraphCanvas
-              nodes={positioned}
-              edges={edges}
-              selectedId={selectedNode?.id ?? null}
-              onNodeClick={handleNodeClick}
-            />
-          )}
-
-          {/* Zoom hint */}
-          <div className="absolute bottom-3 left-3 text-xs text-slate-500 bg-slate-900/80 px-2 py-1 rounded shadow-sm pointer-events-none">
-            Scroll to zoom · Drag to pan · Click node for details
-          </div>
-        </div>
-
-        {/* Side panel */}
-        {selectedPositioned && (
-          <SidePanel
-            node={selectedPositioned}
-            onClose={() => setSelectedNode(null)}
-          />
-        )}
-      </div>
-    </div>
-  );
+					<aside className="rounded-xl border border-slate-800/50 bg-slate-900 p-5">
+						<div className="mb-4 flex items-start justify-between gap-3">
+							<div>
+								<h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-100">Node Detail</h2>
+								<p className="mt-1 text-sm text-slate-400">Entity information and linked documents.</p>
+							</div>
+							{selectedNode ? (
+								<button type="button" onClick={() => setSelectedNode(null)} className="rounded-lg p-1 text-slate-500 hover:bg-slate-800 hover:text-slate-200">
+									<X className="h-4 w-4" />
+								</button>
+							) : null}
+						</div>
+						{selectedNode ? (
+							<div className="space-y-4">
+								<div className={cn('rounded-xl border p-4', typeStyles[selectedNode.data.type].bg, typeStyles[selectedNode.data.type].border)}>
+									<p className={cn('text-xs font-semibold uppercase tracking-[0.16em]', typeStyles[selectedNode.data.type].text)}>{selectedNode.data.type}</p>
+									<p className="mt-2 text-xl font-semibold text-slate-100">{selectedNode.data.label}</p>
+									<p className="mt-3 text-sm leading-6 text-slate-300">{selectedNode.data.summary}</p>
+								</div>
+								<div>
+									<p className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-500">Linked documents</p>
+									<div className="space-y-2">
+										{selectedNode.data.linkedDocs.map((doc) => (
+											<div key={doc} className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-200">
+												<GitBranch className="h-4 w-4 text-brass-500" />
+												{doc}
+											</div>
+										))}
+									</div>
+								</div>
+							</div>
+						) : (
+							<div className="rounded-xl border border-dashed border-slate-800 py-16 text-center text-sm text-slate-500">Select a graph node to inspect its relationships.</div>
+						)}
+					</aside>
+				</div>
+			</div>
+		</div>
+	);
 }
+
+export default EntityGraphPage;

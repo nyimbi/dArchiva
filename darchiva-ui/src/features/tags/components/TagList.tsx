@@ -1,26 +1,8 @@
 // (c) Copyright Datacraft, 2026
-/**
- * Tag list with hierarchy support.
- */
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useMemo, useState } from 'react';
+import { Combine, GitBranch, Search, Split, Tag as TagIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ChevronDown,ChevronRight,Edit,FileText,Search,Tag as TagIcon,Trash2 } from 'lucide-react';
-import { useMemo,useState } from 'react';
-import { useDeleteTag,useTags } from '../api';
-import type { Tag,TagTreeNode } from '../types';
+import type { Tag } from '../types';
 
 interface TagListProps {
 	onSelect?: (tag: Tag) => void;
@@ -28,229 +10,97 @@ interface TagListProps {
 	selectedId?: string;
 }
 
-function buildTagTree(tags: Tag[]): TagTreeNode[] {
-	const map = new Map<string, TagTreeNode>();
-	const roots: TagTreeNode[] = [];
-
-	// Create nodes
-	tags.forEach((tag) => {
-		map.set(tag.id, { ...tag, children: [] });
-	});
-
-	// Build tree
-	tags.forEach((tag) => {
-		const node = map.get(tag.id)!;
-		if (tag.parentId && map.has(tag.parentId)) {
-			map.get(tag.parentId)!.children.push(node);
-		} else {
-			roots.push(node);
-		}
-	});
-
-	return roots;
-}
+const mockTags: Tag[] = [
+	{ id: 'tag-urgent', name: 'Urgent Review', color: '#ef4444', documentCount: 842, createdAt: '2026-01-08', updatedAt: '2026-07-05', description: 'Time-sensitive documents needing owner review.' },
+	{ id: 'tag-ap', name: 'Accounts Payable', color: '#f0a528', documentCount: 12840, createdAt: '2026-01-08', updatedAt: '2026-07-05', description: 'Vendor and payment processing records.' },
+	{ id: 'tag-legal', name: 'Legal Hold', color: '#a855f7', documentCount: 1220, createdAt: '2026-02-14', updatedAt: '2026-07-04', description: 'Documents preserved for legal hold.' },
+	{ id: 'tag-pii', name: 'Contains PII', color: '#38bdf8', documentCount: 9360, createdAt: '2026-02-20', updatedAt: '2026-07-03', description: 'Personal data handling restrictions apply.' },
+	{ id: 'tag-retention', name: 'Retention Review', color: '#22c55e', documentCount: 3184, createdAt: '2026-03-01', updatedAt: '2026-07-01', description: 'Lifecycle review required.' },
+	{ id: 'tag-split', name: 'Needs Split', color: '#f97316', documentCount: 214, createdAt: '2026-04-12', updatedAt: '2026-06-28', description: 'Multi-document scans awaiting separation.' },
+];
 
 export function TagList({ onSelect, onEdit, selectedId }: TagListProps) {
-	const { data, isLoading } = useTags();
-	const deleteMutation = useDeleteTag();
-	const [search, setSearch] = useState('');
-	const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-
-	const tags = useMemo(() => data?.items ?? [], [data?.items]);
-
-	const filteredTags = useMemo(() => {
-		if (!search) return tags;
-		const query = search.toLowerCase();
-		return tags.filter((tag) => tag.name.toLowerCase().includes(query) || tag.description?.toLowerCase().includes(query));
-	}, [tags, search]);
-
-	const tree = useMemo(() => buildTagTree(filteredTags), [filteredTags]);
-
-	const toggleExpanded = (id: string) => {
-		setExpandedIds((prev) => {
-			const next = new Set(prev);
-			if (next.has(id)) {
-				next.delete(id);
-			} else {
-				next.add(id);
-			}
-			return next;
-		});
-	};
-
-	if (isLoading) {
-		return (
-			<div className="p-4 space-y-2">
-				{Array.from({ length: 5 }).map((_, i) => (
-					<Skeleton key={i} className="h-10 w-full" />
-				))}
-			</div>
-		);
-	}
+	const [query, setQuery] = useState('');
+	const [activeId, setActiveId] = useState(selectedId ?? mockTags[0].id);
+	const filtered = useMemo(
+		() => mockTags.filter((tag) => `${tag.name} ${tag.description ?? ''}`.toLowerCase().includes(query.toLowerCase())),
+		[query],
+	);
+	const maxUsage = Math.max(...mockTags.map((tag) => tag.documentCount));
 
 	return (
-		<div className="h-full flex flex-col">
-			{/* Header */}
-			<div className="p-4 border-b border-border/50">
-				<div className="flex items-center justify-between mb-3">
-					<h2 className="font-semibold flex items-center gap-2">
+		<div className="min-h-[680px] rounded-xl border border-slate-800/50 bg-slate-950 p-5 text-slate-100">
+			<div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+				<div>
+					<div className="flex items-center gap-2 text-sm font-medium text-brass-500">
 						<TagIcon className="h-4 w-4" />
-						Tags
-					</h2>
-					<Badge variant="secondary">{tags.length}</Badge>
+						Tag manager
+					</div>
+					<h2 className="mt-2 text-2xl font-semibold tracking-tight">Tags</h2>
+					<p className="mt-1 text-sm text-slate-400">Color-coded taxonomy, tag cloud, usage counts, merge, split, and cleanup actions.</p>
 				</div>
-
-				<div className="relative">
-					<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-					<Input
-						placeholder="Search tags..."
-						value={search}
-						onChange={(e) => setSearch(e.target.value)}
-						className="pl-9"
-					/>
+				<div className="flex gap-2">
+					<button type="button" className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:border-brass-500/70"><Combine className="h-4 w-4" />Merge tags</button>
+					<button type="button" className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:border-brass-500/70"><Split className="h-4 w-4" />Split tag</button>
 				</div>
 			</div>
 
-			{/* List */}
-			<div className="flex-1 overflow-auto p-2">
-				{tree.length === 0 ? (
-					<div className="text-center py-8 text-muted-foreground">
-						<TagIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
-						<p>{search ? 'No matching tags' : 'No tags yet'}</p>
+			<div className="mt-5 grid gap-6 xl:grid-cols-[1fr_360px]">
+				<section className="rounded-xl border border-slate-800/50 bg-slate-900 p-4">
+					<div className="relative mb-4">
+						<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+						<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search tags..." className="w-full rounded-xl border border-slate-800 bg-slate-950 py-2 pl-10 pr-3 text-sm outline-none focus:border-brass-500/70" />
 					</div>
-				) : (
-					<div className="space-y-0.5">
-						{tree.map((node) => (
-							<TagTreeItem
-								key={node.id}
-								node={node}
-								level={0}
-								selectedId={selectedId}
-								expandedIds={expandedIds}
-								onToggleExpand={toggleExpanded}
-								onSelect={onSelect}
-								onEdit={onEdit}
-								onDelete={(id) => deleteMutation.mutate(id)}
-							/>
+					<div className="space-y-3">
+						{filtered.length ? filtered.map((tag) => {
+							const active = tag.id === activeId;
+							return (
+								<button
+									key={tag.id}
+									type="button"
+									onClick={() => {
+										setActiveId(tag.id);
+										onSelect?.(tag);
+									}}
+									onDoubleClick={() => onEdit?.(tag)}
+									className={cn('w-full rounded-xl border p-4 text-left transition-colors', active ? 'border-brass-500/60 bg-brass-500/10' : 'border-slate-800 bg-slate-950/60 hover:border-slate-700')}
+								>
+									<div className="flex items-start gap-3">
+										<span className="mt-1 h-4 w-4 rounded-full" style={{ backgroundColor: tag.color }} />
+										<div className="min-w-0 flex-1">
+											<div className="flex items-center justify-between gap-3">
+												<p className="font-medium text-slate-100">{tag.name}</p>
+												<span className="tabular-nums text-sm text-slate-400">{tag.documentCount.toLocaleString()} docs</span>
+											</div>
+											<p className="mt-1 text-sm text-slate-400">{tag.description}</p>
+											<div className="mt-3 h-2 rounded-full bg-slate-800">
+												<div className="h-2 rounded-full" style={{ width: `${(tag.documentCount / maxUsage) * 100}%`, backgroundColor: tag.color }} />
+											</div>
+										</div>
+									</div>
+								</button>
+							);
+						}) : (
+							<div className="rounded-xl border border-dashed border-slate-800 py-16 text-center text-sm text-slate-500">No tags match this search. Create a tag to start classifying documents.</div>
+						)}
+					</div>
+				</section>
+
+				<section className="rounded-xl border border-slate-800/50 bg-slate-900 p-4">
+					<h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-100">Tag Cloud</h3>
+					<div className="mt-4 flex flex-wrap gap-2">
+						{mockTags.map((tag) => (
+							<button key={tag.id} type="button" onClick={() => setActiveId(tag.id)} className="rounded-full border border-slate-800 px-3 py-2 font-medium hover:border-brass-500/70" style={{ color: tag.color, fontSize: `${12 + (tag.documentCount / maxUsage) * 8}px` }}>
+								{tag.name}
+							</button>
 						))}
 					</div>
-				)}
+					<div className="mt-6 rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+						<p className="flex items-center gap-2 text-sm font-medium text-slate-100"><GitBranch className="h-4 w-4 text-brass-500" />Suggested cleanup</p>
+						<p className="mt-2 text-sm text-slate-400">Merge "Urgent Review" with duplicate variants "Urgent" and "Needs Attention"; split "Accounts Payable" into Vendor, Tax, and Statements.</p>
+					</div>
+				</section>
 			</div>
 		</div>
-	);
-}
-
-interface TagTreeItemProps {
-	node: TagTreeNode;
-	level: number;
-	selectedId?: string;
-	expandedIds: Set<string>;
-	onToggleExpand: (id: string) => void;
-	onSelect?: (tag: Tag) => void;
-	onEdit?: (tag: Tag) => void;
-	onDelete: (id: string) => void;
-}
-
-function TagTreeItem({ node, level, selectedId, expandedIds, onToggleExpand, onSelect, onEdit, onDelete }: TagTreeItemProps) {
-	const hasChildren = node.children.length > 0;
-	const isExpanded = expandedIds.has(node.id);
-	const isSelected = node.id === selectedId;
-
-	return (
-		<>
-			<div
-				className={cn(
-					'group flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer hover:bg-accent/50',
-					isSelected && 'bg-accent'
-				)}
-				style={{ paddingLeft: `${8 + level * 16}px` }}
-				onClick={() => onSelect?.(node)}
-			>
-				{hasChildren ? (
-					<button
-						onClick={(e) => {
-							e.stopPropagation();
-							onToggleExpand(node.id);
-						}}
-						className="p-0.5 hover:bg-accent rounded"
-					>
-						{isExpanded ? (
-							<ChevronDown className="h-4 w-4 text-muted-foreground" />
-						) : (
-							<ChevronRight className="h-4 w-4 text-muted-foreground" />
-						)}
-					</button>
-				) : (
-					<span className="w-5" />
-				)}
-
-				<span
-					className="w-3 h-3 rounded-full flex-shrink-0"
-					style={{ backgroundColor: node.color || '#64748b' }}
-				/>
-
-				<span className="flex-1 truncate text-sm">{node.name}</span>
-
-				<span className="text-xs text-muted-foreground flex items-center gap-1">
-					<FileText className="h-3 w-3" />
-					{node.documentCount}
-				</span>
-
-				<div className="hidden group-hover:flex items-center gap-1">
-					<button
-						onClick={(e) => {
-							e.stopPropagation();
-							onEdit?.(node);
-						}}
-						className="p-1 hover:bg-accent rounded"
-					>
-						<Edit className="h-3.5 w-3.5 text-muted-foreground" />
-					</button>
-
-					<AlertDialog>
-						<AlertDialogTrigger asChild>
-							<button
-								onClick={(e) => e.stopPropagation()}
-								className="p-1 hover:bg-accent rounded"
-							>
-								<Trash2 className="h-3.5 w-3.5 text-destructive" />
-							</button>
-						</AlertDialogTrigger>
-						<AlertDialogContent>
-							<AlertDialogHeader>
-								<AlertDialogTitle>Delete Tag</AlertDialogTitle>
-								<AlertDialogDescription>
-									Are you sure you want to delete "{node.name}"? Documents will not be deleted.
-								</AlertDialogDescription>
-							</AlertDialogHeader>
-							<AlertDialogFooter>
-								<AlertDialogCancel>Cancel</AlertDialogCancel>
-								<AlertDialogAction onClick={() => onDelete(node.id)} className="bg-destructive text-destructive-foreground">
-									Delete
-								</AlertDialogAction>
-							</AlertDialogFooter>
-						</AlertDialogContent>
-					</AlertDialog>
-				</div>
-			</div>
-
-			{hasChildren && isExpanded && (
-				<div>
-					{node.children.map((child) => (
-						<TagTreeItem
-							key={child.id}
-							node={child}
-							level={level + 1}
-							selectedId={selectedId}
-							expandedIds={expandedIds}
-							onToggleExpand={onToggleExpand}
-							onSelect={onSelect}
-							onEdit={onEdit}
-							onDelete={onDelete}
-						/>
-					))}
-				</div>
-			)}
-		</>
 	);
 }

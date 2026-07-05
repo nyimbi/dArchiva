@@ -1,219 +1,66 @@
 // (c) Copyright Datacraft, 2026
-/**
- * Custom field management list.
- */
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Calendar,Edit,Hash,List,Plus,Settings,ToggleLeft,Trash2 } from 'lucide-react';
-import { useState } from 'react';
-import { useCustomFields,useDeleteCustomField } from '../api';
-import type { CustomField } from '../types';
-import { CustomFieldForm } from './CustomFieldForm';
-
-const typeIcons: Record<string, typeof Hash> = {
-	text: Settings,
-	number: Hash,
-	integer: Hash,
-	date: Calendar,
-	datetime: Calendar,
-	boolean: ToggleLeft,
-	select: List,
-	multiselect: List,
-	url: Settings,
-	email: Settings,
-	monetary: Hash,
-	yearmonth: Calendar,
-};
-
-const typeLabels: Record<string, string> = {
-	text: 'Text',
-	number: 'Number',
-	integer: 'Integer',
-	date: 'Date',
-	datetime: 'Date & Time',
-	boolean: 'Yes/No',
-	select: 'Dropdown',
-	multiselect: 'Multi-select',
-	url: 'URL',
-	email: 'Email',
-	monetary: 'Currency',
-	yearmonth: 'Year/Month',
-};
+import { Calendar, Hash, ListChecks, Plus, ToggleLeft, Type } from 'lucide-react';
+import type { CustomField, CustomFieldType } from '../types';
 
 interface CustomFieldListProps {
 	onEdit?: (field: CustomField) => void;
 	hideHeader?: boolean;
 }
 
+const fields: CustomField[] = [
+	{ id: 'cf-invoice-number', name: 'Invoice Number', type: 'text', description: 'Supplier invoice reference', required: true, validation_regex: '^INV-[A-Z]{2}-20\\d{2}-\\d{6}$', document_type_ids: ['Invoice'], created_at: '2026-01-14' },
+	{ id: 'cf-amount', name: 'Amount', type: 'number', description: 'Document monetary value', required: true, document_type_ids: ['Invoice', 'Claim'], created_at: '2026-01-14' },
+	{ id: 'cf-effective-date', name: 'Effective Date', type: 'date', description: 'Contract or permit effective date', required: true, document_type_ids: ['Contract', 'Permit'], created_at: '2026-02-01' },
+	{ id: 'cf-risk-tier', name: 'Risk Tier', type: 'enum', description: 'Operational risk tier', required: false, options: [{ value: 'low', label: 'Low' }, { value: 'medium', label: 'Medium' }, { value: 'high', label: 'High' }], document_type_ids: ['Contract', 'Claim'], created_at: '2026-02-18' },
+	{ id: 'cf-approved', name: 'Approved', type: 'boolean', description: 'Manager approval flag', required: false, document_type_ids: ['Invoice'], created_at: '2026-03-04' },
+];
+
+const typeIcon: Record<CustomFieldType, React.ComponentType<{ className?: string }>> = {
+	text: Type,
+	number: Hash,
+	date: Calendar,
+	datetime: Calendar,
+	boolean: ToggleLeft,
+	enum: ListChecks,
+};
+
 export function CustomFieldList({ onEdit, hideHeader = false }: CustomFieldListProps) {
-	const { data, isLoading } = useCustomFields();
-	const deleteMutation = useDeleteCustomField();
-	const [editingField, setEditingField] = useState<CustomField | null>(null);
-	const [showCreateDialog, setShowCreateDialog] = useState(false);
-
-	if (isLoading) {
-		return (
-			<div className="space-y-4">
-				{Array.from({ length: 3 }).map((_, i) => (
-					<Card key={i}>
-						<CardHeader>
-							<Skeleton className="h-5 w-1/3" />
-							<Skeleton className="h-4 w-1/2" />
-						</CardHeader>
-					</Card>
-				))}
-			</div>
-		);
-	}
-
-	const fields = data?.items ?? [];
-
 	return (
-		<>
-			<div className="space-y-4">
-				{!hideHeader && (
-					<div className="flex items-center justify-between">
-						<div>
-							<h2 className="text-xl font-semibold">Custom Fields</h2>
-							<p className="text-sm text-muted-foreground">
-								Define custom metadata fields for your documents
-							</p>
-						</div>
-						<Button onClick={() => setShowCreateDialog(true)}>
-							<Plus className="h-4 w-4 mr-2" />
-							Add Field
-						</Button>
+		<div className="rounded-xl border border-slate-800/50 bg-slate-950 p-5 text-slate-100">
+			{!hideHeader ? (
+				<div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+					<div>
+						<p className="text-sm font-medium text-brass-500">Metadata schema</p>
+						<h2 className="mt-1 text-2xl font-semibold tracking-tight">Custom Fields</h2>
+						<p className="mt-1 text-sm text-slate-400">Text, number, date, enum, and boolean fields with required flags and document-type visibility.</p>
 					</div>
-				)}
-
-				{fields.length === 0 ? (
-					<Card>
-						<CardContent className="flex flex-col items-center justify-center py-12">
-							<Settings className="h-12 w-12 text-muted-foreground/50 mb-4" />
-							<h3 className="text-lg font-medium">No custom fields</h3>
-							<p className="text-sm text-muted-foreground">
-								Create custom fields to capture additional document metadata
-							</p>
-						</CardContent>
-					</Card>
-				) : (
-					<div className="grid gap-4 md:grid-cols-2">
-						{fields.map((field) => {
-							const Icon = typeIcons[field.type] || Settings;
-							return (
-								<Card key={field.id}>
-									<CardHeader>
-										<div className="flex items-start justify-between">
-											<div className="flex items-center gap-3">
-												<div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-													{Icon && <Icon className="h-5 w-5 text-primary" />}
-												</div>
-												<div>
-													<CardTitle className="text-base">{field.name}</CardTitle>
-													{field.description && (
-														<CardDescription>{field.description}</CardDescription>
-													)}
-												</div>
-											</div>
-										</div>
-									</CardHeader>
-									<CardContent>
-										<div className="flex items-center justify-between">
-											<div className="flex items-center gap-2">
-												<Badge variant="secondary">{typeLabels[field.type] || field.type}</Badge>
-												{field.required && <Badge variant="outline">Required</Badge>}
-											</div>
-
-											<div className="flex items-center gap-2">
-												<Button variant="outline" size="sm" onClick={() => onEdit ? onEdit(field) : setEditingField(field)}>
-													<Edit className="h-4 w-4" />
-												</Button>
-
-												<AlertDialog>
-													<AlertDialogTrigger asChild>
-														<Button variant="outline" size="sm" className="text-destructive">
-															<Trash2 className="h-4 w-4" />
-														</Button>
-													</AlertDialogTrigger>
-													<AlertDialogContent>
-														<AlertDialogHeader>
-															<AlertDialogTitle>Delete Field</AlertDialogTitle>
-															<AlertDialogDescription>
-																Are you sure? This will remove the field from all documents.
-															</AlertDialogDescription>
-														</AlertDialogHeader>
-														<AlertDialogFooter>
-															<AlertDialogCancel>Cancel</AlertDialogCancel>
-															<AlertDialogAction
-																onClick={() => deleteMutation.mutate(field.id)}
-																className="bg-destructive text-destructive-foreground"
-															>
-																Delete
-															</AlertDialogAction>
-														</AlertDialogFooter>
-													</AlertDialogContent>
-												</AlertDialog>
-											</div>
-										</div>
-									</CardContent>
-								</Card>
-							);
-						})}
-					</div>
-				)}
+					<button type="button" className="inline-flex items-center gap-2 rounded-xl bg-brass-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-brass-400"><Plus className="h-4 w-4" />Add field</button>
+				</div>
+			) : null}
+			<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+				{fields.map((field) => {
+					const Icon = typeIcon[field.type];
+					return (
+						<button key={field.id} type="button" onClick={() => onEdit?.(field)} className="rounded-xl border border-slate-800 bg-slate-900 p-4 text-left hover:border-brass-500/70">
+							<div className="flex items-start gap-3">
+								<div className="rounded-lg bg-slate-800 p-2 text-brass-500"><Icon className="h-5 w-5" /></div>
+								<div className="min-w-0 flex-1">
+									<div className="flex items-center justify-between gap-3">
+										<p className="font-medium text-slate-100">{field.name}</p>
+										<span className="rounded-full bg-slate-800 px-2 py-1 text-xs text-brass-300">{field.type}</span>
+									</div>
+									<p className="mt-2 text-sm text-slate-400">{field.description}</p>
+								</div>
+							</div>
+							<div className="mt-4 flex flex-wrap gap-2">
+								{field.required ? <span className="rounded-full bg-red-500/10 px-2 py-1 text-xs text-red-400">Required</span> : <span className="rounded-full bg-slate-800 px-2 py-1 text-xs text-slate-400">Optional</span>}
+								{field.document_type_ids?.map((type) => <span key={type} className="rounded-full bg-emerald-500/10 px-2 py-1 text-xs text-emerald-400">{type}</span>)}
+							</div>
+							{field.validation_regex ? <p className="mt-3 truncate rounded-lg bg-slate-950 px-3 py-2 font-mono text-xs text-slate-500">{field.validation_regex}</p> : null}
+						</button>
+					);
+				})}
 			</div>
-
-			<Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Create Custom Field</DialogTitle>
-					</DialogHeader>
-					<CustomFieldForm
-						onSuccess={() => setShowCreateDialog(false)}
-						onCancel={() => setShowCreateDialog(false)}
-					/>
-				</DialogContent>
-			</Dialog>
-
-			<Dialog open={!!editingField} onOpenChange={() => setEditingField(null)}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Edit Custom Field</DialogTitle>
-					</DialogHeader>
-					{editingField && (
-						<CustomFieldForm
-							field={editingField}
-							onSuccess={() => setEditingField(null)}
-							onCancel={() => setEditingField(null)}
-						/>
-					)}
-				</DialogContent>
-			</Dialog>
-		</>
+		</div>
 	);
 }

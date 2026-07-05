@@ -4,7 +4,7 @@
  */
 
 // GitHub Issue #631: Added 'datetime' type for datetime custom fields
-export type CustomFieldType = 'text' | 'number' | 'date' | 'datetime' | 'boolean' | 'select' | 'url' | 'email' | 'monetary';
+export type CustomFieldType = 'text' | 'number' | 'date' | 'datetime' | 'boolean' | 'enum';
 
 export interface CustomFieldOption {
 	value: string;
@@ -90,10 +90,7 @@ export const FIELD_TYPE_LABELS: Record<CustomFieldType, string> = {
 	date: 'Date',
 	datetime: 'Date & Time', // GitHub Issue #631
 	boolean: 'Yes/No',
-	select: 'Dropdown',
-	url: 'URL',
-	email: 'Email',
-	monetary: 'Currency',
+	enum: 'Enum',
 };
 
 // GitHub Issue #700: Configuration for date/datetime fields

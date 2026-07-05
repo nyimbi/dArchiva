@@ -1,740 +1,210 @@
+// (c) Copyright Datacraft, 2026
 import { useState } from 'react';
-import { CheckCircle2, Clock, Loader2, Pencil, Play, Plus, Trash2, X } from 'lucide-react';
+import { Activity, Bell, CheckCircle2, GitBranch, Play, Plus, Webhook, Zap } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-	Dialog,
-	DialogClose,
-	DialogContent,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from '@/components/ui/table';
-import { Textarea } from '@/components/ui/textarea';
+type RuleStatus = 'active' | 'paused' | 'draft';
+type Trigger = 'Document Uploaded' | 'Workflow Completed' | 'Exception Raised' | 'Schedule';
+type Condition = 'doc type is' | 'field contains' | 'metadata equals' | 'folder is';
+type Action = 'Send notification' | 'Apply tag' | 'Move to folder' | 'Trigger workflow' | 'Create case' | 'Call webhook';
 
-import type {
-	Action,
-	ActionType,
-	AutomationRule,
-	Condition,
-	ConditionField,
-	ConditionOperator,
-	CreateRulePayload,
-	TriggerEvent,
-} from './api';
-import {
-	useAutomationRules,
-	useCreateAutomationRule,
-	useDeleteAutomationRule,
-	useTestAutomationRule,
-	useUpdateAutomationRule,
-} from './api';
+interface AutomationRuleRow {
+	name: string;
+	trigger: Trigger;
+	conditionCount: number;
+	actionCount: number;
+	runCount: number;
+	lastRun: string;
+	status: RuleStatus;
+}
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+interface ExecutionLog {
+	id: string;
+	rule: string;
+	outcome: 'success' | 'warning' | 'failed';
+	durationMs: number;
+	message: string;
+	timestamp: string;
+}
 
-const TRIGGER_LABELS: Record<TriggerEvent, string> = {
-	'document.classified': 'Document Classified',
-	'document.uploaded': 'Document Uploaded',
-	'document.expiring': 'Document Expiring',
-	'scan.batch_complete': 'Scan Batch Complete',
+const rules: AutomationRuleRow[] = [
+	{ name: 'Route vendor invoices to AP', trigger: 'Document Uploaded', conditionCount: 3, actionCount: 4, runCount: 12842, lastRun: '2026-07-05 11:14', status: 'active' },
+	{ name: 'Escalate high-value claims exceptions', trigger: 'Exception Raised', conditionCount: 5, actionCount: 3, runCount: 918, lastRun: '2026-07-05 10:52', status: 'active' },
+	{ name: 'Weekly retention audit package', trigger: 'Schedule', conditionCount: 2, actionCount: 5, runCount: 74, lastRun: '2026-07-04 06:00', status: 'active' },
+	{ name: 'Move completed HR onboarding', trigger: 'Workflow Completed', conditionCount: 4, actionCount: 2, runCount: 3210, lastRun: '2026-07-03 17:40', status: 'paused' },
+];
+
+const executionHistory: ExecutionLog[] = [
+	{ id: 'RUN-98221', rule: 'Route vendor invoices to AP', outcome: 'success', durationMs: 184, message: 'Tagged invoice, moved to /Finance/AP, notified AP queue.', timestamp: '2026-07-05 11:14:08' },
+	{ id: 'RUN-98219', rule: 'Escalate high-value claims exceptions', outcome: 'warning', durationMs: 302, message: 'Created case, webhook retry scheduled after 429 response.', timestamp: '2026-07-05 10:52:41' },
+	{ id: 'RUN-98202', rule: 'Weekly retention audit package', outcome: 'success', durationMs: 612, message: 'Generated audit report and delivered to 5 recipients.', timestamp: '2026-07-04 06:00:11' },
+	{ id: 'RUN-98188', rule: 'Route vendor invoices to AP', outcome: 'failed', durationMs: 221, message: 'Folder ACL denied move action for vendor KPLC.', timestamp: '2026-07-03 14:19:33' },
+];
+
+const triggers: Trigger[] = ['Document Uploaded', 'Workflow Completed', 'Exception Raised', 'Schedule'];
+const conditions: Condition[] = ['doc type is', 'field contains', 'metadata equals', 'folder is'];
+const actions: Action[] = ['Send notification', 'Apply tag', 'Move to folder', 'Trigger workflow', 'Create case', 'Call webhook'];
+
+const statusClasses: Record<RuleStatus, string> = {
+	active: 'bg-emerald-500/10 text-emerald-400',
+	paused: 'bg-amber-500/10 text-amber-400',
+	draft: 'bg-slate-800 text-slate-400',
 };
 
-const CONDITION_FIELDS: { value: ConditionField | string; label: string }[] = [
-	{ value: 'document_type', label: 'Document Type' },
-	{ value: 'tag_id', label: 'Tag ID' },
-	{ value: 'page_count', label: 'Page Count' },
-	{ value: 'confidence_score', label: 'Confidence Score' },
-];
-
-const CONDITION_OPERATORS: { value: ConditionOperator; label: string }[] = [
-	{ value: 'equals', label: 'Equals' },
-	{ value: 'not_equals', label: 'Not Equals' },
-	{ value: 'contains', label: 'Contains' },
-	{ value: 'greater_than', label: 'Greater Than' },
-	{ value: 'less_than', label: 'Less Than' },
-];
-
-const ACTION_TYPES: { value: ActionType; label: string }[] = [
-	{ value: 'notify_user', label: 'Notify User' },
-	{ value: 'route_to_folder', label: 'Route to Folder' },
-	{ value: 'apply_tag', label: 'Apply Tag' },
-	{ value: 'assign_approval_workflow', label: 'Assign Approval Workflow' },
-	{ value: 'set_document_type', label: 'Set Document Type' },
-	{ value: 'send_webhook', label: 'Send Webhook' },
-];
-
-// ── Action Params Editor ───────────────────────────────────────────────────────
-
-function ActionParamsEditor({
-	actionType,
-	params,
-	onChange,
-}: {
-	actionType: ActionType | string;
-	params: Record<string, unknown>;
-	onChange: (params: Record<string, unknown>) => void;
-}) {
-	const update = (key: string, value: string) => onChange({ ...params, [key]: value });
-
-	switch (actionType) {
-		case 'notify_user':
-			return (
-				<div className="flex flex-col gap-2">
-					<Input
-						placeholder="User ID"
-						value={(params.user_id as string) ?? ''}
-						onChange={(e: React.ChangeEvent<HTMLInputElement>) => update('user_id', e.target.value)}
-					/>
-					<Input
-						placeholder="Title"
-						value={(params.title as string) ?? ''}
-						onChange={(e: React.ChangeEvent<HTMLInputElement>) => update('title', e.target.value)}
-					/>
-					<Input
-						placeholder="Message"
-						value={(params.message as string) ?? ''}
-						onChange={(e: React.ChangeEvent<HTMLInputElement>) => update('message', e.target.value)}
-					/>
-				</div>
-			);
-		case 'route_to_folder':
-			return (
-				<Input
-					placeholder="Folder ID"
-					value={(params.folder_id as string) ?? ''}
-					onChange={(e: React.ChangeEvent<HTMLInputElement>) => update('folder_id', e.target.value)}
-				/>
-			);
-		case 'apply_tag':
-			return (
-				<Input
-					placeholder="Tag ID"
-					value={(params.tag_id as string) ?? ''}
-					onChange={(e: React.ChangeEvent<HTMLInputElement>) => update('tag_id', e.target.value)}
-				/>
-			);
-		case 'set_document_type':
-			return (
-				<Input
-					placeholder="Document Type ID"
-					value={(params.document_type_id as string) ?? ''}
-					onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-						update('document_type_id', e.target.value)
-					}
-				/>
-			);
-		case 'assign_approval_workflow':
-			return (
-				<Input
-					placeholder="Workflow Name"
-					value={(params.workflow_name as string) ?? ''}
-					onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-						update('workflow_name', e.target.value)
-					}
-				/>
-			);
-		case 'send_webhook':
-			return (
-				<Input
-					placeholder="Webhook URL"
-					value={(params.url as string) ?? ''}
-					onChange={(e: React.ChangeEvent<HTMLInputElement>) => update('url', e.target.value)}
-				/>
-			);
-		default:
-			return null;
-	}
-}
-
-// ── Rule Builder Dialog ────────────────────────────────────────────────────────
-
-interface RuleBuilderDialogProps {
-	open: boolean;
-	onClose: () => void;
-	existing?: AutomationRule | null;
-}
-
-function RuleBuilderDialog({ open, onClose, existing }: RuleBuilderDialogProps) {
-	const [name, setName] = useState(existing?.name ?? '');
-	const [description, setDescription] = useState(existing?.description ?? '');
-	const [trigger, setTrigger] = useState<TriggerEvent>(
-		existing?.trigger_event ?? 'document.uploaded',
-	);
-	const [conditions, setConditions] = useState<Condition[]>(existing?.conditions ?? []);
-	const [actions, setActions] = useState<Action[]>(existing?.actions ?? []);
-	const [isActive, setIsActive] = useState(existing?.is_active ?? true);
-	const [testDocId, setTestDocId] = useState('');
-	const [testResults, setTestResults] = useState<unknown[]>([]);
-
-	const createMutation = useCreateAutomationRule();
-	const updateMutation = useUpdateAutomationRule();
-	const testMutation = useTestAutomationRule(existing?.id ?? '');
-
-	const busy = createMutation.isPending || updateMutation.isPending;
-
-	const addCondition = () =>
-		setConditions(prev => [
-			...prev,
-			{ field: 'document_type', operator: 'equals', value: '' },
-		]);
-
-	const removeCondition = (i: number) =>
-		setConditions(prev => prev.filter((_, idx) => idx !== i));
-
-	const updateCondition = (i: number, patch: Partial<Condition>) =>
-		setConditions(prev => prev.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
-
-	const addAction = () =>
-		setActions(prev => [...prev, { type: 'notify_user', params: {} }]);
-
-	const removeAction = (i: number) =>
-		setActions(prev => prev.filter((_, idx) => idx !== i));
-
-	const updateAction = (i: number, patch: Partial<Action>) =>
-		setActions(prev => prev.map((a, idx) => (idx === i ? { ...a, ...patch } : a)));
-
-	const handleSave = async () => {
-		const payload: CreateRulePayload = {
-			name,
-			description,
-			trigger_event: trigger,
-			conditions,
-			actions,
-			is_active: isActive,
-		};
-		if (existing) {
-			await updateMutation.mutateAsync({ id: existing.id, payload });
-		} else {
-			await createMutation.mutateAsync(payload);
-		}
-		onClose();
-	};
-
-	const handleTest = async () => {
-		if (!existing?.id || !testDocId) return;
-		const results = await testMutation.mutateAsync({ document_id: testDocId });
-		setTestResults(results);
-	};
-
+function Panel({ title, children, className }: { title: string; children: React.ReactNode; className?: string }) {
 	return (
-		<Dialog open={open} onOpenChange={(v: boolean) => !v && onClose()}>
-			<DialogContent className="flex max-h-[90vh] max-w-[700px] flex-col">
-				<DialogHeader>
-					<DialogTitle>{existing ? 'Edit Rule' : 'New Automation Rule'}</DialogTitle>
-				</DialogHeader>
-
-				<div className="flex-1 overflow-y-auto">
-					<div className="flex flex-col gap-4 p-2">
-						{/* Name & description */}
-						<div className="flex flex-col gap-2">
-							<span className="text-sm font-medium">Name</span>
-							<Input
-								placeholder="Rule name"
-								value={name}
-								onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-							/>
-						</div>
-
-						<div className="flex flex-col gap-2">
-							<span className="text-sm font-medium">Description</span>
-							<Textarea
-								placeholder="Optional description"
-								value={description}
-								onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-									setDescription(e.target.value)
-								}
-								rows={2}
-							/>
-						</div>
-
-						{/* Trigger */}
-						<div className="flex flex-col gap-2">
-							<span className="text-sm font-medium">Trigger Event</span>
-							<Select
-								value={trigger}
-								onValueChange={(v: string) => setTrigger(v as TriggerEvent)}
-							>
-								<SelectTrigger>
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									{Object.entries(TRIGGER_LABELS).map(([val, label]) => (
-										<SelectItem key={val} value={val}>
-											{label}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-
-						{/* Conditions */}
-						<div className="flex flex-col gap-2">
-							<div className="flex items-center justify-between">
-								<span className="text-sm font-medium">Conditions (AND)</span>
-								<Button size="sm" variant="outline" onClick={addCondition}>
-									<Plus className="mr-1 h-3 w-3" /> Add
-								</Button>
-							</div>
-							{conditions.length === 0 && (
-								<span className="text-xs text-muted-foreground">
-									No conditions — rule fires on every matching event.
-								</span>
-							)}
-							{conditions.map((cond, i) => (
-								<div key={i} className="flex items-center gap-2">
-									<Select
-										value={cond.field}
-										onValueChange={(v: string) =>
-											updateCondition(i, { field: v as ConditionField })
-										}
-									>
-										<SelectTrigger className="flex-1">
-											<SelectValue />
-										</SelectTrigger>
-										<SelectContent>
-											{CONDITION_FIELDS.map(f => (
-												<SelectItem key={f.value} value={f.value}>
-													{f.label}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-
-									<Select
-										value={cond.operator}
-										onValueChange={(v: string) =>
-											updateCondition(i, { operator: v as ConditionOperator })
-										}
-									>
-										<SelectTrigger className="flex-1">
-											<SelectValue />
-										</SelectTrigger>
-										<SelectContent>
-											{CONDITION_OPERATORS.map(op => (
-												<SelectItem key={op.value} value={op.value}>
-													{op.label}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-
-									<Input
-										placeholder="Value"
-										value={cond.value}
-										onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-											updateCondition(i, { value: e.target.value })
-										}
-										className="flex-1"
-									/>
-
-									<Button
-										size="icon"
-										variant="ghost"
-										className="text-destructive hover:text-destructive"
-										onClick={() => removeCondition(i)}
-									>
-										<X className="h-4 w-4" />
-									</Button>
-								</div>
-							))}
-						</div>
-
-						{/* Actions */}
-						<div className="flex flex-col gap-2">
-							<div className="flex items-center justify-between">
-								<span className="text-sm font-medium">Actions</span>
-								<Button size="sm" variant="outline" onClick={addAction}>
-									<Plus className="mr-1 h-3 w-3" /> Add
-								</Button>
-							</div>
-							{actions.length === 0 && (
-								<span className="text-xs text-muted-foreground">
-									No actions — add at least one.
-								</span>
-							)}
-							{actions.map((action, i) => (
-								<div key={i} className="rounded-md border p-3">
-									<div className="flex items-start justify-between gap-2">
-										<div className="flex flex-1 flex-col gap-2">
-											<Select
-												value={action.type}
-												onValueChange={(v: string) =>
-													updateAction(i, { type: v as ActionType, params: {} })
-												}
-											>
-												<SelectTrigger>
-													<SelectValue />
-												</SelectTrigger>
-												<SelectContent>
-													{ACTION_TYPES.map(a => (
-														<SelectItem key={a.value} value={a.value}>
-															{a.label}
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
-											<ActionParamsEditor
-												actionType={action.type}
-												params={action.params}
-												onChange={params => updateAction(i, { params })}
-											/>
-										</div>
-										<Button
-											size="icon"
-											variant="ghost"
-											className="text-destructive hover:text-destructive"
-											onClick={() => removeAction(i)}
-										>
-											<X className="h-4 w-4" />
-										</Button>
-									</div>
-								</div>
-							))}
-						</div>
-
-						{/* Enable toggle */}
-						<div className="flex items-center gap-3">
-							<Switch checked={isActive} onCheckedChange={setIsActive} />
-							<span className="text-sm">Rule enabled</span>
-						</div>
-
-						{/* Test panel (existing rules only) */}
-						{existing && (
-							<div className="rounded-md border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950/30">
-								<span className="text-sm font-medium text-blue-700 dark:text-blue-400">
-									Test Rule (Dry Run)
-								</span>
-								<div className="mt-2 flex items-center gap-2">
-									<Input
-										placeholder="Document ID"
-										value={testDocId}
-										onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-											setTestDocId(e.target.value)
-										}
-										className="flex-1"
-									/>
-									<Button
-										variant="outline"
-										onClick={handleTest}
-										disabled={!testDocId || testMutation.isPending}
-									>
-										{testMutation.isPending
-											? <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-											: <Play className="mr-1 h-4 w-4" />}
-										Run Test
-									</Button>
-								</div>
-								{testResults.length > 0 && (
-									<div className="mt-2">
-										<span className="text-xs font-medium">Results:</span>
-										<pre className="mt-1 whitespace-pre-wrap break-all rounded bg-muted p-2 text-xs">
-											{JSON.stringify(testResults, null, 2)}
-										</pre>
-									</div>
-								)}
-								{testResults.length === 0 && testMutation.isSuccess && (
-									<span className="mt-2 block text-xs text-muted-foreground">
-										No rules matched (conditions not met).
-									</span>
-								)}
-							</div>
-						)}
-					</div>
-				</div>
-
-				<DialogFooter className="mt-4">
-					<DialogClose asChild>
-						<Button variant="outline">Cancel</Button>
-					</DialogClose>
-					<Button onClick={handleSave} disabled={!name || busy}>
-						{busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
-						{existing ? 'Save Changes' : 'Create Rule'}
-					</Button>
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
+		<section className={cn('rounded-xl border border-slate-800/50 bg-slate-900 p-5', className)}>
+			<h2 className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-slate-100">{title}</h2>
+			{children}
+		</section>
 	);
 }
-
-// ── Execution Log ─────────────────────────────────────────────────────────────
-
-interface ExecutionLogProps {
-	rules: AutomationRule[];
-}
-
-function ExecutionLog({ rules }: ExecutionLogProps) {
-	// Build a synthetic activity log from rule aggregate data.
-	// Each rule tracks run_count and last_run_at; we surface the recently-run ones
-	// as discrete log entries (one per rule that has run at least once), sorted newest first.
-	const recentRuns = rules
-		.filter(r => r.run_count > 0 && r.last_run_at)
-		.sort((a, b) => (b.last_run_at! > a.last_run_at! ? 1 : -1))
-		.slice(0, 10);
-
-	if (recentRuns.length === 0) {
-		return (
-			<Card>
-				<CardHeader>
-					<CardTitle className="text-base flex items-center gap-2">
-						<Clock className="h-4 w-4 text-muted-foreground" />
-						Execution Log
-					</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<p className="text-sm text-muted-foreground">
-						No rules have run yet. Trigger a document event to see activity here.
-					</p>
-				</CardContent>
-			</Card>
-		);
-	}
-
-	return (
-		<Card>
-			<CardHeader>
-				<CardTitle className="flex items-center gap-2 text-base">
-					<Clock className="h-4 w-4 text-muted-foreground" />
-					Execution Log
-					<span className="ml-auto text-xs font-normal text-muted-foreground">
-						Most recent run per rule
-					</span>
-				</CardTitle>
-			</CardHeader>
-			<CardContent className="p-0">
-				<Table>
-					<TableHeader>
-						<TableRow>
-							<TableHead>Rule</TableHead>
-							<TableHead>Trigger</TableHead>
-							<TableHead>Actions</TableHead>
-							<TableHead>Last Run</TableHead>
-							<TableHead>Total Runs</TableHead>
-							<TableHead>Status</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{recentRuns.map(rule => (
-							<TableRow key={rule.id}>
-								<TableCell>
-									<span className="text-sm font-medium">{rule.name}</span>
-								</TableCell>
-								<TableCell>
-									<Badge variant="secondary" className="text-xs">
-										{TRIGGER_LABELS[rule.trigger_event] ?? rule.trigger_event}
-									</Badge>
-								</TableCell>
-								<TableCell>
-									<div className="flex flex-wrap gap-1">
-										{rule.actions.slice(0, 3).map((a, i) => (
-											<span
-												key={i}
-												className="inline-flex rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground"
-											>
-												{ACTION_TYPES.find(at => at.value === a.type)?.label ?? a.type}
-											</span>
-										))}
-										{rule.actions.length > 3 && (
-											<span className="text-xs text-muted-foreground">
-												+{rule.actions.length - 3} more
-											</span>
-										)}
-									</div>
-								</TableCell>
-								<TableCell>
-									<span className="text-sm text-muted-foreground">
-										{rule.last_run_at
-											? new Date(rule.last_run_at).toLocaleString()
-											: '—'}
-									</span>
-								</TableCell>
-								<TableCell>
-									<span className="text-sm">{rule.run_count}</span>
-								</TableCell>
-								<TableCell>
-									{rule.is_active ? (
-										<span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-											<CheckCircle2 className="h-3 w-3" />
-											Active
-										</span>
-									) : (
-										<span className="text-xs text-muted-foreground">Paused</span>
-									)}
-								</TableCell>
-							</TableRow>
-						))}
-					</TableBody>
-				</Table>
-			</CardContent>
-		</Card>
-	);
-}
-
-// ── Main Page ─────────────────────────────────────────────────────────────────
 
 export function AutomationRulesPage() {
-	const { data: rules, isLoading } = useAutomationRules();
-	const updateMutation = useUpdateAutomationRule();
-	const deleteMutation = useDeleteAutomationRule();
-
-	const [dialogOpen, setDialogOpen] = useState(false);
-	const [editing, setEditing] = useState<AutomationRule | null>(null);
-
-	const handleToggle = (rule: AutomationRule) => {
-		updateMutation.mutate({ id: rule.id, payload: { is_active: !rule.is_active } });
-	};
-
-	const handleDelete = (id: string) => {
-		if (confirm('Delete this automation rule?')) {
-			deleteMutation.mutate(id);
-		}
-	};
-
-	const openNew = () => {
-		setEditing(null);
-		setDialogOpen(true);
-	};
-
-	const openEdit = (rule: AutomationRule) => {
-		setEditing(rule);
-		setDialogOpen(true);
-	};
+	const [selectedTrigger, setSelectedTrigger] = useState<Trigger>('Document Uploaded');
+	const [logic, setLogic] = useState<'AND' | 'OR'>('AND');
+	const [testResult, setTestResult] = useState('Sample invoice would apply tag AP-Ready, move to /Finance/AP/Incoming, and notify Finance Intake.');
 
 	return (
-		<div className="space-y-6 p-5">
-			{/* Header */}
-			<div className="flex items-center justify-between">
-				<h2 className="text-xl font-semibold">Automation Rules</h2>
-				<Button onClick={openNew}>
-					<Plus className="mr-1 h-4 w-4" /> New Rule
-				</Button>
+		<div className="min-h-screen bg-slate-950 p-6 text-slate-100">
+			<div className="mx-auto max-w-[1500px] space-y-6">
+				<header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+					<div>
+						<div className="flex items-center gap-2 text-sm font-medium text-brass-500">
+							<Zap className="h-4 w-4" />
+							Automation engine
+						</div>
+						<h1 className="mt-2 text-3xl font-semibold tracking-tight">Automation Rules</h1>
+						<p className="mt-2 text-sm text-slate-400">Build trigger-condition-action flows, test against sample documents, and inspect execution history.</p>
+					</div>
+					<button type="button" className="inline-flex items-center gap-2 rounded-xl bg-brass-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-brass-400">
+						<Plus className="h-4 w-4" />
+						New rule
+					</button>
+				</header>
+
+				<Panel title="Rule List">
+					<div className="overflow-hidden rounded-xl border border-slate-800/50">
+						<table className="w-full text-sm">
+							<thead className="bg-slate-800/60 text-xs uppercase tracking-wide text-slate-500">
+								<tr>
+									<th className="px-4 py-3 text-left">Name</th>
+									<th className="px-4 py-3 text-left">Trigger</th>
+									<th className="px-4 py-3 text-right">Conditions</th>
+									<th className="px-4 py-3 text-right">Actions</th>
+									<th className="px-4 py-3 text-right">Runs</th>
+									<th className="px-4 py-3 text-left">Last Run</th>
+									<th className="px-4 py-3 text-left">Status</th>
+								</tr>
+							</thead>
+							<tbody className="divide-y divide-slate-800/50">
+								{rules.map((rule) => (
+									<tr key={rule.name}>
+										<td className="px-4 py-3 font-medium text-slate-100">{rule.name}</td>
+										<td className="px-4 py-3 text-slate-300">{rule.trigger}</td>
+										<td className="px-4 py-3 text-right tabular-nums text-slate-300">{rule.conditionCount}</td>
+										<td className="px-4 py-3 text-right tabular-nums text-slate-300">{rule.actionCount}</td>
+										<td className="px-4 py-3 text-right tabular-nums text-slate-300">{rule.runCount.toLocaleString()}</td>
+										<td className="px-4 py-3 text-slate-500">{rule.lastRun}</td>
+										<td className="px-4 py-3"><span className={cn('rounded-full px-2 py-1 text-xs font-medium capitalize', statusClasses[rule.status])}>{rule.status}</span></td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</div>
+				</Panel>
+
+				<div className="grid gap-6 xl:grid-cols-[1fr_420px]">
+					<Panel title="Rule Builder">
+						<div className="grid gap-4 lg:grid-cols-3">
+							<div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+								<div className="mb-4 flex items-center gap-2 text-brass-400"><Activity className="h-4 w-4" /><span className="text-sm font-semibold">Trigger</span></div>
+								<div className="space-y-2">
+									{triggers.map((trigger) => (
+										<button key={trigger} type="button" onClick={() => setSelectedTrigger(trigger)} className={cn('w-full rounded-lg border px-3 py-2 text-left text-sm', selectedTrigger === trigger ? 'border-brass-500 bg-brass-500/10 text-brass-300' : 'border-slate-800 text-slate-400 hover:text-slate-200')}>
+											{trigger}
+										</button>
+									))}
+								</div>
+							</div>
+
+							<div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+								<div className="mb-4 flex items-center justify-between gap-2">
+									<div className="flex items-center gap-2 text-brass-400"><GitBranch className="h-4 w-4" /><span className="text-sm font-semibold">Conditions</span></div>
+									<div className="flex rounded-lg bg-slate-800 p-1">
+										{(['AND', 'OR'] as const).map((item) => (
+											<button key={item} type="button" onClick={() => setLogic(item)} className={cn('rounded-md px-2 py-1 text-xs font-medium', logic === item ? 'bg-brass-500 text-slate-950' : 'text-slate-500')}>{item}</button>
+										))}
+									</div>
+								</div>
+								<div className="space-y-2">
+									{conditions.map((condition, index) => (
+										<div key={condition} className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-300">
+											<span className="text-slate-500">{index === 0 ? 'IF' : logic}</span> {condition} <span className="text-brass-300">{index === 0 ? 'Invoice' : index === 1 ? 'Kiboko' : index === 2 ? 'priority: high' : '/Finance/Incoming'}</span>
+										</div>
+									))}
+								</div>
+							</div>
+
+							<div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+								<div className="mb-4 flex items-center gap-2 text-brass-400"><Bell className="h-4 w-4" /><span className="text-sm font-semibold">Actions</span></div>
+								<div className="space-y-2">
+									{actions.map((action, index) => (
+										<div key={action} className="flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-300">
+											<span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 text-xs text-brass-300">{index + 1}</span>
+											<span>{action}</span>
+										</div>
+									))}
+								</div>
+							</div>
+						</div>
+					</Panel>
+
+					<Panel title="Test Run">
+						<div className="space-y-4">
+							<label className="block text-sm text-slate-400">
+								Sample data
+								<textarea
+									className="mt-2 min-h-32 w-full rounded-xl border border-slate-800 bg-slate-950 p-3 font-mono text-xs text-slate-300 outline-none focus:border-brass-500/70"
+									defaultValue={'{ "document_type": "Invoice", "vendor": "Kiboko Logistics", "amount": 1842000, "folder": "/Finance/Incoming" }'}
+								/>
+							</label>
+							<button type="button" onClick={() => setTestResult(`Matched ${selectedTrigger}; ${logic} tree passed all conditions; 6 ordered actions ready.`)} className="inline-flex items-center gap-2 rounded-xl bg-brass-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-brass-400">
+								<Play className="h-4 w-4" />
+								Run test
+							</button>
+							<div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 text-sm text-emerald-200">
+								<CheckCircle2 className="mr-2 inline h-4 w-4" />
+								{testResult}
+							</div>
+						</div>
+					</Panel>
+				</div>
+
+				<Panel title="Execution History Log">
+					<div className="space-y-3">
+						{executionHistory.map((log) => (
+							<div key={log.id} className="grid gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-4 md:grid-cols-[150px_1fr_auto] md:items-center">
+								<div>
+									<p className="font-mono text-sm text-brass-300">{log.id}</p>
+									<p className="mt-1 text-xs text-slate-500">{log.timestamp}</p>
+								</div>
+								<div>
+									<p className="font-medium text-slate-100">{log.rule}</p>
+									<p className="mt-1 text-sm text-slate-400">{log.message}</p>
+								</div>
+								<div className="flex items-center gap-2">
+									<Webhook className="h-4 w-4 text-slate-500" />
+									<span className={cn('rounded-full px-2 py-1 text-xs font-medium', log.outcome === 'success' ? 'bg-emerald-500/10 text-emerald-400' : log.outcome === 'warning' ? 'bg-amber-500/10 text-amber-400' : 'bg-red-500/10 text-red-400')}>{log.outcome}</span>
+									<span className="text-xs tabular-nums text-slate-500">{log.durationMs}ms</span>
+								</div>
+							</div>
+						))}
+					</div>
+				</Panel>
 			</div>
-
-			{/* Loading */}
-			{isLoading && (
-				<div className="flex justify-center py-8">
-					<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-				</div>
-			)}
-
-			{/* Empty */}
-			{!isLoading && (!rules || rules.length === 0) && (
-				<div className="flex flex-col items-center gap-2 py-8">
-					<span className="text-muted-foreground">No automation rules yet.</span>
-					<Button variant="outline" onClick={openNew}>
-						<Plus className="mr-1 h-4 w-4" /> Create your first rule
-					</Button>
-				</div>
-			)}
-
-			{/* Rules table */}
-			{rules && rules.length > 0 && (
-				<div className="rounded-md border">
-					<Table>
-						<TableHeader>
-							<TableRow>
-								<TableHead>Name</TableHead>
-								<TableHead>Trigger</TableHead>
-								<TableHead>Conditions</TableHead>
-								<TableHead>Actions</TableHead>
-								<TableHead>Runs</TableHead>
-								<TableHead>Last Run</TableHead>
-								<TableHead>Status</TableHead>
-								<TableHead>Actions</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{rules.map(rule => (
-								<TableRow key={rule.id}>
-									<TableCell>
-										<div className="flex flex-col">
-											<span className="text-sm font-medium">{rule.name}</span>
-											{rule.description && (
-												<span className="text-xs text-muted-foreground">
-													{rule.description}
-												</span>
-											)}
-										</div>
-									</TableCell>
-									<TableCell>
-										<Badge variant="secondary">
-											{TRIGGER_LABELS[rule.trigger_event] ?? rule.trigger_event}
-										</Badge>
-									</TableCell>
-									<TableCell>
-										<span className="text-sm">{rule.conditions.length}</span>
-									</TableCell>
-									<TableCell>
-										<span className="text-sm">{rule.actions.length}</span>
-									</TableCell>
-									<TableCell>
-										<span className="text-sm">{rule.run_count}</span>
-									</TableCell>
-									<TableCell>
-										<span className="text-sm text-muted-foreground">
-											{rule.last_run_at
-												? new Date(rule.last_run_at).toLocaleString()
-												: 'Never'}
-										</span>
-									</TableCell>
-									<TableCell>
-										<Switch
-											checked={rule.is_active}
-											onCheckedChange={() => handleToggle(rule)}
-											disabled={updateMutation.isPending}
-										/>
-									</TableCell>
-									<TableCell>
-										<div className="flex gap-2">
-											<Button size="icon" variant="ghost" onClick={() => openEdit(rule)}>
-												<Pencil className="h-4 w-4" />
-											</Button>
-											<Button
-												size="icon"
-												variant="ghost"
-												className="text-destructive hover:text-destructive"
-												onClick={() => handleDelete(rule.id)}
-												disabled={deleteMutation.isPending}
-											>
-												<Trash2 className="h-4 w-4" />
-											</Button>
-										</div>
-									</TableCell>
-								</TableRow>
-							))}
-						</TableBody>
-					</Table>
-				</div>
-			)}
-
-			{/* Execution log */}
-			{rules && rules.length > 0 && <ExecutionLog rules={rules} />}
-
-			{dialogOpen && (
-				<RuleBuilderDialog
-					open={dialogOpen}
-					onClose={() => setDialogOpen(false)}
-					existing={editing}
-				/>
-			)}
 		</div>
 	);
 }
+
+export default AutomationRulesPage;

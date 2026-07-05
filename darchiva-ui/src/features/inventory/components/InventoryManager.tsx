@@ -1,1122 +1,326 @@
 // (c) Copyright Datacraft, 2026
-/**
- * Physical inventory management — item tracking, checkout/checkin, and reconciliation tools.
- */
-import { AnimatePresence, motion } from 'framer-motion';
+import { useMemo, useState } from 'react';
 import {
-  AlertTriangle,
-  Archive,
-  CheckCircle,
-  ChevronDown,
-  ChevronRight,
-  ClipboardCheck,
-  Download,
-  FileSearch,
-  Info,
-  Loader2,
-  MapPin,
-  Package,
-  Plus,
-  Printer,
-  QrCode,
-  RefreshCw,
-  Search,
-  Upload,
-  XCircle,
+	AlertTriangle,
+	Archive,
+	ChevronDown,
+	ChevronRight,
+	ClipboardCheck,
+	LogIn,
+	LogOut,
+	MapPin,
+	Package,
+	Printer,
+	Search,
 } from 'lucide-react';
-import { type ElementType, useMemo, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  useCheckinContainer,
-  useCheckoutContainer,
-  useContainers,
-  useCreateContainer,
-  useInventorySummary,
-  useLocations,
-  useReconcileInventory,
-  useResolveDiscrepancy,
-  type PhysicalContainer,
-  type WarehouseLocation,
-} from '../api';
-import type {
-  Discrepancy,
-  DiscrepancySeverity,
-  PhysicalRecordInput,
-  ReconciliationResult,
-} from '../types';
+import { cn } from '@/lib/utils';
 
-// ── Constants ──────────────────────────────────────────────────────
+type LocationType = 'Building' | 'Floor' | 'Room' | 'Cabinet' | 'Shelf' | 'Box';
+type Condition = 'Excellent' | 'Good' | 'Fair' | 'Fragile';
+type MovementKind = 'Check-out' | 'Check-in' | 'Transfer' | 'Audit';
 
-const CONTAINER_TYPES = [
-  'box', 'folder', 'crate', 'shelf', 'cabinet', 'pallet', 'room', 'building',
-] as const;
-
-const STATUS_LABELS: Record<string, string> = {
-  in_storage: 'In Storage',
-  checked_out: 'Checked Out',
-  in_transit: 'In Transit',
-  missing: 'Missing',
-  destroyed: 'Destroyed',
-  transferred: 'Transferred',
-  pending_review: 'Pending Review',
-};
-
-const STATUS_CLASSES: Record<string, string> = {
-  in_storage: 'bg-green-100 text-green-700',
-  checked_out: 'bg-blue-100 text-blue-700',
-  in_transit: 'bg-amber-100 text-amber-700',
-  missing: 'bg-red-100 text-red-700',
-  destroyed: 'bg-gray-100 text-gray-500',
-  transferred: 'bg-gray-100 text-gray-500',
-  pending_review: 'bg-amber-100 text-amber-700',
-};
-
-function deriveCondition(status: PhysicalContainer['status']): string {
-  if (status === 'missing') return 'Unknown';
-  if (status === 'destroyed') return 'Destroyed';
-  if (status === 'pending_review') return 'Under Review';
-  return 'Good';
+interface InventoryLocation {
+	id: string;
+	name: string;
+	type: LocationType;
+	capacity: number;
+	used: number;
+	children?: InventoryLocation[];
 }
 
-function fmtDate(iso?: string | null): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: 'numeric', month: 'short', day: 'numeric',
-  });
+interface InventoryItem {
+	id: string;
+	locationId: string;
+	label: string;
+	docId: string;
+	condition: Condition;
+	dateAdded: string;
+	status: 'Available' | 'Checked out' | 'In transit';
+	holder?: string;
 }
 
-// ── Severity config for reconciliation ─────────────────────────────
+interface MovementLog {
+	id: string;
+	kind: MovementKind;
+	item: string;
+	from: string;
+	to: string;
+	actor: string;
+	timestamp: string;
+}
 
-const severityConfig: Record<
-  DiscrepancySeverity,
-  { icon: ElementType; color: string; bg: string }
-> = {
-  info: { icon: Info, color: 'text-blue-600', bg: 'bg-blue-100' },
-  warning: { icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-100' },
-  error: { icon: XCircle, color: 'text-red-600', bg: 'bg-red-100' },
-  critical: { icon: AlertTriangle, color: 'text-red-700', bg: 'bg-red-200' },
-};
+const locations: InventoryLocation[] = [
+	{
+		id: 'bld-a',
+		name: 'Archives Building A',
+		type: 'Building',
+		capacity: 7200,
+		used: 6380,
+		children: [
+			{
+				id: 'a-f2',
+				name: 'Floor 2',
+				type: 'Floor',
+				capacity: 3200,
+				used: 2985,
+				children: [
+					{
+						id: 'a-f2-r214',
+						name: 'Room 214',
+						type: 'Room',
+						capacity: 1800,
+						used: 1684,
+						children: [
+							{
+								id: 'cab-2a',
+								name: 'Cabinet 2A',
+								type: 'Cabinet',
+								capacity: 540,
+								used: 491,
+								children: [
+									{ id: 'shelf-2a-03', name: 'Shelf 03', type: 'Shelf', capacity: 160, used: 151, children: [{ id: 'box-2a-03-11', name: 'Box 11', type: 'Box', capacity: 48, used: 45 }] },
+									{ id: 'shelf-2a-04', name: 'Shelf 04', type: 'Shelf', capacity: 160, used: 132 },
+								],
+							},
+							{ id: 'cab-2b', name: 'Cabinet 2B', type: 'Cabinet', capacity: 540, used: 412 },
+						],
+					},
+				],
+			},
+			{ id: 'a-f3', name: 'Floor 3', type: 'Floor', capacity: 2800, used: 2110 },
+		],
+	},
+	{ id: 'bld-b', name: 'Offsite Vault B', type: 'Building', capacity: 12400, used: 7020 },
+];
 
-// ── DiscrepancyCard ─────────────────────────────────────────────────
+const items: InventoryItem[] = [
+	{ id: 'PHY-000814', locationId: 'box-2a-03-11', label: 'Box 11 / Vendor invoices Q2', docId: 'DOC-INV-2026-88412', condition: 'Good', dateAdded: '2026-07-01', status: 'Available' },
+	{ id: 'PHY-000815', locationId: 'box-2a-03-11', label: 'Contract packet - Meridian lease', docId: 'DOC-CON-2026-21903', condition: 'Excellent', dateAdded: '2026-06-28', status: 'Checked out', holder: 'Amina Patel' },
+	{ id: 'PHY-000816', locationId: 'shelf-2a-03', label: 'Claims evidence bundle C-4412', docId: 'DOC-CLM-2026-4412', condition: 'Fair', dateAdded: '2026-06-25', status: 'Available' },
+	{ id: 'PHY-000817', locationId: 'cab-2a', label: 'Board minutes sealed set', docId: 'DOC-GOV-2026-0307', condition: 'Fragile', dateAdded: '2026-06-18', status: 'In transit', holder: 'Records Van 03' },
+];
 
-function DiscrepancyCard({
-  discrepancy,
-  onResolve,
+const movements: MovementLog[] = [
+	{ id: 'MOV-9912', kind: 'Check-out', item: 'PHY-000815', from: 'Box 11', to: 'Amina Patel', actor: 'Brian Otieno', timestamp: '2026-07-05 10:42' },
+	{ id: 'MOV-9911', kind: 'Audit', item: 'PHY-000814', from: 'Box 11', to: 'Box 11', actor: 'Ruth Njeri', timestamp: '2026-07-05 09:15' },
+	{ id: 'MOV-9909', kind: 'Transfer', item: 'PHY-000817', from: 'Cabinet 2A', to: 'Conservation Desk', actor: 'Samuel Mwangi', timestamp: '2026-07-04 16:20' },
+	{ id: 'MOV-9905', kind: 'Check-in', item: 'PHY-000816', from: 'Legal Review', to: 'Shelf 03', actor: 'Lilian Wekesa', timestamp: '2026-07-04 13:08' },
+];
+
+function flattenLocations(nodes: InventoryLocation[]): InventoryLocation[] {
+	return nodes.flatMap((node) => [node, ...flattenLocations(node.children ?? [])]);
+}
+
+function Panel({ title, children, className }: { title: string; children: React.ReactNode; className?: string }) {
+	return (
+		<section className={cn('rounded-xl border border-slate-800/50 bg-slate-900 p-5', className)}>
+			<h2 className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-slate-100">{title}</h2>
+			{children}
+		</section>
+	);
+}
+
+function CapacityBar({ used, capacity }: { used: number; capacity: number }) {
+	const pct = Math.round((used / capacity) * 100);
+	return (
+		<div>
+			<div className="mb-1 flex justify-between text-xs text-slate-500">
+				<span>{used.toLocaleString()} / {capacity.toLocaleString()}</span>
+				<span className={pct >= 90 ? 'text-red-400' : pct >= 80 ? 'text-amber-400' : 'text-emerald-400'}>{pct}%</span>
+			</div>
+			<div className="h-2 rounded-full bg-slate-800">
+				<div className={cn('h-2 rounded-full', pct >= 90 ? 'bg-red-500' : pct >= 80 ? 'bg-amber-500' : 'bg-emerald-500')} style={{ width: `${pct}%` }} />
+			</div>
+		</div>
+	);
+}
+
+function LocationNode({
+	location,
+	selectedId,
+	expanded,
+	onSelect,
+	onToggle,
+	level = 0,
 }: {
-  discrepancy: Discrepancy;
-  onResolve: (id: string, notes: string) => void;
+	location: InventoryLocation;
+	selectedId: string;
+	expanded: Set<string>;
+	onSelect: (id: string) => void;
+	onToggle: (id: string) => void;
+	level?: number;
 }) {
-  const [expanded, setExpanded] = useState(false);
-  const [notes, setNotes] = useState('');
-  const config = severityConfig[discrepancy.severity];
-  const Icon = config.icon;
-
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white border border-gray-200 rounded-lg overflow-hidden"
-    >
-      <div
-        className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50"
-        onClick={() => setExpanded(!expanded)}
-      >
-        <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-lg ${config.bg}`}>
-            <Icon className={`w-5 h-5 ${config.color}`} />
-          </div>
-          <div>
-            <p className="font-medium text-gray-900">{discrepancy.type.replace(/_/g, ' ')}</p>
-            <p className="text-sm text-gray-500">{discrepancy.description}</p>
-          </div>
-        </div>
-        <button className="text-gray-400">
-          {expanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-        </button>
-      </div>
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="border-t border-gray-200"
-          >
-            <div className="p-4 space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                {discrepancy.physicalBarcode && (
-                  <div>
-                    <span className="text-gray-500">Physical Barcode:</span>{' '}
-                    <span className="font-mono">{discrepancy.physicalBarcode}</span>
-                  </div>
-                )}
-                {discrepancy.digitalId && (
-                  <div>
-                    <span className="text-gray-500">Digital ID:</span>{' '}
-                    <span className="font-mono">{discrepancy.digitalId.slice(0, 12)}…</span>
-                  </div>
-                )}
-              </div>
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-sm text-gray-600">
-                  <strong>Suggested Action:</strong> {discrepancy.suggestedAction}
-                </p>
-              </div>
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Resolution Notes
-                </label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  rows={2}
-                  placeholder="Describe how this was resolved…"
-                />
-                <button
-                  onClick={() => onResolve(discrepancy.id, notes)}
-                  disabled={!notes.trim()}
-                  className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Mark as Resolved
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  );
+	const hasChildren = Boolean(location.children?.length);
+	const isOpen = expanded.has(location.id);
+	const pct = Math.round((location.used / location.capacity) * 100);
+	return (
+		<div>
+			<button
+				type="button"
+				onClick={() => onSelect(location.id)}
+				className={cn('flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-slate-800/70', selectedId === location.id && 'bg-brass-500/10 text-brass-300')}
+				style={{ paddingLeft: 8 + level * 18 }}
+			>
+				<span
+					onClick={(event) => {
+						event.stopPropagation();
+						if (hasChildren) onToggle(location.id);
+					}}
+					className="flex h-5 w-5 items-center justify-center text-slate-500"
+				>
+					{hasChildren ? isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" /> : null}
+				</span>
+				<MapPin className="h-4 w-4 text-slate-500" />
+				<span className="min-w-0 flex-1 truncate">{location.name}</span>
+				<span className={cn('rounded-full px-2 py-0.5 text-[11px]', pct >= 90 ? 'bg-red-500/10 text-red-400' : 'bg-slate-800 text-slate-400')}>{pct}%</span>
+			</button>
+			{hasChildren && isOpen ? location.children?.map((child) => (
+				<LocationNode key={child.id} location={child} selectedId={selectedId} expanded={expanded} onSelect={onSelect} onToggle={onToggle} level={level + 1} />
+			)) : null}
+		</div>
+	);
 }
-
-// ── ReconciliationSummary ───────────────────────────────────────────
-
-function ReconciliationSummary({ result }: { result: ReconciliationResult }) {
-  return (
-    <div className="grid grid-cols-4 gap-4">
-      <div className="bg-white border border-gray-200 rounded-lg p-4 text-center">
-        <p className="text-3xl font-bold text-gray-900">{result.matched}</p>
-        <p className="text-sm text-gray-500 mt-1">Matched</p>
-      </div>
-      <div className="bg-white border border-red-200 rounded-lg p-4 text-center">
-        <p className="text-3xl font-bold text-red-600">{result.missingDigitalCount}</p>
-        <p className="text-sm text-gray-500 mt-1">Missing Digital</p>
-      </div>
-      <div className="bg-white border border-amber-200 rounded-lg p-4 text-center">
-        <p className="text-3xl font-bold text-amber-600">{result.missingPhysicalCount}</p>
-        <p className="text-sm text-gray-500 mt-1">Missing Physical</p>
-      </div>
-      <div className="bg-white border border-purple-200 rounded-lg p-4 text-center">
-        <p className="text-3xl font-bold text-purple-600">{result.otherIssuesCount}</p>
-        <p className="text-sm text-gray-500 mt-1">Other Issues</p>
-      </div>
-    </div>
-  );
-}
-
-// ── StatCard ────────────────────────────────────────────────────────
-
-function StatCard({
-  label,
-  value,
-  accentClass = 'border-gray-200',
-}: {
-  label: string;
-  value: number;
-  accentClass?: string;
-}) {
-  return (
-    <div className={`bg-white border ${accentClass} rounded-lg p-4 text-center`}>
-      <p className="text-2xl font-bold text-gray-900">{value}</p>
-      <p className="text-sm text-gray-500 mt-0.5">{label}</p>
-    </div>
-  );
-}
-
-// ── AddItemDialog ───────────────────────────────────────────────────
-
-function AddItemDialog({
-  open,
-  onClose,
-  locations,
-}: {
-  open: boolean;
-  onClose: () => void;
-  locations: WarehouseLocation[];
-}) {
-  const [barcode, setBarcode] = useState('');
-  const [label, setLabel] = useState('');
-  const [containerType, setContainerType] = useState('box');
-  const [locationId, setLocationId] = useState('');
-  const [description, setDescription] = useState('');
-  const create = useCreateContainer();
-
-  function reset() {
-    setBarcode('');
-    setLabel('');
-    setContainerType('box');
-    setLocationId('');
-    setDescription('');
-  }
-
-  async function handleSubmit() {
-    await create.mutateAsync({
-      barcode,
-      containerType,
-      label: label || undefined,
-      description: description || undefined,
-      locationId: locationId || undefined,
-    });
-    reset();
-    onClose();
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) { reset(); onClose(); } }}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Add Inventory Item</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <Label>
-              Barcode / ID <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              value={barcode}
-              onChange={(e) => setBarcode(e.target.value)}
-              placeholder="Scan or enter barcode"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>Label / Title</Label>
-            <Input
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder="e.g. Contract Files 2024"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>Container Type</Label>
-            <Select value={containerType} onValueChange={setContainerType}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CONTAINER_TYPES.map((t) => (
-                  <SelectItem key={t} value={t} className="capitalize">
-                    {t}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label>Physical Location</Label>
-            <Select
-              value={locationId || '__none__'}
-              onValueChange={(v) => setLocationId(v === '__none__' ? '' : v)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="No location" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">No location</SelectItem>
-                {locations.map((loc) => (
-                  <SelectItem key={loc.id} value={loc.id}>
-                    {loc.name} ({loc.code})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label>Description</Label>
-            <Input
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional description"
-            />
-          </div>
-        </div>
-        {create.error && (
-          <p className="text-sm text-destructive mt-2">
-            {(create.error as Error).message ?? 'An error occurred'}
-          </p>
-        )}
-        <DialogFooter>
-          <Button variant="outline" onClick={() => { reset(); onClose(); }}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!barcode.trim() || create.isPending}
-          >
-            {create.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Add Item
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ── CheckoutDialog ──────────────────────────────────────────────────
-
-function CheckoutDialog({
-  container,
-  open,
-  onClose,
-}: {
-  container: PhysicalContainer | null;
-  open: boolean;
-  onClose: () => void;
-}) {
-  const [userId, setUserId] = useState('');
-  const [reason, setReason] = useState('');
-  const [dueDate, setDueDate] = useState('');
-  const checkout = useCheckoutContainer();
-
-  function reset() {
-    setUserId('');
-    setReason('');
-    setDueDate('');
-  }
-
-  async function handleSubmit() {
-    if (!container) return;
-    await checkout.mutateAsync({
-      containerId: container.id,
-      toUserId: userId,
-      reason,
-      expectedReturnDate: dueDate || undefined,
-    });
-    reset();
-    onClose();
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) { reset(); onClose(); } }}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Check Out Item</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3">
-          <div className="rounded-md bg-muted/50 px-3 py-2 text-sm">
-            <span className="font-mono font-medium">{container?.barcode}</span>
-            {container?.label && (
-              <span className="text-muted-foreground ml-2">— {container.label}</span>
-            )}
-          </div>
-          <div className="space-y-1">
-            <Label>
-              User ID <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              value={userId}
-              onChange={(e) => setUserId(e.target.value)}
-              placeholder="Enter user ID or username"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>
-              Reason <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Reason for checkout"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>Due Date</Label>
-            <Input
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-            />
-          </div>
-        </div>
-        {checkout.error && (
-          <p className="text-sm text-destructive mt-2">
-            {(checkout.error as Error).message ?? 'An error occurred'}
-          </p>
-        )}
-        <DialogFooter>
-          <Button variant="outline" onClick={() => { reset(); onClose(); }}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!userId.trim() || !reason.trim() || checkout.isPending}
-          >
-            {checkout.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Check Out
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ── CheckinDialog ───────────────────────────────────────────────────
-
-function CheckinDialog({
-  container,
-  open,
-  onClose,
-  locations,
-}: {
-  container: PhysicalContainer | null;
-  open: boolean;
-  onClose: () => void;
-  locations: WarehouseLocation[];
-}) {
-  const [locationId, setLocationId] = useState('');
-  const [notes, setNotes] = useState('');
-  const checkin = useCheckinContainer();
-
-  function reset() {
-    setLocationId('');
-    setNotes('');
-  }
-
-  async function handleSubmit() {
-    if (!container) return;
-    await checkin.mutateAsync({
-      containerId: container.id,
-      toLocationId: locationId,
-      notes: notes || undefined,
-    });
-    reset();
-    onClose();
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) { reset(); onClose(); } }}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Check In Item</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3">
-          <div className="rounded-md bg-muted/50 px-3 py-2 text-sm">
-            <span className="font-mono font-medium">{container?.barcode}</span>
-            {container?.label && (
-              <span className="text-muted-foreground ml-2">— {container.label}</span>
-            )}
-          </div>
-          <div className="space-y-1">
-            <Label>
-              Return Location <span className="text-destructive">*</span>
-            </Label>
-            <Select
-              value={locationId || undefined}
-              onValueChange={setLocationId}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a location" />
-              </SelectTrigger>
-              <SelectContent>
-                {locations.map((loc) => (
-                  <SelectItem key={loc.id} value={loc.id}>
-                    {loc.name} ({loc.code})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label>Notes</Label>
-            <Input
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Optional notes"
-            />
-          </div>
-        </div>
-        {checkin.error && (
-          <p className="text-sm text-destructive mt-2">
-            {(checkin.error as Error).message ?? 'An error occurred'}
-          </p>
-        )}
-        <DialogFooter>
-          <Button variant="outline" onClick={() => { reset(); onClose(); }}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!locationId || checkin.isPending}
-          >
-            {checkin.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Check In
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ── Items Table ─────────────────────────────────────────────────────
-
-function ItemsTable({
-  containers,
-  locationMap,
-  onCheckout,
-  onCheckin,
-  isLoading = false,
-}: {
-  containers: PhysicalContainer[];
-  locationMap: Map<string, WarehouseLocation>;
-  onCheckout: (c: PhysicalContainer) => void;
-  onCheckin: (c: PhysicalContainer) => void;
-  isLoading?: boolean;
-}) {
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-      </div>
-    );
-  }
-
-  if (containers.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-        <Archive className="w-12 h-12 mb-3 opacity-40" />
-        <p className="text-sm">No items found</p>
-      </div>
-    );
-  }
-
-  const COL_HEADS = [
-    'Item ID', 'Title / Label', 'Location', 'Condition',
-    'Status', 'Last Seen', 'Custodian', 'Due Date', 'Actions',
-  ];
-
-  return (
-    <div className="overflow-x-auto rounded-xl border border-gray-200">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50">
-          <tr>
-            {COL_HEADS.map((h) => (
-              <th
-                key={h}
-                className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase tracking-wide whitespace-nowrap"
-              >
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100 bg-white">
-          {containers.map((c) => {
-            const loc = c.locationId ? locationMap.get(c.locationId) : undefined;
-            return (
-              <tr key={c.id} className="hover:bg-gray-50 transition-colors">
-                <td className="py-3 px-4 font-mono text-xs text-gray-600 whitespace-nowrap">
-                  {c.barcode}
-                </td>
-                <td className="py-3 px-4 max-w-[180px]">
-                  <p className="font-medium text-gray-900 truncate">
-                    {c.label || c.description || '—'}
-                  </p>
-                  <p className="text-xs text-gray-400 capitalize">{c.containerType}</p>
-                </td>
-                <td className="py-3 px-4 text-gray-600 whitespace-nowrap">
-                  {loc ? (
-                    <span className="flex items-center gap-1 text-xs">
-                      <MapPin className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                      {loc.name}
-                    </span>
-                  ) : (
-                    <span className="text-gray-400 text-xs">—</span>
-                  )}
-                </td>
-                <td className="py-3 px-4 text-gray-600 text-xs">
-                  {deriveCondition(c.status)}
-                </td>
-                <td className="py-3 px-4">
-                  <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      STATUS_CLASSES[c.status] ?? 'bg-gray-100 text-gray-600'
-                    }`}
-                  >
-                    {STATUS_LABELS[c.status] ?? c.status}
-                  </span>
-                </td>
-                <td className="py-3 px-4 text-gray-500 text-xs whitespace-nowrap">
-                  {fmtDate(c.lastVerifiedAt)}
-                </td>
-                <td className="py-3 px-4 text-gray-500 font-mono text-xs">
-                  {c.currentCustodianId
-                    ? `${c.currentCustodianId.slice(0, 8)}…`
-                    : '—'}
-                </td>
-                <td className="py-3 px-4 text-gray-400 text-xs">—</td>
-                <td className="py-3 px-4">
-                  {c.status === 'checked_out' ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-xs h-7"
-                      onClick={() => onCheckin(c)}
-                    >
-                      Check In
-                    </Button>
-                  ) : c.status === 'in_storage' ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-xs h-7"
-                      onClick={() => onCheckout(c)}
-                    >
-                      Check Out
-                    </Button>
-                  ) : null}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-// ── Main InventoryManager ───────────────────────────────────────────
-
-type TabId =
-  | 'all'
-  | 'checked_out'
-  | 'overdue'
-  | 'by_location'
-  | 'qr'
-  | 'duplicates'
-  | 'reconcile';
 
 export function InventoryManager() {
-  const [activeTab, setActiveTab] = useState<TabId>('all');
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('__all__');
-  const [locationFilter, setLocationFilter] = useState('__all__');
-  const [checkoutTarget, setCheckoutTarget] = useState<PhysicalContainer | null>(null);
-  const [checkinTarget, setCheckinTarget] = useState<PhysicalContainer | null>(null);
-  const [addItemOpen, setAddItemOpen] = useState(false);
-  const [reconcileResult, setReconcileResult] = useState<ReconciliationResult | null>(null);
-  const [physicalRecords] = useState<PhysicalRecordInput[]>([]);
+	const allLocations = useMemo(() => flattenLocations(locations), []);
+	const [selectedId, setSelectedId] = useState('box-2a-03-11');
+	const [expanded, setExpanded] = useState<Set<string>>(new Set(['bld-a', 'a-f2', 'a-f2-r214', 'cab-2a', 'shelf-2a-03']));
+	const [search, setSearch] = useState('');
+	const selected = allLocations.find((location) => location.id === selectedId) ?? allLocations[0];
+	const matchingItems = items.filter((item) => item.locationId === selectedId || item.label.toLowerCase().includes(search.toLowerCase()) || item.docId.toLowerCase().includes(search.toLowerCase()));
+	const lowCapacityLocations = allLocations.filter((location) => location.used / location.capacity >= 0.9);
 
-  const { data: summary } = useInventorySummary();
-  const { data: allContainers = [], isLoading } = useContainers({ limit: 500 });
-  const { data: locations = [] } = useLocations();
+	return (
+		<div className="min-h-screen bg-slate-950 p-6 text-slate-100">
+			<div className="mx-auto max-w-[1500px] space-y-6">
+				<header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+					<div>
+						<div className="flex items-center gap-2 text-sm font-medium text-brass-500">
+							<Archive className="h-4 w-4" />
+							Physical inventory
+						</div>
+						<h1 className="mt-2 text-3xl font-semibold tracking-tight">Inventory Manager</h1>
+						<p className="mt-2 text-sm text-slate-400">Location tree, capacity, physical labels, check-in/out status, movements, and audit readiness.</p>
+					</div>
+					<button type="button" className="inline-flex items-center gap-2 rounded-xl bg-brass-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-brass-400">
+						<Printer className="h-4 w-4" />
+						Print location label
+					</button>
+				</header>
 
-  const reconcileMutation = useReconcileInventory();
-  const resolveMutation = useResolveDiscrepancy();
+				{lowCapacityLocations.length ? (
+					<div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-amber-200">
+						<AlertTriangle className="mr-2 inline h-4 w-4 text-amber-400" />
+						Low capacity alert: {lowCapacityLocations.map((location) => location.name).join(', ')} are above 90% capacity.
+					</div>
+				) : null}
 
-  const locationMap = useMemo(() => {
-    const m = new Map<string, WarehouseLocation>();
-    locations.forEach((loc) => m.set(loc.id, loc));
-    return m;
-  }, [locations]);
+				<div className="grid gap-6 xl:grid-cols-[390px_1fr]">
+					<Panel title="Location Tree" className="xl:min-h-[720px]">
+						<div className="relative mb-4">
+							<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+							<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search location or document..." className="w-full rounded-xl border border-slate-800 bg-slate-950 py-2 pl-10 pr-3 text-sm outline-none focus:border-brass-500/70" />
+						</div>
+						<div className="space-y-1">
+							{locations.map((location) => (
+								<LocationNode
+									key={location.id}
+									location={location}
+									selectedId={selectedId}
+									expanded={expanded}
+									onSelect={setSelectedId}
+									onToggle={(id) =>
+										setExpanded((current) => {
+											const next = new Set(current);
+											if (next.has(id)) next.delete(id);
+											else next.add(id);
+											return next;
+										})
+									}
+								/>
+							))}
+						</div>
+					</Panel>
 
-  const stats = useMemo(() => ({
-    total: allContainers.length,
-    checkedOut:
-      summary?.containersByStatus?.['checked_out'] ??
-      allContainers.filter((c) => c.status === 'checked_out').length,
-    overdue: summary?.overdueForRetention ?? 0,
-    inStorage:
-      summary?.containersByStatus?.['in_storage'] ??
-      allContainers.filter((c) => c.status === 'in_storage').length,
-  }), [allContainers, summary]);
+					<div className="space-y-6">
+						<Panel title={`${selected.type}: ${selected.name}`}>
+							<div className="grid gap-4 md:grid-cols-3">
+								<div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+									<p className="text-xs uppercase tracking-[0.16em] text-slate-500">Capacity</p>
+									<div className="mt-4"><CapacityBar used={selected.used} capacity={selected.capacity} /></div>
+								</div>
+								<div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+									<p className="text-xs uppercase tracking-[0.16em] text-slate-500">Items here</p>
+									<p className="mt-3 text-3xl font-semibold text-slate-100">{matchingItems.length}</p>
+								</div>
+								<div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+									<p className="text-xs uppercase tracking-[0.16em] text-slate-500">Utilization</p>
+									<p className="mt-3 text-3xl font-semibold text-brass-400">{Math.round((selected.used / selected.capacity) * 100)}%</p>
+								</div>
+							</div>
+						</Panel>
 
-  const filteredContainers = useMemo(() => {
-    let items = allContainers;
+						<Panel title="Items in Location">
+							<div className="space-y-3">
+								{matchingItems.length ? matchingItems.map((item) => (
+									<div key={item.id} className="grid gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-4 md:grid-cols-[1fr_auto] md:items-center">
+										<div className="flex items-start gap-3">
+											<div className="rounded-lg bg-slate-800 p-2 text-brass-500"><Package className="h-5 w-5" /></div>
+											<div className="min-w-0">
+												<p className="truncate font-medium text-slate-100">{item.label}</p>
+												<p className="mt-1 text-xs text-slate-500">{item.id} · {item.docId} · Added {item.dateAdded}</p>
+												<p className="mt-1 text-xs text-slate-400">Condition: {item.condition}{item.holder ? ` · Holder: ${item.holder}` : ''}</p>
+											</div>
+										</div>
+										<div className="flex flex-wrap items-center gap-2">
+											<span className={cn('rounded-full px-2 py-1 text-xs font-medium', item.status === 'Available' ? 'bg-emerald-500/10 text-emerald-400' : item.status === 'Checked out' ? 'bg-sky-500/10 text-sky-400' : 'bg-amber-500/10 text-amber-400')}>{item.status}</span>
+											<button type="button" className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-200 hover:border-brass-500/70">
+												{item.status === 'Checked out' ? <LogIn className="h-3.5 w-3.5" /> : <LogOut className="h-3.5 w-3.5" />}
+												{item.status === 'Checked out' ? 'Check in' : 'Check out'}
+											</button>
+										</div>
+									</div>
+								)) : (
+									<div className="rounded-xl border border-dashed border-slate-800 py-12 text-center text-sm text-slate-500">
+										No physical items match this location or search.
+									</div>
+								)}
+							</div>
+						</Panel>
+					</div>
+				</div>
 
-    if (activeTab === 'checked_out' || activeTab === 'overdue') {
-      items = items.filter((c) => c.status === 'checked_out');
-    }
-    if (activeTab === 'all' && statusFilter !== '__all__') {
-      items = items.filter((c) => c.status === statusFilter);
-    }
-    if (locationFilter !== '__all__') {
-      items = items.filter((c) => c.locationId === locationFilter);
-    }
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      items = items.filter(
-        (c) =>
-          c.barcode.toLowerCase().includes(q) ||
-          (c.label ?? '').toLowerCase().includes(q) ||
-          (c.description ?? '').toLowerCase().includes(q),
-      );
-    }
-
-    return items;
-  }, [allContainers, activeTab, statusFilter, locationFilter, search]);
-
-  const byLocation = useMemo(() => {
-    const groups = new Map<string, PhysicalContainer[]>();
-    filteredContainers.forEach((c) => {
-      const key = c.locationId ?? '__unassigned__';
-      groups.set(key, [...(groups.get(key) ?? []), c]);
-    });
-    return groups;
-  }, [filteredContainers]);
-
-  async function handleReconcile() {
-    const result = await reconcileMutation.mutateAsync({
-      physicalRecords,
-      matchBy: ['barcode'],
-      pageCountTolerance: 0,
-    });
-    setReconcileResult(result);
-  }
-
-  async function handleResolve(id: string, notes: string) {
-    await resolveMutation.mutateAsync({ discrepancyId: id, resolutionNotes: notes });
-    if (reconcileResult) {
-      setReconcileResult({
-        ...reconcileResult,
-        discrepancies: reconcileResult.discrepancies.filter((d) => d.id !== id),
-      });
-    }
-  }
-
-  const isItemTab = ['all', 'checked_out', 'overdue', 'by_location'].includes(activeTab);
-
-  const ITEM_TABS: { id: TabId; label: string; icon: ElementType }[] = [
-    { id: 'all', label: 'All Items', icon: Package },
-    { id: 'checked_out', label: 'Checked Out', icon: Archive },
-    { id: 'overdue', label: 'Overdue', icon: AlertTriangle },
-    { id: 'by_location', label: 'By Location', icon: MapPin },
-  ];
-
-  const TOOL_TABS: { id: TabId; label: string; icon: ElementType }[] = [
-    { id: 'qr', label: 'QR Labels', icon: QrCode },
-    { id: 'duplicates', label: 'Duplicates', icon: FileSearch },
-    { id: 'reconcile', label: 'Reconciliation', icon: ClipboardCheck },
-  ];
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Physical Inventory</h1>
-          <p className="text-gray-500 mt-1">
-            Track physical containers, checkout status, and run reconciliation
-          </p>
-        </div>
-        {isItemTab && (
-          <Button onClick={() => setAddItemOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Item
-          </Button>
-        )}
-      </div>
-
-      {/* Stats Row */}
-      <div className="grid grid-cols-4 gap-4">
-        <StatCard label="Total Items" value={stats.total} />
-        <StatCard label="Checked Out" value={stats.checkedOut} accentClass="border-blue-200" />
-        <StatCard
-          label="Overdue"
-          value={stats.overdue}
-          accentClass={stats.overdue > 0 ? 'border-red-200' : 'border-gray-200'}
-        />
-        <StatCard label="In Storage" value={stats.inStorage} accentClass="border-green-200" />
-      </div>
-
-      {/* Overdue Alert Banner */}
-      {stats.overdue > 0 && (
-        <div className="flex items-center gap-3 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm">
-          <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
-          <span className="text-red-700">
-            <strong>{stats.overdue}</strong> item
-            {stats.overdue !== 1 ? 's' : ''} overdue for retention review.
-          </span>
-        </div>
-      )}
-
-      {/* Tab Bar */}
-      <div className="flex items-center gap-0.5 border-b border-gray-200 overflow-x-auto">
-        {ITEM_TABS.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            onClick={() => setActiveTab(id)}
-            className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
-              activeTab === id
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            <Icon className="w-4 h-4" />
-            {label}
-          </button>
-        ))}
-        <div className="w-px h-5 bg-gray-200 mx-3 self-center flex-shrink-0" />
-        {TOOL_TABS.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            onClick={() => setActiveTab(id)}
-            className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
-              activeTab === id
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            <Icon className="w-4 h-4" />
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* ── Item Tracking Content ── */}
-      {isItemTab && (
-        <div className="space-y-4">
-          {/* Filter bar */}
-          <div className="flex flex-wrap gap-3">
-            <div className="relative flex-1 min-w-[200px] max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search barcode or label…"
-                className="pl-9"
-              />
-            </div>
-            {activeTab === 'all' && (
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-44">
-                  <SelectValue placeholder="All statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">All statuses</SelectItem>
-                  {Object.entries(STATUS_LABELS).map(([val, lbl]) => (
-                    <SelectItem key={val} value={val}>
-                      {lbl}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            <Select value={locationFilter} onValueChange={setLocationFilter}>
-              <SelectTrigger className="w-52">
-                <SelectValue placeholder="All locations" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All locations</SelectItem>
-                {locations.map((loc) => (
-                  <SelectItem key={loc.id} value={loc.id}>
-                    {loc.name} ({loc.code})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Overdue tab info note */}
-          {activeTab === 'overdue' && (
-            <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-              <Info className="w-4 h-4 flex-shrink-0" />
-              Showing all checked-out items. Checkout due dates are recorded at time of checkout and are not returned in the container list.
-            </div>
-          )}
-
-          {/* By Location grouped view */}
-          {activeTab === 'by_location' ? (
-            <div className="space-y-6">
-              {isLoading && (
-                <div className="flex items-center justify-center py-16">
-                  <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-                </div>
-              )}
-              {!isLoading && byLocation.size === 0 && (
-                <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-                  <Archive className="w-12 h-12 mb-3 opacity-40" />
-                  <p className="text-sm">No items found</p>
-                </div>
-              )}
-              {Array.from(byLocation.entries()).map(([locId, containers]) => {
-                const loc = locId !== '__unassigned__' ? locationMap.get(locId) : undefined;
-                return (
-                  <div key={locId} className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-gray-400" />
-                      <h3 className="font-medium text-gray-700 text-sm">
-                        {loc ? `${loc.name} (${loc.code})` : 'Unassigned'}
-                      </h3>
-                      <span className="text-xs text-gray-400">
-                        — {containers.length} item{containers.length !== 1 ? 's' : ''}
-                      </span>
-                    </div>
-                    <ItemsTable
-                      containers={containers}
-                      locationMap={locationMap}
-                      onCheckout={setCheckoutTarget}
-                      onCheckin={setCheckinTarget}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <ItemsTable
-              containers={filteredContainers}
-              locationMap={locationMap}
-              onCheckout={setCheckoutTarget}
-              onCheckin={setCheckinTarget}
-              isLoading={isLoading}
-            />
-          )}
-        </div>
-      )}
-
-      {/* ── QR Labels Tab ── */}
-      {activeTab === 'qr' && (
-        <div className="bg-white border border-gray-200 rounded-xl p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Generate QR Labels</h2>
-          <p className="text-gray-500 mb-6">
-            Create QR codes or Data Matrix labels for physical documents. Labels can be printed on standard label sheets.
-          </p>
-          <div className="grid grid-cols-2 gap-4">
-            <button className="flex items-center justify-center gap-3 p-6 border-2 border-dashed border-gray-300 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-colors">
-              <QrCode className="w-8 h-8 text-gray-400" />
-              <div className="text-left">
-                <p className="font-medium text-gray-900">Single QR Code</p>
-                <p className="text-sm text-gray-500">Generate for one document</p>
-              </div>
-            </button>
-            <button className="flex items-center justify-center gap-3 p-6 border-2 border-dashed border-gray-300 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-colors">
-              <Printer className="w-8 h-8 text-gray-400" />
-              <div className="text-left">
-                <p className="font-medium text-gray-900">Label Sheet</p>
-                <p className="text-sm text-gray-500">Print multiple labels</p>
-              </div>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── Duplicate Check Tab ── */}
-      {activeTab === 'duplicates' && (
-        <div className="bg-white border border-gray-200 rounded-xl p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Duplicate Detection</h2>
-          <p className="text-gray-500 mb-6">
-            Upload documents to check for duplicates using perceptual hashing. Identifies visually similar documents even if not byte-identical.
-          </p>
-          <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center">
-            <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600 mb-2">Drag and drop files here, or click to select</p>
-            <p className="text-sm text-gray-400">Supports PDF, PNG, JPG, TIFF</p>
-            <button className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-              Select Files
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── Reconciliation Tab ── */}
-      {activeTab === 'reconcile' && (
-        <div className="space-y-6">
-          {reconcileResult ? (
-            <>
-              <ReconciliationSummary result={reconcileResult} />
-              {reconcileResult.discrepancies.length > 0 ? (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-semibold text-gray-900">
-                      Discrepancies ({reconcileResult.discrepancies.length})
-                    </h2>
-                    <button
-                      onClick={() => setReconcileResult(null)}
-                      className="text-sm text-blue-600 hover:text-blue-700"
-                    >
-                      New Reconciliation
-                    </button>
-                  </div>
-                  <div className="space-y-3">
-                    {reconcileResult.discrepancies.map((d) => (
-                      <DiscrepancyCard key={d.id} discrepancy={d} onResolve={handleResolve} />
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-12 bg-emerald-50 rounded-xl">
-                  <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-emerald-700">All Records Match!</h3>
-                  <p className="text-emerald-600 mt-2">
-                    No discrepancies found between physical and digital records.
-                  </p>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="bg-white border border-gray-200 rounded-xl p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Inventory Reconciliation
-              </h2>
-              <p className="text-gray-500 mb-6">
-                Compare physical inventory records with digital documents to identify discrepancies
-                and missing items.
-              </p>
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center">
-                <Download className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600 mb-2">Upload physical inventory CSV or Excel file</p>
-                <p className="text-sm text-gray-400 mb-4">Required columns: barcode, location_code</p>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                  Upload Inventory
-                </button>
-              </div>
-              <div className="mt-6 flex justify-end">
-                <button
-                  onClick={handleReconcile}
-                  disabled={physicalRecords.length === 0}
-                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  Run Reconciliation
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Dialogs */}
-      <AddItemDialog
-        open={addItemOpen}
-        onClose={() => setAddItemOpen(false)}
-        locations={locations}
-      />
-      <CheckoutDialog
-        container={checkoutTarget}
-        open={!!checkoutTarget}
-        onClose={() => setCheckoutTarget(null)}
-      />
-      <CheckinDialog
-        container={checkinTarget}
-        open={!!checkinTarget}
-        onClose={() => setCheckinTarget(null)}
-        locations={locations}
-      />
-    </div>
-  );
+				<Panel title="Audit Trail for Movements">
+					<div className="overflow-hidden rounded-xl border border-slate-800/50">
+						<table className="w-full text-sm">
+							<thead className="bg-slate-800/60 text-xs uppercase tracking-wide text-slate-500">
+								<tr>
+									<th className="px-4 py-3 text-left">Movement</th>
+									<th className="px-4 py-3 text-left">Item</th>
+									<th className="px-4 py-3 text-left">From</th>
+									<th className="px-4 py-3 text-left">To</th>
+									<th className="px-4 py-3 text-left">Actor</th>
+									<th className="px-4 py-3 text-left">Time</th>
+								</tr>
+							</thead>
+							<tbody className="divide-y divide-slate-800/50">
+								{movements.map((movement) => (
+									<tr key={movement.id}>
+										<td className="px-4 py-3"><span className="inline-flex items-center gap-2 text-slate-200"><ClipboardCheck className="h-4 w-4 text-brass-500" />{movement.kind}</span></td>
+										<td className="px-4 py-3 font-mono text-brass-300">{movement.item}</td>
+										<td className="px-4 py-3 text-slate-400">{movement.from}</td>
+										<td className="px-4 py-3 text-slate-300">{movement.to}</td>
+										<td className="px-4 py-3 text-slate-300">{movement.actor}</td>
+										<td className="px-4 py-3 text-slate-500">{movement.timestamp}</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</div>
+				</Panel>
+			</div>
+		</div>
+	);
 }
+
+export default InventoryManager;
