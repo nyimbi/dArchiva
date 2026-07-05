@@ -7,7 +7,7 @@ import { apiClient } from '@/lib/api-client';
 export interface FieldDefinition {
 	name: string;
 	label: string;
-	type: 'text' | 'date' | 'number' | 'checkbox';
+	type: 'text' | 'date' | 'number' | 'checkbox' | 'select' | 'textarea';
 	required: boolean;
 	default_value: string;
 }

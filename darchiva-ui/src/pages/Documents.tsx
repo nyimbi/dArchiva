@@ -44,7 +44,7 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 // ---------------------------------------------------------------------------
@@ -490,7 +490,7 @@ export function Documents() {
   });
   const [selectionMode, setSelectionMode] = useState(false);
 
-  const { selectedNodeIds, clearNodeSelection, selectNodes, toggleNodeSelection, currentFolderId, openModal } = useStore();
+  const { selectedNodeIds, clearNodeSelection, selectNodes, toggleNodeSelection, currentFolderId, setCurrentFolderId, openModal } = useStore();
   const navigate = useNavigate();
 
   const { data: folderTree, isLoading: treeLoading } = useFolderTree();
@@ -564,6 +564,12 @@ export function Documents() {
     }
   }, [newSubfolderParent, newFolderName, createFolder]);
 
+  // Breadcrumb path from tree root to current folder
+  const breadcrumb = useMemo(() => {
+    if (!currentFolderId || !folderTree?.length) return [];
+    return buildBreadcrumb(folderTree, currentFolderId);
+  }, [currentFolderId, folderTree]);
+
   // Selected ids passed to BatchActionsBar
   const selectedIds = Array.from(selectedNodeIds);
 
@@ -619,6 +625,35 @@ export function Documents() {
         transition={{ delay: 0.1 }}
         className="flex-1 flex flex-col"
       >
+        {/* Breadcrumb */}
+        {breadcrumb.length > 0 && (
+          <nav className="flex items-center gap-1 text-sm mb-3 flex-wrap">
+            <button
+              onClick={() => setCurrentFolderId(null)}
+              className="text-slate-400 hover:text-slate-200 transition-colors"
+            >
+              Home
+            </button>
+            {breadcrumb.map((node, i) => (
+              <span key={node.id} className="flex items-center gap-1">
+                <ChevronRight className="w-3.5 h-3.5 text-slate-600 flex-shrink-0" />
+                <button
+                  onClick={() => setCurrentFolderId(node.id)}
+                  disabled={i === breadcrumb.length - 1}
+                  className={cn(
+                    'transition-colors',
+                    i === breadcrumb.length - 1
+                      ? 'text-slate-200 font-medium cursor-default'
+                      : 'text-slate-400 hover:text-slate-200',
+                  )}
+                >
+                  {node.title}
+                </button>
+              </span>
+            ))}
+          </nav>
+        )}
+
         {/* Toolbar */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
@@ -849,4 +884,16 @@ function findNodeInTree(nodes: APITreeNode[], id: string): APITreeNode | null {
     }
   }
   return null;
+}
+
+// Build ordered path from tree root to a target node
+function buildBreadcrumb(nodes: APITreeNode[], targetId: string): APITreeNode[] {
+  for (const node of nodes) {
+    if (node.id === targetId) return [node];
+    if (node.children?.length) {
+      const sub = buildBreadcrumb(node.children, targetId);
+      if (sub.length) return [node, ...sub];
+    }
+  }
+  return [];
 }
