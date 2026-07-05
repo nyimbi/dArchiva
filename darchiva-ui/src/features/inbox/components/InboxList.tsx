@@ -26,7 +26,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export function InboxList() {
-    const { data: tasks, isLoading } = useWorkflowTasks();
+    const { data: tasks, isLoading, isError, refetch } = useWorkflowTasks();
     const taskAction = useTaskAction();
     const [filter, setFilter] = useState<'all' | 'pending' | 'overdue'>('all');
 
@@ -43,6 +43,21 @@ export function InboxList() {
                 {Array.from({ length: 5 }).map((_, i) => (
                     <Skeleton key={i} className="h-24 w-full rounded-xl" />
                 ))}
+            </div>
+        );
+    }
+
+    if (isError) {
+        return (
+            <div className="glass-card p-8 text-center">
+                <AlertCircle className="mx-auto mb-4 h-10 w-10 text-red-400" />
+                <h3 className="text-lg font-medium text-slate-100">Could not load inbox tasks</h3>
+                <p className="mt-2 text-sm text-slate-500">
+                    Workflow tasks are temporarily unavailable. Retry the request or check system health.
+                </p>
+                <Button className="mt-5" onClick={() => refetch()}>
+                    Retry
+                </Button>
             </div>
         );
     }

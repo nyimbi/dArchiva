@@ -31,7 +31,7 @@ export function UnifiedHierarchyView() {
 	const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([]);
 	const [searchQuery, setSearchQuery] = useState('');
 
-	const { data: portfolios, isLoading } = useQuery({
+	const { data: portfolios, isLoading, isError, refetch } = useQuery({
 		queryKey: ['portfolios'],
 		queryFn: () => getPortfolios(),
 	});
@@ -80,6 +80,13 @@ export function UnifiedHierarchyView() {
 						<div className={styles.loading}>
 							<span className={styles.spinner} />
 							Loading...
+						</div>
+					) : isError ? (
+						<div className={styles.errorState}>
+							<p>Could not load records.</p>
+							<button type="button" onClick={() => refetch()}>
+								Retry
+							</button>
 						</div>
 					) : (
 						portfolios?.items.map(portfolio => (
@@ -148,7 +155,7 @@ function TreeNode({ node, isExpanded, isSelected, onSelect, onToggleExpand, expa
 	const hasChildren = node.children_count > 0;
 	const currentParents = [...parents, { id: node.id, name: node.name, type: node.type }];
 
-	const { data: children } = useQuery({
+	const { data: children, isLoading, isError, refetch } = useQuery({
 		queryKey: ['children', node.type, node.id],
 		queryFn: async () => {
 			if (node.type === 'portfolio') return (await getCases(node.id)).items;
@@ -186,6 +193,17 @@ function TreeNode({ node, isExpanded, isSelected, onSelect, onToggleExpand, expa
 				<span className={styles.nodeName}>{node.name}</span>
 				{hasChildren && <span className={styles.nodeCount}>{node.children_count}</span>}
 			</div>
+			{isExpanded && isLoading && (
+				<div className={styles.treeChildrenStatus}>Loading children...</div>
+			)}
+			{isExpanded && isError && (
+				<div className={styles.treeChildrenStatus}>
+					<span>Could not load children.</span>
+					<button type="button" onClick={() => refetch()}>
+						Retry
+					</button>
+				</div>
+			)}
 			{isExpanded && children && (
 				<div className={styles.treeChildren}>
 					{children.map(child => (
@@ -214,7 +232,7 @@ interface DetailPanelProps {
 }
 
 function DetailPanel({ node, onNavigate }: DetailPanelProps) {
-	const { data: children, isLoading } = useQuery({
+	const { data: children, isLoading, isError, refetch } = useQuery({
 		queryKey: ['children', node.type, node.id],
 		queryFn: async () => {
 			if (node.type === 'portfolio') return (await getCases(node.id)).items;
@@ -304,6 +322,13 @@ function DetailPanel({ node, onNavigate }: DetailPanelProps) {
 						</h4>
 						{isLoading ? (
 							<div className={styles.loading}><span className={styles.spinner} />Loading...</div>
+						) : isError ? (
+							<div className={styles.errorState}>
+								<p>Could not load related {childType[node.type]}s.</p>
+								<button type="button" onClick={() => refetch()}>
+									Retry
+								</button>
+							</div>
 						) : children?.length ? (
 							<div className={styles.childrenGrid}>
 								{children.map(child => (
