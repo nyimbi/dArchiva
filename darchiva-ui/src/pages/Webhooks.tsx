@@ -6,17 +6,31 @@ import {
 	ChevronUp,
 	CheckCircle2,
 	Copy,
+	Pencil,
 	Plus,
+	Power,
 	RefreshCw,
 	Trash2,
 	Webhook,
 	XCircle,
 	Zap,
 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import {
 	useWebhooks,
 	useCreateWebhook,
+	useUpdateWebhook,
 	useDeleteWebhook,
 	useTestWebhook,
 	useWebhookDeliveries,
@@ -92,6 +106,28 @@ function deliveryStatusBadge(status: WebhookDelivery['status']) {
 			<Icon className="w-3 h-3" />
 			{status}
 		</span>
+	);
+}
+
+function activeStatusBadge(isActive: boolean) {
+	return (
+		<Badge
+			variant="outline"
+			className={cn(
+				'gap-1 border text-xs',
+				isActive
+					? 'border-emerald-700/40 bg-emerald-900/40 text-emerald-400'
+					: 'border-slate-700/50 bg-slate-800/70 text-slate-400',
+			)}
+		>
+			<span
+				className={cn(
+					'h-1.5 w-1.5 rounded-full',
+					isActive ? 'bg-emerald-400' : 'bg-slate-500',
+				)}
+			/>
+			{isActive ? 'Active' : 'Inactive'}
+		</Badge>
 	);
 }
 
@@ -172,6 +208,127 @@ function DeliveryLog({ webhookId }: { webhookId: string }) {
 }
 
 // ---------------------------------------------------------------------------
+// Edit webhook dialog
+// ---------------------------------------------------------------------------
+
+function EditWebhookDialog({ webhook }: { webhook: WebhookType }) {
+	const [open, setOpen] = useState(false);
+	const [url, setUrl] = useState(webhook.url);
+	const [events, setEvents] = useState<string[]>(webhook.events);
+	const update = useUpdateWebhook();
+
+	function handleOpenChange(nextOpen: boolean) {
+		if (nextOpen) {
+			setUrl(webhook.url);
+			setEvents(webhook.events);
+		}
+		setOpen(nextOpen);
+	}
+
+	function toggleEvent(e: string) {
+		setEvents((prev) =>
+			prev.includes(e) ? prev.filter((x) => x !== e) : [...prev, e],
+		);
+	}
+
+	async function handleSubmit(ev: React.FormEvent) {
+		ev.preventDefault();
+		if (!url || events.length === 0) return;
+		await update.mutateAsync({ id: webhook.id, url, events });
+		setOpen(false);
+	}
+
+	return (
+		<Dialog open={open} onOpenChange={handleOpenChange}>
+			<DialogTrigger asChild>
+				<button
+					type="button"
+					title="Edit webhook"
+					className="p-1.5 rounded text-slate-400 hover:text-brass-400 hover:bg-slate-800 transition-colors"
+				>
+					<Pencil className="w-4 h-4" />
+				</button>
+			</DialogTrigger>
+			<DialogContent className="border-slate-800 bg-slate-950 text-slate-100 sm:max-w-lg">
+				<DialogHeader>
+					<DialogTitle>Edit Webhook</DialogTitle>
+					<DialogDescription>
+						Update the endpoint URL and subscribed document events.
+					</DialogDescription>
+				</DialogHeader>
+
+				<form onSubmit={handleSubmit} className="space-y-4">
+					<div>
+						<label className="block text-xs text-slate-400 mb-1">Endpoint URL</label>
+						<input
+							type="url"
+							value={url}
+							onChange={(e) => setUrl(e.target.value)}
+							placeholder="https://example.com/webhook"
+							required
+							className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-brass-500"
+						/>
+					</div>
+
+					<div>
+						<label className="block text-xs text-slate-400 mb-2">
+							Events to subscribe
+						</label>
+						<div className="grid grid-cols-2 gap-2">
+							{ALL_EVENTS.map(({ value, label }) => (
+								<label
+									key={value}
+									className={cn(
+										'flex items-center gap-2 p-2 rounded-lg border cursor-pointer text-sm transition-colors',
+										events.includes(value)
+											? 'border-brass-600/60 bg-brass-500/10 text-brass-300'
+											: 'border-slate-700 text-slate-400 hover:border-slate-600',
+									)}
+								>
+									<input
+										type="checkbox"
+										className="accent-brass-500"
+										checked={events.includes(value)}
+										onChange={() => toggleEvent(value)}
+									/>
+									{label}
+								</label>
+							))}
+						</div>
+					</div>
+
+					{update.isError && (
+						<div className="flex items-center gap-2 text-xs text-red-400">
+							<AlertCircle className="w-3.5 h-3.5" />
+							Failed to update webhook. Check the URL and try again.
+						</div>
+					)}
+
+					<DialogFooter className="gap-2 sm:gap-2">
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => setOpen(false)}
+							disabled={update.isPending}
+							className="border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-slate-100"
+						>
+							Cancel
+						</Button>
+						<Button
+							type="submit"
+							disabled={update.isPending || events.length === 0}
+							className="bg-brass-500 text-slate-900 hover:bg-brass-400"
+						>
+							{update.isPending ? 'Saving…' : 'Save Changes'}
+						</Button>
+					</DialogFooter>
+				</form>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
+// ---------------------------------------------------------------------------
 // Webhook row
 // ---------------------------------------------------------------------------
 
@@ -179,6 +336,11 @@ function WebhookRow({ wh }: { wh: WebhookType }) {
 	const [expanded, setExpanded] = useState(false);
 	const deleteWh = useDeleteWebhook();
 	const testWh = useTestWebhook();
+	const updateWh = useUpdateWebhook();
+
+	function toggleActive() {
+		updateWh.mutate({ id: wh.id, is_active: !wh.is_active });
+	}
 
 	return (
 		<div className="glass-card overflow-hidden">
@@ -193,9 +355,12 @@ function WebhookRow({ wh }: { wh: WebhookType }) {
 
 				{/* URL + events */}
 				<div className="flex-1 min-w-0">
-					<p className="text-sm font-mono text-slate-200 truncate" title={wh.url}>
-						{wh.url}
-					</p>
+					<div className="flex flex-wrap items-center gap-2">
+						<p className="min-w-0 flex-1 text-sm font-mono text-slate-200 truncate" title={wh.url}>
+							{wh.url}
+						</p>
+						{activeStatusBadge(wh.is_active)}
+					</div>
 					<div className="flex flex-wrap gap-1 mt-1.5">
 						{wh.events.map((e) => (
 							<span
@@ -221,6 +386,20 @@ function WebhookRow({ wh }: { wh: WebhookType }) {
 
 				{/* Actions */}
 				<div className="flex items-center gap-2 flex-shrink-0">
+					<EditWebhookDialog webhook={wh} />
+					<button
+						onClick={toggleActive}
+						disabled={updateWh.isPending}
+						title={wh.is_active ? 'Disable webhook' : 'Enable webhook'}
+						className={cn(
+							'p-1.5 rounded transition-colors disabled:opacity-50',
+							wh.is_active
+								? 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-400/10'
+								: 'text-slate-500 hover:text-slate-200 hover:bg-slate-800',
+						)}
+					>
+						<Power className="w-4 h-4" />
+					</button>
 					<button
 						onClick={() => testWh.mutate(wh.id)}
 						disabled={testWh.isPending}
