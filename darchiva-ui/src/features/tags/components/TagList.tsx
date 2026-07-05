@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { ChevronDown,ChevronRight,Edit,FileText,Search,Tag as TagIcon,Trash2 } from 'lucide-react';
+import { AlertCircle,ChevronDown,ChevronRight,Edit,FileText,Search,Tag as TagIcon,Trash2 } from 'lucide-react';
 import { useMemo,useState } from 'react';
 import { useDeleteTag,useTags } from '../api';
 import type { Tag,TagTreeNode } from '../types';
@@ -51,7 +51,7 @@ function buildTagTree(tags: Tag[]): TagTreeNode[] {
 }
 
 export function TagList({ onSelect, onEdit, selectedId }: TagListProps) {
-	const { data, isLoading } = useTags();
+	const { data, isLoading, isError } = useTags();
 	const deleteMutation = useDeleteTag();
 	const [search, setSearch] = useState('');
 	const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -84,6 +84,15 @@ export function TagList({ onSelect, onEdit, selectedId }: TagListProps) {
 				{Array.from({ length: 5 }).map((_, i) => (
 					<Skeleton key={i} className="h-10 w-full" />
 				))}
+			</div>
+		);
+	}
+
+	if (isError) {
+		return (
+			<div className="flex items-center gap-2 m-4 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+				<AlertCircle className="h-4 w-4 shrink-0" />
+				Failed to load tags. Check your connection and try refreshing.
 			</div>
 		);
 	}
