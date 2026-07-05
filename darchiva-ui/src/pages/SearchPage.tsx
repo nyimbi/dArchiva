@@ -112,7 +112,7 @@ const SEARCH_OPERATORS = [
 	{ token: 'from:2024-01-01', description: 'created after date' },
 	{ token: 'to:2024-12-31', description: 'created before date' },
 	{ token: 'has:annotations', description: 'has annotations' },
-	{ token: 'created_by:john', description: 'by specific user' },
+	{ token: 'created_by:<username>', description: 'by specific user' },
 ];
 
 // ---------------------------------------------------------------------------

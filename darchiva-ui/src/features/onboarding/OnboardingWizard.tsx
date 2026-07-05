@@ -433,7 +433,19 @@ export function OnboardingWizard({ onDone }: WizardProps) {
 		return 'Next';
 	}, [step]);
 
-	if (isLoading) return null;
+	if (isLoading) return (
+		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+			<div className="w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-700 p-8 space-y-4">
+				<div className="h-6 w-40 rounded bg-slate-700 animate-pulse" />
+				<div className="h-4 w-64 rounded bg-slate-800 animate-pulse" />
+				<div className="h-32 w-full rounded-xl bg-slate-800 animate-pulse" />
+				<div className="flex justify-end gap-3">
+					<div className="h-9 w-20 rounded bg-slate-800 animate-pulse" />
+					<div className="h-9 w-28 rounded bg-slate-700 animate-pulse" />
+				</div>
+			</div>
+		</div>
+	);
 
 	const markStepComplete = async (stepId = currentStep.id) => {
 		try {
