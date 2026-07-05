@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import {
 	useSignatureRequests,
-	useDeclineSignature,
+	useSendSignatureReminder,
 	type SignatureRequest,
 } from './api';
 import { SignatureRequestDialog } from './SignatureRequestDialog';
+import { toast } from 'sonner';
 
 interface Props {
 	documentId: string;
@@ -26,6 +27,17 @@ function formatDate(iso: string | null): string {
 }
 
 function PendingRow({ req }: { req: SignatureRequest }) {
+	const reminderMutation = useSendSignatureReminder();
+
+	const handleReminder = async () => {
+		try {
+			await reminderMutation.mutateAsync(req.id);
+			toast.success('Reminder sent to signer');
+		} catch {
+			toast.error('Failed to send reminder');
+		}
+	};
+
 	return (
 		<div className="flex items-start justify-between gap-3 py-2">
 			<div className="min-w-0">
@@ -45,16 +57,11 @@ function PendingRow({ req }: { req: SignatureRequest }) {
 					size="sm"
 					variant="ghost"
 					className="h-7 text-xs"
-					onClick={() => {
-						// Remind: open mailto in a new tab — actual email integration
-						// can be wired to a notification endpoint later.
-						window.open(
-							`mailto:${req.requestedFromEmail}?subject=Reminder: Please sign the document`,
-							'_blank',
-						);
-					}}
+					onClick={handleReminder}
+					disabled={reminderMutation.isPending}
 				>
-					Remind
+					{reminderMutation.isPending && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
+					Send Reminder
 				</Button>
 			</div>
 		</div>

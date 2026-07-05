@@ -28,7 +28,9 @@ import {
 	useCreateApprovalWorkflow,
 	useDocumentApprovals,
 	useRejectStep,
+	useSendApprovalReminder,
 } from './api';
+import { toast } from 'sonner';
 
 interface ApprovalPanelProps {
 	documentId: string;
@@ -133,6 +135,7 @@ function StepRow({ step, workflowId, documentId, currentUserId, isWorkflowActive
 	const [rejectOpen, setRejectOpen] = useState(false);
 	const approveMutation = useApproveStep(documentId);
 	const rejectMutation = useRejectStep(documentId);
+	const reminderMutation = useSendApprovalReminder(documentId);
 
 	const isMyStep =
 		isWorkflowActive &&
@@ -140,6 +143,8 @@ function StepRow({ step, workflowId, documentId, currentUserId, isWorkflowActive
 		currentUserId &&
 		step.approver_user_id === currentUserId;
 	const busy = approveMutation.isPending || rejectMutation.isPending;
+	const canRemind = isWorkflowActive && step.status === 'pending';
+	const reminderBusy = reminderMutation.isPending;
 	const approver = step.approver_email || 'this approver';
 
 	const handleApprove = async () => {
@@ -150,6 +155,15 @@ function StepRow({ step, workflowId, documentId, currentUserId, isWorkflowActive
 		if (!comment) return;
 		await rejectMutation.mutateAsync({ workflowId, stepId: step.id, comment });
 		setRejectOpen(false);
+	};
+
+	const handleReminder = async () => {
+		try {
+			await reminderMutation.mutateAsync(step.id);
+			toast.success('Reminder sent');
+		} catch {
+			toast.error('Failed to send reminder');
+		}
 	};
 
 	return (
@@ -177,26 +191,45 @@ function StepRow({ step, workflowId, documentId, currentUserId, isWorkflowActive
 							<span className="break-words">{step.comment}</span>
 						</p>
 					)}
-					{isMyStep && (
+					{(isMyStep || canRemind) && (
 						<div className="mt-2 flex flex-wrap gap-2">
-							<button
-								type="button"
-								onClick={handleApprove}
-								disabled={busy}
-								className="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
-							>
-								<CheckCircle className="h-3.5 w-3.5" />
-								Approve
-							</button>
-							<button
-								type="button"
-								onClick={() => setRejectOpen(true)}
-								disabled={busy}
-								className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
-							>
-								<XCircle className="h-3.5 w-3.5" />
-								Reject
-							</button>
+							{isMyStep && (
+								<>
+									<button
+										type="button"
+										onClick={handleApprove}
+										disabled={busy}
+										className="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
+									>
+										<CheckCircle className="h-3.5 w-3.5" />
+										Approve
+									</button>
+									<button
+										type="button"
+										onClick={() => setRejectOpen(true)}
+										disabled={busy}
+										className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+									>
+										<XCircle className="h-3.5 w-3.5" />
+										Reject
+									</button>
+								</>
+							)}
+							{canRemind && (
+								<button
+									type="button"
+									onClick={handleReminder}
+									disabled={reminderBusy}
+									className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+								>
+									{reminderBusy ? (
+										<Loader2 className="h-3.5 w-3.5 animate-spin" />
+									) : (
+										<Mail className="h-3.5 w-3.5" />
+									)}
+									Send Reminder
+								</button>
+							)}
 						</div>
 					)}
 				</div>

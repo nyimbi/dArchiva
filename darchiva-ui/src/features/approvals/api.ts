@@ -134,3 +134,15 @@ export function useRejectStep(documentId: string) {
 		},
 	});
 }
+
+export function useSendApprovalReminder(documentId: string) {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: async (approvalId: string): Promise<void> => {
+			await apiClient.post(`/approvals/${approvalId}/remind`);
+		},
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: approvalKeys.forDocument(documentId) });
+		},
+	});
+}

@@ -172,3 +172,11 @@ export function useDeclineSignature() {
 		},
 	});
 }
+
+export function useSendSignatureReminder() {
+	return useMutation({
+		mutationFn: async (requestId: string): Promise<void> => {
+			await apiClient.post(`/signatures/${requestId}/remind`);
+		},
+	});
+}
