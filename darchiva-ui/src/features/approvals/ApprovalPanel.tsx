@@ -6,6 +6,7 @@ import type { User } from '@/features/users/types';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import {
+	AlertCircle,
 	CheckCircle,
 	ChevronDown,
 	ChevronUp,
@@ -493,7 +494,12 @@ export function ApprovalPanel({ documentId }: ApprovalPanelProps) {
 
 			{isLoading && <div className="py-4 text-center text-sm text-gray-500">Loading approvals...</div>}
 
-			{error && <div className="py-2 text-sm text-red-600">Failed to load approvals. Please try again.</div>}
+			{error && (
+				<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+					<AlertCircle className="h-4 w-4 shrink-0" />
+					Failed to load approvals. Check your connection and try refreshing.
+				</div>
+			)}
 
 			{!isLoading && !error && !currentWorkflow && (
 				<div className="rounded-lg border border-dashed border-gray-200 px-4 py-8 text-center">

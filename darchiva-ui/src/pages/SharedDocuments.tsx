@@ -12,7 +12,7 @@ import { useSearchDocuments } from '@/features/search/api';
 import { ShareDialog } from '@/features/shared-nodes/components/ShareDialog';
 import { SharedNodesList } from '@/features/shared-nodes/components/SharedNodesList';
 import type { SharedNode } from '@/features/shared-nodes/types';
-import { FileText, Loader2, Search, Share2 } from 'lucide-react';
+import { AlertCircle, FileText, Loader2, Search, Share2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 // ---------------------------------------------------------------------------
@@ -53,7 +53,7 @@ function DocumentPickerDialog({ open, onOpenChange, onSelect }: DocumentPickerDi
 	const debouncedQuery = useDebounce(query, 300);
 
 	// Always fetch; with empty query the API returns recent/top docs
-	const { data, isLoading } = useSearchDocuments(
+	const { data, isLoading, isError } = useSearchDocuments(
 		debouncedQuery,
 		{},
 		1,
@@ -97,6 +97,11 @@ function DocumentPickerDialog({ open, onOpenChange, onSelect }: DocumentPickerDi
 					{isLoading ? (
 						<div className="flex items-center justify-center py-8">
 							<Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+						</div>
+					) : isError ? (
+						<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+							<AlertCircle className="h-4 w-4 shrink-0" />
+							Failed to load documents. Check your connection and try refreshing.
 						</div>
 					) : items.length === 0 ? (
 						<p className="py-8 text-center text-sm text-muted-foreground">

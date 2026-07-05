@@ -261,8 +261,18 @@ function BatchRow({
 export function BatchDashboard() {
 	const [statusFilter, setStatusFilter] = useState<BatchStatus | undefined>();
 
-	const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useBatchStats();
-	const { data: batches, isLoading: batchesLoading, refetch: refetchBatches } = useBatches({
+	const {
+		data: stats,
+		isLoading: statsLoading,
+		isError: statsError,
+		refetch: refetchStats,
+	} = useBatchStats();
+	const {
+		data: batches,
+		isLoading: batchesLoading,
+		isError: batchesError,
+		refetch: refetchBatches,
+	} = useBatches({
 		status: statusFilter,
 		limit: 20,
 	});
@@ -299,6 +309,13 @@ export function BatchDashboard() {
 					</button>
 				</div>
 			</div>
+
+			{(statsError || batchesError) && (
+				<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+					<AlertCircle className="h-4 w-4 shrink-0" />
+					Failed to load batch data. Check your connection and try refreshing.
+				</div>
+			)}
 
 			{/* Stats Grid */}
 			{statsLoading ? (
@@ -397,7 +414,7 @@ export function BatchDashboard() {
 							/>
 						))}
 					</div>
-				) : batches && batches.length > 0 ? (
+				) : batchesError ? null : batches && batches.length > 0 ? (
 					<AnimatePresence mode="popLayout">
 						{batches.map((batch) => (
 							<BatchRow

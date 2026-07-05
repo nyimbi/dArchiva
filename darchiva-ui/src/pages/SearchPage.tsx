@@ -6,6 +6,7 @@ import { cn, formatRelativeTime } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
+	AlertCircle,
 	AlertTriangle,
 	BarChart2,
 	Bookmark,
@@ -251,7 +252,7 @@ export function SearchPage() {
 		}
 	}, [debouncedQuery, pushHistory, setSearchParams, urlQuery]);
 
-	const { data: results, isLoading, isFetching } = useSearchDocuments(
+	const { data: results, isLoading, isFetching, isError } = useSearchDocuments(
 		debouncedQuery,
 		filters,
 		page,
@@ -633,6 +634,11 @@ export function SearchPage() {
 				<main className="flex-1 overflow-y-auto px-6 py-4">
 					{isLoading ? (
 						<SearchSkeleton />
+					) : isError ? (
+						<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+							<AlertCircle className="h-4 w-4 shrink-0" />
+							Failed to load search results. Check your connection and try refreshing.
+						</div>
 					) : !results || results.items.length === 0 ? (
 						<SearchEmpty
 							query={debouncedQuery}

@@ -10,6 +10,7 @@ import {
 	Tooltip,
 	ResponsiveContainer,
 } from 'recharts';
+import { AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIngestMetrics, useClassificationAccuracy, useStorageByType } from './pipelineHooks';
@@ -35,7 +36,7 @@ function ChartSkeleton() {
 // ─────────────────────────── Ingest Rate ─────────────────────
 
 function IngestRateChart() {
-	const { data, isLoading } = useIngestMetrics(30);
+	const { data, isLoading, isError } = useIngestMetrics(30);
 
 	return (
 		<Card>
@@ -43,7 +44,14 @@ function IngestRateChart() {
 				<CardTitle className="text-sm font-medium">Document Ingestion Rate (last 30 days)</CardTitle>
 			</CardHeader>
 			<CardContent>
-				{isLoading || !data ? (
+				{isLoading ? (
+					<ChartSkeleton />
+				) : isError ? (
+					<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+						<AlertCircle className="h-4 w-4 shrink-0" />
+						Failed to load ingest metrics. Check your connection and try refreshing.
+					</div>
+				) : !data ? (
 					<ChartSkeleton />
 				) : (
 					<ResponsiveContainer width="100%" height={240}>
@@ -71,7 +79,7 @@ function IngestRateChart() {
 // ─────────────────────────── Classification Accuracy ─────────
 
 function ClassificationAccuracyChart() {
-	const { data, isLoading } = useClassificationAccuracy(30);
+	const { data, isLoading, isError } = useClassificationAccuracy(30);
 
 	return (
 		<Card>
@@ -79,7 +87,14 @@ function ClassificationAccuracyChart() {
 				<CardTitle className="text-sm font-medium">Classification Accuracy Trend (last 30 days)</CardTitle>
 			</CardHeader>
 			<CardContent>
-				{isLoading || !data ? (
+				{isLoading ? (
+					<ChartSkeleton />
+				) : isError ? (
+					<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+						<AlertCircle className="h-4 w-4 shrink-0" />
+						Failed to load classification accuracy. Check your connection and try refreshing.
+					</div>
+				) : !data ? (
 					<ChartSkeleton />
 				) : (
 					<ResponsiveContainer width="100%" height={240}>
@@ -129,7 +144,7 @@ function ClassificationAccuracyChart() {
 // ─────────────────────────── Storage by Type ─────────────────
 
 function StorageByTypeChart() {
-	const { data, isLoading } = useStorageByType();
+	const { data, isLoading, isError } = useStorageByType();
 
 	// recharts horizontal bar needs layout="vertical"; normalise for display
 	const chartData = data?.map((d) => ({
@@ -143,7 +158,14 @@ function StorageByTypeChart() {
 				<CardTitle className="text-sm font-medium">Storage by Document Type</CardTitle>
 			</CardHeader>
 			<CardContent>
-				{isLoading || !chartData ? (
+				{isLoading ? (
+					<ChartSkeleton />
+				) : isError ? (
+					<div className="flex items-center gap-2 rounded-md border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+						<AlertCircle className="h-4 w-4 shrink-0" />
+						Failed to load storage data. Check your connection and try refreshing.
+					</div>
+				) : !chartData ? (
 					<ChartSkeleton />
 				) : (
 					<ResponsiveContainer width="100%" height={240}>
