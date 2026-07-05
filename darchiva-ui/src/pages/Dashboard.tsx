@@ -1,26 +1,33 @@
 // (c) Copyright Datacraft, 2026
-import { useDashboardPendingTasks,useDashboardStats,useRecentActivity } from '@/features/dashboard';
+import { useDashboardPendingTasks, useDashboardStats } from '@/features/dashboard';
 import { useActivityFeed } from '@/features/activity';
-import { cn,formatBytes,formatRelativeTime } from '@/lib/utils';
+import { apiClient } from '@/lib/api-client';
+import { cn, formatBytes, formatRelativeTime } from '@/lib/utils';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
-  AlertCircle,
-  ArrowUpRight,
-  CheckSquare,
-  Clock,
-  Cpu,
-  FileSearch,
-  FileText,
-  FolderOpen,
-  GitBranch,
-  HardDrive,
-  Loader2,
-  MessageSquare,
-  PenTool,
-  Shield,
-  Tag,
-  TrendingUp,
+	AlertCircle,
+	ArrowUpRight,
+	CheckSquare,
+	Clock,
+	Cpu,
+	FileSearch,
+	FileText,
+	FolderOpen,
+	GitBranch,
+	HardDrive,
+	Inbox,
+	Loader2,
+	MessageSquare,
+	PenTool,
+	RefreshCw,
+	ScanLine,
+	Search,
+	Shield,
+	Tag,
+	TrendingUp,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const containerVariants = {
 	hidden: { opacity: 0 },
@@ -37,12 +44,12 @@ const itemVariants = {
 
 function feedEventIcon(eventType: string) {
 	const cls = 'w-3.5 h-3.5';
-	if (eventType.includes('ocr'))       return <Cpu         className={cls} />;
-	if (eventType.includes('classif'))   return <Tag         className={cls} />;
-	if (eventType.includes('moved'))     return <FolderOpen  className={cls} />;
-	if (eventType.includes('signed'))    return <PenTool     className={cls} />;
-	if (eventType.includes('approved'))  return <CheckSquare className={cls} />;
-	if (eventType.includes('held'))      return <Shield      className={cls} />;
+	if (eventType.includes('ocr'))       return <Cpu          className={cls} />;
+	if (eventType.includes('classif'))   return <Tag          className={cls} />;
+	if (eventType.includes('moved'))     return <FolderOpen   className={cls} />;
+	if (eventType.includes('signed'))    return <PenTool      className={cls} />;
+	if (eventType.includes('approved'))  return <CheckSquare  className={cls} />;
+	if (eventType.includes('held'))      return <Shield       className={cls} />;
 	if (eventType.includes('annotated')) return <MessageSquare className={cls} />;
 	return <FileText className={cls} />;
 }
@@ -58,16 +65,60 @@ function feedIconBg(eventType: string): string {
 	return 'bg-brass-500/10 text-brass-400';
 }
 
-export function Dashboard() {
-	const { data: stats, isLoading: statsLoading } = useDashboardStats();
-	const { data: activityData, isLoading: activityLoading } = useRecentActivity(5);
-	const { data: tasksData, isLoading: tasksLoading } = useDashboardPendingTasks();
-	const { data: feedEvents, isLoading: feedLoading } = useActivityFeed(10);
+function RetryButton({ onRetry }: { onRetry: () => void }) {
+	return (
+		<button
+			onClick={onRetry}
+			className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-slate-100 transition-colors"
+		>
+			<RefreshCw className="w-3 h-3" />
+			Retry
+		</button>
+	);
+}
 
-	const activity = activityData?.items ?? [];
+function ErrorState({ message, onRetry }: { message?: string; onRetry: () => void }) {
+	return (
+		<div className="p-8 flex flex-col items-center gap-3 text-slate-500">
+			<AlertCircle className="w-6 h-6 text-red-400" />
+			<p className="text-sm">{message ?? 'Failed to load'}</p>
+			<RetryButton onRetry={onRetry} />
+		</div>
+	);
+}
+
+interface HealthResponse { status: string }
+interface WorkersResponse { active: number; total?: number }
+
+export function Dashboard() {
+	const navigate = useNavigate();
+
+	const { data: stats, isLoading: statsLoading, isError: statsError, refetch: refetchStats } = useDashboardStats();
+	const { data: tasksData, isLoading: tasksLoading, isError: tasksError, refetch: refetchTasks } = useDashboardPendingTasks();
+	const { data: feedEvents, isLoading: feedLoading, isError: feedError, refetch: refetchFeed } = useActivityFeed(10);
+
+	const { data: healthData, isLoading: healthLoading, isError: healthError } = useQuery({
+		queryKey: ['system', 'health'],
+		queryFn: async () => {
+			const { data } = await apiClient.get<HealthResponse>('/health');
+			return data;
+		},
+		refetchInterval: 30_000,
+		retry: 1,
+	});
+
+	const { data: workersData, isLoading: workersLoading } = useQuery({
+		queryKey: ['system', 'workers'],
+		queryFn: async () => {
+			const { data } = await apiClient.get<WorkersResponse>('/system/workers');
+			return data;
+		},
+		refetchInterval: 30_000,
+		retry: 1,
+	});
+
 	const pendingTasks = tasksData?.tasks ?? [];
 
-	// Default stats when loading
 	const displayStats = stats ?? {
 		totalDocuments: 0,
 		documentsThisMonth: 0,
@@ -81,6 +132,16 @@ export function Dashboard() {
 	const storagePercentage = displayStats.storageQuotaBytes > 0
 		? (displayStats.storageUsedBytes / displayStats.storageQuotaBytes) * 100
 		: 0;
+
+	const apiOnline = !healthError && (healthData?.status === 'ok' || healthData?.status === 'healthy' || healthData != null);
+	const activeWorkers = workersData?.active ?? 0;
+
+	const quickActions = [
+		{ icon: ScanLine, label: 'New Scan Project', action: () => navigate('/scanning-projects') },
+		{ icon: FileText,  label: 'Upload Document',  action: () => navigate('/documents?action=upload') },
+		{ icon: Search,    label: 'Search',            action: () => navigate('/search') },
+		{ icon: Inbox,     label: 'View Inbox',        action: () => navigate('/inbox') },
+	];
 
 	return (
 		<motion.div
@@ -109,10 +170,15 @@ export function Dashboard() {
 				{/* Total Documents */}
 				<div className="stat-card group">
 					<div className="flex items-start justify-between">
-						<div>
+						<div className="flex-1">
 							<p className="text-sm text-slate-500">Total Documents</p>
 							{statsLoading ? (
 								<Loader2 className="w-6 h-6 animate-spin text-slate-500 mt-2" />
+							) : statsError ? (
+								<div className="mt-2 flex items-center gap-1.5 text-xs text-red-400">
+									<AlertCircle className="w-3.5 h-3.5" />
+									<button onClick={() => void refetchStats()} className="hover:underline">Retry</button>
+								</div>
 							) : (
 								<>
 									<p className="mt-2 text-3xl font-display font-semibold text-slate-100">
@@ -134,10 +200,15 @@ export function Dashboard() {
 				{/* Active Workflows */}
 				<div className="stat-card group">
 					<div className="flex items-start justify-between">
-						<div>
+						<div className="flex-1">
 							<p className="text-sm text-slate-500">Active Workflows</p>
 							{statsLoading ? (
 								<Loader2 className="w-6 h-6 animate-spin text-slate-500 mt-2" />
+							) : statsError ? (
+								<div className="mt-2 flex items-center gap-1.5 text-xs text-red-400">
+									<AlertCircle className="w-3.5 h-3.5" />
+									<button onClick={() => void refetchStats()} className="hover:underline">Retry</button>
+								</div>
 							) : (
 								<>
 									<p className="mt-2 text-3xl font-display font-semibold text-slate-100">
@@ -159,18 +230,21 @@ export function Dashboard() {
 				{/* OCR Processed */}
 				<div className="stat-card group">
 					<div className="flex items-start justify-between">
-						<div>
+						<div className="flex-1">
 							<p className="text-sm text-slate-500">OCR Processed</p>
 							{statsLoading ? (
 								<Loader2 className="w-6 h-6 animate-spin text-slate-500 mt-2" />
+							) : statsError ? (
+								<div className="mt-2 flex items-center gap-1.5 text-xs text-red-400">
+									<AlertCircle className="w-3.5 h-3.5" />
+									<button onClick={() => void refetchStats()} className="hover:underline">Retry</button>
+								</div>
 							) : (
 								<>
 									<p className="mt-2 text-3xl font-display font-semibold text-slate-100">
 										{displayStats.ocrProcessed.toLocaleString()}
 									</p>
-									<p className="mt-1 text-xs text-slate-500">
-										Documents this month
-									</p>
+									<p className="mt-1 text-xs text-slate-500">Documents this month</p>
 								</>
 							)}
 						</div>
@@ -187,6 +261,11 @@ export function Dashboard() {
 							<p className="text-sm text-slate-500">Storage Used</p>
 							{statsLoading ? (
 								<Loader2 className="w-6 h-6 animate-spin text-slate-500 mt-2" />
+							) : statsError ? (
+								<div className="mt-2 flex items-center gap-1.5 text-xs text-red-400">
+									<AlertCircle className="w-3.5 h-3.5" />
+									<button onClick={() => void refetchStats()} className="hover:underline">Retry</button>
+								</div>
 							) : (
 								<>
 									<p className="mt-2 text-3xl font-display font-semibold text-slate-100">
@@ -228,10 +307,10 @@ export function Dashboard() {
 							<div className="p-8 flex items-center justify-center">
 								<Loader2 className="w-6 h-6 animate-spin text-slate-500" />
 							</div>
+						) : tasksError ? (
+							<ErrorState message="Failed to load tasks" onRetry={() => void refetchTasks()} />
 						) : pendingTasks.length === 0 ? (
-							<div className="p-8 text-center text-slate-500">
-								No pending tasks
-							</div>
+							<div className="p-8 text-center text-slate-500">No pending tasks</div>
 						) : (
 							pendingTasks.slice(0, 3).map((task, idx) => (
 								<motion.div
@@ -244,7 +323,7 @@ export function Dashboard() {
 									<div className="flex items-start gap-4">
 										<div className={cn(
 											'mt-0.5 p-1.5 rounded-lg',
-											task.priority === 'high' ? 'bg-red-500/10 text-red-400' :
+											task.priority === 'high'   ? 'bg-red-500/10 text-red-400' :
 											task.priority === 'urgent' ? 'bg-orange-500/10 text-orange-400' :
 											'bg-slate-700/50 text-slate-400'
 										)}>
@@ -258,10 +337,10 @@ export function Dashboard() {
 												{task.workflowName} • {task.stepName}
 											</p>
 										</div>
-										<div className="text-right">
+										<div className="text-right shrink-0">
 											<span className={cn(
 												'badge',
-												task.priority === 'high' ? 'badge-red' :
+												task.priority === 'high'   ? 'badge-red' :
 												task.priority === 'urgent' ? 'badge-brass' :
 												'badge-gray'
 											)}>
@@ -280,54 +359,58 @@ export function Dashboard() {
 					</div>
 				</motion.div>
 
-				{/* Recent Activity */}
+				{/* System Status */}
 				<motion.div variants={itemVariants} className="glass-card">
 					<div className="p-4 border-b border-slate-700/50">
-						<h2 className="font-display font-semibold text-slate-100">Recent Activity</h2>
+						<h2 className="font-display font-semibold text-slate-100">System Status</h2>
 					</div>
-					<div className="divide-y divide-slate-800/50">
-						{activityLoading ? (
-							<div className="p-8 flex items-center justify-center">
-								<Loader2 className="w-6 h-6 animate-spin text-slate-500" />
+					<div className="p-4 space-y-3">
+						{/* API */}
+						<div className="flex items-center justify-between">
+							<div className="flex items-center gap-2">
+								<span className={cn(
+									'w-2 h-2 rounded-full shrink-0',
+									healthLoading ? 'bg-slate-500 animate-pulse' :
+									healthError   ? 'bg-red-400' :
+									apiOnline     ? 'bg-emerald-400' : 'bg-red-400'
+								)} />
+								<span className="text-sm text-slate-300">API</span>
 							</div>
-						) : activity.length === 0 ? (
-							<div className="p-8 text-center text-slate-500">
-								No recent activity
+							<span className={cn(
+								'text-xs font-medium',
+								healthLoading ? 'text-slate-500' :
+								healthError   ? 'text-red-400' :
+								apiOnline     ? 'text-emerald-400' : 'text-red-400'
+							)}>
+								{healthLoading ? 'Checking…' : healthError ? 'Offline' : apiOnline ? 'Online' : 'Offline'}
+							</span>
+						</div>
+
+						{/* Workers */}
+						<div className="flex items-center justify-between">
+							<div className="flex items-center gap-2">
+								<span className={cn(
+									'w-2 h-2 rounded-full shrink-0',
+									workersLoading    ? 'bg-slate-500 animate-pulse' :
+									activeWorkers > 0 ? 'bg-blue-400' : 'bg-slate-500'
+								)} />
+								<span className="text-sm text-slate-300">Workers</span>
 							</div>
-						) : (
-							activity.map((item, idx) => (
-								<motion.div
-									key={item.id}
-									initial={{ opacity: 0 }}
-									animate={{ opacity: 1 }}
-									transition={{ delay: 0.05 * idx }}
-									className="p-4 hover:bg-slate-800/30 transition-colors"
-								>
-									<div className="flex items-start gap-3">
-										<div className={cn(
-											'mt-0.5 w-2 h-2 rounded-full',
-											item.type === 'document_uploaded' ? 'bg-emerald-400' :
-											item.type === 'workflow_completed' ? 'bg-brass-400' :
-											item.type === 'form_extracted' ? 'bg-blue-400' :
-											'bg-slate-400'
-										)} />
-										<div className="flex-1 min-w-0">
-											<p className="text-sm text-slate-300 truncate">
-												{item.description}
-											</p>
-											<p className="mt-1 text-xs text-slate-500">
-												{item.userName} • {formatRelativeTime(item.timestamp)}
-											</p>
-										</div>
-									</div>
-								</motion.div>
-							))
-						)}
+							<span className="text-xs font-medium text-slate-400">
+								{workersLoading ? 'Checking…' : `${activeWorkers} active`}
+							</span>
+						</div>
+
+						<div className="pt-2 border-t border-slate-700/50">
+							<p className="text-xs text-slate-600">
+								Refreshes every 30 s
+							</p>
+						</div>
 					</div>
 				</motion.div>
 			</div>
 
-			{/* Recent Activity Feed */}
+			{/* Activity Feed */}
 			<motion.div variants={itemVariants} className="glass-card">
 				<div className="p-4 border-b border-slate-700/50 flex items-center justify-between">
 					<h2 className="font-display font-semibold text-slate-100">Recent Activity</h2>
@@ -340,6 +423,8 @@ export function Dashboard() {
 						<div className="p-8 flex items-center justify-center">
 							<Loader2 className="w-5 h-5 animate-spin text-slate-500" />
 						</div>
+					) : feedError ? (
+						<ErrorState message="Failed to load activity" onRetry={() => void refetchFeed()} />
 					) : !feedEvents || feedEvents.length === 0 ? (
 						<div className="p-8 text-center text-sm text-slate-500">No activity yet</div>
 					) : (
@@ -380,26 +465,21 @@ export function Dashboard() {
 				</div>
 			</motion.div>
 
-			{/* Quick actions */}
+			{/* Quick Actions */}
 			<motion.div variants={itemVariants} className="glass-card p-4">
 				<h2 className="font-display font-semibold text-slate-100 mb-4">Quick Actions</h2>
 				<div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-					{[
-						{ icon: FileText, label: 'Upload Document', href: '/documents?action=upload' },
-						{ icon: FolderOpen, label: 'Create Folder', href: '/documents?action=create-folder' },
-						{ icon: GitBranch, label: 'Start Workflow', href: '/workflows' },
-						{ icon: FileSearch, label: 'Extract Forms', href: '/forms' },
-					].map((action) => (
-						<a
+					{quickActions.map((action) => (
+						<button
 							key={action.label}
-							href={action.href}
+							onClick={action.action}
 							className="flex flex-col items-center gap-2 p-4 rounded-xl bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/30 hover:border-brass-500/30 transition-all group"
 						>
 							<action.icon className="w-6 h-6 text-slate-400 group-hover:text-brass-400 transition-colors" />
 							<span className="text-sm text-slate-400 group-hover:text-slate-200 transition-colors">
 								{action.label}
 							</span>
-						</a>
+						</button>
 					))}
 				</div>
 			</motion.div>
