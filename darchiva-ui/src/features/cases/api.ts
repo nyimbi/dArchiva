@@ -67,8 +67,8 @@ export function useCases(page = 1, pageSize = 20, status?: CaseStatus, portfolio
 			const params: Record<string, unknown> = { page, page_size: pageSize };
 			if (status) params.status = status;
 			if (portfolioId) params.portfolio_id = portfolioId;
-			const response = await apiClient.get<CaseListResponse>('/cases', { params });
-			return response.data;
+			const { data } = await apiClient.get<CaseListResponse>('/cases', { params });
+			return data;
 		},
 	});
 }
@@ -77,8 +77,8 @@ export function useCase(id: string) {
 	return useQuery({
 		queryKey: caseKeys.detail(id),
 		queryFn: async () => {
-			const response = await apiClient.get<Case>(`/cases/${id}`);
-			return response.data;
+			const { data } = await apiClient.get<Case>(`/cases/${id}`);
+			return data;
 		},
 		enabled: !!id,
 	});
@@ -90,8 +90,8 @@ export function useBundles(caseId?: string, page = 1, pageSize = 20) {
 		queryFn: async () => {
 			const params: Record<string, unknown> = { page, page_size: pageSize };
 			if (caseId) params.case_id = caseId;
-			const response = await apiClient.get<BundleListResponse>('/bundles', { params });
-			return response.data;
+			const { data } = await apiClient.get<BundleListResponse>('/bundles', { params });
+			return data;
 		},
 	});
 }
@@ -100,8 +100,8 @@ export function useBundle(id: string) {
 	return useQuery({
 		queryKey: caseKeys.bundle(id),
 		queryFn: async () => {
-			const response = await apiClient.get<Bundle>(`/bundles/${id}`);
-			return response.data;
+			const { data } = await apiClient.get<Bundle>(`/bundles/${id}`);
+			return data;
 		},
 		enabled: !!id,
 	});
@@ -111,8 +111,8 @@ export function useCreateCase() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async (data: { title: string; description?: string; portfolioId?: string }) => {
-			const response = await apiClient.post<Case>('/cases', data);
-			return response.data;
+			const { data: createdCase } = await apiClient.post<Case>('/cases', data);
+			return createdCase;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: caseKeys.all });
@@ -124,8 +124,8 @@ export function useUpdateCase() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async ({ id, data }: { id: string; data: Partial<Case> }) => {
-			const response = await apiClient.patch<Case>(`/cases/${id}`, data);
-			return response.data;
+			const { data: updatedCase } = await apiClient.patch<Case>(`/cases/${id}`, data);
+			return updatedCase;
 		},
 		onSuccess: (_, { id }) => {
 			queryClient.invalidateQueries({ queryKey: caseKeys.detail(id) });
@@ -138,8 +138,8 @@ export function useCloseCase() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async (id: string) => {
-			const response = await apiClient.post<Case>(`/cases/${id}/close`);
-			return response.data;
+			const { data } = await apiClient.post<Case>(`/cases/${id}/close`);
+			return data;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: caseKeys.all });
@@ -151,8 +151,8 @@ export function useCreateBundle() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async (data: { name: string; caseId: string; description?: string }) => {
-			const response = await apiClient.post<Bundle>('/bundles', data);
-			return response.data;
+			const { data: createdBundle } = await apiClient.post<Bundle>('/bundles', data);
+			return createdBundle;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: caseKeys.bundles() });
@@ -164,8 +164,8 @@ export function useUpdateBundle() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async ({ id, data }: { id: string; data: Partial<Bundle> }) => {
-			const response = await apiClient.patch<Bundle>(`/bundles/${id}`, data);
-			return response.data;
+			const { data: updatedBundle } = await apiClient.patch<Bundle>(`/bundles/${id}`, data);
+			return updatedBundle;
 		},
 		onSuccess: (_, { id }) => {
 			queryClient.invalidateQueries({ queryKey: caseKeys.bundle(id) });

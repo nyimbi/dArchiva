@@ -52,51 +52,51 @@ export interface HierarchyTreeResponse {
 
 // API Functions
 export async function getPortfolios(page = 1, pageSize = 50): Promise<HierarchyTreeResponse> {
-	const res = await apiClient.get<HierarchyTreeResponse>(`/portfolios?page=${page}&page_size=${pageSize}`);
-	return res.data;
+	const { data } = await apiClient.get<HierarchyTreeResponse>(`/portfolios?page=${page}&page_size=${pageSize}`);
+	return data;
 }
 
 export async function getPortfolio(id: string): Promise<Portfolio> {
-	const res = await apiClient.get<Portfolio>(`/portfolios/${id}`);
-	return res.data;
+	const { data } = await apiClient.get<Portfolio>(`/portfolios/${id}`);
+	return data;
 }
 
 export async function getCases(portfolioId: string): Promise<HierarchyTreeResponse> {
-	const res = await apiClient.get<HierarchyTreeResponse>(`/portfolios/${portfolioId}/cases`);
-	return res.data;
+	const { data } = await apiClient.get<HierarchyTreeResponse>(`/portfolios/${portfolioId}/cases`);
+	return data;
 }
 
 export async function getCase(id: string): Promise<Case> {
-	const res = await apiClient.get<Case>(`/cases/${id}`);
-	return res.data;
+	const { data } = await apiClient.get<Case>(`/cases/${id}`);
+	return data;
 }
 
 export async function getBundles(caseId: string): Promise<HierarchyTreeResponse> {
-	const res = await apiClient.get<HierarchyTreeResponse>(`/cases/${caseId}/bundles`);
-	return res.data;
+	const { data } = await apiClient.get<HierarchyTreeResponse>(`/cases/${caseId}/bundles`);
+	return data;
 }
 
 export async function getBundle(id: string): Promise<Bundle> {
-	const res = await apiClient.get<Bundle>(`/bundles/${id}`);
-	return res.data;
+	const { data } = await apiClient.get<Bundle>(`/bundles/${id}`);
+	return data;
 }
 
 export async function getDocuments(bundleId: string): Promise<HierarchyTreeResponse> {
-	const res = await apiClient.get<HierarchyTreeResponse>(`/bundles/${bundleId}/documents`);
-	return res.data;
+	const { data } = await apiClient.get<HierarchyTreeResponse>(`/bundles/${bundleId}/documents`);
+	return data;
 }
 
 export async function getDocument(id: string): Promise<Document> {
-	const res = await apiClient.get<Document>(`/documents/${id}`);
-	return res.data;
+	const { data } = await apiClient.get<Document>(`/documents/${id}`);
+	return data;
 }
 
 export async function searchHierarchy(query: string): Promise<AnyHierarchyNode[]> {
-	const res = await apiClient.post<{ items: AnyHierarchyNode[] }>('/search', {
+	const { data } = await apiClient.post<{ items: AnyHierarchyNode[] }>('/search', {
 		filters: { fts: { search_term: query } },
 		page_size: 50,
 	});
-	return res.data.items ?? [];
+	return data.items ?? [];
 }
 
 export async function moveNode(nodeId: string, targetId: string, nodeType: string): Promise<void> {

@@ -87,8 +87,8 @@ export function useExtraction(id: string) {
 	return useQuery({
 		queryKey: formKeys.extraction(id),
 		queryFn: async () => {
-			const response = await apiClient.get<Extraction>(`/forms/extractions/${id}`);
-			return response.data;
+			const { data } = await apiClient.get<Extraction>(`/forms/extractions/${id}`);
+			return data;
 		},
 		enabled: !!id,
 	});
@@ -100,8 +100,8 @@ export function useExtractionQueue(page = 1, pageSize = 20, status?: ExtractionS
 		queryFn: async () => {
 			const params: Record<string, unknown> = { page, page_size: pageSize };
 			if (status) params.status = status;
-			const response = await apiClient.get<ExtractionListResponse>('/forms/queue', { params });
-			return response.data;
+			const { data } = await apiClient.get<ExtractionListResponse>('/forms/queue', { params });
+			return data;
 		},
 	});
 }
@@ -112,8 +112,8 @@ export function useFormTemplates(page = 1, pageSize = 50, isActive?: boolean) {
 		queryFn: async () => {
 			const params: Record<string, unknown> = { page, page_size: pageSize };
 			if (isActive !== undefined) params.is_active = isActive;
-			const response = await apiClient.get<TemplateListResponse>('/forms/templates', { params });
-			return response.data;
+			const { data } = await apiClient.get<TemplateListResponse>('/forms/templates', { params });
+			return data;
 		},
 	});
 }
@@ -122,8 +122,8 @@ export function useFormTemplate(id: string) {
 	return useQuery({
 		queryKey: formKeys.template(id),
 		queryFn: async () => {
-			const response = await apiClient.get<FormTemplate>(`/forms/templates/${id}`);
-			return response.data;
+			const { data } = await apiClient.get<FormTemplate>(`/forms/templates/${id}`);
+			return data;
 		},
 		enabled: !!id,
 	});
@@ -133,8 +133,8 @@ export function useCreateExtraction() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async (data: { documentId: string; templateId: string }) => {
-			const response = await apiClient.post<Extraction>('/forms/extractions', data);
-			return response.data;
+			const { data: extraction } = await apiClient.post<Extraction>('/forms/extractions', data);
+			return extraction;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: formKeys.extractions() });
@@ -155,11 +155,11 @@ export function useUpdateFieldValue() {
 			fieldName: string;
 			value: string;
 		}) => {
-			const response = await apiClient.patch<Extraction>(
+			const { data: extraction } = await apiClient.patch<Extraction>(
 				`/forms/extractions/${extractionId}/fields/${fieldName}`,
 				{ value }
 			);
-			return response.data;
+			return extraction;
 		},
 		onSuccess: (_, { extractionId }) => {
 			queryClient.invalidateQueries({ queryKey: formKeys.extraction(extractionId) });
@@ -171,8 +171,8 @@ export function useConfirmExtraction() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async (id: string) => {
-			const response = await apiClient.post<Extraction>(`/forms/extractions/${id}/confirm`);
-			return response.data;
+			const { data } = await apiClient.post<Extraction>(`/forms/extractions/${id}/confirm`);
+			return data;
 		},
 		onSuccess: (_, id) => {
 			queryClient.invalidateQueries({ queryKey: formKeys.extraction(id) });
@@ -185,8 +185,8 @@ export function useReExtract() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async (id: string) => {
-			const response = await apiClient.post<Extraction>(`/forms/extractions/${id}/re-extract`);
-			return response.data;
+			const { data } = await apiClient.post<Extraction>(`/forms/extractions/${id}/re-extract`);
+			return data;
 		},
 		onSuccess: (_, id) => {
 			queryClient.invalidateQueries({ queryKey: formKeys.extraction(id) });
@@ -199,8 +199,8 @@ export function useCreateTemplate() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async (data: { name: string; category: string; description?: string }) => {
-			const response = await apiClient.post<FormTemplate>('/forms/templates', data);
-			return response.data;
+			const { data: template } = await apiClient.post<FormTemplate>('/forms/templates', data);
+			return template;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: formKeys.templates() });
@@ -212,8 +212,8 @@ export function useUpdateTemplate() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async ({ id, data }: { id: string; data: Partial<FormTemplate> }) => {
-			const response = await apiClient.patch<FormTemplate>(`/forms/templates/${id}`, data);
-			return response.data;
+			const { data: template } = await apiClient.patch<FormTemplate>(`/forms/templates/${id}`, data);
+			return template;
 		},
 		onSuccess: (_, { id }) => {
 			queryClient.invalidateQueries({ queryKey: formKeys.template(id) });
@@ -226,8 +226,8 @@ export function useToggleTemplate() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
-			const response = await apiClient.patch<FormTemplate>(`/forms/templates/${id}`, { isActive });
-			return response.data;
+			const { data } = await apiClient.patch<FormTemplate>(`/forms/templates/${id}`, { isActive });
+			return data;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: formKeys.templates() });

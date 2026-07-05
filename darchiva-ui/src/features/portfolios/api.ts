@@ -48,8 +48,8 @@ export function usePortfolios(page = 1, pageSize = 20, status?: PortfolioStatus)
 		queryFn: async () => {
 			const params: Record<string, unknown> = { page, page_size: pageSize };
 			if (status) params.status = status;
-			const response = await apiClient.get<PortfolioListResponse>('/portfolios/', { params });
-			return response.data;
+			const { data } = await apiClient.get<PortfolioListResponse>('/portfolios/', { params });
+			return data;
 		},
 	});
 }
@@ -58,8 +58,8 @@ export function usePortfolio(id: string) {
 	return useQuery({
 		queryKey: portfolioKeys.detail(id),
 		queryFn: async () => {
-			const response = await apiClient.get<Portfolio>(`/portfolios/${id}`);
-			return response.data;
+			const { data } = await apiClient.get<Portfolio>(`/portfolios/${id}`);
+			return data;
 		},
 		enabled: !!id,
 	});
@@ -69,8 +69,8 @@ export function usePortfolioStats() {
 	return useQuery({
 		queryKey: portfolioKeys.stats(),
 		queryFn: async () => {
-			const response = await apiClient.get<PortfolioStats>('/portfolios/stats');
-			return response.data;
+			const { data } = await apiClient.get<PortfolioStats>('/portfolios/stats');
+			return data;
 		},
 	});
 }
@@ -79,8 +79,8 @@ export function useCreatePortfolio() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async (data: { name: string; description?: string }) => {
-			const response = await apiClient.post<Portfolio>('/portfolios/', data);
-			return response.data;
+			const { data: portfolio } = await apiClient.post<Portfolio>('/portfolios/', data);
+			return portfolio;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: portfolioKeys.all });
@@ -92,8 +92,8 @@ export function useUpdatePortfolio() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async ({ id, data }: { id: string; data: Partial<Portfolio> }) => {
-			const response = await apiClient.patch<Portfolio>(`/portfolios/${id}`, data);
-			return response.data;
+			const { data: portfolio } = await apiClient.patch<Portfolio>(`/portfolios/${id}`, data);
+			return portfolio;
 		},
 		onSuccess: (_, { id }) => {
 			queryClient.invalidateQueries({ queryKey: portfolioKeys.detail(id) });
@@ -118,8 +118,8 @@ export function useArchivePortfolio() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async (id: string) => {
-			const response = await apiClient.post<Portfolio>(`/portfolios/${id}/archive`);
-			return response.data;
+			const { data } = await apiClient.post<Portfolio>(`/portfolios/${id}/archive`);
+			return data;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: portfolioKeys.all });
