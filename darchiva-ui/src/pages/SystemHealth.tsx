@@ -24,6 +24,8 @@ import {
   Loader2,
   RefreshCw,
   Server,
+  TrendingDown,
+  TrendingUp,
   Wifi,
   WifiOff,
   Zap,
@@ -203,6 +205,7 @@ function metricValueColor(name: string, value: number): string {
 function MetricTile({ metric }: { metric: MetricItem }) {
   const label = METRIC_LABELS[metric.name] ?? metric.name;
   const icon = METRIC_ICONS[metric.name] ?? <BarChart2 className="w-4 h-4 text-slate-400" />;
+  const trend = getMetricTrendValue(metric);
 
   return (
     <div className="rounded-xl border border-slate-700/50 bg-slate-900/60 p-4 flex flex-col gap-2">
@@ -213,11 +216,37 @@ function MetricTile({ metric }: { metric: MetricItem }) {
       <p className={cn('text-3xl font-display font-semibold tabular-nums', metricValueColor(metric.name, metric.value))}>
         {fmtNumber(Math.round(metric.value))}
       </p>
-      {metric.unit && (
-        <span className="text-xs text-slate-600">{metric.unit}</span>
-      )}
+      <div className="flex items-center justify-between gap-2">
+        {metric.unit ? (
+          <span className="text-xs text-slate-600">{metric.unit}</span>
+        ) : (
+          <span />
+        )}
+        {trend != null && trend > 0 && (
+          <span className="flex items-center gap-1 text-xs font-medium text-green-400">
+            <TrendingUp className="h-3 w-3 text-green-400" />
+            +{trend}%
+          </span>
+        )}
+        {trend != null && trend < 0 && (
+          <span className="flex items-center gap-1 text-xs font-medium text-red-400">
+            <TrendingDown className="h-3 w-3 text-red-400" />
+            {Math.abs(trend)}%
+          </span>
+        )}
+      </div>
     </div>
   );
+}
+
+function getMetricTrendValue(metric: MetricItem): number | undefined {
+  const trend = (metric as Omit<MetricItem, 'trend'> & { trend?: number | string | null }).trend;
+  if (typeof trend === 'number' && Number.isFinite(trend)) return trend;
+  if (typeof trend === 'string') {
+    const numericTrend = Number.parseFloat(trend);
+    if (Number.isFinite(numericTrend)) return numericTrend;
+  }
+  return undefined;
 }
 
 function MetricTileSkeleton() {
@@ -338,10 +367,20 @@ function queueDepthLabel(depth: number): string {
 
 interface QueueGaugeProps {
   queue: QueueInfo;
-  maxDepth: number;
 }
 
-function QueueGauge({ queue, maxDepth }: QueueGaugeProps) {
+const DEFAULT_QUEUE_GAUGE_MAX = 1000;
+
+function queueGaugeMax(queue: QueueInfo): number {
+  const queueWithCapacity = queue as QueueInfo & { capacity?: number; max?: number };
+  const capacity = [queueWithCapacity.capacity, queueWithCapacity.max].find(
+    (value) => typeof value === 'number' && Number.isFinite(value) && value > 0,
+  );
+  return capacity ?? DEFAULT_QUEUE_GAUGE_MAX;
+}
+
+function QueueGauge({ queue }: QueueGaugeProps) {
+  const maxDepth = queueGaugeMax(queue);
   const pct = maxDepth > 0 ? Math.min((queue.pending / maxDepth) * 100, 100) : 0;
   const label = QUEUE_ALIASES[queue.name] ?? queue.name;
 
@@ -694,7 +733,6 @@ export function SystemHealth() {
 
   const workers = data?.workers ?? [];
   const queues = data?.queues ?? [];
-  const maxDepth = Math.max(...queues.map((q) => q.pending), 1);
 
   const onlineWorkers = workers.filter((w) => w.status === 'running').length;
   const totalActiveTasks = workers.reduce((s, w) => s + w.activeTasks, 0);
@@ -865,7 +903,7 @@ export function SystemHealth() {
             ) : (
               <div className="rounded-xl border border-slate-700/50 bg-slate-900/60 p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-5">
                 {queues.map((q) => (
-                  <QueueGauge key={q.name} queue={q} maxDepth={maxDepth} />
+                  <QueueGauge key={q.name} queue={q} />
                 ))}
               </div>
             )}

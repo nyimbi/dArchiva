@@ -1,7 +1,7 @@
 // (c) Copyright Datacraft, 2026
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { differenceInCalendarDays, endOfDay, format, startOfDay } from 'date-fns';
+import { differenceInCalendarDays, endOfDay, format, startOfDay, subDays } from 'date-fns';
 import type { DateRange as CalendarDateRange } from 'react-day-picker';
 import { toast } from 'sonner';
 import {
@@ -152,24 +152,51 @@ const REPORT_OPTIONS: { value: ExportReport; label: string }[] = [
 	{ value: 'scanning_productivity', label: 'Scanning Productivity' },
 ];
 
-function toIso(d: string): string {
-	return d ? new Date(d).toISOString() : '';
+function toDateInput(date?: Date): string {
+	return date ? format(date, 'yyyy-MM-dd') : '';
 }
 
-function ExportPanel({ days }: { days: number }) {
+function toIsoStart(d: string): string {
+	return d ? startOfDay(new Date(`${d}T00:00:00`)).toISOString() : '';
+}
+
+function toIsoEnd(d: string): string {
+	return d ? endOfDay(new Date(`${d}T00:00:00`)).toISOString() : '';
+}
+
+interface ExportPanelProps {
+	days: number;
+	rangeMode: RangeMode;
+	startDate?: Date;
+	endDate?: Date;
+}
+
+function ExportPanel({ days, rangeMode, startDate, endDate }: ExportPanelProps) {
+	const defaultDateFrom = rangeMode === 'custom'
+		? toDateInput(startDate)
+		: toDateInput(subDays(new Date(), days));
+	const defaultDateTo = rangeMode === 'custom'
+		? toDateInput(endDate)
+		: toDateInput(new Date());
 	const [report, setReport] = useState<ExportReport>('document_summary');
 	const [fmt, setFmt] = useState<ExportFormat>('csv');
-	const [useDateRange, setUseDateRange] = useState(false);
-	const [dateFrom, setDateFrom] = useState('');
-	const [dateTo, setDateTo] = useState('');
+	const [useDateRange, setUseDateRange] = useState(rangeMode === 'custom');
+	const [dateFrom, setDateFrom] = useState(defaultDateFrom);
+	const [dateTo, setDateTo] = useState(defaultDateTo);
 	const [busy, setBusy] = useState(false);
+
+	useEffect(() => {
+		setUseDateRange(rangeMode === 'custom');
+		setDateFrom(defaultDateFrom);
+		setDateTo(defaultDateTo);
+	}, [defaultDateFrom, defaultDateTo, rangeMode]);
 
 	const handleDownload = async () => {
 		setBusy(true);
 		try {
 			const params: Record<string, string> = { format: fmt, report };
-			if (useDateRange && dateFrom) params.date_from = toIso(dateFrom);
-			if (useDateRange && dateTo) params.date_to = toIso(dateTo);
+			if (dateFrom) params.date_from = toIsoStart(dateFrom);
+			if (dateTo) params.date_to = toIsoEnd(dateTo);
 			const { data } = await apiClient.get<Blob>('/api/v1/analytics/export', {
 				params,
 				responseType: 'blob',
@@ -231,7 +258,11 @@ function ExportPanel({ days }: { days: number }) {
 					<label className="text-xs text-slate-500 uppercase tracking-wide">Date window</label>
 					<div className="flex gap-1">
 						<button
-							onClick={() => setUseDateRange(false)}
+							onClick={() => {
+								setUseDateRange(false);
+								setDateFrom(toDateInput(subDays(new Date(), days)));
+								setDateTo(toDateInput(new Date()));
+							}}
 							className={cn(
 								'px-4 py-2 rounded-md text-sm font-medium transition-colors border',
 								!useDateRange
@@ -662,7 +693,12 @@ export function Analytics() {
 			</div>
 
 			{/* ── Export Panel ── */}
-			<ExportPanel days={days} />
+			<ExportPanel
+				days={days}
+				rangeMode={rangeMode}
+				startDate={startDate}
+				endDate={endDate}
+			/>
 
 			{/* ── Top Users Table + Doc Type Distribution ── */}
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
