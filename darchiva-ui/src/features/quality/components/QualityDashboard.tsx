@@ -223,27 +223,26 @@ function StatCard({
 
 /* ── Quality Distribution Bar Chart ────────────────────────────────────── */
 function QualityDistributionChart({ stats }: { stats: QualityStats }) {
-	// Derive approximate grade distribution from passed/failed totals
-	const gradeData = [
+	const distributionData = [
 		{
-			grade: 'Excellent',
-			count: Math.round(stats.passedCount * 0.35),
-			fill: '#10b981',
+			label: 'Info',
+			count: stats.issuesBySeverity.info ?? 0,
+			fill: '#3b82f6',
 		},
 		{
-			grade: 'Good',
-			count: Math.round(stats.passedCount * 0.65),
-			fill: '#22c55e',
-		},
-		{
-			grade: 'Fair',
-			count: Math.round(stats.failedCount * 0.40),
+			label: 'Warning',
+			count: stats.issuesBySeverity.warning ?? 0,
 			fill: '#f59e0b',
 		},
 		{
-			grade: 'Poor',
-			count: Math.round(stats.failedCount * 0.60),
+			label: 'Error',
+			count: stats.issuesBySeverity.error ?? 0,
 			fill: '#ef4444',
+		},
+		{
+			label: 'Critical',
+			count: stats.issuesBySeverity.critical ?? 0,
+			fill: '#991b1b',
 		},
 	];
 
@@ -257,12 +256,12 @@ function QualityDistributionChart({ stats }: { stats: QualityStats }) {
 			<CardContent>
 				<ResponsiveContainer width="100%" height={220}>
 					<BarChart
-						data={gradeData}
+						data={distributionData}
 						margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
 					>
 						<CartesianGrid strokeDasharray="3 3" vertical={false} />
 						<XAxis
-							dataKey="grade"
+							dataKey="label"
 							tick={{ fontSize: 12 }}
 							tickLine={false}
 							axisLine={false}
@@ -281,7 +280,7 @@ function QualityDistributionChart({ stats }: { stats: QualityStats }) {
 							cursor={{ fill: 'rgba(0,0,0,0.04)' }}
 						/>
 						<Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={52}>
-							{gradeData.map((entry, index) => (
+							{distributionData.map((entry, index) => (
 								<Cell key={index} fill={entry.fill} />
 							))}
 						</Bar>

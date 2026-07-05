@@ -1,5 +1,6 @@
 // (c) Copyright Datacraft, 2026
 import type { QCIssue, QualityControlSample } from '@/types';
+import { AuthenticatedImage } from '@/components/AuthenticatedImage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -70,6 +71,10 @@ function formatDate(iso: string) {
 	});
 }
 
+function qcSampleImageUrl(sample: QualityControlSample) {
+	return `/api/v1/thumbnails/${sample.pageId}`;
+}
+
 // ── Review dialog ──────────────────────────────────────────────────────────────
 
 interface ReviewForm {
@@ -133,12 +138,23 @@ function ReviewDialog({
 					</DialogTitle>
 				</DialogHeader>
 
-				{/* Thumbnail placeholder */}
-				<div className="flex items-center justify-center h-32 bg-slate-800 rounded-lg border border-slate-700 mb-2">
-					<div className="flex flex-col items-center gap-2 text-slate-500">
-						<FileImage className="w-8 h-8" />
-						<span className="text-xs">Page {sample?.pageNumber}</span>
-					</div>
+				{/* Page image preview */}
+				<div className="h-40 bg-slate-800 rounded-lg border border-slate-700 mb-2 overflow-hidden">
+					{sample ? (
+						<AuthenticatedImage
+							src={qcSampleImageUrl(sample)}
+							alt={`Page ${sample.pageNumber}`}
+							className="w-full h-full object-contain bg-slate-800"
+							fallback={
+								<div className="w-full h-full flex flex-col items-center justify-center gap-2 text-slate-500">
+									<FileImage className="w-8 h-8" />
+									<span className="text-xs">Page image unavailable</span>
+								</div>
+							}
+						/>
+					) : (
+						<Skeleton className="w-full h-full" />
+					)}
 				</div>
 
 				<div className="space-y-4">
@@ -309,18 +325,18 @@ export function QCReview() {
 	};
 
 	const batchApprove = async () => {
-		const ids = [...selected].filter(
-			(id) => samples.find((s) => s.id === id)?.reviewStatus === 'pending',
+		const selectedSamples = samples.filter(
+			(sample) => selected.has(sample.id) && sample.reviewStatus === 'pending',
 		);
 		await Promise.all(
-			ids.map((sampleId) =>
+			selectedSamples.map((sample) =>
 				updateSample.mutateAsync({
 					projectId: projectId!,
-					sampleId,
+					sampleId: sample.id,
 					input: {
 						reviewStatus: 'passed',
-						imageQuality: 90,
-						ocrAccuracy: 95,
+						imageQuality: sample.imageQuality ?? 90,
+						ocrAccuracy: sample.ocrAccuracy ?? 95,
 						issues: [],
 						notes: 'Batch approved',
 					},
