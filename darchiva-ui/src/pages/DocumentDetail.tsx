@@ -16,7 +16,6 @@ import { ApprovalPanel } from '@/features/approvals/ApprovalPanel';
 import { DuplicatesPanel } from '@/features/documents/components/DuplicatesPanel';
 import { ClassificationPanel } from '@/features/classification/ClassificationPanel';
 import { PageEditor } from '@/features/documents/components/PageEditor';
-import { DownloadMenu } from '@/features/documents/components/DownloadMenu';
 import { FilingSuggestionsPanel } from '@/features/documents/components/FilingSuggestionsPanel';
 import { LegalHoldPanel } from '@/features/legal-hold/LegalHoldPanel';
 import { ActivityPanel } from '@/features/activity/ActivityPanel';
@@ -31,12 +30,21 @@ import {
 	VersionHistoryWithCompare,
 	type DocVerListItem,
 } from '@/features/documents/components/VersionDiffViewer';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { apiClient } from '@/lib/api-client';
-import { formatRelativeTime } from '@/lib/utils';
+import { cn, formatRelativeTime } from '@/lib/utils';
 import type { ViewerPage } from '@/types';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Activity,ArrowLeft,Bell,Calendar,CheckSquare,Copy,Download,Edit2,FileText,GitCompare,Hash,History,Layers,Lightbulb,Loader2,Lock,MessageCircle,MessageSquare,PenTool,QrCode,ScanLine,ScanText,Scissors,Share2,Shield,Stamp,Tag,Tags } from 'lucide-react';
+import { Activity,ArrowLeft,Bell,Calendar,CheckSquare,Copy,Download,Edit2,FileText,FolderInput,GitCompare,Hash,History,Layers,Lightbulb,Loader2,Lock,MessageCircle,MessageSquare,MoreHorizontal,PenTool,Printer,QrCode,ScanLine,ScanText,Scissors,Share2,Shield,Stamp,Star,Tag,Tags,Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate,useParams } from 'react-router-dom';
 
@@ -48,6 +56,8 @@ interface DocumentDetail {
 	updatedAt: string;
 	tags: Array<{ id: string; name: string; color: string }>;
 	documentType?: { id: string; name: string };
+	fileSize?: number;
+	fileType?: string;
 	pageCount?: number;
 	ocrStatus?: string;
 	versions: Array<{
@@ -59,6 +69,47 @@ interface DocumentDetail {
 			text?: string;
 		}>;
 	}>;
+}
+
+const API_BASE = '/api/v1';
+
+function triggerDownload(url: string) {
+	const a = document.createElement('a');
+	a.href = url;
+	a.style.display = 'none';
+	document.body.appendChild(a);
+	a.click();
+	document.body.removeChild(a);
+}
+
+function openPrint(documentId: string) {
+	const win = window.open(`${API_BASE}/documents/${documentId}/download`, '_blank');
+	win?.addEventListener('load', () => {
+		try {
+			win.print();
+		} catch {
+			// Browser PDF viewers may block scripted printing.
+		}
+	});
+}
+
+function formatFileSize(size: number | undefined): string {
+	if (!size) return 'Unknown size';
+	const units = ['B', 'KB', 'MB', 'GB'];
+	let value = size;
+	let unit = 0;
+	while (value >= 1024 && unit < units.length - 1) {
+		value /= 1024;
+		unit += 1;
+	}
+	return `${value >= 10 || unit === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[unit]}`;
+}
+
+function ocrBadgeClass(status: string | undefined): string {
+	if (status === 'completed') return 'border-green-500/40 bg-green-500/15 text-green-300';
+	if (status === 'processing') return 'border-brass-500/40 bg-brass-500/15 text-brass-300';
+	if (status === 'failed') return 'border-red-500/40 bg-red-500/15 text-red-300';
+	return 'border-slate-700 bg-slate-800 text-slate-300';
 }
 
 export function DocumentDetail() {
@@ -76,6 +127,7 @@ export function DocumentDetail() {
 	const [showShareDialog, setShowShareDialog] = useState(false);
 	const [showWatermarkDialog, setShowWatermarkDialog] = useState(false);
 	const [showQRCodeModal, setShowQRCodeModal] = useState(false);
+	const [isFavorite, setIsFavorite] = useState(false);
 
 	const togglePanel = (panel: SidePanel) => {
 		setSidePanel((prev) => (prev === panel ? null : panel));
@@ -141,6 +193,17 @@ export function DocumentDetail() {
 	}
 
 	const pages = pagesData?.pages || [];
+	const pageCount = document.pageCount ?? pages.length;
+	const typeLabel = document.documentType?.name ?? document.fileType ?? 'Document';
+	const panelButtonClass = (active: boolean) =>
+		active
+			? 'border-brass-500/50 bg-brass-500/20 text-brass-300 hover:bg-brass-500/25'
+			: 'border-slate-700 text-slate-400 hover:border-slate-600 hover:bg-slate-800 hover:text-slate-200';
+	const toggleHistory = () => {
+		setShowVersionHistory((v) => !v);
+		setDiff(null);
+		setSidePanel(null);
+	};
 
 	return (
 		<motion.div
@@ -149,357 +212,204 @@ export function DocumentDetail() {
 			className="h-full flex flex-col"
 		>
 			{/* Header */}
-			<div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/50">
-				<div className="flex items-center gap-4">
-					<button
-						onClick={() => navigate(-1)}
-						className="p-2 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-lg transition-colors"
-					>
-						<ArrowLeft className="w-5 h-5" />
-					</button>
-					<div>
-						<h1 className="text-xl font-display font-semibold text-slate-100">
-							{document.title}
-						</h1>
-						<div className="flex items-center gap-3 mt-1 text-sm text-slate-500">
-							<span className="flex items-center gap-1">
-								<Calendar className="w-4 h-4" />
-								{formatRelativeTime(document.updatedAt)}
-							</span>
-							<span>•</span>
-							<span>{document.pageCount || pages.length} pages</span>
-							{document.ocrStatus && (
-								<>
-									<span>•</span>
-									<span className={
-										document.ocrStatus === 'completed' ? 'text-green-400' :
-										document.ocrStatus === 'processing' ? 'text-brass-400' :
-										'text-slate-500'
-									}>
-										OCR: {document.ocrStatus}
+			<div className="border-b border-slate-800 bg-slate-900/50">
+				<div className="flex flex-wrap items-start justify-between gap-4 px-6 py-4">
+					<div className="flex min-w-0 items-start gap-4">
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon"
+							onClick={() => navigate(-1)}
+							className="h-9 w-9 shrink-0 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+							aria-label="Go back"
+						>
+							<ArrowLeft className="w-5 h-5" />
+						</Button>
+						<div className="min-w-0">
+							<h1 className="truncate text-xl font-display font-semibold text-slate-100">
+								{document.title}
+							</h1>
+							<div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+								<Badge variant="outline" className="border-slate-700 bg-slate-800 text-slate-200">
+									{typeLabel}
+								</Badge>
+								<span className="flex items-center gap-1">
+									<Calendar className="w-4 h-4" />
+									{formatRelativeTime(document.updatedAt)}
+								</span>
+								<span>{pageCount} pages</span>
+								<span>{formatFileSize(document.fileSize)}</span>
+								<Badge variant="outline" className={ocrBadgeClass(document.ocrStatus)}>
+									OCR: {document.ocrStatus ?? 'unknown'}
+								</Badge>
+								{document.tags?.map((tag) => (
+									<span
+										key={tag.id}
+										className="rounded-full px-2 py-0.5 text-xs"
+										style={{ backgroundColor: `${tag.color}20`, color: tag.color }}
+									>
+										{tag.name}
 									</span>
-								</>
-							)}
+								))}
+							</div>
 						</div>
+					</div>
+
+					<div className="flex flex-wrap items-center gap-2">
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={() => triggerDownload(`${API_BASE}/documents/${id}/download`)}
+							className="border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800"
+						>
+							<Download className="w-4 h-4" />
+							Download
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={() => openPrint(id!)}
+							className="border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800"
+						>
+							<Printer className="w-4 h-4" />
+							Print
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={() => setShowShareDialog(true)}
+							className="border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800"
+						>
+							<Share2 className="w-4 h-4" />
+							Share
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							size="icon"
+							onClick={() => setIsFavorite((v) => !v)}
+							className={cn(
+								'h-8 w-8 border-slate-700 bg-slate-900 hover:bg-slate-800',
+								isFavorite ? 'text-brass-300' : 'text-slate-300',
+							)}
+							aria-label={isFavorite ? 'Remove favorite' : 'Add favorite'}
+						>
+							<Star className={cn('w-4 h-4', isFavorite && 'fill-current')} />
+						</Button>
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button
+									type="button"
+									variant="outline"
+									size="icon"
+									className="h-8 w-8 border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800"
+									aria-label="More document actions"
+								>
+									<MoreHorizontal className="w-4 h-4" />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" className="border-slate-800 bg-slate-900 text-slate-100">
+								<DropdownMenuItem>
+									<FolderInput className="mr-2 h-4 w-4" />
+									Move
+								</DropdownMenuItem>
+								<DropdownMenuItem>
+									<Copy className="mr-2 h-4 w-4" />
+									Copy
+								</DropdownMenuItem>
+								<DropdownMenuItem onSelect={toggleHistory}>
+									<History className="mr-2 h-4 w-4" />
+									History
+								</DropdownMenuItem>
+								<DropdownMenuSeparator className="bg-slate-800" />
+								<DropdownMenuItem className="text-red-300 focus:text-red-200">
+									<Trash2 className="mr-2 h-4 w-4" />
+									Delete
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
 					</div>
 				</div>
 
-				{/* Tags + Version history toggle */}
-				<div className="flex items-center gap-3">
-					{document.tags && document.tags.length > 0 && (
-						<div className="flex items-center gap-2">
-							<Tag className="w-4 h-4 text-slate-500" />
-							{document.tags.map((tag) => (
-								<span
-									key={tag.id}
-									className="px-2 py-1 text-xs rounded-full"
-									style={{
-										backgroundColor: `${tag.color}20`,
-										color: tag.color,
-									}}
-								>
-									{tag.name}
-								</span>
-							))}
-						</div>
-					)}
-					<button
-						onClick={() => { setShowVersionHistory((v) => !v); setDiff(null); setSidePanel(null); }}
-						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-							showVersionHistory
-								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
-								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
-						}`}
-						title="Version history"
-					>
-						<History className="w-3.5 h-3.5" />
-						History
-					</button>
-					<button
-						onClick={() => togglePanel('custom-fields')}
-						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-							sidePanel === 'custom-fields'
-								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
-								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
-						}`}
-						title="Custom fields"
-					>
-						<Tag className="w-3.5 h-3.5" />
-						Fields
-					</button>
-					<button
-						onClick={() => togglePanel('related')}
-						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-							sidePanel === 'related'
-								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
-								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
-						}`}
-						title="Related documents"
-					>
-						<GitCompare className="w-3.5 h-3.5" />
-						Related
-					</button>
-					<button
-						onClick={() => togglePanel('similar')}
-						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-							sidePanel === 'similar'
-								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
-								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
-						}`}
-						title="Similar documents"
-					>
-						<FileText className="w-3.5 h-3.5" />
-						Similar
-					</button>
-					<button
-						onClick={() => setShowSplitDialog(true)}
-						className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors"
-						title="Split document"
-					>
-						<Scissors className="w-3.5 h-3.5" />
-						Split
-					</button>
-					<button
-						onClick={() => setShowShareDialog(true)}
-						className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors"
-						title="Share document"
-					>
-						<Share2 className="w-3.5 h-3.5" />
-						Share
-					</button>
-					<button
-						onClick={() => setShowWatermarkDialog(true)}
-						className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors"
-						title="Apply watermark"
-					>
-						<Stamp className="w-3.5 h-3.5" />
-						Watermark
-					</button>
-					<button
-						onClick={() => togglePanel('entities')}
-						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-							sidePanel === 'entities'
-								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
-								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
-						}`}
-						title="Named entities"
-					>
-						<Tags className="w-3.5 h-3.5" />
-						Entities
-					</button>
-					<button
-						onClick={() => togglePanel('expiry')}
-						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-							sidePanel === 'expiry'
-								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
-								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
-						}`}
-						title="Expiry & reminders"
-					>
-						<Bell className="w-3.5 h-3.5" />
-						Expiry
-					</button>
-					<button
-						onClick={() => togglePanel('annotations')}
-						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-							sidePanel === 'annotations'
-								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
-								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
-						}`}
-						title="Annotations"
-					>
-						<MessageSquare className="w-3.5 h-3.5" />
-						Annotations
-					</button>
-					<button
-						onClick={() => togglePanel('ocr-quality')}
-						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-							sidePanel === 'ocr-quality'
-								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
-								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
-						}`}
-						title="OCR Quality"
-					>
-						<ScanLine className="w-3.5 h-3.5" />
-						OCR Quality
-					</button>
-					<button
-						onClick={() => togglePanel('ocr-correction')}
-						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-							sidePanel === 'ocr-correction'
-								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
-								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
-						}`}
-						title="Correct OCR"
-					>
-						<ScanText className="w-3.5 h-3.5" />
-						Correct OCR
-					</button>
-					<button
-						onClick={() => togglePanel('signatures')}
-						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-							sidePanel === 'signatures'
-								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
-								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
-						}`}
-						title="Signatures"
-					>
-						<PenTool className="w-3.5 h-3.5" />
-						Signatures
-					</button>
-					<button
-						onClick={() => setShowQRCodeModal(true)}
-						className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors"
-						title="QR Code label"
-					>
-						<QrCode className="w-3.5 h-3.5" />
-						QR Label
-					</button>
-					<button
-						onClick={() => togglePanel('approvals')}
-						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-							sidePanel === 'approvals'
-								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
-								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
-						}`}
-						title="Approvals"
-					>
-						<CheckSquare className="w-3.5 h-3.5" />
-						Approvals
-					</button>
-					<button
-						onClick={() => togglePanel('duplicates')}
-						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-							sidePanel === 'duplicates'
-								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
-								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
-						}`}
-						title="Duplicates"
-					>
-						<Copy className="w-3.5 h-3.5" />
-						Duplicates
-					</button>
-					<button
-						onClick={() => togglePanel('classification')}
-						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-							sidePanel === 'classification'
-								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
-								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
-						}`}
-						title="Classification"
-					>
-						<Layers className="w-3.5 h-3.5" />
-						Classification
-					</button>
-					<button
-						onClick={() => togglePanel('filing')}
-						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-							sidePanel === 'filing'
-								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
-								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
-						}`}
-						title="Filing suggestions"
-					>
-						<Lightbulb className="w-3.5 h-3.5" />
-						Filing
-					</button>
-					<button
-						onClick={() => togglePanel('legal-hold')}
-						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-							sidePanel === 'legal-hold'
-								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
-								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
-						}`}
-						title="Legal hold"
-					>
-						<Shield className="w-3.5 h-3.5" />
-						Hold
-					</button>
-					<button
-						onClick={() => togglePanel('activity')}
-						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-							sidePanel === 'activity'
-								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
-								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
-						}`}
-						title="Activity feed"
-					>
-						<Activity className="w-3.5 h-3.5" />
-						Activity
-					</button>
-					<button
-						onClick={() => togglePanel('chat')}
-						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-							sidePanel === 'chat'
-								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
-								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
-						}`}
-						title="Document Q&A"
-					>
-						<MessageCircle className="w-3.5 h-3.5" />
-						Q&amp;A
-					</button>
-					<button
-						onClick={() => togglePanel('acl')}
-						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-							sidePanel === 'acl'
-								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
-								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
-						}`}
-						title="Access control"
-					>
-						<Lock className="w-3.5 h-3.5" />
-						Access
-					</button>
-					<button
-						onClick={() => togglePanel('comments')}
-						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-							sidePanel === 'comments'
-								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
-								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
-						}`}
-						title="Comments"
-					>
-						<MessageCircle className="w-3.5 h-3.5" />
-						Comments
-					</button>
-					<DownloadMenu
-						documentId={id!}
-						documentTitle={document.title}
-						pageCount={document.pageCount ?? pages.length}
-					/>
-					<button
-						onClick={() => togglePanel('page-management')}
-						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-							sidePanel === 'page-management'
-								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
-								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
-						}`}
-						title="Manage Pages"
-					>
-						<Layers className="w-3.5 h-3.5" />
-						Pages
-					</button>
-					<button
-						onClick={() => setShowPageEditor(true)}
-						className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors"
-						title="Edit pages"
-					>
-						<Edit2 className="w-3.5 h-3.5" />
-						Edit Pages
-					</button>
-					<button
-						onClick={() => togglePanel('serial')}
-						className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-							sidePanel === 'serial'
-								? 'bg-brass-500/20 border-brass-500/50 text-brass-300'
-								: 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
-						}`}
-						title="Serial number"
-					>
-						<Hash className="w-3.5 h-3.5" />
-						Serial
-					</button>
+				<div className="flex gap-2 overflow-x-auto border-t border-slate-800 px-6 py-2">
+					<Button type="button" variant="outline" size="sm" onClick={toggleHistory} className={panelButtonClass(showVersionHistory)}>
+						<History className="w-3.5 h-3.5" /> History
+					</Button>
+					<Button type="button" variant="outline" size="sm" onClick={() => togglePanel('custom-fields')} className={panelButtonClass(sidePanel === 'custom-fields')}>
+						<Tag className="w-3.5 h-3.5" /> Fields
+					</Button>
+					<Button type="button" variant="outline" size="sm" onClick={() => togglePanel('related')} className={panelButtonClass(sidePanel === 'related')}>
+						<GitCompare className="w-3.5 h-3.5" /> Related
+					</Button>
+					<Button type="button" variant="outline" size="sm" onClick={() => togglePanel('similar')} className={panelButtonClass(sidePanel === 'similar')}>
+						<FileText className="w-3.5 h-3.5" /> Similar
+					</Button>
+					<Button type="button" variant="outline" size="sm" onClick={() => setShowSplitDialog(true)} className={panelButtonClass(false)}>
+						<Scissors className="w-3.5 h-3.5" /> Split
+					</Button>
+					<Button type="button" variant="outline" size="sm" onClick={() => setShowWatermarkDialog(true)} className={panelButtonClass(false)}>
+						<Stamp className="w-3.5 h-3.5" /> Watermark
+					</Button>
+					<Button type="button" variant="outline" size="sm" onClick={() => togglePanel('entities')} className={panelButtonClass(sidePanel === 'entities')}>
+						<Tags className="w-3.5 h-3.5" /> Entities
+					</Button>
+					<Button type="button" variant="outline" size="sm" onClick={() => togglePanel('expiry')} className={panelButtonClass(sidePanel === 'expiry')}>
+						<Bell className="w-3.5 h-3.5" /> Expiry
+					</Button>
+					<Button type="button" variant="outline" size="sm" onClick={() => togglePanel('annotations')} className={panelButtonClass(sidePanel === 'annotations')}>
+						<MessageSquare className="w-3.5 h-3.5" /> Annotations
+					</Button>
+					<Button type="button" variant="outline" size="sm" onClick={() => togglePanel('ocr-quality')} className={panelButtonClass(sidePanel === 'ocr-quality')}>
+						<ScanLine className="w-3.5 h-3.5" /> OCR Quality
+					</Button>
+					<Button type="button" variant="outline" size="sm" onClick={() => togglePanel('ocr-correction')} className={panelButtonClass(sidePanel === 'ocr-correction')}>
+						<ScanText className="w-3.5 h-3.5" /> Correct OCR
+					</Button>
+					<Button type="button" variant="outline" size="sm" onClick={() => togglePanel('signatures')} className={panelButtonClass(sidePanel === 'signatures')}>
+						<PenTool className="w-3.5 h-3.5" /> Signatures
+					</Button>
+					<Button type="button" variant="outline" size="sm" onClick={() => setShowQRCodeModal(true)} className={panelButtonClass(false)}>
+						<QrCode className="w-3.5 h-3.5" /> QR Label
+					</Button>
+					<Button type="button" variant="outline" size="sm" onClick={() => togglePanel('approvals')} className={panelButtonClass(sidePanel === 'approvals')}>
+						<CheckSquare className="w-3.5 h-3.5" /> Approvals
+					</Button>
+					<Button type="button" variant="outline" size="sm" onClick={() => togglePanel('duplicates')} className={panelButtonClass(sidePanel === 'duplicates')}>
+						<Copy className="w-3.5 h-3.5" /> Duplicates
+					</Button>
+					<Button type="button" variant="outline" size="sm" onClick={() => togglePanel('classification')} className={panelButtonClass(sidePanel === 'classification')}>
+						<Layers className="w-3.5 h-3.5" /> Classification
+					</Button>
+					<Button type="button" variant="outline" size="sm" onClick={() => togglePanel('filing')} className={panelButtonClass(sidePanel === 'filing')}>
+						<Lightbulb className="w-3.5 h-3.5" /> Filing
+					</Button>
+					<Button type="button" variant="outline" size="sm" onClick={() => togglePanel('legal-hold')} className={panelButtonClass(sidePanel === 'legal-hold')}>
+						<Shield className="w-3.5 h-3.5" /> Hold
+					</Button>
+					<Button type="button" variant="outline" size="sm" onClick={() => togglePanel('activity')} className={panelButtonClass(sidePanel === 'activity')}>
+						<Activity className="w-3.5 h-3.5" /> Activity
+					</Button>
+					<Button type="button" variant="outline" size="sm" onClick={() => togglePanel('chat')} className={panelButtonClass(sidePanel === 'chat')}>
+						<MessageCircle className="w-3.5 h-3.5" /> Q&amp;A
+					</Button>
+					<Button type="button" variant="outline" size="sm" onClick={() => togglePanel('acl')} className={panelButtonClass(sidePanel === 'acl')}>
+						<Lock className="w-3.5 h-3.5" /> Access
+					</Button>
+					<Button type="button" variant="outline" size="sm" onClick={() => togglePanel('comments')} className={panelButtonClass(sidePanel === 'comments')}>
+						<MessageCircle className="w-3.5 h-3.5" /> Comments
+					</Button>
+					<Button type="button" variant="outline" size="sm" onClick={() => togglePanel('page-management')} className={panelButtonClass(sidePanel === 'page-management')}>
+						<Layers className="w-3.5 h-3.5" /> Pages
+					</Button>
+					<Button type="button" variant="outline" size="sm" onClick={() => setShowPageEditor(true)} className={panelButtonClass(false)}>
+						<Edit2 className="w-3.5 h-3.5" /> Edit Pages
+					</Button>
+					<Button type="button" variant="outline" size="sm" onClick={() => togglePanel('serial')} className={panelButtonClass(sidePanel === 'serial')}>
+						<Hash className="w-3.5 h-3.5" /> Serial
+					</Button>
 				</div>
 			</div>
 

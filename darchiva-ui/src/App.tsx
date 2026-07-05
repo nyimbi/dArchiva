@@ -28,6 +28,7 @@ import {
   SystemHealth,
   UnauthorizedPage,
   UserHomePage,
+  UserProfile,
   Workflows,
 } from './pages';
 import { OnboardingWizard } from './features/onboarding/OnboardingWizard';
@@ -114,6 +115,7 @@ export default function App() {
 								<Route index element={<UserHomePage />} />
 								<Route path="inbox" element={<Inbox />} />
 								<Route path="shared" element={<SharedDocuments />} />
+								<Route path="profile" element={<UserProfile />} />
 
 								<Route path="dashboard" element={<Dashboard />} />
 								<Route path="documents" element={<Documents />} />
