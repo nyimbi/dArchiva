@@ -24,3 +24,4 @@ export * from './Workflows';
 export * from './SystemHealth';
 export * from './ApiKeys';
 export * from './Analytics';
+export * from './Hierarchy';

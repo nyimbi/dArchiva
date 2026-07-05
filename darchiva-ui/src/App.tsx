@@ -16,6 +16,7 @@ import {
   Encryption,
   ExceptionQueue,
   Forms,
+  HierarchyPage,
   Inbox,
   Ingestion,
   IngestionDashboard,
@@ -214,6 +215,7 @@ export default function App() {
 								<Route path="onboarding" element={<OnboardingWizard onDone={() => window.history.back()} />} />
 								<Route path="inventory" element={<InventoryManager />} />
 								<Route path="segmentation" element={<SegmentationPage />} />
+								<Route path="hierarchy" element={<HierarchyPage />} />
 								<Route path="*" element={<NotFound />} />
 							</Route>
 						</Route>
