@@ -1,5 +1,6 @@
 // (c) Copyright Datacraft, 2026
 import React, { useState, useCallback } from 'react';
+import { apiClient } from '@/lib/api-client';
 import {
 	LineChart,
 	Line,
@@ -206,11 +207,20 @@ function ExportPanel({ days }: { days: number }) {
 	const [dateFrom, setDateFrom] = React.useState('');
 	const [dateTo, setDateTo] = React.useState('');
 
-	const handleDownload = () => {
-		const params = new URLSearchParams({ format: fmt, report });
-		if (useDateRange && dateFrom) params.set('date_from', toIso(dateFrom));
-		if (useDateRange && dateTo) params.set('date_to', toIso(dateTo));
-		window.location.href = `/api/v1/analytics/export?${params.toString()}`;
+	const handleDownload = async () => {
+		const params: Record<string, string> = { format: fmt, report };
+		if (useDateRange && dateFrom) params.date_from = toIso(dateFrom);
+		if (useDateRange && dateTo) params.date_to = toIso(dateTo);
+		const { data } = await apiClient.get<Blob>('/api/v1/analytics/export', {
+			params,
+			responseType: 'blob',
+		});
+		const href = URL.createObjectURL(data);
+		const a = document.createElement('a');
+		a.href = href;
+		a.download = `${report}.${fmt}`;
+		a.click();
+		URL.revokeObjectURL(href);
 	};
 
 	const btnBase: React.CSSProperties = {
