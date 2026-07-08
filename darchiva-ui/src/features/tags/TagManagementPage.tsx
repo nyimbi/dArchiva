@@ -43,6 +43,8 @@ import { useMemo, useState } from 'react';
 import { useCreateTag, useDeleteTag, useMergeTags, useTags, useUpdateTag } from './api';
 import type { Tag } from './types';
 
+const EMPTY_TAGS: Tag[] = [];
+
 const PRESET_COLORS = [
 	{ name: 'Red', value: '#ef4444' },
 	{ name: 'Blue', value: '#3b82f6' },
@@ -217,7 +219,7 @@ export function TagManagementPage() {
 	const [dialogState, setDialogState] = useState<TagDialogState | null>(null);
 	const [deleteTarget, setDeleteTarget] = useState<Tag | null>(null);
 
-	const tags = data?.items ?? [];
+	const tags = data?.items ?? EMPTY_TAGS;
 	const totalTaggedDocuments = tags.reduce((sum, tag) => sum + tag.documentCount, 0);
 	const mostUsedTag = useMemo(
 		() => tags.reduce<Tag | null>((best, tag) => (!best || tag.documentCount > best.documentCount ? tag : best), null),

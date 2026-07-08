@@ -40,7 +40,7 @@ import {
 import { Link } from 'react-router-dom';
 import { useRetentionPolicies, useRunPolicy } from '../retention/api';
 import { useComplianceAlerts, useComplianceStats } from './api';
-import type { ComplianceAlert, ComplianceStats } from './types';
+import type { ComplianceAlert } from './types';
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 

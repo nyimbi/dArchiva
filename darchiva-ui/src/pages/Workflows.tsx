@@ -331,7 +331,11 @@ function WorkflowCard({
               <DropdownMenuItem
                 onClick={(e) => {
                   e.stopPropagation();
-                  isActive ? onDeactivate(workflow.id) : onActivate(workflow.id);
+                  if (isActive) {
+                    onDeactivate(workflow.id);
+                  } else {
+                    onActivate(workflow.id);
+                  }
                 }}
                 disabled={isToggling}
               >

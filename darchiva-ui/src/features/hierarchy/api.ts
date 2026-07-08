@@ -99,6 +99,6 @@ export async function searchHierarchy(query: string): Promise<AnyHierarchyNode[]
 	return data.items ?? [];
 }
 
-export async function moveNode(nodeId: string, targetId: string, nodeType: string): Promise<void> {
+export async function moveNode(nodeId: string, targetId: string, _nodeType: string): Promise<void> {
 	await apiClient.post(`/nodes/move`, { source_ids: [nodeId], target_id: targetId });
 }

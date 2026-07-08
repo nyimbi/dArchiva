@@ -31,6 +31,8 @@ import {
 	VersionHistoryPanel,
 	type DocumentVersion,
 } from '@/features/documents/components/VersionHistoryPanel';
+import { DeleteDocumentDialog } from '@/features/documents/components/modals';
+import { documentKeys,useFolderTree,type TreeNode as APITreeNode } from '@/features/documents';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -43,12 +45,12 @@ import {
 import { apiClient } from '@/lib/api-client';
 import { cn, formatRelativeTime } from '@/lib/utils';
 import type { ViewerPage } from '@/types';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Activity,ArrowLeft,Bell,Calendar,CheckSquare,Copy,Download,Edit2,FileText,FolderInput,GitFork,GitCompare,Hash,History,Layers,Lightbulb,Link2,Loader2,Lock,MessageCircle,MessageSquare,MoreHorizontal,PenTool,Printer,QrCode,ScanLine,ScanText,Scissors,Share2,Shield,Stamp,Star,Tag,Tags,Trash2,Users } from 'lucide-react';
+import { Activity,AlertCircle,ArrowLeft,Bell,Calendar,CheckSquare,Copy,Download,Edit2,FileText,FolderInput,GitFork,GitCompare,Hash,History,Layers,Lightbulb,Link2,Loader2,Lock,MessageCircle,MessageSquare,MoreHorizontal,PenTool,Printer,QrCode,ScanLine,ScanText,Scissors,Share2,Shield,Stamp,Star,Tag,Tags,Trash2,Users } from 'lucide-react';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { useMemo,useState } from 'react';
-import { useNavigate,useParams } from 'react-router-dom';
+import { useEffect,useMemo,useState } from 'react';
+import { useNavigate,useParams,useSearchParams } from 'react-router-dom';
 
 interface DocumentDetail {
 	id: string;
@@ -62,6 +64,7 @@ interface DocumentDetail {
 	fileType?: string;
 	pageCount?: number;
 	ocrStatus?: string;
+	isFavorited?: boolean;
 	versions: Array<{
 		id: string;
 		number: number;
@@ -110,6 +113,13 @@ function formatFileSize(size: number | undefined): string {
 	return `${value >= 10 || unit === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[unit]}`;
 }
 
+function flattenFolders(nodes: APITreeNode[], depth = 0): Array<{ id: string; title: string; depth: number }> {
+	return nodes.flatMap((node) => [
+		{ id: node.id, title: node.title, depth },
+		...(node.children ? flattenFolders(node.children, depth + 1) : []),
+	]);
+}
+
 function ocrBadgeClass(status: string | undefined): string {
 	if (status === 'completed') return 'border-green-500/40 bg-green-500/15 text-green-300';
 	if (status === 'processing') return 'border-brass-500/40 bg-brass-500/15 text-brass-300';
@@ -117,11 +127,116 @@ function ocrBadgeClass(status: string | undefined): string {
 	return 'border-slate-700 bg-slate-800 text-slate-300';
 }
 
+function MoveDocumentDialog({
+	open,
+	documentTitle,
+	folders,
+	selectedFolderId,
+	onSelectedFolderIdChange,
+	onMove,
+	onClose,
+	isMoving,
+	isLoadingFolders,
+}: {
+	open: boolean;
+	documentTitle: string;
+	folders: APITreeNode[];
+	selectedFolderId: string;
+	onSelectedFolderIdChange: (folderId: string) => void;
+	onMove: () => void;
+	onClose: () => void;
+	isMoving: boolean;
+	isLoadingFolders: boolean;
+}) {
+	if (!open) return null;
+
+	const folderOptions = flattenFolders(folders);
+
+	return (
+		<div className="fixed inset-0 z-50 flex items-center justify-center">
+			<div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+			<div className="doc-modal relative z-10 w-full max-w-sm mx-4">
+				<div className="p-6">
+					<h3 className="font-display text-lg font-semibold text-[var(--doc-text)] mb-2">
+						Move Document
+					</h3>
+					<p className="text-sm text-[var(--doc-muted)] mb-4">
+						Choose a destination folder for <strong className="text-[var(--doc-text)]">{documentTitle}</strong>.
+					</p>
+					<label htmlFor="move-document-folder" className="sr-only">Destination folder</label>
+					<select
+						id="move-document-folder"
+						value={selectedFolderId}
+						onChange={(event) => onSelectedFolderIdChange(event.target.value)}
+						disabled={isLoadingFolders || isMoving}
+						className="input-field w-full mb-5"
+					>
+						<option value="">Home</option>
+						{folderOptions.map((folder) => (
+							<option key={folder.id} value={folder.id}>
+								{`${'  '.repeat(folder.depth)}${folder.title}`}
+							</option>
+						))}
+					</select>
+					<div className="flex items-center justify-end gap-3">
+						<Button variant="ghost" onClick={onClose} disabled={isMoving}>Cancel</Button>
+						<Button onClick={onMove} disabled={isMoving || isLoadingFolders}>
+							{isMoving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+							Move
+						</Button>
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+function CopyDocumentDialog({
+	open,
+	documentTitle,
+	onCopy,
+	onClose,
+	isCopying,
+}: {
+	open: boolean;
+	documentTitle: string;
+	onCopy: () => void;
+	onClose: () => void;
+	isCopying: boolean;
+}) {
+	if (!open) return null;
+
+	return (
+		<div className="fixed inset-0 z-50 flex items-center justify-center">
+			<div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+			<div className="doc-modal relative z-10 w-full max-w-sm mx-4">
+				<div className="p-6">
+					<h3 className="font-display text-lg font-semibold text-[var(--doc-text)] mb-2">
+						Copy Document
+					</h3>
+					<p className="text-sm text-[var(--doc-muted)] mb-5">
+						Create a copy of <strong className="text-[var(--doc-text)]">{documentTitle}</strong>?
+					</p>
+					<div className="flex items-center justify-end gap-3">
+						<Button variant="ghost" onClick={onClose} disabled={isCopying}>Cancel</Button>
+						<Button onClick={onCopy} disabled={isCopying}>
+							{isCopying ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+							Copy
+						</Button>
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+}
+
 export function DocumentDetail() {
 	const { id } = useParams<{ id: string }>();
 	const navigate = useNavigate();
+	const [searchParams, setSearchParams] = useSearchParams();
+	const queryClient = useQueryClient();
 
-	const [showVersionHistory, setShowVersionHistory] = useState(false);
+	const [showVersionHistory, setShowVersionHistory] = useState(() => searchParams.get('tab') === 'versions');
 	const [previewVersion, setPreviewVersion] = useState<DocumentVersion | null>(null);
 	// Right-panel tab: null = closed, or one of the named panels
 	type SidePanel = 'custom-fields' | 'related' | 'similar' | 'entities' | 'expiry' | 'annotations' | 'ocr-quality' | 'ocr-correction' | 'signatures' | 'approvals' | 'duplicates' | 'classification' | 'filing' | 'legal-hold' | 'activity' | 'chat' | 'acl' | 'comments' | 'page-management' | 'serial' | 'provenance';
@@ -132,14 +247,29 @@ export function DocumentDetail() {
 	const [showPublicLinkDialog, setShowPublicLinkDialog] = useState(false);
 	const [showWatermarkDialog, setShowWatermarkDialog] = useState(false);
 	const [showQRCodeModal, setShowQRCodeModal] = useState(false);
-	const [isFavorite, setIsFavorite] = useState(false);
+	const [showMoveDialog, setShowMoveDialog] = useState(false);
+	const [showCopyDialog, setShowCopyDialog] = useState(false);
+	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+	const [selectedMoveFolderId, setSelectedMoveFolderId] = useState('');
 
 	const togglePanel = (panel: SidePanel) => {
 		setSidePanel((prev) => (prev === panel ? null : panel));
 		// Close version history when opening a side panel
-		if (showVersionHistory) setShowVersionHistory(false);
+		if (showVersionHistory) {
+			setShowVersionHistory(false);
+			const nextParams = new URLSearchParams(searchParams);
+			nextParams.delete('tab');
+			setSearchParams(nextParams, { replace: true });
+		}
 		setPreviewVersion(null);
 	};
+
+	useEffect(() => {
+		if (searchParams.get('tab') === 'versions') {
+			setShowVersionHistory(true);
+			setSidePanel(null);
+		}
+	}, [searchParams]);
 
 	// Fetch document details
 	const { data: document, isLoading, error } = useQuery({
@@ -152,7 +282,7 @@ export function DocumentDetail() {
 	});
 
 	// Fetch document pages for viewer
-	const { data: pagesData } = useQuery({
+	const { data: pagesData, isLoading: isPagesLoading, isError: isPagesError } = useQuery({
 		queryKey: ['document-pages', id],
 		queryFn: async () => {
 			const { data } = await apiClient.get<{ pages: ViewerPage[] }>(`/documents/${id}/pages`);
@@ -160,6 +290,8 @@ export function DocumentDetail() {
 		},
 		enabled: !!id,
 	});
+
+	const { data: folderTree = [], isLoading: isFolderTreeLoading } = useFolderTree();
 
 	const { data: previewPagesData, isLoading: isPreviewLoading } = useQuery({
 		queryKey: ['document-version-pages', id, previewVersion?.id],
@@ -170,6 +302,72 @@ export function DocumentDetail() {
 			return data;
 		},
 		enabled: !!id && !!previewVersion?.id,
+	});
+
+	const favoriteMutation = useMutation<boolean, Error, boolean, { previousDocument?: DocumentDetail }>({
+		mutationFn: async (nextIsFavorited) => {
+			if (!id) throw new Error('Missing document id');
+			if (nextIsFavorited) {
+				await apiClient.post(`/documents/${id}/favorite`);
+			} else {
+				await apiClient.delete(`/documents/${id}/favorite`);
+			}
+			return nextIsFavorited;
+		},
+		onMutate: async (nextIsFavorited) => {
+			await queryClient.cancelQueries({ queryKey: ['document', id] });
+			const previousDocument = queryClient.getQueryData<DocumentDetail>(['document', id]);
+			queryClient.setQueryData<DocumentDetail>(['document', id], (current) =>
+				current ? { ...current, isFavorited: nextIsFavorited } : current
+			);
+			return { previousDocument };
+		},
+		onError: (_error, _nextIsFavorited, context) => {
+			if (context?.previousDocument) {
+				queryClient.setQueryData(['document', id], context.previousDocument);
+			}
+		},
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({ queryKey: documentKeys.all });
+			await queryClient.invalidateQueries({ queryKey: ['favorites'] });
+			await queryClient.invalidateQueries({ queryKey: ['document', id] });
+		},
+	});
+
+	const moveMutation = useMutation({
+		mutationFn: async (folderId: string | null) => {
+			if (!id) throw new Error('Missing document id');
+			const { data } = await apiClient.patch<DocumentDetail>(`/documents/${id}`, { folder_id: folderId });
+			return data;
+		},
+		onSuccess: async () => {
+			setShowMoveDialog(false);
+			await queryClient.invalidateQueries({ queryKey: documentKeys.all });
+			await queryClient.invalidateQueries({ queryKey: ['document', id] });
+		},
+	});
+
+	const copyMutation = useMutation({
+		mutationFn: async () => {
+			if (!id) throw new Error('Missing document id');
+			const { data } = await apiClient.post<DocumentDetail>(`/documents/${id}/copy`);
+			return data;
+		},
+		onSuccess: async () => {
+			setShowCopyDialog(false);
+			await queryClient.invalidateQueries({ queryKey: documentKeys.all });
+		},
+	});
+
+	const deleteMutation = useMutation({
+		mutationFn: async () => {
+			if (!id) throw new Error('Missing document id');
+			await apiClient.delete(`/documents/${id}`);
+		},
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({ queryKey: documentKeys.all });
+			navigate(-1);
+		},
 	});
 
 	const previewPages = useMemo(() => {
@@ -220,9 +418,20 @@ export function DocumentDetail() {
 			? 'border-brass-500/50 bg-brass-500/20 text-brass-300 hover:bg-brass-500/25'
 			: 'border-slate-700 text-slate-400 hover:border-slate-600 hover:bg-slate-800 hover:text-slate-200';
 	const toggleHistory = () => {
-		setShowVersionHistory((v) => !v);
+		setShowVersionHistory((v) => {
+			const next = !v;
+			const nextParams = new URLSearchParams(searchParams);
+			if (next) {
+				nextParams.set('tab', 'versions');
+			} else {
+				nextParams.delete('tab');
+			}
+			setSearchParams(nextParams, { replace: true });
+			return next;
+		});
 		setSidePanel(null);
 	};
+	const isFavorited = document.isFavorited ?? false;
 
 	return (
 		<motion.div
@@ -327,14 +536,15 @@ export function DocumentDetail() {
 							type="button"
 							variant="outline"
 							size="icon"
-							onClick={() => setIsFavorite((v) => !v)}
+							onClick={() => favoriteMutation.mutate(!isFavorited)}
+							disabled={favoriteMutation.isPending}
 							className={cn(
 								'h-8 w-8 border-slate-700 bg-slate-900 hover:bg-slate-800',
-								isFavorite ? 'text-brass-300' : 'text-slate-300',
+								isFavorited ? 'text-brass-300' : 'text-slate-300',
 							)}
-							aria-label={isFavorite ? 'Remove favorite' : 'Add favorite'}
+							aria-label={isFavorited ? 'Remove favorite' : 'Add favorite'}
 						>
-							<Star className={cn('w-4 h-4', isFavorite && 'fill-current')} />
+							<Star className={cn('w-4 h-4', isFavorited && 'fill-current')} />
 						</Button>
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
@@ -349,11 +559,11 @@ export function DocumentDetail() {
 								</Button>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align="end" className="border-slate-800 bg-slate-900 text-slate-100">
-								<DropdownMenuItem>
+								<DropdownMenuItem onSelect={() => setShowMoveDialog(true)}>
 									<FolderInput className="mr-2 h-4 w-4" />
 									Move
 								</DropdownMenuItem>
-								<DropdownMenuItem>
+								<DropdownMenuItem onSelect={() => setShowCopyDialog(true)}>
 									<Copy className="mr-2 h-4 w-4" />
 									Copy
 								</DropdownMenuItem>
@@ -362,7 +572,7 @@ export function DocumentDetail() {
 									History
 								</DropdownMenuItem>
 								<DropdownMenuSeparator className="bg-slate-800" />
-								<DropdownMenuItem className="text-red-300 focus:text-red-200">
+								<DropdownMenuItem onSelect={() => setShowDeleteDialog(true)} className="text-red-300 focus:text-red-200">
 									<Trash2 className="mr-2 h-4 w-4" />
 									Delete
 								</DropdownMenuItem>
@@ -457,11 +667,27 @@ export function DocumentDetail() {
 			<div className="flex-1 min-h-0 flex">
 				{/* Document viewer */}
 				<div className="flex-1 min-w-0">
-					<Viewer
-						documentId={id}
-						pages={viewerPages}
-						isLoading={previewVersion ? isPreviewLoading : !pagesData}
-					/>
+					{!previewVersion && isPagesLoading ? (
+						<div className="h-full p-6">
+							<div className="h-full rounded-lg border border-slate-800 bg-slate-900/40 p-6">
+								<div className="mx-auto h-full max-w-3xl animate-pulse rounded bg-slate-800/70" />
+							</div>
+						</div>
+					) : !previewVersion && isPagesError ? (
+						<div className="flex h-full flex-col items-center justify-center gap-3 text-center text-slate-400">
+							<AlertCircle className="h-10 w-10 text-red-400" />
+							<div>
+								<p className="text-sm font-medium text-red-300">Failed to load document pages.</p>
+								<p className="mt-1 text-xs text-slate-500">Check your connection and refresh the page.</p>
+							</div>
+						</div>
+					) : (
+						<Viewer
+							documentId={id}
+							pages={viewerPages}
+							isLoading={previewVersion ? isPreviewLoading : isPagesLoading}
+						/>
+					)}
 				</div>
 
 				{/* Version history sidebar */}
@@ -685,6 +911,33 @@ export function DocumentDetail() {
 					onClose={() => setShowWatermarkDialog(false)}
 				/>
 			)}
+
+			<MoveDocumentDialog
+				open={showMoveDialog}
+				documentTitle={document.title}
+				folders={folderTree}
+				selectedFolderId={selectedMoveFolderId}
+				onSelectedFolderIdChange={setSelectedMoveFolderId}
+				onMove={() => moveMutation.mutate(selectedMoveFolderId || null)}
+				onClose={() => setShowMoveDialog(false)}
+				isMoving={moveMutation.isPending}
+				isLoadingFolders={isFolderTreeLoading}
+			/>
+
+			<CopyDocumentDialog
+				open={showCopyDialog}
+				documentTitle={document.title}
+				onCopy={() => copyMutation.mutate()}
+				onClose={() => setShowCopyDialog(false)}
+				isCopying={copyMutation.isPending}
+			/>
+
+			<DeleteDocumentDialog
+				open={showDeleteDialog}
+				document={{ id: document.id, title: document.title, pageCount: document.pageCount }}
+				onDelete={() => deleteMutation.mutateAsync()}
+				onClose={() => setShowDeleteDialog(false)}
+			/>
 		</motion.div>
 	);
 }

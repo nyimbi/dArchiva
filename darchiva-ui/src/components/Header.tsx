@@ -26,7 +26,7 @@ interface HeaderProps {
 
 export function Header({ onOpenCommandPalette, onMenuClick }: HeaderProps) {
 	const navigate = useNavigate();
-	const { user, pendingTasks, openModal, setUser } = useStore();
+	const { user, openModal, setUser } = useStore();
 	const { logout } = useAuth();
 	const [searchOpen, setSearchOpen] = useState(false);
 	const [userMenuOpen, setUserMenuOpen] = useState(false);

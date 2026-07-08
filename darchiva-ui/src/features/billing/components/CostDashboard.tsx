@@ -42,7 +42,7 @@ import {
 	TableHeader,
 	TableRow,
 } from '@/components/ui/table';
-import { useAlerts, useBillingDashboard, useInvoices } from '../api';
+import { useBillingDashboard, useInvoices } from '../api';
 import type { BillingDashboard, InvoiceStatus, InvoiceSummary } from '../types';
 
 /* ── Helpers ───────────────────────────────────────────────────────────── */

@@ -27,6 +27,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   AlertCircle,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -162,12 +163,19 @@ export function CameraCapture({ onAccept, onClose }: CameraCaptureProps) {
             Photograph a document then apply automatic perspective correction.
           </p>
         </div>
-        {devices && devices.length > 0 && (
-          <Badge variant="outline" className="text-xs">
-            <Camera className="w-3 h-3 mr-1" />
-            {devices.length} camera{devices.length !== 1 ? 's' : ''} detected
-          </Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {devices && devices.length > 0 && (
+            <Badge variant="outline" className="text-xs">
+              <Camera className="w-3 h-3 mr-1" />
+              {devices.length} camera{devices.length !== 1 ? 's' : ''} detected
+            </Badge>
+          )}
+          {onClose && (
+            <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close camera capture">
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       <Separator />
@@ -213,6 +221,16 @@ export function CameraCapture({ onAccept, onClose }: CameraCaptureProps) {
           </Select>
         </div>
       </div>
+
+      <label className="flex items-center gap-2 text-xs text-muted-foreground">
+        <input
+          type="checkbox"
+          checked={autoDetect}
+          onChange={(event) => setAutoDetect(event.target.checked)}
+          className="h-4 w-4 rounded border-border"
+        />
+        Auto-detect document corners before correction
+      </label>
 
       {/* Upload / capture */}
       {!originalPreview ? (

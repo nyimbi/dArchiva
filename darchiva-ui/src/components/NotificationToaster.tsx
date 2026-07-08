@@ -105,6 +105,86 @@ export function NotificationToaster() {
   const activeCountRef = useRef(0);
 
   useEffect(() => {
+    function openNotification(notification: Notification, toastId: string | number) {
+      const href = getNotificationHref(notification);
+      if (!href) return;
+
+      toast.dismiss(toastId);
+      if (isExternalHref(href)) {
+        window.open(href, '_blank', 'noopener,noreferrer');
+      } else {
+        navigate(href);
+      }
+    }
+
+    function drainQueue() {
+      while (activeCountRef.current < MAX_VISIBLE_TOASTS && queueRef.current.length > 0) {
+        const notification = queueRef.current.shift();
+        if (!notification) return;
+        showToast(notification);
+      }
+    }
+
+    function releaseToast() {
+      activeCountRef.current = Math.max(0, activeCountRef.current - 1);
+      drainQueue();
+    }
+
+    function showToast(notification: Notification) {
+      const meta = getToastMeta(notification.type);
+      const duration = getDuration(meta.severity);
+      const { Icon } = meta;
+      activeCountRef.current += 1;
+
+      toast.custom(
+        toastId => (
+          <div
+            role={getNotificationHref(notification) ? 'button' : 'status'}
+            tabIndex={getNotificationHref(notification) ? 0 : -1}
+            onClick={() => openNotification(notification, toastId)}
+            onKeyDown={event => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                openNotification(notification, toastId);
+              }
+            }}
+            className={cn(
+              'group flex w-full min-w-80 max-w-sm items-start gap-3 rounded-lg border border-slate-700 bg-slate-900 p-3 text-left shadow-xl',
+              getNotificationHref(notification) && 'cursor-pointer hover:border-slate-500'
+            )}
+          >
+            <span className={cn('mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md', meta.iconClassName)}>
+              <Icon className="h-4 w-4" aria-hidden="true" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-semibold text-slate-100">
+                {notification.title}
+              </span>
+              <span className="mt-1 block text-xs leading-5 text-slate-400">
+                {notification.message}
+              </span>
+            </span>
+            <button
+              type="button"
+              className="rounded-md p-1 text-slate-500 opacity-0 transition hover:bg-slate-800 hover:text-slate-200 group-hover:opacity-100"
+              aria-label="Dismiss notification"
+              onClick={event => {
+                event.stopPropagation();
+                toast.dismiss(toastId);
+              }}
+            >
+              <X className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          </div>
+        ),
+        {
+          duration,
+          onAutoClose: releaseToast,
+          onDismiss: releaseToast,
+        }
+      );
+    }
+
     const nextItems = notifications
       .filter(notification => !seenRef.current.has(notification.id))
       .reverse();
@@ -118,86 +198,6 @@ export function NotificationToaster() {
 
     drainQueue();
   }, [notifications, navigate]);
-
-  function openNotification(notification: Notification, toastId: string | number) {
-    const href = getNotificationHref(notification);
-    if (!href) return;
-
-    toast.dismiss(toastId);
-    if (isExternalHref(href)) {
-      window.open(href, '_blank', 'noopener,noreferrer');
-    } else {
-      navigate(href);
-    }
-  }
-
-  function drainQueue() {
-    while (activeCountRef.current < MAX_VISIBLE_TOASTS && queueRef.current.length > 0) {
-      const notification = queueRef.current.shift();
-      if (!notification) return;
-      showToast(notification);
-    }
-  }
-
-  function releaseToast() {
-    activeCountRef.current = Math.max(0, activeCountRef.current - 1);
-    drainQueue();
-  }
-
-  function showToast(notification: Notification) {
-    const meta = getToastMeta(notification.type);
-    const duration = getDuration(meta.severity);
-    const { Icon } = meta;
-    activeCountRef.current += 1;
-
-    toast.custom(
-      toastId => (
-        <div
-          role={getNotificationHref(notification) ? 'button' : 'status'}
-          tabIndex={getNotificationHref(notification) ? 0 : -1}
-          onClick={() => openNotification(notification, toastId)}
-          onKeyDown={event => {
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault();
-              openNotification(notification, toastId);
-            }
-          }}
-          className={cn(
-            'group flex w-full min-w-80 max-w-sm items-start gap-3 rounded-lg border border-slate-700 bg-slate-900 p-3 text-left shadow-xl',
-            getNotificationHref(notification) && 'cursor-pointer hover:border-slate-500'
-          )}
-        >
-          <span className={cn('mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md', meta.iconClassName)}>
-            <Icon className="h-4 w-4" aria-hidden="true" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold text-slate-100">
-              {notification.title}
-            </span>
-            <span className="mt-1 block text-xs leading-5 text-slate-400">
-              {notification.message}
-            </span>
-          </span>
-          <button
-            type="button"
-            className="rounded-md p-1 text-slate-500 opacity-0 transition hover:bg-slate-800 hover:text-slate-200 group-hover:opacity-100"
-            aria-label="Dismiss notification"
-            onClick={event => {
-              event.stopPropagation();
-              toast.dismiss(toastId);
-            }}
-          >
-            <X className="h-3.5 w-3.5" aria-hidden="true" />
-          </button>
-        </div>
-      ),
-      {
-        duration,
-        onAutoClose: releaseToast,
-        onDismiss: releaseToast,
-      }
-    );
-  }
 
   return null;
 }

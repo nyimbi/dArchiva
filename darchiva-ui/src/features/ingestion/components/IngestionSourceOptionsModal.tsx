@@ -12,7 +12,7 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { AlertTriangle, Pause, Play, Settings, Trash2, X } from 'lucide-react';
+import { Pause, Play, Settings, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Props {

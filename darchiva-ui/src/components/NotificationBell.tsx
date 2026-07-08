@@ -128,7 +128,7 @@ function NotificationItem({
 // ---------------------------------------------------------------------------
 
 export function NotificationBell() {
-  const { notifications, unreadCount, isConnected, markAllRead, clearAll } =
+  const { notifications, isConnected, markAllRead, clearAll } =
     useNotifications();
 
   const [open, setOpen] = useState(false);

@@ -44,6 +44,7 @@ export interface CommentsPanelProps {
   currentPage?: number;
 }
 
+const EMPTY_COMMENTS: DocumentComment[] = [];
 const REACTION_EMOJIS = ['👍', '✅', '❓', '🔴'];
 
 function getMentionLabel(user: MentionUser) {
@@ -413,7 +414,7 @@ export function CommentsPanel({ documentId, currentPage }: CommentsPanelProps) {
   const pageFilter = filterPage && currentPage != null ? currentPage : undefined;
   const { data: allComments, isLoading, isError } = useDocumentComments(documentId, pageFilter);
   const createComment = useCreateComment(documentId);
-  const comments = allComments ?? [];
+  const comments = allComments ?? EMPTY_COMMENTS;
   const topLevel = useMemo(() => comments.filter((comment) => comment.parent_id == null), [comments]);
   const repliesByParent = useMemo(() => {
     const grouped = new Map<string, DocumentComment[]>();

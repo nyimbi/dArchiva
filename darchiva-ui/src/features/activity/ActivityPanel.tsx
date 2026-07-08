@@ -1,7 +1,9 @@
 // (c) Copyright Datacraft, 2026
 import { useMemo,useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { apiClient } from '@/lib/api-client';
 import {
 	CheckCircle2,
 	Download,
@@ -20,7 +22,6 @@ import {
 	XCircle,
 } from 'lucide-react';
 import { formatRelativeTime } from '@/lib/utils';
-import { useDocumentActivity } from './api';
 import type { ActivityEvent } from './api';
 
 // ─── Icon mapping ────────────────────────────────────────────────────────────
@@ -183,13 +184,62 @@ interface ActivityPanelProps {
 }
 
 const PAGE_SIZE = 50;
+const MAX_ACTIVITY_LIMIT = 200;
+const EMPTY_ACTIVITY_EVENTS: ActivityEvent[] = [];
+
+type ActivityResponse =
+	| ActivityEvent[]
+	| {
+		events?: ActivityEvent[];
+		items?: ActivityEvent[];
+		results?: ActivityEvent[];
+		hasMore?: boolean;
+		has_more?: boolean;
+		nextCursor?: string | null;
+		next_cursor?: string | null;
+		total?: number;
+	};
+
+function normalizeActivityResponse(data: ActivityResponse, visibleLimit: number) {
+	if (Array.isArray(data)) {
+		return {
+			events: data.slice(0, visibleLimit),
+			hasMore: data.length > visibleLimit,
+		};
+	}
+
+	const events = data.events ?? data.items ?? data.results ?? [];
+	const total = typeof data.total === 'number' ? data.total : undefined;
+	const hasExplicitMore = data.hasMore ?? data.has_more;
+	const nextCursor = data.nextCursor ?? data.next_cursor;
+
+	return {
+		events: events.slice(0, visibleLimit),
+		hasMore: hasExplicitMore ?? (nextCursor != null ? Boolean(nextCursor) : (total != null ? total > visibleLimit : events.length > visibleLimit)),
+	};
+}
 
 export function ActivityPanel({ documentId }: ActivityPanelProps) {
 	const [limit, setLimit] = useState(PAGE_SIZE);
 	const [filter, setFilter] = useState<ActivityFilter>('all');
-	const { data: events, isLoading, isError, refetch } = useDocumentActivity(documentId, limit);
+	const activeFilter = filter === 'all' ? undefined : filter;
+	const queryLimit = Math.min(limit + 1, MAX_ACTIVITY_LIMIT);
+	const { data, isLoading, isError, refetch } = useQuery({
+		queryKey: ['activity', 'document', documentId, limit, activeFilter],
+		queryFn: async () => {
+			const response = await apiClient.get<ActivityResponse>(
+				`/activity/documents/${documentId}/activity`,
+				{ params: { limit: queryLimit, type: activeFilter } },
+			);
+			return normalizeActivityResponse(response.data, limit);
+		},
+		enabled: Boolean(documentId),
+		staleTime: 30_000,
+		refetchInterval: 60_000,
+	});
+	const events = data?.events ?? EMPTY_ACTIVITY_EVENTS;
+	const hasMore = data?.hasMore ?? false;
 	const filteredEvents = useMemo(() => {
-		if (!events) return [];
 		if (filter === 'all') return events;
 		return events.filter((event) => eventCategory(event.event_type) === filter);
 	}, [events, filter]);
@@ -216,15 +266,13 @@ export function ActivityPanel({ documentId }: ActivityPanelProps) {
 		);
 	}
 
-	if (!events || events.length === 0) {
+	if (filter === 'all' && events.length === 0) {
 		return (
 			<div className="p-8 text-center text-sm text-slate-500">
 				No activity yet
 			</div>
 		);
 	}
-
-	const hasMore = events.length >= limit;
 
 	return (
 		<div>
@@ -245,7 +293,7 @@ export function ActivityPanel({ documentId }: ActivityPanelProps) {
 						className="h-8 border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800"
 					>
 						<Download className="h-3.5 w-3.5" />
-						CSV
+						Export visible
 					</Button>
 				</div>
 				<div className="mt-3 flex flex-wrap gap-1.5">

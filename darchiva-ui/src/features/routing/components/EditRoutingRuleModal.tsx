@@ -131,13 +131,23 @@ export function EditRoutingRuleModal({ onClose, rule }: Props) {
 						</button>
 					</div>
 
-					<form onSubmit={handleSubmit} className="space-y-4">
-						<div>
-							<label className="block text-sm text-slate-400 mb-1">Rule Name *</label>
-							<input className="input w-full" value={name} onChange={(e) => setName(e.target.value)} required />
-						</div>
+						<form onSubmit={handleSubmit} className="space-y-4">
+							<div>
+								<label className="block text-sm text-slate-400 mb-1">Rule Name *</label>
+								<input className="input w-full" value={name} onChange={(e) => setName(e.target.value)} required />
+							</div>
 
-						<div className="grid grid-cols-2 gap-3">
+							<div>
+								<label className="block text-sm text-slate-400 mb-1">Description</label>
+								<textarea
+									className="input min-h-20 w-full resize-y"
+									value={description}
+									onChange={(e) => setDescription(e.target.value)}
+									placeholder="What this routing rule does"
+								/>
+							</div>
+
+							<div className="grid grid-cols-2 gap-3">
 							<div>
 								<label className="block text-sm text-slate-400 mb-1">Priority</label>
 								<input type="number" className="input w-full" value={priority} onChange={(e) => setPriority(Number(e.target.value))} min={1} max={1000} />

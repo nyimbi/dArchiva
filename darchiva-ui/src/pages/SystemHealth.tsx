@@ -80,15 +80,6 @@ const SERVICE_LABELS: Record<string, string> = {
   storage:  'Storage',
 };
 
-function serviceStatusColor(status: ServiceStatus['status']): string {
-  switch (status) {
-    case 'ok':       return 'text-emerald-400';
-    case 'degraded': return 'text-amber-400';
-    case 'down':     return 'text-red-400';
-    default:         return 'text-slate-500';
-  }
-}
-
 function serviceStatusDot(status: ServiceStatus['status']): string {
   switch (status) {
     case 'ok':       return 'bg-emerald-400 animate-pulse';

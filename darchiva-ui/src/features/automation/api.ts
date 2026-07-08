@@ -169,7 +169,6 @@ export function useDeleteAutomationRule() {
 }
 
 export function useTestAutomationRule(ruleId: string) {
-	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: async (payload: TestRulePayload): Promise<TestRuleResult[]> => {
 			const { data } = await apiClient.post<TestRuleResult[]>(

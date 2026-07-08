@@ -4,7 +4,7 @@
  */
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
-import { AlertCircle, AlertTriangle, CheckCircle2, Clock, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock, XCircle } from 'lucide-react';
 import { useExceptionStats } from '../api/hooks';
 import type { ExceptionSeverity, ExceptionType } from '../types';
 import {

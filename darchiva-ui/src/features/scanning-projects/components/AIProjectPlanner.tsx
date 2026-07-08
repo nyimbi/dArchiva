@@ -25,10 +25,9 @@ import {
   Wand2,
   X
 } from 'lucide-react';
-import { useCallback,useMemo,useRef,useState } from 'react';
+import { useCallback,useMemo,useState } from 'react';
 import { toast } from 'sonner';
 import * as api from '../api';
-import { useAIAnalysis } from '../api/hooks';
 import { scanningProjectKeys } from '../hooks';
 import type { AIAdvisorResponse } from '../types';
 
@@ -675,8 +674,7 @@ export function AIProjectPlanner({
 	const [shifts, setShifts] = useState<GeneratedShift[]>([]);
 	const [isGenerating, setIsGenerating] = useState(false);
 	const [aiAnalysis, setAiAnalysis] = useState<AIAdvisorResponse | null>(null);
-	const [aiEnabled, setAiEnabled] = useState(false);
-	const { data: aiData, isLoading: aiLoading, isError: aiIsError } = useAIAnalysis(projectId, aiEnabled);
+	const [aiAnalysisError, setAiAnalysisError] = useState(false);
 
 	// Create milestones mutation
 	const createMilestones = useMutation({
@@ -726,7 +724,8 @@ export function AIProjectPlanner({
 	// Generate plan — local arithmetic + AI analysis in parallel
 	const handleGenerate = useCallback(async () => {
 		setIsGenerating(true);
-		setAiEnabled(true);
+		setAiAnalysis(null);
+		setAiAnalysisError(false);
 
 		const generatedMilestones = generateMilestones(config);
 		const generatedShifts = generateShifts(config);
@@ -752,6 +751,7 @@ export function AIProjectPlanner({
 			}
 		} catch {
 			// AI analysis failed — show the arithmetic plan anyway
+			setAiAnalysisError(true);
 		}
 
 		setMilestones(generatedMilestones);
@@ -897,55 +897,87 @@ export function AIProjectPlanner({
 					</div>
 
 					{/* Content */}
-					<div className="p-4 overflow-y-auto max-h-[calc(90vh-200px)]">
-						{aiIsError ? (
-							<div className="flex items-center justify-center gap-2 py-8 text-sm text-rose-400">
-								<AlertCircle className="w-4 h-4" />
-								<span>Failed to load AI analysis.</span>
-							</div>
-						) : (
-							<>
-						{step === 'config' && (
-							<div className="space-y-4">
-								<ConfigForm
-									config={config}
-									onChange={setConfig}
-									onGenerate={handleGenerate}
-									isGenerating={isGenerating}
-								/>
-
-								{hasWarning && (
-									<div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-sm text-amber-400">
-										<AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-										{hasWarning}
-									</div>
-								)}
-							</div>
-						)}
-
-						{step === 'review' && (
-							<div className="space-y-6">
-								<PlanSummary config={config} milestones={milestones} shifts={shifts} />
-
-								<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-									<MilestoneEditor
-										milestones={milestones}
-										onUpdate={handleUpdateMilestone}
-										onDelete={handleDeleteMilestone}
-										onAdd={handleAddMilestone}
+						<div className="p-4 overflow-y-auto max-h-[calc(90vh-200px)]">
+							{step === 'config' && (
+								<div className="space-y-4">
+									<ConfigForm
+										config={config}
+										onChange={setConfig}
+										onGenerate={handleGenerate}
+										isGenerating={isGenerating}
 									/>
-									<ShiftEditor
-										shifts={shifts}
-										onUpdate={handleUpdateShift}
-										onDelete={handleDeleteShift}
-										onAdd={handleAddShift}
-									/>
+
+									{hasWarning && (
+										<div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-sm text-amber-400">
+											<AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+											{hasWarning}
+										</div>
+									)}
 								</div>
-							</div>
-						)}
-							</>
-						)}
-					</div>
+							)}
+
+							{step === 'review' && (
+								<div className="space-y-6">
+									{aiAnalysisError && (
+										<div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 p-3 text-sm text-amber-300">
+											<AlertCircle className="w-4 h-4" />
+											<span>AI analysis was unavailable; showing the arithmetic plan.</span>
+										</div>
+									)}
+
+									<PlanSummary config={config} milestones={milestones} shifts={shifts} />
+
+									{aiAnalysis && (
+										<div className="rounded-lg border border-cyan-500/20 bg-cyan-500/10 p-4">
+											<div className="flex items-start justify-between gap-3">
+												<div>
+													<h3 className="text-sm font-semibold text-cyan-100">AI planning guidance</h3>
+													<p className="mt-1 text-sm text-slate-300">{aiAnalysis.summary}</p>
+												</div>
+												<span className="rounded-full border border-cyan-400/30 px-2 py-0.5 text-xs uppercase text-cyan-200">
+													{aiAnalysis.risk_assessment.overall_risk_level} risk
+												</span>
+											</div>
+											<div className="mt-3 grid grid-cols-1 gap-3 text-xs text-slate-300 sm:grid-cols-3">
+												<div>
+													<span className="block text-slate-500">Operators</span>
+													<span className="font-medium text-slate-100">
+														{aiAnalysis.resource_optimization.optimal_operator_count}
+													</span>
+												</div>
+												<div>
+													<span className="block text-slate-500">Scanners</span>
+													<span className="font-medium text-slate-100">
+														{aiAnalysis.resource_optimization.optimal_scanner_count}
+													</span>
+												</div>
+												<div>
+													<span className="block text-slate-500">Efficiency gain</span>
+													<span className="font-medium text-slate-100">
+														{Math.round(aiAnalysis.resource_optimization.estimated_efficiency_gain)}%
+													</span>
+												</div>
+											</div>
+										</div>
+									)}
+
+									<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+										<MilestoneEditor
+											milestones={milestones}
+											onUpdate={handleUpdateMilestone}
+											onDelete={handleDeleteMilestone}
+											onAdd={handleAddMilestone}
+										/>
+										<ShiftEditor
+											shifts={shifts}
+											onUpdate={handleUpdateShift}
+											onDelete={handleDeleteShift}
+											onAdd={handleAddShift}
+										/>
+									</div>
+								</div>
+							)}
+						</div>
 
 					{/* Footer */}
 					{step === 'review' && (

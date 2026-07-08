@@ -472,7 +472,6 @@ function TestDialog({ rule, onClose }: { rule: AutoRoutingRule; onClose: () => v
 // ── Row actions menu ───────────────────────────────────────────────────────────
 
 function RowMenu({
-	rule,
 	onEdit,
 	onTest,
 	onDelete,

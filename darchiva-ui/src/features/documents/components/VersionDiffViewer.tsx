@@ -115,7 +115,6 @@ function WordStream({
 // ---------------------------------------------------------------------------
 
 export function VersionHistoryWithCompare({
-	documentId,
 	versions,
 	onCompare,
 }: {

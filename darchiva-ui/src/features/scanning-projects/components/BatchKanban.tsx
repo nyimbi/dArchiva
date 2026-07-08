@@ -46,13 +46,6 @@ const COLUMNS: { status: BatchStatus[]; label: string; color: string }[] = [
   { status: ['completed'], label: 'Complete', color: 'border-green-300' },
 ];
 
-const NEXT_STATUS: Partial<Record<BatchStatus, BatchStatus>> = {
-  pending: 'assigned',
-  assigned: 'scanning',
-  scanning: 'qc_review',
-  qc_review: 'completed',
-};
-
 function BatchCard({
   batch,
   onDragStart,

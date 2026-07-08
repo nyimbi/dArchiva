@@ -4,10 +4,9 @@
  * Supports exact duplicate (block) and near-duplicate (warn/allow).
  */
 import { useMutation } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, XCircle, FileText, ArrowRight, Loader2 } from 'lucide-react';
+import { AlertTriangle, XCircle, FileText, ArrowRight } from 'lucide-react';
 
 type DedupVerdict = 'unique' | 'exact_duplicate' | 'near_duplicate';
 
@@ -53,7 +52,7 @@ const VERDICT_CONFIG = {
   },
 };
 
-export function DedupAlert({ dedup, file, batchId, onOverride, onCancel, onNavigate }: DedupAlertProps) {
+export function DedupAlert({ dedup, file, onOverride, onCancel, onNavigate }: DedupAlertProps) {
   if (dedup.verdict === 'unique') return null;
 
   const cfg = VERDICT_CONFIG[dedup.verdict];

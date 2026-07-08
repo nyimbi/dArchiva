@@ -47,7 +47,6 @@ import {
   GitFork,
   Tag,
   Timer,
-  TrendingUp,
   Upload,
   UserCheck,
   UserCog,
@@ -62,7 +61,6 @@ import {
   Scissors,
   X,
 } from 'lucide-react';
-import { useBranding } from '@/hooks/useBranding';
 import { Link,useLocation } from 'react-router-dom';
 
 interface SidebarStorageStats {

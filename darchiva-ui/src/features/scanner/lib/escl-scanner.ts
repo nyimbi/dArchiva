@@ -114,7 +114,7 @@ export class ESCLScanner {
     const pages: ESCLPage[] = [];
 
     // Page fetch loop — ends when scanner returns 404 (no more pages in tray)
-    while (true) {
+    for (;;) {
       if (signal?.aborted) {
         // Best-effort cancel before re-throwing
         await this.cancelJob(jobUrl).catch(() => {});

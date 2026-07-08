@@ -1,6 +1,7 @@
 // (c) Copyright Datacraft, 2026
-import { Info, X } from 'lucide-react';
+import { AlertCircle, Info, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { useEntityDocuments, useEntityGraph } from './api';
 import type { EntityEdge, EntityNode } from './types';
 
@@ -31,6 +32,8 @@ const COLOR_MAP: Record<EntityType, string> = {
 
 const NODE_MIN_R = 12;
 const NODE_MAX_R = 30;
+const EMPTY_ENTITY_NODES: EntityNode[] = [];
+const EMPTY_ENTITY_EDGES: EntityEdge[] = [];
 
 // ---------------------------------------------------------------------------
 // Layout: concentric circles by document_count bucket
@@ -129,7 +132,8 @@ interface SidePanelProps {
 }
 
 function SidePanel({ node, onClose }: SidePanelProps) {
-  const { data, isLoading } = useEntityDocuments(node.id);
+  const docsQuery = useEntityDocuments(node.id);
+  const data = docsQuery.data;
   const color = COLOR_MAP[node.type as EntityType] ?? COLOR_MAP.other;
 
   return (
@@ -158,11 +162,23 @@ function SidePanel({ node, onClose }: SidePanelProps) {
 
       {/* Document list */}
       <div className="flex-1 overflow-y-auto">
-        {isLoading ? (
+        {docsQuery.isLoading ? (
           <div className="p-4 space-y-2 animate-pulse">
             {[1, 2, 3].map(i => (
               <div key={i} className="h-10 bg-slate-800 rounded" />
             ))}
+          </div>
+        ) : docsQuery.isError ? (
+          <div className="flex items-center gap-2 p-2 text-sm text-destructive">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span className="flex-1">Failed to load linked documents.</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => void docsQuery.refetch()}
+            >
+              Retry
+            </Button>
           </div>
         ) : !data?.documents.length ? (
           <p className="p-4 text-xs text-slate-500">No documents linked.</p>
@@ -374,8 +390,8 @@ export function EntityGraphPage() {
     activeType === 'all' ? undefined : activeType,
   );
 
-  const nodes = data?.nodes ?? [];
-  const edges = data?.edges ?? [];
+  const nodes = data?.nodes ?? EMPTY_ENTITY_NODES;
+  const edges = data?.edges ?? EMPTY_ENTITY_EDGES;
 
   // Placeholder dims for layout (canvas will self-size via ResizeObserver)
   const [dims] = useState({ width: 800, height: 600 });

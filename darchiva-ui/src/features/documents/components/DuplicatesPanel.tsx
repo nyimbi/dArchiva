@@ -34,10 +34,10 @@ function DuplicateItem({
 	const displayTitle = entry.title ?? entry.document_id.slice(0, 8) + '…';
 	const formattedDate = entry.created_at
 		? new Date(entry.created_at).toLocaleDateString(undefined, {
-				year: 'numeric',
-				month: 'short',
-				day: 'numeric',
-		  })
+			year: 'numeric',
+			month: 'short',
+			day: 'numeric',
+		})
 		: null;
 
 	return (

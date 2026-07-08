@@ -6,7 +6,6 @@
  */
 import { useState, useCallback } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -105,12 +104,26 @@ export function ImageStitcher({ batchId, onAccept, onClose }: ImageStitcherProps
 
   return (
     <div className="flex flex-col gap-4 p-4 max-h-[80vh] overflow-y-auto">
-      <div>
-        <h3 className="text-lg font-semibold">Multi-Image Stitching</h3>
-        <p className="text-sm text-muted-foreground">
-          Upload 2–8 overlapping captures of a large document to stitch into one image.
-          Ensure ≥15% overlap between adjacent shots.
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-semibold">Multi-Image Stitching</h3>
+            {batchId && (
+              <Badge variant="outline" className="text-xs">
+                Batch {batchId.slice(0, 8)}
+              </Badge>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Upload 2–8 overlapping captures of a large document to stitch into one image.
+            Ensure ≥15% overlap between adjacent shots.
+          </p>
+        </div>
+        {onClose && (
+          <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close image stitcher">
+            <X className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       <Separator />

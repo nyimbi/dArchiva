@@ -1316,11 +1316,6 @@ function CreateRoleDialog({
 	const { data: permGroups } = usePermissionGroups();
 	const createRole = useCreateRole();
 
-	const toggle = (id: string) =>
-		setSelectedPerms((prev) =>
-			prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id],
-		);
-
 	const handleSubmit = () => {
 		createRole.mutate(
 			{ name, description, permission_ids: selectedPerms },
