@@ -150,7 +150,10 @@ func main() {
 	}
 	srv := api.New(services)
 
-	addr := fmt.Sprintf(":%d", cfg.Port)
+	// Bind the local control API to loopback only. The scan agent exposes
+	// scanner control and configuration endpoints with no network auth; it must
+	// never be reachable from other hosts.
+	addr := fmt.Sprintf("127.0.0.1:%d", cfg.Port)
 	httpServer := &http.Server{
 		Addr:    addr,
 		Handler: srv,

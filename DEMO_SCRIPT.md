@@ -10,7 +10,7 @@ cd /Users/nyimbiodero/src/pjs/dArchiva
 
 ### 2. Verify Login Works
 - Open http://localhost:3001
-- Login as `admin` / `Abcd1234.`
+- Login as `admin` / `Demo1234!`
 
 ### 3. Have Sample Documents Ready
 Location: `/Users/nyimbiodero/src/pjs/dArchiva/demo_documents/`
@@ -118,7 +118,7 @@ Location: `/Users/nyimbiodero/src/pjs/dArchiva/demo_documents/`
 
 | Username | Password | Name | Department |
 |----------|----------|------|------------|
-| admin | Abcd1234. | Administrator | All |
+| admin | Demo1234! | Administrator | All |
 | finance_user | Demo1234! | Wanjiku Kamau | Finance |
 | legal_user | Demo1234! | Ochieng Otieno | Legal |
 | hr_user | Demo1234! | Akinyi Odhiambo | HR |

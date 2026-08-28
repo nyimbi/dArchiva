@@ -144,23 +144,28 @@ server_setup() {
 	# Clone repos if not present
 	r "test -d ${DEPLOY_PATH}/.git || git clone https://github.com/nyimbi/dArchiva.git ${DEPLOY_PATH} --recurse-submodules"
 
-	# Generate env template if missing
+	# Generate env file if missing
 	if ! r "test -f ${CONFIG_ENV}"; then
-		log_warn "Creating env template at ${CONFIG_ENV}"
+		log_warn "Creating env file at ${CONFIG_ENV}"
 		rs "mkdir -p /etc/darchiva"
-		# Write template (no secrets committed)
-		rs "tee ${CONFIG_ENV} > /dev/null" <<'ENVEOF'
-# dArchiva Environment — fill in before first start
+		# Generate strong secrets locally; never commit real values.
+		JWT_SECRET="$(openssl rand -hex 32)"
+		CSRF_SECRET="$(openssl rand -hex 32)"
+		ENC_SECRET="$(openssl rand -hex 32)"
+		# Write env file with generated secrets
+		rs "tee ${CONFIG_ENV} > /dev/null" <<ENVEOF
+# dArchiva Environment — generated $(date -u '+%Y-%m-%d %H:%M UTC')
 PM_DB_URL=postgresql+psycopg://user:pass@localhost:5432/darchiva
 PM_DB_SSL=false
 PM_API_PREFIX=/api/v1
-PM_SECRET_KEY=CHANGE_ME
-PM_MASTER_KEY=CHANGE_ME
+PM_JWT_SECRET_KEY=${JWT_SECRET}
+PM_CSRF_SECRET_KEY=${CSRF_SECRET}
+PM_ENCRYPTION_SECRET_KEY=${ENC_SECRET}
 PM_MEDIA_ROOT=/var/lib/darchiva/media
 REDIS_URL=redis://localhost:6379/0
 ENVEOF
 		rs "chmod 600 ${CONFIG_ENV}"
-		log_warn "Edit ${CONFIG_ENV} before starting services"
+		log_warn "Update PM_DB_URL and REDIS_URL in ${CONFIG_ENV} before starting services"
 	fi
 
 	# Nginx

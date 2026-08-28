@@ -75,8 +75,9 @@ export interface UseBrowserOCRReturn {
 const DEFAULT_CONFIG: BrowserOCRConfig = {
 	provider: 'openai',
 	ollamaModel: 'qwen2.5-VL',
-	apiKey: import.meta.env.VITE_LITELLM_API_KEY || 'sk-pjs-litellm-master-key',
-	openaiBaseUrl: import.meta.env.VITE_LITELLM_BASE_URL || 'http://84.247.181.100:4000/v1',
+	// API key and gateway URL are held server-side; the browser never needs them.
+	apiKey: '',
+	openaiBaseUrl: '',
 	enabled: false,
 };
 
@@ -144,17 +145,16 @@ export function useBrowserOCR(): UseBrowserOCRReturn {
 		}, [config]);
 
 	const checkConnection = useCallback(async (): Promise<ConnectionStatus> => {
-		const hasKey = !!config.apiKey;
 		const result: ConnectionStatus = {
-			available: hasKey,
+			available: true,
 			isCloud: true,
 			models: VLM_PROVIDERS.openai.models as unknown as string[],
-			error: hasKey ? undefined : 'LiteLLM API key required',
+			error: undefined,
 		};
 		setStatus(result);
 		setAvailableModels(result.models);
 		return result;
-	}, [config]);
+	}, []);
 
 	const ocrImage = useCallback(
 		async (image: Blob): Promise<VLMOCRResult> => {

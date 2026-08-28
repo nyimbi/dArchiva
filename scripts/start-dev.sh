@@ -16,8 +16,8 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 BACKEND_DIR="$PROJECT_ROOT/papermerge-core"
 FRONTEND_DIR="$PROJECT_ROOT/darchiva-ui"
 
-# Database URL - defaults to Azure, override with PM_DB_URL env var
-DB_URL="${PM_DB_URL:-postgresql://azureuser:Abcd1234.@lindela16.postgres.database.azure.com:5432/darc}"
+# Database URL - local dev default; override with PM_DB_URL for a real database
+DB_URL="${PM_DB_URL:-postgresql://darchiva:darchiva_dev@localhost:5432/darchiva}"
 
 # Ports
 BACKEND_PORT="${BACKEND_PORT:-8000}"
@@ -134,7 +134,7 @@ case "${1:-all}" in
 		echo "  Backend:  http://localhost:$BACKEND_PORT"
 		echo "  API Docs: http://localhost:$BACKEND_PORT/docs"
 		echo ""
-		echo "Login with: admin / Abcd1234."
+		echo "Login with your configured admin credentials"
 		echo "============================================"
 		;;
 	*)

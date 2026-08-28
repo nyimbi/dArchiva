@@ -8,8 +8,8 @@ test.describe('Settings', () => {
 	test.beforeEach(async ({ page }) => {
 		// Mock authentication with admin privileges
 		await page.addInitScript(() => {
-			localStorage.setItem('auth_token', 'test-token');
-			localStorage.setItem('user', JSON.stringify({
+			localStorage.setItem('darchiva_token', 'test-token');
+			localStorage.setItem('darchiva_user', JSON.stringify({
 				id: '1',
 				username: 'admin',
 				email: 'admin@example.com',
@@ -57,8 +57,8 @@ test.describe('Settings', () => {
 test.describe('User Management', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.addInitScript(() => {
-			localStorage.setItem('auth_token', 'test-token');
-			localStorage.setItem('user', JSON.stringify({
+			localStorage.setItem('darchiva_token', 'test-token');
+			localStorage.setItem('darchiva_user', JSON.stringify({
 				id: '1',
 				username: 'admin',
 				email: 'admin@example.com',

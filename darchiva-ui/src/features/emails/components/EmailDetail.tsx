@@ -16,6 +16,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { format } from 'date-fns';
 import {
   ExternalLink,
@@ -150,7 +151,7 @@ export function EmailDetail({ emailId, onDelete }: EmailDetailProps) {
 					{email.body_html ? (
 						<div
 							className="email-body"
-							dangerouslySetInnerHTML={{ __html: email.body_html }}
+							dangerouslySetInnerHTML={{ __html: sanitizeHtml(email.body_html) }}
 						/>
 					) : email.body_text ? (
 						<pre className="whitespace-pre-wrap font-sans text-sm">

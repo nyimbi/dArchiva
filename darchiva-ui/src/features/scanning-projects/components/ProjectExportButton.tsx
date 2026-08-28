@@ -34,7 +34,7 @@ export function ProjectExportButton({
       const url = `/api/v1/scanning-projects/${projectId}/export.${format}`;
       const res = await fetch(url, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token') ?? ''}`,
+          Authorization: `Bearer ${localStorage.getItem('darchiva_token') ?? ''}`,
         },
       });
       if (!res.ok) throw new Error(`Export failed: ${res.statusText}`);

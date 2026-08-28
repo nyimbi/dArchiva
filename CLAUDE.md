@@ -10,7 +10,7 @@ financial and legal documents.
 ## Stack
 
 - Backend: Python (FastAPI), SQLAlchemy 2.0, Celery, SpaCy, WeasyPrint
-- Frontend: React 19, Mantine 8 UI (in `darchiva-ui/`)
+- Frontend: React 18, Radix UI + Tailwind (in `darchiva-ui/`)
 - DB: PostgreSQL 17
 - OCR engines: **PaddleOCR** (primary), **Tesseract** (fallback), **Qwen-VL via Ollama** (handwriting + technical drawings)
 - Access control: 4-layer (RBAC + ABAC + ReBAC + PBAC)
@@ -38,7 +38,7 @@ uv run pyright
 ## Key files
 
 - `darchiva-scan-agent/` — the scanner-side out-of-process bridge; runs on the machine attached to the physical scanner
-- `darchiva-ui/` — React 19 + Mantine 8 SPA
+- `darchiva-ui/` — React 18 + Radix UI + Tailwind SPA
 - `DEMO_SCRIPT.md` — canonical demo path (Finance user sees invoice; Legal user gets ACCESS DENIED — the RBAC isolation showcase)
 - `docs/` — architecture, deployment, admin docs
 - `demo_documents/` — sample corpus for benchmarking OCR quality

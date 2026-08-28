@@ -4,9 +4,10 @@
 import asyncio
 import uuid
 import json
+import os
 import asyncpg
 
-DB_URL = "postgresql://azureuser:Abcd1234.@lindela16.postgres.database.azure.com:5432/darc"
+DB_URL = os.environ.get("PM_DB_URL", "postgresql://darchiva:darchiva_dev@localhost:5432/darchiva")
 TENANT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
 async def get_ids(conn):

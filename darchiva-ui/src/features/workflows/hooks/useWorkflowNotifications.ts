@@ -73,8 +73,9 @@ export function useWorkflowNotifications(
 
 		try {
 			const authToken = localStorage.getItem('darchiva_token');
-			const wsUrl = `${WS_BASE_URL}/ws/workflows/notifications${authToken ? `?token=${encodeURIComponent(authToken)}` : ''}`;
-			wsRef.current = new WebSocket(wsUrl);
+			const wsUrl = `${WS_BASE_URL}/ws/workflows/notifications`;
+			// Token via Sec-WebSocket-Protocol to keep it out of URLs/access logs.
+			wsRef.current = new WebSocket(wsUrl, authToken ?? undefined);
 
 			wsRef.current.onopen = () => {
 				setIsConnected(true);

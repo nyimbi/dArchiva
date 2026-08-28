@@ -132,11 +132,12 @@ export function useNotificationSocket(): NotificationSocketState {
 			}
 
 			const wsBase = getWsBaseUrl();
-			const url = `${wsBase}/ws/notifications?token=${encodeURIComponent(token)}`;
+			const url = `${wsBase}/ws/notifications`;
 
 			let ws: WebSocket;
 			try {
-				ws = new WebSocket(url);
+				// Token via Sec-WebSocket-Protocol to keep it out of URLs/access logs.
+				ws = new WebSocket(url, token);
 			} catch {
 				// URL construction failed (e.g., invalid protocol) — no point retrying.
 				publishStatus('disconnected');

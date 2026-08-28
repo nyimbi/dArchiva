@@ -3,6 +3,7 @@
  * Search results display with highlighting and faceted navigation.
  */
 import { cn,formatBytes,formatRelativeTime } from '@/lib/utils';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { motion } from 'framer-motion';
 import {
   ArrowUpDown,
@@ -348,7 +349,7 @@ function ResultListItem({ result, index, onClick }: ResultListItemProps) {
 						<p
 							className="mt-2 text-sm text-slate-400 line-clamp-2"
 							dangerouslySetInnerHTML={{
-								__html: result.highlights.length > 0 ? result.highlights[0] : result.excerpt,
+								__html: sanitizeHtml(result.highlights.length > 0 ? result.highlights[0] : result.excerpt),
 							}}
 						/>
 					)}

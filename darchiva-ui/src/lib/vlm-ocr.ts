@@ -62,12 +62,13 @@ async function blobToBase64(blob: Blob): Promise<string> {
 
 /**
  * OpenAI-compatible LiteLLM OCR via backend proxy.
+ *
+ * The gateway URL and API key are held server-side; the browser never
+ * sees or supplies them.
  */
 async function ocrWithOpenAI(
 	imageBlob: Blob,
-	apiKey: string,
-	model: string = 'qwen2.5-VL',
-	baseUrl: string = 'http://84.247.181.100:4000/v1'
+	model: string = 'qwen2.5-VL'
 ): Promise<OCRResult> {
 	const startTime = performance.now();
 
@@ -76,14 +77,17 @@ async function ocrWithOpenAI(
 
 	const proxyUrl = `${getProxyBaseUrl()}/openai/chat/completions`;
 
+	const headers: Record<string, string> = {
+		'Content-Type': 'application/json',
+	};
+	const token = localStorage.getItem('darchiva_token');
+	if (token) {
+		headers['Authorization'] = `Bearer ${token}`;
+	}
+
 	const response = await fetch(proxyUrl, {
 		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'X-OpenAI-Api-Key': apiKey,
-			'X-OpenAI-Base-URL': baseUrl,
-		},
-		credentials: 'include',
+		headers,
 		body: JSON.stringify({
 			model,
 			max_tokens: 8192,
@@ -140,15 +144,10 @@ export async function performOCR(
 	if (config.provider !== 'openai') {
 		throw new Error('Browser OCR is restricted to the LiteLLM gateway');
 	}
-	if (!config.apiKey) {
-		throw new Error('LiteLLM API key is required');
-	}
 
 	return ocrWithOpenAI(
 		imageBlob,
-		config.apiKey,
-		config.openaiModel || 'qwen2.5-VL',
-		config.openaiBaseUrl || 'http://84.247.181.100:4000/v1'
+		config.openaiModel || 'qwen2.5-VL'
 	);
 }
 

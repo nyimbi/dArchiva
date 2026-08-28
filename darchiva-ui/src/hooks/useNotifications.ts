@@ -85,9 +85,10 @@ export function useNotifications(): UseNotificationsReturn {
     const token = localStorage.getItem('darchiva_token');
     if (!token) return;
 
-    const url = `${WS_BASE_URL}/ws/notifications?token=${encodeURIComponent(token)}`;
+    const url = `${WS_BASE_URL}/ws/notifications`;
 
-    const ws = new WebSocket(url);
+    // Token is sent via Sec-WebSocket-Protocol to keep it out of URLs/access logs.
+    const ws = new WebSocket(url, token);
     wsRef.current = ws;
 
     ws.onopen = () => {

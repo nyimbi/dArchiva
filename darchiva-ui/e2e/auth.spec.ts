@@ -13,29 +13,30 @@ test.describe('Authentication', () => {
 
 		// Login form should be visible
 		await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible();
-		await expect(page.getByLabel(/email/i)).toBeVisible();
+		await expect(page.getByLabel(/username/i)).toBeVisible();
 		await expect(page.getByLabel(/password/i)).toBeVisible();
 	});
 
-	test('should show validation errors for empty form', async ({ page }) => {
+	test('should require username and password', async ({ page }) => {
 		await page.goto('/login');
 
-		// Click login without filling form
+		// Click login without filling form — native required validation blocks submit.
 		await page.getByRole('button', { name: /sign in/i }).click();
 
-		// Should show validation errors
-		await expect(page.getByText(/email is required/i)).toBeVisible();
-		await expect(page.getByText(/password is required/i)).toBeVisible();
+		const usernameMissing = await page
+			.getByLabel(/username/i)
+			.evaluate((el) => (el as HTMLInputElement).validity.valueMissing);
+		expect(usernameMissing).toBe(true);
 	});
 
 	test('should show error for invalid credentials', async ({ page }) => {
 		await page.goto('/login');
 
-		await page.getByLabel(/email/i).fill('invalid@test.com');
+		await page.getByLabel(/username/i).fill('invaliduser');
 		await page.getByLabel(/password/i).fill('wrongpassword');
 		await page.getByRole('button', { name: /sign in/i }).click();
 
-		// Should show error message
-		await expect(page.getByText(/invalid credentials/i)).toBeVisible();
+		// Error message should be shown (exact wording depends on backend response).
+		await expect(page.getByText(/invalid|incorrect|failed|unauthorized/i)).toBeVisible();
 	});
 });

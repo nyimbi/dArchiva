@@ -41,7 +41,7 @@ export function BarcodeLabelsButton({
       if (prefix) params.set('prefix', prefix);
       const url = `/api/v1/scanning-projects/${projectId}/barcode-labels?${params}`;
       const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token') ?? ''}` },
+        headers: { Authorization: `Bearer ${localStorage.getItem('darchiva_token') ?? ''}` },
       });
       if (!res.ok) throw new Error(res.statusText);
       const blob = await res.blob();

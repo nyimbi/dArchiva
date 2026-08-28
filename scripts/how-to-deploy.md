@@ -277,8 +277,8 @@ From your local machine:
 ```bash
 cd /path/to/papermerge-core
 
-# Deploy with migrations and PM2 setup
-./scripts/deploy.sh user@your-server.com --migrate --setup-pm2
+# Deploy with migrations and server setup
+./scripts/deploy.sh user@your-server.com --migrate --setup
 ```
 
 ### Subsequent Deployments
@@ -301,13 +301,15 @@ cd /path/to/papermerge-core
 
 | Option | Description |
 |--------|-------------|
+| `-H, --host HOST` | Target server (default: from `.env.deploy`) |
 | `-b, --branch NAME` | Git branch to deploy (default: main) |
-| `-e, --env NAME` | Environment name (default: production) |
 | `-m, --migrate` | Run database migrations |
-| `-s, --setup-pm2` | Setup PM2 ecosystem and startup scripts |
-| `-p, --no-prefect` | Disable Prefect server/worker |
-| `-f, --no-frontend` | Skip frontend build and deployment |
-| `-r, --no-restart` | Don't restart services after deploy |
+| `-s, --setup` | Setup server (deps, dirs, PM2, logrotate) |
+| `-n, --nginx` | (Re)install nginx config |
+| `--no-frontend` | Skip frontend build and deployment |
+| `--no-agent` | Skip scan agent build/deploy |
+| `--no-restart` | Don't restart services after deploy |
+| `--rollback` | Roll back to previous release |
 
 ---
 
@@ -326,8 +328,9 @@ pm2 list
 # │ name                    │ id │ mode    │ ↺    │ status│
 # ├─────────────────────────┼────┼─────────┼──────┼───────┤
 # │ darchiva-api            │ 0  │ fork    │ 0    │ online│
-# │ darchiva-prefect-server │ 1  │ fork    │ 0    │ online│
-# │ darchiva-prefect-worker │ 2  │ fork    │ 0    │ online│
+# │ darchiva-ocr-worker     │ 1  │ fork    │ 0    │ online│
+# │ darchiva-s3-worker      │ 2  │ fork    │ 0    │ online│
+# │ darchiva-scheduler      │ 3  │ fork    │ 0    │ online│
 # └─────────────────────────┴────┴─────────┴──────┴───────┘
 ```
 
@@ -336,9 +339,6 @@ pm2 list
 ```bash
 # API health
 curl -s http://localhost:8000/docs | head -5
-
-# Prefect health
-curl -s http://localhost:4200/api/health
 
 # Frontend (via nginx)
 curl -s -o /dev/null -w '%{http_code}' https://your-domain.com/
@@ -391,8 +391,9 @@ pm2 logs
 
 # View logs for specific service
 pm2 logs darchiva-api
-pm2 logs darchiva-prefect-server
-pm2 logs darchiva-prefect-worker
+pm2 logs darchiva-ocr-worker
+pm2 logs darchiva-s3-worker
+pm2 logs darchiva-scheduler
 
 # Real-time monitoring
 pm2 monit
@@ -437,8 +438,9 @@ source /etc/darchiva/env
 | Log | Location |
 |-----|----------|
 | API | `/var/log/darchiva/api.log` |
-| Prefect Server | `/var/log/darchiva/prefect-server.log` |
-| Prefect Worker | `/var/log/darchiva/prefect-worker.log` |
+| OCR Worker | `/var/log/darchiva/ocr-worker.log` |
+| S3 Worker | `/var/log/darchiva/s3-worker.log` |
+| Scheduler | `/var/log/darchiva/scheduler.log` |
 | Nginx Access | `/var/log/nginx/darchiva_access.log` |
 | Nginx Error | `/var/log/nginx/darchiva_error.log` |
 
@@ -521,15 +523,18 @@ Change `--workers 4` to `--workers 8` (or desired count).
 pm2 reload ecosystem.config.js
 ```
 
-#### Add Prefect Workers
+#### Scale OCR Workers
 
 ```bash
-# Start additional worker
-pm2 start /opt/darchiva/.venv/bin/prefect \
-    --name "darchiva-prefect-worker-2" \
-    -- worker start --pool darchiva-workflows
+# Increase OCR worker concurrency
+ssh user@your-server.com
+nano /opt/darchiva/ecosystem.config.js
+```
 
-pm2 save
+Change `-c 2` to `-c 4` (or desired concurrency) for the `darchiva-ocr-worker` app.
+
+```bash
+pm2 reload ecosystem.config.js
 ```
 
 ---
@@ -689,7 +694,7 @@ LIMIT 100;
 
 ```bash
 # First deployment
-./scripts/deploy.sh user@server.com --migrate --setup-pm2
+./scripts/deploy.sh user@server.com --migrate --setup
 
 # Update deployment
 ./scripts/deploy.sh user@server.com --migrate

@@ -2,11 +2,12 @@
 # (c) Copyright Datacraft, 2026
 """Setup demo data for dArchiva demonstration."""
 import asyncio
+import os
 import uuid
 from passlib.hash import pbkdf2_sha256
 import asyncpg
 
-DB_URL = "postgresql://azureuser:Abcd1234.@lindela16.postgres.database.azure.com:5432/darc"
+DB_URL = os.environ.get("PM_DB_URL", "postgresql://darchiva:darchiva_dev@localhost:5432/darchiva")
 DEFAULT_PASSWORD = "Demo1234!"
 PASSWORD_HASH = pbkdf2_sha256.hash(DEFAULT_PASSWORD)
 TENANT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
@@ -153,7 +154,7 @@ async def setup_demo():
 			d = dept or "All Depts"
 			print(f"  {username:15} | {first} {last:15} | {d}")
 		print("-" * 50)
-		print("\nAdmin: admin / Abcd1234.")
+		print(f"\nAdmin: admin / {DEFAULT_PASSWORD}")
 
 		# Re-enable the trigger
 		await conn.execute("ALTER TABLE users ENABLE TRIGGER ensure_user_special_folders_after_insert")
