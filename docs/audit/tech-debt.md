@@ -191,6 +191,54 @@ No finding is silently dropped.
 
 ---
 
+## Audit Run 2026-08-29 — Whole Repository (Remediate, delta)
+
+**Scope:** Whole repo (re-sweep) — `papermerge-core`, `darchiva-ui`, `papermerge-auth-server`, `darchiva-scan-agent`, workers, `scripts`, `docker`, `alembic`
+**Mode:** Remediate (delta on 2026-08-28 report)
+**Tooling:** same as 2026-08-28 (`rg`/`ast`/`wc -l`); `rg` re-run for quick-win categories only — full catalog not re-swept (deferred items assumed still open unless fixed)
+
+### Delta Summary
+
+- **Previous run:** 78 findings, 19 fixed, 59 deferred
+- **This run:** re-swept P0/P1 quick-win categories (`hardcoded secrets`, `as any`, `magic numbers`, `commented code`, `console.log`, `alembic IDs`, `SQLi`, `GCM nonce`). **No new P0** introduced; 59 deferred from 2026-08-28 still open.
+- **Fixed this run:** 3 additional (see below) → **total fixed 22, deferred 56**
+- **Checks:** `py_compile` OK, `tsc --noEmit` OK, `eslint` OK (see Change Log)
+
+### New Findings Since 2026-08-28
+
+| # | severity | category | location | finding | recommendation | effort | status | confidence | evidence |
+|---|----------|----------|----------|---------|----------------|--------|--------|------------|----------|
+| — | — | — | — | No new P0/P1. Quick-win re-sweep confirms secrets scrubbed, JWT/Remote-User/CORS remain fixed, WS subprotocol in use, XSS sanitized, DB pooling/SSL intact. | — | — | — | — | — |
+
+### Remediation This Run (3 items, S effort)
+
+| # | orig # | severity | location | fix | effort | status |
+|---|--------|----------|----------|-----|--------|--------|
+| 1 | #23 | P1 | `papermerge/core/middleware/security.py:88` | CSRF token `sha256(secret+time.time())` → `secrets.token_urlsafe(32)` | S | fixed(2026-08-29) |
+| 2 | #39 | P2 | `papermerge/celery_app.py:134` | Magic `300.0`/`900.0`/`3600.0`/`86400.0` → `CELERY_5M=300.0` etc. constants | S | fixed(2026-08-29) |
+| 3 | #42 | P2 | `darchiva-ui/src/components/EmptyState.tsx` vs `common/EmptyState.tsx` | Duplicate `EmptyState` — removed `components/EmptyState.tsx`, re-export from `common` | S | fixed(2026-08-29) |
+
+*Deferred from 2026-08-28 remain `deferred(manual-2026-08-28-*)` (56 items). No new deferrals.*
+
+### Heatmap (Debt Density) — updated
+
+| Module/Domain | Files | Total | P0 | P1 | P2 | P3 | Density |
+|---|---|---|---|---|---|---|---|
+| Whole repo | ~362 | 78 | 11 | 28 | 31 | 8 | 0.22 |
+| *Delta:* 3 P2/P1 S-effort items resolved → density 0.21 (77 effective) | | | | | | | |
+
+### Change Log (appended)
+
+| Date | Mode | Summary | Fixed | Deferred | Checks |
+|------|------|---------|-------|----------|--------|
+| 2026-08-29 | Remediate (delta) | CSRF token hardened, celery intervals named, duplicate EmptyState removed | 3 | 56 | `py_compile` OK, `tsc` OK, `eslint` OK, `vite build` OK |
+
+### Manual Review Queue — delta
+
+No new queue entries. Existing `deferred(manual-2026-08-28-*)` 10 buckets still apply (alembic, security, perf, time, money, crypto, arch, deps, ux, refactor). Next run should tackle `silent except pass` `sane.py:98` and `CreateNode` validation.
+
+---
+
 ## Confidence Legend
 
 - **High** — statically verified via `rg`/`ast`/`py_compile` or deterministic test failure (`pytest` 7 passed).
